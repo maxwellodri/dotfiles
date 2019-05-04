@@ -1,0 +1,14 @@
+#!/bin/bash
+files=$(find *.pdf)
+if [ -z $files ];
+then
+    exit 0
+elif [ $(echo $files | wc -w) -ge 3 ]
+then
+    echo "Too many PDFs, $(echo $files | wc -w) is alot in i3"
+    exit 0
+fi
+for file in $files; do
+    zathura $file >> /dev/null &  #open all the pdfs in zathura in a particular directory
+done
+

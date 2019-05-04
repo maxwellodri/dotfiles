@@ -1,0 +1,27 @@
+#####################################################
+#   Extra bashrc file loaded for chromebook config  #
+#####################################################
+
+################
+#exports:
+###############
+export dotfile_tag='chromebook'
+export dotfile_screen_brightness="/sys/devices/pci0000:00/0000:00:02.0/drm/card0/card0-eDP-1/intel_backlight/brightness"
+export SD="$(realpath $HOME/sd)"
+#some gurobi specifics:
+export GUROBI_HOME="/home/maxwell/py-or/gurobi810/linux64"
+export PATH=$PATH:${GUROBI_HOME}/bin
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${GUROBI_HOME}/lib"
+export GRB_LICENSE_FILE="/home/maxwell/py-or/gurobi.lic"
+
+################
+#aliases:
+###############
+alias synaptic='sudo synaptic' #gui frontend for apt-get
+alias apt-get='sudo apt-get'
+alias dfn='df -h | grep -e mmc -e /dev/mapper -e Filesystem | grep -v /boot'
+alias pyor='source ~/py-or/bin/activate'
+alias pynum='source ~/py-num/bin/activate'
+alias deac='deactivate'
+
+

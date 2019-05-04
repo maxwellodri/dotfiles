@@ -1,0 +1,13 @@
+#####################################################
+#       Extra bashrc file loaded for pc config      #
+#####################################################
+
+################
+#exports:
+###############
+export dotfile_tag='pc'
+export HDD='$HOME/HDD'
+################
+#aliases:
+###############
+alias pacman='sudo pacman' #for arch based

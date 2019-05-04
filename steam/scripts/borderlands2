@@ -1,0 +1,5 @@
+#!/bin/bash
+#steam -applaunch 49520 #BL2 seems to crash when using the default steam mechanism, instead try and launch application directly
+cd /home/maxwell/HDD/SteamLibrary/steamapps/common/Borderlands\ 2/
+./Borderlands2
+#also need a file called 'steam_appid.txt' in the BL2 folder, with appid pasted inside it -> 49520

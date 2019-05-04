@@ -1,0 +1,7 @@
+#ignore normal i3-config file
+.config/i3/config
+.config/i3/config.extra
+#ingore logging files
+*.swp
+*.log
+*.AppImage

@@ -1,0 +1,3 @@
+#!/bin/bash
+#LD_LIBRARY_PATH=~/.steam/bin32/ ~/.steam/bin32/steam-runtime/run.sh /home/maxwell/HDD/SteamLibrary/steamapps/common/Counter-Strike\ Global\ Offensive/csgo.sh
+steam -applaunch 211820

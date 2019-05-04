@@ -1,0 +1,51 @@
+##########################################
+#PC specific customisation for i3        #
+##########################################
+
+#run install script to make proper i3 config by combining this with config.base 
+#this is only for pc specific stuff 
+
+# start a terminal
+bindsym $mod+Return exec terminator
+
+
+
+
+#use i3-status
+bar {
+	 
+        position top
+	#tray_output primary
+     #   status_command i3status 
+# --config ~/.config/i3status/config
+#-c ~/.config/i3status/config
+	status_command pasystray nm-applet caprine_messenger blueman-applet xfce4-clipman  
+	status_command i3status 
+
+ 	colors {
+        	background #999999
+            statusline #ffffff
+        	focused_workspace  #000000 #ffffff 
+        	active_workspace   #ffffff #333333
+        	inactive_workspace #000000 #aaaaaa
+            urgent_workspace   #ffffff #900000
+    	}
+#        #status_command wicd-gtk -t 
+#        colors {
+#            urgent_workspace #000000 #000000 #c0c0c0
+#        }
+}
+
+#Here executing programs on start up:
+
+exec --no-startup-id feh --bg-scale /home/maxwell/Wallpaper/disco-dingo.jpg
+exec --no-startup-id nm-applet #use this instead in addition to {systemctl enable NetworkManager.service}
+exec --no-startup-id xfce4-clipman
+exec --no-startup-id blueman-applet
+exec --no-startup-id caprine_messenger #as above
+exec --no-startup-id pasystray 
+exec --no-startup-id steam -silent
+
+
+#exec --no-startup-id start-pulseaudio-x11
+

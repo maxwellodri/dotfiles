@@ -1,0 +1,5 @@
+#!/bin/bash
+dir = $PWD
+cd /home/maxwell/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/share/doc/rust/html
+w3m -o auto_image=TRUE index.html
+cd $dir
