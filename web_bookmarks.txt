@@ -1,4 +1,0 @@
-web_bookmarks = {
-'AIBlog': ['http://bootstrappingartificialintelligence.fr/WordPress3/'],
-'RustShell': [https://www.joshmcguigan.com/blog/build-your-own-shell-rust/]
-}
