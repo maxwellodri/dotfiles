@@ -1,13 +1,14 @@
 #python3 dict containing bookmarks
 web_bookmarks = {
 'AIBlog': 'http://bootstrappingartificialintelligence.fr/WordPress3/',
-'RustShell': 'https://www.joshmcguigan.com/blog/build-your-own-shell-rust/'
-'bb': 'https://learn.uq.edu.au/webapps/login/?action=default_login'
-'desmos': 'https://www.desmos.com/calculator'
-'sinet': 'https://www.sinet.uq.edu.au/psp/ps/?cmd=login&languageCd=ENG&'
-'complex': 'https://courses.smp.uq.edu.au/MATH3401/'
-'webprint': 'https://lib-print.library.uq.edu.au:9192/user?'
-'overleaf': 'https://www.overleaf.com/project'
-'latextable': 'https://tablesgenerator.com/'
+'RustShell': 'https://www.joshmcguigan.com/blog/build-your-own-shell-rust/',
+'bb': 'https://learn.uq.edu.au/webapps/login/?action=default_login',
+'desmos': 'https://www.desmos.com/calculator',
+'sinet': 'https://www.sinet.uq.edu.au/psp/ps/?cmd=login&languageCd=ENG&',
+'complex': 'https://courses.smp.uq.edu.au/MATH3401/',
+'webprint': 'https://lib-print.library.uq.edu.au:9192/user?',
+'overleaf': 'https://www.overleaf.com/project',
+'latextable': 'https://tablesgenerator.com/',
+'zizekpetersondebate': 'https://www.youtube.com/watch?v=78BFFq_8XvM',
 }
 
