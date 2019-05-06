@@ -1,3 +1,4 @@
-fonts - inconsolatas
 https://github.com/sindresorhus/caprine/releases
 https://github.com/sindresorhus/caprine/releases/download/v2.31.0/caprine-2.31.0-x86_64.AppImage
+https://aur.archlinux.org/packages/spotblock-git/
+https://github.com/mahkoh/spotblock

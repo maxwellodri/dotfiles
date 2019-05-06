@@ -33,5 +33,5 @@
 #xterm -geometry 80x20+494-0 &
 #exec xterm -geometry 80x66+0+0 -name login
 #the real OG
-#exec /usr/bin/i3
-exec gnome-session
+exec /usr/bin/i3
+#exec gnome-session
