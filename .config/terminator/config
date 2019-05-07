@@ -30,7 +30,8 @@
 [plugins]
 [profiles]
   [[default]]
-    background_image = None
+    cursor_color = "#ffffff"
     foreground_color = "#ffffff"
+    scrollback_lines = 5000
     scrollbar_position = hidden
     show_titlebar = False
