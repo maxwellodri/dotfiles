@@ -11,3 +11,5 @@ export HDD='$HOME/HDD'
 #aliases:
 ###############
 alias pacman='sudo pacman' #for arch based
+#alias dfn='df -h | grep -e mmc -e /dev/mapper -e Filesystem | grep -v /boot'
+alias dfn='df -h | grep -v tmpfs | grep -v run '
