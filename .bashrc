@@ -34,13 +34,13 @@ alias i3sbar="vim ~/.config/i3status/config && i3-msg restart"
 alias systemctl="sudo systemctl"
 alias ls="ls --color=auto -hN --group-directories-first"
 alias l="ls --color=auto -hN --group-directories-first"
-alias lsa="ls --color=auto -hNa --group-directories-first"
+alias lsa="ls --color=auto -hNA --group-directories-first"
 alias clc="clear"
 alias cls="clear && ls"
 alias py="python3"
 alias grep="grep --color=auto"
 alias dl="cd ~/Downloads"
-alias cdr="cd $(realpath $(pwd))"
+alias bookmarks="vim $dotfiles/bin/web_bookmarks.txt"
 source ~/.bashrc_extra
 source ~/.cargo/env
 

@@ -11,6 +11,8 @@ web_bookmarks = {
 'overleaf': 'https://www.overleaf.com/project',
 'latextable': 'https://tablesgenerator.com/',
 'zizekpetersondebate': 'https://www.youtube.com/watch?v=78BFFq_8XvM',
-'johncarmacktalks': https://www.youtube.com/watch?v=IyUgHPs86XM',
+'johncarmacktalks': 'https://www.youtube.com/watch?v=IyUgHPs86XM',
+'tni': 'https://toolsnotincluded.net',
+'oniass': 'https://oni-assistant.com/',
 }
 

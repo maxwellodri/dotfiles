@@ -1,0 +1,10 @@
+#!/bin/bash
+TRUEPFX="/home/maxwell/HDD/Games/BattleNet"
+if [ $WINEPREFIX !=  $TRUEPFX ];
+then
+    export WINEPREFIX=$TRUEPFX
+fi
+
+cd $TRUEPFX/drive_c/Battle.net
+echo $PWD
+wine Battle.net.exe
