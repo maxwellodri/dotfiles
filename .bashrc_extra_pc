@@ -6,8 +6,21 @@
 #exports:
 ###############
 export dotfile_tag='pc'
-export HDD='$HOME/HDD'
+export HDD="$HOME/HDD"
 ################
 #aliases:
 ###############
 alias pacman='sudo pacman' #for arch based
+#alias dfn='df -h | grep -e mmc -e /dev/mapper -e Filesystem | grep -v /boot'
+alias dfn='df -h | grep -v tmpfs | grep -v run '
+
+#Wine:
+export WINEARCH="win64"
+#export WINEARCH="win32"
+export WINEPREFIX="~/.wine" #default
+alias winebnet="export WINEPREFIX=/home/maxwell/HDD/Games/BattleNet"
+#alias wineskyrim="export WINEPREFIX=/home/maxwell/HDD/Games/Skyrim"
+alias skyrim="cd $HDD/Games/Skyrim"
+export skyrim="/home/maxwell/HDD/Games/Skyrim"
+export MO="/home/maxwell/.skyrim/MO"
+
