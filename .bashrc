@@ -30,7 +30,6 @@ alias i3tag="vim $dotfiles/.config/i3/config.extra && $dotfiles/makesymlinks.sh 
 alias cati3="cat ~/.config/i3/config"
 alias termrc="vim ~/.config/terminator/config"
 alias i3sbar="vim ~/.config/i3status/config && i3-msg restart"
-
 alias systemctl="sudo systemctl"
 alias ls="ls --color=auto -hN --group-directories-first"
 alias l="ls --color=auto -hN --group-directories-first"
@@ -51,6 +50,10 @@ stty -ixon #Disable ctrl-s and ctrl-q
 #resolves symlinks:
 function rlinks(){
     ln -sf $(realpath $1) $(realpath $2)
+}
+
+function cdr(){
+    cd "$(realpath $PWD)"
 }
 
 

@@ -1,8 +1,0 @@
-#!/bin/bash
-if [ "$1" -n ];
-then
-    realdir="$(realpath $1)"
-    cd $realdir
-else
-    cd
-fi
