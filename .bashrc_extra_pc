@@ -17,8 +17,9 @@ alias dfn='df -h | grep -v tmpfs | grep -v run '
 #Wine:
 export WINEARCH="win64"
 #export WINEARCH="win32"
-export WINEPREFIX="~/.wine" #default
+export WINEPREFIX="/home/maxwell/.wine" #default
 alias winebnet="export WINEPREFIX=/home/maxwell/HDD/Games/BattleNet"
+alias winedef="export WINEPREFIX=/home/maxwell/.wine"
 #alias wineskyrim="export WINEPREFIX=/home/maxwell/HDD/Games/Skyrim"
 alias skyrim="cd $HDD/Games/Skyrim"
 export skyrim="/home/maxwell/HDD/Games/Skyrim"

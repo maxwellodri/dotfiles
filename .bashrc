@@ -37,6 +37,7 @@ alias l="ls --color=auto -hN --group-directories-first"
 alias lsa="ls --color=auto -hNA --group-directories-first"
 alias clc="clear"
 alias cls="clear && ls"
+alias clsa="clear && ls -A"
 alias py="python3"
 alias grep="grep --color=auto"
 alias dl="cd ~/Downloads"
@@ -46,4 +47,10 @@ source ~/.cargo/env
 
 PROMPT_COMMAND='echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD}\007"' #$USER@HOSTNAME : WORKNG DIR
 stty -ixon #Disable ctrl-s and ctrl-q
+
+#resolves symlinks:
+function rlinks(){
+    ln -sf $(realpath $1) $(realpath $2)
+}
+
 

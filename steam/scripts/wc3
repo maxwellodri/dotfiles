@@ -1,0 +1,9 @@
+#!/bin/bash
+TRUEPFX="/home/maxwell/HDD/Games/BattleNet"
+if [ $WINEPREFIX !=  $TRUEPFX ];
+then
+    export WINEPREFIX=$TRUEPFX
+fi
+
+cd $HDD/Games/BattleNet/drive_c/Warcraft\ III/
+wine Warcraft\ III.exe -opengl -nativefullscr 

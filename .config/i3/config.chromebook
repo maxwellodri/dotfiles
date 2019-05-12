@@ -42,7 +42,7 @@ bar {
 
 #Here executing programs on start up:
 exec start-pulseaudio-x11
-exec --no-startup-id feh --bg-scale /home/maxwell/sd/Wallpaper/arch-dingo.jpg
+exec --no-startup-id feh --bg-scale /home/maxwell/dotfiles/arch-dingo.jpg
 exec --no-startup-id nm-applet #use this instead in addition to {systemctl enable NetworkManager.service}
 exec --no-startup-id xfce4-power-manager
 exec --no-startup-id xfce4-clipman
