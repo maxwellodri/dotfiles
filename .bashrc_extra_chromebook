@@ -22,6 +22,7 @@ alias apt-get='sudo apt-get'
 alias dfn='df -h | grep -e mmc -e /dev/mapper -e Filesystem | grep -v /boot'
 alias pyor='source ~/py-or/bin/activate'
 alias pynum='source ~/py-num/bin/activate'
-alias deac='deactivate'
+alias deac='deactivate' #for tab completion
+
 
 

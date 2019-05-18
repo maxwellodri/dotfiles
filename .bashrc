@@ -10,12 +10,13 @@ export VISUAL='vim'
 export BIN="$HOME/bin"
 export bin="$BIN"
 export dotfiles="$HOME/dotfiles" #in general i need this to exist!!!
+export dotfile="$dotfiles" #for tab completion
 export PATH=$PATH:$BIN #add /home/$USER/bin to path
 export PATH=$PATH:"$BIN/steam_scripts" #and subfolder for steam scripts
 export PATH=$PATH:/snap/bin
 export PATH=$PATH:$bin/etc
 export PATH=$PATH:$HOME/bin
-export Downloads="$(realpath $HOME/Downloads)"
+export Downloads="$(realpath $HOME/Downloads)" #may want to symlink this
 export i3="$(which i3)"
 
 
