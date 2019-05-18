@@ -14,5 +14,6 @@ web_bookmarks = {
 'johncarmacktalks': 'https://www.youtube.com/watch?v=IyUgHPs86XM',
 'tni': 'https://toolsnotincluded.net',
 'oniass': 'https://oni-assistant.com/',
+'scihub': https://whereisscihub.now.sh/go,
 }
 
