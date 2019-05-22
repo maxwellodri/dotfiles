@@ -1,0 +1,2 @@
+Setup folder as python venv -> activate it, copy gurobi install into folder -> run setup.py install -> obtain license and activate it -> 
+set include-system-site-packages = True in pyvenv.cfg
