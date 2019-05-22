@@ -1,0 +1,3 @@
+#!/bin/bash
+#snap run caprine
+$dotfile/bin/__Caprine.AppImage --no-sandbox
