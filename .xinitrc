@@ -34,4 +34,8 @@
 #exec xterm -geometry 80x66+0+0 -name login
 #the real OG
 exec /usr/bin/i3
+if [ $dotfile_tag == "pc" ];
+then
+    nvidia-settings -a "[gpu:0]/GPUFanControlState=1" -a "[fan:0]/GPUTargetFanSpeed=30"
+fi
 #exec gnome-session

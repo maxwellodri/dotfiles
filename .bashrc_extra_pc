@@ -20,6 +20,6 @@ export WINEPREFIX="/home/maxwell/.wine" #default
 alias winebnet="export WINEPREFIX=/home/maxwell/HDD/Games/BattleNet"
 alias wineskyrim="export WINEPREFIX=/home/maxwell/HDD/Games/Skyrim/prefix"
 alias winedef="export WINEPREFIX=/home/maxwell/.wine"
-alias wineskyrim="export WINEPREFIX=/home/maxwell/HDD/Games/Skyrim"
+alias wineskyrim="export WINEPREFIX=/home/maxwell/HDD/Games/Skyrim/prefix"
 export Skyrim="/home/maxwell/HDD/Games/Skyrim"
 export MO="/home/maxwell/.skyrim/MO"
