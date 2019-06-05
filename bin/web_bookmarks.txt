@@ -15,5 +15,7 @@ web_bookmarks = {
 'tni': 'https://toolsnotincluded.net',
 'oniass': 'https://oni-assistant.com/',
 'scihub': 'https://whereisscihub.now.sh/go',
+'messenger': 'https://www.facebook.com/messages/t/',
+'sms': 'https://www.receive-sms-online.info/',
 }
 

@@ -53,15 +53,17 @@ if len(sys.argv) == 1:
     subprocess.call(['firefox','-new-tab'])
 args = ' '.join(sys.argv[1:])
 # ! is a duckduckgo bang, # is for for searching the web, override bookmarks.
-if '!' == args[0]:
-    firefox_URL = websearch(args)
-else:
-    #check for bookmarks:
-    exec(open(web_bookmarks_path).read())
-    if args not in web_bookmarks:
+try:
+    if '!' == args[0]:
         firefox_URL = websearch(args)
     else:
-        firefox_URL = web_bookmarks[args]
+        #check for bookmarks:
+        exec(open(web_bookmarks_path).read())
+        if args not in web_bookmarks:
+            firefox_URL = websearch(args)
+        else:
+            firefox_URL = web_bookmarks[args]
 #run firefox with URL:
 #print("firefox_URL:",firefox_URL)
-subprocess.call(['firefox','-new-tab', firefox_URL])
+    subprocess.call(['firefox','-new-tab', firefox_URL])
+except: subprocess.call(['firefox','-new-tab'])

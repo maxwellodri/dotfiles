@@ -18,6 +18,8 @@ export PATH=$PATH:$bin/etc
 export PATH=$PATH:$HOME/bin
 export Downloads="$(realpath $HOME/Downloads)" #may want to symlink this
 export i3="$(which i3)"
+export src="$HOME/src"
+export bookmarks="$dotfile/bin/web_bookmarks.txt"
 
 
 ################

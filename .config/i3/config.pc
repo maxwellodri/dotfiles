@@ -42,7 +42,7 @@ exec --no-startup-id feh --bg-scale /home/maxwell/dotfiles/arch-dingo.jpg
 exec --no-startup-id nm-applet #use this instead in addition to {systemctl enable NetworkManager.service}
 exec --no-startup-id xfce4-clipman
 exec --no-startup-id blueman-applet
-exec --no-startup-id caprine #as above
+#exec --no-startup-id caprine #as above
 exec --no-startup-id pasystray 
 exec --no-startup-id steam -silent
 
