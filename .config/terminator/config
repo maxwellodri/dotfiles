@@ -3,6 +3,7 @@
   close_button_on_tab = False
   enabled_plugins = LaunchpadCodeURLHandler, APTURLHandler, LaunchpadBugURLHandler
   focus = mouse
+  window_state = maximise
 [keybindings]
   close_term = <Ctrl>W
   new_tab = <Ctrl>T

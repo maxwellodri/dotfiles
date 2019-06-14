@@ -20,7 +20,7 @@ export Downloads="$(realpath $HOME/Downloads)" #may want to symlink this
 export i3="$(which i3)"
 export src="$HOME/src"
 export bookmarks="$dotfile/bin/web_bookmarks.txt"
-
+export dl="$Downloads"
 
 ################
 #aliases:
