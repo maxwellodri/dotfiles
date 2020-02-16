@@ -3,15 +3,18 @@
 # This script creates symlinks from the home directory to any desired dotfiles in ~/dotfiles, set by the variable 'files' below
 ############################
 
-########## Variables
+########### Variables
+dotfiles=$(dirname $(readlink -f $0)) #not POSIX - search around for a POSIX solution if needed
 i3config=.config/i3/config #less annoying than writing fullpath
 i3statusconfig=.config/i3status/config
 terminatorconfig=.config/terminator/config
-dir=~/dotfiles                    # dotfiles directory
+dir=$dotfiles                   # dotfiles directory
 olddir=~/.dotfiles_old             # old dotfiles backup directory
-files=".bashrc .vimrc .bashrc_extra .bashrc_cdr $i3config $i3statusconfig $terminatorconfig"    # list of files/folders to symlink in homedir
+files=" .bashrc .vimrc .bashrc_extra .bashrc_cdr $i3config $i3statusconfig $terminatorconfig"    # list of files/folders to symlink in homedir
 pcfiles=" .xinitrc .bash_profile" #platform specific dotfiles
+laptopfiles=" .xinitrc .bash_profile"
 chromebookfiles=" "
+
 ##########
 
 echo -e "Beginning script...\n"
@@ -19,11 +22,15 @@ echo -e "Beginning script...\n"
 if [ "$1" == "chromebook" ]
 then
     tag="chromebook"
-    files=$files$chromebookfiles
+    files=$chromebookfiles$files
+elif [ "$1" == "laptop" ]
+then
+	tag="laptop"
+	files=$laptopfiles$files
 elif [ "$1" == "pc" ]
 then
     tag="pc"
-    files=$files$chromebookfiles
+    files=$chromebookfiles$files
 elif [ "$!" == "empty" ]
 then 
     tag="empty"
@@ -34,17 +41,20 @@ then
         tag=$dotfile_tag
         if [ $tag == "pc" ];
         then
-            files="$files$pcfiles"
+            files="$pcfiles$files"
+	elif [ $tag == "laptop" ];
+	then
+		files="$laptopfiles$files"
         elif [ $tag == "chromebook" ];
         then
-            files="$files$pcfiles"
+            files="$pcfiles$files"
         fi
     fi
 else
     tag="empty"
     echo -e "Use first argument as either chromebook or pc for specific extra dotfiles, otherwise adding empty dotfile" 
 fi
-echo -e "Using $tag setup\n"
+echo -e "Using $tag setup\n Installing files: $files"
 
 
 
