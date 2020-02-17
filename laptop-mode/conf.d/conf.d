@@ -1,0 +1,1 @@
+/home/maxwell/git-personal-AUR/dotfiles/laptop-mode/conf.d

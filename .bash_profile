@@ -2,8 +2,6 @@ export PATH="$PATH:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/bin/site_perl:/u
 export PATH="$HOME/.cargo/bin:$PATH"
 export VK_ICO_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json 
 source /home/maxwell/.bashrc
-#below needed for gnome
-export GDK_BACKEND=x11
 if [[ ! $DISPLAY && $XDG_VTNR -eq 1 ]]; then
     startx /usr/bin/i3
 fi

@@ -9,8 +9,6 @@ export EDITOR='vim'
 export VISUAL='vim'
 export BIN="$HOME/bin"
 export bin="$BIN"
-export dotfiles="$HOME/dotfiles" #in general i need this to exist!!!
-export dotfile="$dotfiles" #for tab completion
 export PATH=$PATH:$BIN #add /home/$USER/bin to path
 export PATH=$PATH:"$BIN/steam_scripts" #and subfolder for steam scripts
 export PATH=$PATH:/snap/bin
@@ -26,6 +24,7 @@ export dl="$Downloads"
 #aliases:
 ###############
 alias bashrc="vim ~/.bashrc && source ~/.bashrc"
+alias xinitrc="vim ~/.xinitrc"
 alias vimrc="vim ~/.vimrc"
 alias i3rc="vim $dotfiles/.config/i3/config.base && $dotfiles/makesymlinks.sh $dotfile_tag >> /dev/null && i3-msg reload"
 alias bashrctag="vim ~/.bashrc_extra && source ~/.bashrc"

@@ -118,7 +118,7 @@ for file in $files; do
     echo $file
 done
 echo -e "\nRun source ~/.bashrc for convenience..."
-source ~/.bashrc
+source $HOME/.bashrc
 echo -e "Done.\n"
 echo -e "tag variable used = $tag"
 echo -e "\nScript is finished.\n"

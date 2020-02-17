@@ -11,3 +11,6 @@ export dotfile_tag='laptop'
 ###############
 alias pacman='sudo pacman' #for arch based
 alias dfn='df -h | grep -v tmpfs | grep -v run '
+
+export dotfiles="/home/maxwell/git-AUR-personal/dotfiles" #dotfiles git repo
+export dotfile="$dotfiles" #for tab completion
