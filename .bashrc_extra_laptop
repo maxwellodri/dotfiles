@@ -6,11 +6,11 @@
 #exports:
 ###############
 export dotfile_tag='laptop'
+export dotfiles="/home/maxwell/git-personal-AUR/dotfiles" #dotfiles git repo
+export dotfile="$dotfiles" #for tab completion
 ################
 #aliases:
 ###############
 alias pacman='sudo pacman' #for arch based
 alias dfn='df -h | grep -v tmpfs | grep -v run '
-
-export dotfiles="/home/maxwell/git-AUR-personal/dotfiles" #dotfiles git repo
-export dotfile="$dotfiles" #for tab completion
+alias sshuq="ssh -Y -C remote.labs.eait.uq.edu.au -l s4437079"
