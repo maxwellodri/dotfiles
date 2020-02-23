@@ -6,6 +6,7 @@
   window_state = maximise
 [keybindings]
   close_term = <Ctrl>W
+  help = F12
   new_tab = <Ctrl>T
   next_tab = <Ctrl>Tab
   prev_tab = <Ctrl><Shift>Tab
@@ -31,8 +32,12 @@
 [plugins]
 [profiles]
   [[default]]
+    copy_on_selection = True
     cursor_color = "#ffffff"
+    cursor_color_fg = False
+    delete_binding = ascii-del
     foreground_color = "#ffffff"
+    palette = "#000000:#aa0000:#00aa00:#aa5500:#0000aa:#aa00aa:#00aaaa:#aaaaaa:#555555:#ff5555:#55ff55:#ffff55:#5555ff:#ff55ff:#55ffff:#ffffff"
     scrollback_lines = 5000
     scrollbar_position = hidden
     show_titlebar = False

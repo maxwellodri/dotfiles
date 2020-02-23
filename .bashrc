@@ -21,13 +21,14 @@ export bookmarks="$dotfile/bin/web_bookmarks.txt"
 export dl="$Downloads"
 
 ################
-#aliases:
+#Aliases:
 ###############
 alias bashrc="vim ~/.bashrc && source ~/.bashrc"
-alias xinitrc="vim ~/.xinitrc"
+alias xrc="vim ~/.xinitrc"
 alias vimrc="vim ~/.vimrc"
 alias i3rc="vim $dotfiles/.config/i3/config.base && $dotfiles/makesymlinks.sh $dotfile_tag >> /dev/null && i3-msg reload"
 alias bashrctag="vim ~/.bashrc_extra && source ~/.bashrc"
+alias bashprofile="vim ~/.bash_profile"
 alias i3tag="vim $dotfiles/.config/i3/config.extra && $dotfiles/makesymlinks.sh $dotfile_tag >> /dev/null && i3-msg reload"
 alias cati3="cat ~/.config/i3/config"
 alias termrc="vim ~/.config/terminator/config"
@@ -39,21 +40,27 @@ alias lsa="ls --color=auto -hNA --group-directories-first"
 alias clc="clear"
 alias cls="clear && ls"
 alias clsa="clear && ls -A"
-alias py="python3"
 alias grep="grep --color=auto"
 alias dl="cd ~/Downloads"
 alias bookmarks="vim $dotfiles/bin/web_bookmarks.txt"
+
+################
+#Extras
+################
 source ~/.bashrc_extra
 source ~/.cargo/env
-
 PROMPT_COMMAND='echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD}\007"' #$USER@HOSTNAME : WORKNG DIR
 stty -ixon #Disable ctrl-s and ctrl-q
+
+################
+#Functions
+################
 
 #resolves symlinks:
 function rlinks(){
     ln -sf $(realpath $1) $(realpath $2)
 }
-
+#resolve symlink hell when cd'ing and send self to realpath of present dir
 function cdr(){
     cd "$(realpath $PWD)"
 }

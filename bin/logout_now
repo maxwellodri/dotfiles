@@ -1,2 +1,4 @@
 #!/bin/bash
-i3-msg exit && clear && logout
+i3-msg exit
+sleep 1
+exit

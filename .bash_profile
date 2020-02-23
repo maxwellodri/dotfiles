@@ -6,3 +6,5 @@ if [[ ! $DISPLAY && $XDG_VTNR -eq 1 ]]; then
     startx /usr/bin/i3
 fi
 
+
+
