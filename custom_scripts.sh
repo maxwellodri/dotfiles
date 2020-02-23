@@ -5,7 +5,7 @@ mkdir -p $bin
 cd $dotfiles/bin
 for file in $(realpath $(find)); do
     ln -sf $file $bin
-    #echo $file
+    echo "Added to bin: $file
 done
 
 

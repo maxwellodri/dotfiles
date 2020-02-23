@@ -48,6 +48,7 @@ exec --no-startup-id nm-applet #use this instead in addition to {systemctl enabl
 exec --no-startup-id xfce4-clipman
 #exec --no-startup-id caprine #as above
 exec --no-startup-id pasystray 
+exec --no-startup-id /home/maxwell/git-personal-AUR/dotfiles/button/laptop-startup-multiptap.sh 
 
 
 #exec --no-startup-id start-pulseaudio-x11
