@@ -7,6 +7,9 @@
 
 # start a terminal
 bindsym $mod+Return exec terminator
+bindsym XF86MonBrightnessDown exec $dotfile/button/laptop-screen-brightness-d 
+bindsym XF86MonBrightnessUp exec $dotfile/button/laptop-screen-brightness-u 
+
 
 
 

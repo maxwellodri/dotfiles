@@ -1,0 +1,7 @@
+#!/bin/bash
+brightness=$(cat $dotfile_screen_brightness)
+if [ $brightness -le 5000 ];
+then
+    echo "$((10#$brightness + 1000))" > $dotfile_screen_brightness
+fi
+
