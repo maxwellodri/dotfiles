@@ -9,6 +9,7 @@ export dotfile_tag='laptop'
 export dotfiles="/home/maxwell/git-personal-AUR/dotfiles" #dotfiles git repo
 export dotfile="$dotfiles" #for tab completion
 export dotfile_screen_brightness="/sys/devices/pci0000:00/0000:00:02.0/drm/card0/card0-eDP-1/intel_backlight/brightness"
+export uni="$HOME/uni"
 ################
 #aliases:
 ###############

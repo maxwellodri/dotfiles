@@ -4,8 +4,11 @@
 mkdir -p $bin
 cd $dotfiles/bin
 for file in $(realpath $(find)); do
-    ln -sf $file $bin
-    echo "Added to bin: $file
+    if [ "$file" != "$dotfiles/bin" ];
+    then
+        ln -sf $file $bin
+        echo "Added to bin: $file"
+    fi
 done
 
 
