@@ -1,0 +1,3 @@
+#pacmixer for ncurses UX, pa-ctl for direct input ctl
+pulseaudio-ctl
+pacmixer

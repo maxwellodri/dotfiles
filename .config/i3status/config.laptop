@@ -1,27 +1,48 @@
-general {
+py3status {
+    align = 'left'
+    markup = 'pango'
+    min_width = True
 
-	output_format = "i3bar"
-	colors = true
-	interval = 5
+    separator = False
+    separator_block_width = 10
+
+    background = "#999999"
+    border = "#999999"
+
+    border_bottom = 1
+    border_left = 1
+    border_right = 1
+    border_top = 1
+
+    min_length = 3
+    position = 'center'
 }
 
-order += "tztime local"
-order += "battery 0"
+order += "clock"
+order += "battery_level"
+order += "volume master"
 
 
-tztime local {
-	align = "center"
-        format = "%H:%M %d/%m/%y"
+volume master {
+
+# control the volume with your mouse (need >i3-4.8)
+# toggle mute/unmute when I right click
+# increase the volume when I scroll the mouse wheel up
+# decrease the volume when I scroll the mouse wheel down
+
+    format = "♪:%volume"
+    device = "default"
+    mixer = "Master"
+    mixer_idx = 0
+    on_click 1 = "exec pacmixer-toggle" #LMB
+    on_click 2 = "exec pulseaudio-ctl mute-input toggle" #MMB
+    on_click 3 = "exec pulseaudio-ctl mute"  #RMB
+    on_click 4 = "exec pulseaudio-ctl up 1" #scroll up
+    on_click 5 = "exec pulseaudio-ctl down 1" #scroll down
 }
 
-battery 0 {
-    integer_battery_capacity = true
-    format = "%status %percentage"
-    format_down = "No battery"
-    status_chr = "⚇"
-    status_bat = "⚡"
-    status_full = "☻"
-    path = "/sys/class/power_supply/BAT0/uevent"
-    low_threshold = 10
-}
+
+
+
+
 

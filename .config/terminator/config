@@ -6,7 +6,8 @@
   window_state = maximise
 [keybindings]
   close_term = <Ctrl>W
-  help = F12
+  full_screen = KP_Subtract
+  help = KP_Subtract
   new_tab = <Ctrl>T
   next_tab = <Ctrl>Tab
   prev_tab = <Ctrl><Shift>Tab

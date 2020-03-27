@@ -19,5 +19,7 @@ web_bookmarks = {
 'fb': 'https://www.facebook.com/messages/t/',
 'sms': 'https://www.receive-sms-online.info/',
 'timetable': 'https://auth.uq.edu.au/idp/module.php/core/loginuserpass.php?AuthState=_f8d1e058a941bb236cb3a377ac119f62a04262bd8b%3Ahttps%3A%2F%2Fauth.uq.edu.au%2Fidp%2Fsaml2%2Fidp%2FSSOService.php%3Fspentityid%3Daplus-prd-even%26cookieTime%3D1582498751',
+'spotify': 'https://accounts.spotify.com/en/login?continue=https:%2F%2Fopen.spotify.com%2F',
+
 }
 

@@ -4,3 +4,4 @@ https://aur.archlinux.org/packages/spotblock-git/
 https://github.com/mahkoh/spotblock
 
 https://appget.net/packages/?q= #windows package manager alternative to chocolately or scoop ?? 
+https://fifteen.ai/
