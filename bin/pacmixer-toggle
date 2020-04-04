@@ -1,7 +1,0 @@
-#!/bin/sh
-if pgrep -x "pacmixer" >/dev/null
-then
-   killall pacmixer
-else
-    terminator -e pacmixer
-fi

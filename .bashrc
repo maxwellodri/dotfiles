@@ -2,6 +2,7 @@
 #exports:
 ###############
 export PATH=$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin #set some nice paths
+export TERM='terminator'
 export WEB='firefox'
 export EMAIL='maxwellodri@gmail.com'
 export EMAILCLIENT='thunderbird'
@@ -15,7 +16,6 @@ export PATH=$PATH:/snap/bin
 export PATH=$PATH:$bin/etc
 export PATH=$PATH:$HOME/bin
 export Downloads="$(realpath $HOME/Downloads)" #may want to symlink this
-export i3="$(which i3)"
 export src="$HOME/src"
 export bookmarks="$dotfile/bin/web_bookmarks.txt"
 export dl="$Downloads"
@@ -43,6 +43,7 @@ alias clsa="clear && ls -A"
 alias grep="grep --color=auto"
 alias dl="cd ~/Downloads"
 alias bookmarks="vim $dotfiles/bin/web_bookmarks.txt"
+alias todo='vim ~/todo'
 
 ################
 #Extras
@@ -70,5 +71,6 @@ function rlinks(){
 function cdr(){
     cd "$(realpath $PWD)"
 }
+
 
 

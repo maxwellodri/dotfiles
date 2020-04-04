@@ -53,6 +53,10 @@ bindsym $mod+Down focus down
 bindsym $mod+Up focus up
 bindsym $mod+Right focus right
 
+#lower and raise audio with pulseaudio-ctl
+bindsym XF86AudioRaiseVolume exec pulseaudio-ctl up
+bindsym XF86AudioLowerVolume exec pulseaudio-ctl down
+
 # move focused window
 bindsym $mod+Shift+h move left
 bindsym $mod+Shift+j move down

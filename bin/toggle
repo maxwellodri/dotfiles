@@ -1,0 +1,15 @@
+#!/bin/sh
+#shell script to turn a program on and off
+NPROC=$(pgrep -x $1 | wc -l)
+if [ $NPROC -eq 0 ];
+then
+    if [ "$2" = "term" ];
+    then
+        exec $TERM -e $1
+    else
+        exec $1
+    fi
+elif [ $NPROC -ne 0 ];
+then
+    killall $1
+fi

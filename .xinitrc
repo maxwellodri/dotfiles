@@ -40,10 +40,14 @@ then
     nvidia-settings -a "[gpu:0]/GPUFanControlState=1" -a "[fan:0]/GPUTargetFanSpeed=30"
 fi
 
-#if [ $dotfile_tag = "laptop" ]; then
+
+
+if [ $dotfile_tag = "laptop" ]; then
 #    xinput set-prop 10 299 1 #enable tapping on touchpad gestures
-#    setxkbmap caps:F13
+    setxkbmap caps:F13
 #    touch $HOME/touchfile
-#fi
+
+    exec /usr/bin/i3
+fi
 
 #exec gnome-session

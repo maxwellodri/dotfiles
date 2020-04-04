@@ -1,0 +1,18 @@
+#!/bin/sh
+
+
+#MACROS:
+
+#WORKSPACE:
+if [ -z $2 ]
+then
+    WS=$(i3ws) #function in bashprofile
+else
+    WS=$2
+fi
+
+i3-msg "workspace $WS; append_layout $dotfiles/bin/vide.json"
+
+
+
+
