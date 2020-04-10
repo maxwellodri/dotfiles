@@ -15,10 +15,23 @@ export PATH=$PATH:"$BIN/steam_scripts" #and subfolder for steam scripts
 export PATH=$PATH:/snap/bin
 export PATH=$PATH:$bin/etc
 export PATH=$PATH:$HOME/bin
-export Downloads="$(realpath $HOME/Downloads)" #may want to symlink this
 export src="$HOME/src"
-export bookmarks="$dotfile/bin/web_bookmarks.txt"
-export dl="$Downloads"
+export dl="$HOME/Downloads"
+
+
+################
+#Extras
+################
+if [ -e ~/.bashrc_extra ]; #check if file exists first, allows for symlinks
+then
+    source "$HOME/.bashrc_extra"
+fi
+if [ -e ~/.cargo/env ];
+then
+    source "$HOME/.cargo/env"
+fi
+PROMPT_COMMAND='echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD}\007"' #$USER@HOSTNAME : WORKNG DIR
+stty -ixon #Disable ctrl-s and ctrl-q
 
 ################
 #Aliases:
@@ -45,19 +58,6 @@ alias dl="cd ~/Downloads"
 alias bookmarks="vim $dotfiles/bin/web_bookmarks.txt"
 alias todo='vim ~/todo'
 
-################
-#Extras
-################
-if [ -e ~/.bashrc_extra ]; #check if file exists first, allows for symlinks
-then
-    source ~/.bashrc_extra
-fi
-if [ -e ~/.cargo/env ];
-then
-    source ~/.cargo/env
-fi
-PROMPT_COMMAND='echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD}\007"' #$USER@HOSTNAME : WORKNG DIR
-stty -ixon #Disable ctrl-s and ctrl-q
 
 ################
 #Functions
@@ -65,11 +65,11 @@ stty -ixon #Disable ctrl-s and ctrl-q
 
 #resolves symlinks:
 function rlinks(){
-    ln -sf $(realpath $1) $(realpath $2)
+    ln -sf "$(realpath "$1")" "$(realpath "$2")"
 }
 #resolve symlink hell when cd'ing and send self to realpath of present dir
 function cdr(){
-    cd "$(realpath $PWD)"
+    cd "$(realpath "$PWD")" || return
 }
 
 

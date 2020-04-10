@@ -1,7 +1,8 @@
-#ignore normal i3-config file
+#ignore normal i3-config file, for reference they are created by shell script with cat from base i3 config + device specific config file, check ~/.bashrc for aliases 
 .config/i3/config
+ #its just a symlink:
 .config/i3/config.extra
-#ingore logging files
 *.swp
 *.log
 *.AppImage
+todo

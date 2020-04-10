@@ -19,3 +19,4 @@ alias sshuq="ssh -Y -C remote.labs.eait.uq.edu.au -l s4437079"
 
 alias bsprc='vim ~/.config/bspwm/bspwmrc'
 alias sxrc='vim ~/.config/sxhkd/sxhkdrc'
+alias pychem='source ~/pyvenv/pychem/bin/activate'

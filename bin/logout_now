@@ -1,4 +1,4 @@
 #!/bin/bash
-i3-msg exit
+exec i3-msg exit
 sleep 1
 exit

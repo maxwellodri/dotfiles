@@ -4,7 +4,7 @@
 ############################
 
 ########### Variables
-dotfiles=$(dirname $(readlink -f $0)) #not POSIX - search around for a POSIX solution if needed
+dotfiles="$(dirname "$(readlink -f "$0")")" #not POSIX - search around for a POSIX solution if needed
 i3config=.config/i3/config #less annoying than writing fullpath
 i3statusconfig=.config/i3status/config
 bspwmconfig=.config/bspwm/bspwmrc
@@ -13,7 +13,7 @@ terminatorconfig=.config/terminator/config
 pactl=.config/pulseaudio-ctl/config
 dir=$dotfiles                   # dotfiles directory
 olddir=~/.dotfiles_old             # old dotfiles backup directory
-files=" .bashrc .vimrc .bashrc_extra .bashrc_cdr $i3config $i3statusconfig $terminatorconfig $pactl todo"    # list of files/folders to symlink in homedir
+files=" .bashrc .vimrc .bashrc_extra .bashrc_cdr $i3config $i3statusconfig $terminatorconfig $pactl todo .inputrc"    # list of files/folders to symlink in homedir
 pcfiles=" .xinitrc .bash_profile" #platform specific dotfiles
 laptopfiles=" .xinitrc .bash_profile $bspwmconfig $sxhkdconfig"
 chromebookfiles=" "

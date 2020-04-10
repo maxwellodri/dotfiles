@@ -9,8 +9,10 @@ cd ~/.vim/bundle && \
 git clone https://github.com/tpope/vim-sensible.git
 git clone https://github.com/rust-lang/rust.vim #rustc syntax highlighting
 git clone https://github.com/ycm-core/YouCompleteMe #autocomplete - requires at minmum python3, cmake and vim - node, npm, rust, go mono are useful
+git clone https://github.com/preservim/nerdtree.git ~/.vim/bundle/nerdtree
+git clone --depth=1 https://github.com/vim-syntastic/syntastic.git
 cd YouCompleteMe && git submodule update --init --recursive 
-curl -LSO https://raw.githubusercontent.com/tomasr/molokai/master/colors/molokai.vim #molokai theme
+cd ~/.vim/colors && curl -LSO https://raw.githubusercontent.com/tomasr/molokai/master/colors/molokai.vim #molokai theme
 
 
 #https://github.com/szymonmaszke/vimpyter #for jupyter notebook

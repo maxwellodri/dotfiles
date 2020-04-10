@@ -10,6 +10,8 @@
   full_screen = KP_Subtract
   help = KP_Subtract
   new_tab = <Ctrl>T
+  new_terminator = <Super>KP_Subtract
+  new_window = <Super>BackSpace
   next_tab = <Ctrl>Tab
   prev_tab = <Ctrl><Shift>Tab
   switch_to_tab_1 = <Alt>1

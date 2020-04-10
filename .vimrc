@@ -41,10 +41,30 @@ set sessionoptions-=options
 
 autocmd Filetype make set noexpandtab
 autocmd FileType tex setlocal spell spelllang=en_au
-
-autocmd Filetype python set shiftwidth=4
 autocmd Filetype c set shiftwidth=4
 
+"Python
+"let python_highlight_all=1
+autocmd Filetype python set tabstop=4 
+autocmd Filetype python set softtabstop=4
+autocmd Filetype python set shiftwidth=4
+"autocmd Filetype python set textwidth=79
+autocmd Filetype python set autoindent 
+autocmd Filetype python set expandtab
+autocmd Filetype python set fileformat=unix 
 
+"NERDTREE
+let g:NERDTreeWinSize=15
+map <C-a> :NERDTreeToggle<CR>
+
+"Syntastic
+set statusline+=%#warningmsg#
+set statusline+=%{SyntasticStatuslineFlag()}
+set statusline+=%*
+
+let g:syntastic_always_populate_loc_list = 1
+let g:syntastic_auto_loc_list = 1
+let g:syntastic_check_on_open = 1
+let g:syntastic_check_on_wq = 0
 
 
