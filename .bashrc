@@ -28,7 +28,7 @@ then
 fi
 if [ -e ~/.cargo/env ];
 then
-    source "$HOME/.cargo/env"
+    . "$HOME/.cargo/env"
 fi
 PROMPT_COMMAND='echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD}\007"' #$USER@HOSTNAME : WORKNG DIR
 stty -ixon #Disable ctrl-s and ctrl-q
@@ -71,6 +71,5 @@ function rlinks(){
 function cdr(){
     cd "$(realpath "$PWD")" || return
 }
-
 
 

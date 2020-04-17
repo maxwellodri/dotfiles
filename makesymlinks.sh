@@ -1,130 +1,137 @@
-#!/bin/bash
+#!/bin/dash
 ############################
-# This script creates symlinks from the home directory to any desired dotfiles in ~/dotfiles, set by the variable 'files' below
+# This script creates symlinks from the home directory to any desired dotfiles in ~/dotfiles, set by the variables below
 ############################
 
-########### Variables
-dotfiles="$(dirname "$(readlink -f "$0")")" #not POSIX - search around for a POSIX solution if needed
-i3config=.config/i3/config #less annoying than writing fullpath
-i3statusconfig=.config/i3status/config
-bspwmconfig=.config/bspwm/bspwmrc
-sxhkdconfig=.config/sxhkd/sxhkdrc
-terminatorconfig=.config/terminator/config
-pactl=.config/pulseaudio-ctl/config
+########### Fixed Variables (dont change) 
+dotfiles="$(dirname "$(readlink -f "$0")")" #foldername 
 dir=$dotfiles                   # dotfiles directory
 olddir=~/.dotfiles_old             # old dotfiles backup directory
-files=" .bashrc .vimrc .bashrc_extra .bashrc_cdr $i3config $i3statusconfig $terminatorconfig $pactl todo .inputrc"    # list of files/folders to symlink in homedir
-pcfiles=" .xinitrc .bash_profile" #platform specific dotfiles
-laptopfiles=" .xinitrc .bash_profile $bspwmconfig $sxhkdconfig"
+i3config=.config/i3/config #combines with below to make i3 
+i3statusconfig=.config/i3status/config
+
+terminatorconfig=.config/terminator/config
+#bspwmconfig=.config/bspwm/bspwmrc
+#sxhkdconfig=.config/sxhkd/sxhkdrc
+
+########### Meta Variables
+#bsp=" $bspwmconfig $sxhkdconfig" #these arent finished yet in the git repo!
+pactl=.config/pulseaudio-ctl/config
+i3=" $i3config $i3statusconfig" #i3wm
+xfiles=" .xinitrc $terminatorconfig"
+bash=" .bashrc .bashrc_extra .bash_profile"
+files=" .vimrc"    
+########### Variables
+pcfiles=" " #platform specific dotfiles
+laptopfiles=" $pactl $i3 $bash"
+thinkpadfiles=" "
 chromebookfiles=" "
+rpifiles=" "
 
 ##########
 
-echo -e "Beginning script...\n"
+echo "Beginning script..."
 #figure out which system we are on by first variable i.e. $1:
-if [ "$1" == "chromebook" ]
-then
-    tag="chromebook"
-    files=$chromebookfiles$files
-elif [ "$1" == "laptop" ]
-then
-	tag="laptop"
-	files=$laptopfiles$files
-elif [ "$1" == "pc" ]
-then
-    tag="pc"
-    files=$chromebookfiles$files
-elif [ "$!" == "empty" ]
-then 
-    tag="empty"
-elif [ -z $1 ]
-then
-    if [ -n $1 ]
-    then
-        tag=$dotfile_tag
-        if [ $tag == "pc" ];
-        then
-            files="$pcfiles$files"
-	elif [ $tag == "laptop" ];
-	then
-		files="$laptopfiles$files"
-        elif [ $tag == "chromebook" ];
-        then
-            files="$pcfiles$files"
-        fi
-    fi
-else
-    tag="empty"
-    echo -e "Use first argument as either chromebook or pc for specific extra dotfiles, otherwise adding empty dotfile" 
-fi
-echo -e "Using $tag setup\n Installing files: $files"
 
+case $1 in
+    "chromebook")   tag="$1"
+                    files=$chromebookfiles$files
+                    ;;
 
+    "laptop")       tag="$1"
+                    files=$laptopfiles$xfiles$files
+                    ;;
 
+    "pc")           tag="$1"
+                    files=$pcfiles$files
+                    ;;
 
+    "thinkpad")     tag="$1"
+                    files=$thinkpadfiles$xfiles$files
+                    ;;
 
+    "rpi")          tag="$1"
+                    files=$rpifiles$files
+                    ;;
+
+    *)              if [ -n "$dotfiles_tag" ]; then
+                        #if dotfiles_tag is defined, in bashrc_extra or similar, then dont need to explicitly pass $1, and can infer from this
+                        tag="$dotfiles_tag"                      
+                    else
+                        echo "Pick a device and pass as first argument" 
+                        echo "Exiting..."
+                        exit
+                    fi
+                    ;;
+
+esac
 # create dotfiles_old in homedir
 echo "Creating $olddir for backup of any existing dotfiles in ~"
 mkdir -p $olddir
 echo "...done"
 
 
-echo -e "\nMaking needed parent directories, ignore any warnings about existing folders..."
+echo ""
+echo "Making needed parent directories, ignore any warnings about existing folders..."
 for file in $files; do
-    parent=$(dirname $file)
-    mkdir -p ~/$parent
-    mkdir -p $olddir/$parent
+    parent="$(dirname "$file")"
+    mkdir -p "$HOME/$parent"
+    mkdir -p "$olddir/$parent"
 done
-echo -e "Done making parent directories.\n"
+echo "Done making parent directories."
+echo ""
 
 # change to the dotfiles directory
-echo "Changing to the $dir directory"
-cd $dir
-echo -e "...Done\n"
+echo "Changing directory to $dir"
+cd "$dir" || exit
+echo "...Done"
+echo ""
 
 
 # move any existing dotfiles in homedir to dotfiles_old directory, then create symlinks 
 for file in $files; do
-    if [ $file == "$i3config" ]
-    then
-        #for i3-config we build it from source files, since i3 doesnt allow for multiple config files:
-        #first make backup:
-	echo "Making backup of old i3-config."
-        mv $dir/$file $olddir/$file.bak
-        #now build from source files:
-        echo "#Dont edit this file directly, instead edit the src files and rebuild" > $dir/$file
-        echo -e "\n" >> $dir/$file
-        #.config/i3/config.base and .config/i3/config/$tag where $tag can be pc/empty/chromebook etc
-        if [ ! -f "$dir/$file.$tag" ]
-        then 
-            echo -e "Custom config for $tag not found, using empty one...\n"
-            cat $dir/$file.base $dir/$file.empty >> $dir/$file
-            ln -sf $dir/$file.empty $dir/$file.extra
-        else
-            cat $dir/$file.base $dir/$file.$tag >> $dir/$file
-            ln -sf $dir/$file.$tag $dir/$file.extra
-        fi
-    fi
-    echo "Moving any existing $file from ~ to $olddir"
-    mv ~/$file $olddir
-    if [ ".bashrc_extra" == $file ]
-    then
-        src="$dir/.bashrc_extra_$tag"
-    elif [ "$i3statusconfig" == $file ]
-    then
-        src="$dir/$file.$tag"
-    else
-        src=$dir/$file
-    fi
-    echo  -e "Creating symlink from $src to ~/$file.\n"
-    ln -s $src ~/$file
-    echo $file
+    echo "Moving any existing $file from ~/ to $olddir"
+    mv "$HOME/$file" "$olddir"
+    case "$file" in
+
+        "$i3config")            echo "Making backup of old i3-config."
+                                mv "$dir/$file" "$olddir/$file.bak"
+                                #now cat from source files:
+                                echo "#Dont edit this file directly, instead edit the src files and rebuild" > "$dir/$file" #a comment
+                                echo " " >> "$dir/$file"
+                                #.config/i3/config.base and .config/i3/config/$tag where $tag can be pc/empty/chromebook etc
+                                if [ ! -f "$dir/$file.$tag" ]; then 
+                                    echo "Custom config for $tag not found, ignoring..."
+                                    echo " "
+                                    cat "$dir/$file.base" >> "$dir/$file"
+                                else
+                                    ln -sf "$dir/$file.$tag" "$dir/$file.extra"
+                                    cat "$dir/$file.base" "$dir/$file.$tag" >> "$dir/$file"
+                                fi
+                                src="$dir/$file"
+                                ;;
+
+        ".bashrc_extra")         src="$dir/.bashrc_extra_$tag"
+                                ;;
+
+        "$i3statusconfig")       src="$dir/$file.$tag"
+                                ;;
+        
+        ".xinitrc")             src="$dir/$file.$tag"
+                                ;;
+                        
+
+        *)                      src="$dir/$file"
+                                ;;
+    
+    esac 
+    echo "Creating symlink from $src to ~/$file."
+    echo "$src $tag"
+    echo " "
+    ln -s "$src" "$HOME/$file"
+
 done
-echo -e "\nRun source ~/.bashrc for convenience..."
-source $HOME/.bashrc
-echo -e "Done.\n"
-echo -e "tag variable used = $tag"
-echo -e "\nScript is finished.\n"
-
-
+echo "Done."
+echo "tag variable used = $tag"
+echo "Script is finished."
 

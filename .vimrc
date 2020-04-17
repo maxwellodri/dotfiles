@@ -42,6 +42,7 @@ set sessionoptions-=options
 autocmd Filetype make set noexpandtab
 autocmd FileType tex setlocal spell spelllang=en_au
 autocmd Filetype c set shiftwidth=4
+autocmd Filetype cpp set shiftwidth=4
 
 "Python
 "let python_highlight_all=1
@@ -67,4 +68,10 @@ let g:syntastic_auto_loc_list = 1
 let g:syntastic_check_on_open = 1
 let g:syntastic_check_on_wq = 0
 
+"tagba
+nmap <C-s> :TagbarToggle<CR>
+let g:tagbar_autoclose = 1
+let g:tagbar_autofocus = 1
+"let g:tagbar_left = 1
+let g_tagbar_width = 15
 

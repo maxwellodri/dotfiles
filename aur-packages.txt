@@ -1,5 +1,0 @@
-#pacmixer for ncurses UX, pa-ctl for direct input ctl
-pulseaudio-ctl
-pacmixer
-https://github.com/enkore/i3pystatus/ #alternate to py3status
-https://github.com/Rigellute/spotify-tui #use cargo to build as AUR pkg is broken :( 
