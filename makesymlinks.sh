@@ -10,7 +10,6 @@ olddir=~/.dotfiles_old             # old dotfiles backup directory
 i3config=.config/i3/config #combines with below to make i3 
 i3statusconfig=.config/i3status/config
 
-terminatorconfig=.config/terminator/config
 #bspwmconfig=.config/bspwm/bspwmrc
 #sxhkdconfig=.config/sxhkd/sxhkdrc
 
@@ -18,13 +17,14 @@ terminatorconfig=.config/terminator/config
 #bsp=" $bspwmconfig $sxhkdconfig" #these arent finished yet in the git repo!
 pactl=.config/pulseaudio-ctl/config
 i3=" $i3config $i3statusconfig" #i3wm
-xfiles=" .xinitrc $terminatorconfig"
+xfiles=" .xinitrc"
+terminatorconfig=.config/terminator/config
 bash=" .bashrc .bashrc_extra .bash_profile"
 files=" .vimrc"    
 ########### Variables
 pcfiles=" " #platform specific dotfiles
-laptopfiles=" $pactl $i3 $bash"
-thinkpadfiles=" "
+laptopfiles=" $xfiles $pactl $i3 $bash $terminatorconfig"
+thinkpadfiles=" $xfiles $bash"
 chromebookfiles=" "
 rpifiles=" "
 
@@ -39,7 +39,7 @@ case $1 in
                     ;;
 
     "laptop")       tag="$1"
-                    files=$laptopfiles$xfiles$files
+                    files=$laptopfiles$files
                     ;;
 
     "pc")           tag="$1"
@@ -47,7 +47,7 @@ case $1 in
                     ;;
 
     "thinkpad")     tag="$1"
-                    files=$thinkpadfiles$xfiles$files
+                    files=$thinkpadfiles$files
                     ;;
 
     "rpi")          tag="$1"
@@ -119,14 +119,15 @@ for file in $files; do
         
         ".xinitrc")             src="$dir/$file.$tag"
                                 ;;
-                        
+
+        ".bash_profile")        src="$dir/$file.$tag"
+                                ;;
 
         *)                      src="$dir/$file"
                                 ;;
     
     esac 
     echo "Creating symlink from $src to ~/$file."
-    echo "$src $tag"
     echo " "
     ln -s "$src" "$HOME/$file"
 
