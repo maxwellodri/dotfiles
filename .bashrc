@@ -56,7 +56,6 @@ alias clsa="clear && ls -A"
 alias grep="grep --color=auto"
 alias dl="cd ~/Downloads"
 alias bookmarks="vim $dotfiles/bin/web_bookmarks.txt"
-alias todo='vim ~/todo'
 
 
 ################
