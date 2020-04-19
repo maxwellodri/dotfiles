@@ -11,6 +11,7 @@ git clone https://github.com/rust-lang/rust.vim #rustc syntax highlighting
 git clone https://github.com/ycm-core/YouCompleteMe #autocomplete - requires at minmum python3, cmake and vim - node, npm, rust, go mono are useful
 git clone https://github.com/majutsushi/tagbar #requires ctags
 git clone https://github.com/preservim/nerdtree.git ~/.vim/bundle/nerdtree
+git clone https://github.com/Chiel92/vim-autoformat #also make sure that default formatters are installed for each language
 git clone --depth=1 https://github.com/vim-syntastic/syntastic.git
 cd YouCompleteMe && git submodule update --init --recursive 
 cd ~/.vim/colors && curl -LSO https://raw.githubusercontent.com/tomasr/molokai/master/colors/molokai.vim #molokai theme

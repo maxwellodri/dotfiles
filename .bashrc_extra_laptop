@@ -22,6 +22,5 @@ alias sshuq="ssh -Y -C remote.labs.eait.uq.edu.au -l s4437079"
 alias pychem='source ~/pyvenv/pychem/bin/activate'
 alias pycosc='source ~/pyvenv/pycosc/bin/activate'
 alias xmrc='vim ~/.xmonad/xmonad.hs && xmonad --recompile && echo "Restarting xomand..." && xmonad --restart && echo "Done restarting"'
-if [ -f $dotfiles/HUION_610PRO_Tablet.sh]; then
 
 

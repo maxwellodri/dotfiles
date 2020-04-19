@@ -1,31 +1,34 @@
-#!/bin/sh
+#!/bin/bash
 #adds wrappers and the like to path
 #assumes $bin is in path -> i.e. need makesymlink script to have already been run
 if [ "$bin" != "$HOME/bin" ] || [ -z "$dotfiles" ]; then
     exit
 fi
-
+dscripts="$dotfiles/scripts"
 case "$1" in
     "clean")
                 for file in "$bin"/*; do
-                    if [ -f "$file" ]; then
-                        unlink "$file"
-                    fi
-                    if [ -d "$file" ]; then
+                    if [ -L "$file" ]; then #symbolic link
+                        echo "Unlinking $(basename "$file") in bin"
                         unlink "$file"
                     fi
                 done
+                echo "Done"
                 ;;
 
         *)  
                 mkdir -p "$bin"
-                cd "$dotfiles/bin" || exit
-                for file in $(realpath "$(find .)"); do
-                    if [ "$file" != "$dotfiles/bin" ]; then
-                        ln -sf "$file" "$bin"
-                        echo "Added to bin: $file"
+                cd "$dscripts" || exit
+                find "$PWD" ! -name "$(printf "*\n*")" > tmpfile
+                while IFS= read -r file
+                do
+                    if [ "$file" != "$dscripts" ]; then
+                            ln -sf "$file" "$bin"
+                            echo "Adding to bin: $(basename "$file")"
                     fi
-                done
+                done < tmpfile
+                rm tmpfile
+                echo "Done"
                 ;;
 esac
 
