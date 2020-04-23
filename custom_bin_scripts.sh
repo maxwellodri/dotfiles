@@ -19,6 +19,7 @@ case "$1" in
         *)  
                 mkdir -p "$bin"
                 cd "$dscripts" || exit
+                echo "bin path: $bin"
                 find "$PWD" ! -name "$(printf "*\n*")" > tmpfile
                 while IFS= read -r file
                 do

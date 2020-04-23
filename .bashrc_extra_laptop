@@ -6,7 +6,7 @@
 #exports:
 ###############
 export dotfiles_tag='laptop'
-export dotfiles="/home/maxwell/git-personal-AUR/dotfiles" #dotfiles git repo
+export dotfiles="/home/maxwell/source/dotfiles" #dotfiles git repo
 export dotfiles_screen_brightness="/sys/devices/pci0000:00/0000:00:02.0/drm/card0/card0-eDP-1/intel_backlight/brightness"
 export uni="$HOME/uni"
 export chem="$uni/chem/calc_pert_results"

@@ -50,6 +50,7 @@ def websearch(args):
 #Main Script:
 web_bookmarks_path = "/home/maxwell/bin/web_bookmarks.txt" #path to bookmarks file 
 if len(sys.argv) == 1:
+    print("len 1")
     subprocess.call(['firefox','-new-tab'])
     exit()
 args = ' '.join(sys.argv[1:])
@@ -59,7 +60,9 @@ try:
         firefox_URL = websearch(args)
     else:
         #check for bookmarks:
+        print('a')
         exec(open(web_bookmarks_path).read())
+        print('b')
         if args not in web_bookmarks:
             firefox_URL = websearch(args)
         else:
@@ -67,4 +70,5 @@ try:
 #run firefox with URL:
 #print("firefox_URL:",firefox_URL)
     subprocess.call(['firefox','-new-tab', firefox_URL])
-except: subprocess.call(['firefox','-new-tab'])
+except: 
+    subprocess.call(['firefox','-new-tab'])
