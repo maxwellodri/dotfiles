@@ -1,16 +1,15 @@
-#!/bin/bash
+#!/bin/sh
 export PATH="$PATH:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:/home/maxwell/bin:/home/maxwell/bin"
+export PATH=$PATH:/usr/local/sbin:/usr/bin:/sbin:/bin #set some nice paths
 export PATH="$HOME/.cargo/bin:$PATH"
 export TERM='terminator'
-if [[ -f /usr/share/vulkan/icd.d/nvidia_icd.json ]] ; then
-    export VK_ICO_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json 
-fi
+[ -f /usr/share/vulkan/icd.d/nvidia_icd.json ] && export VK_ICO_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json 
 
 #if [[ -f "$HOME/.bashrc" ]] ; then
 #    source "$HOME/.bashrc" 
 #fi
 
-function i3ws(){
+i3ws(){
     #prints current workspace from i3
      i3-msg -t get_workspaces \
   | jq '.[] | select(.focused==true).name' \
@@ -18,7 +17,7 @@ function i3ws(){
 }
 
 WM=''  #override for cases below
-if [[ -z "$WM" ]] ; then
+if [ -z "$WM" ] ; then
     case $XDG_VTNR in
             1)     WM='/usr/bin/i3' #i3
                     ;;
@@ -35,11 +34,8 @@ if [[ -z "$WM" ]] ; then
                     ;;
     esac
 fi
-if [[ ! $DISPLAY && $WM ]]; then
-    export WM
-    setxkbmap caps:F24
-    exec startx 
-fi
-
+[ ! "$DISPLAY" ]  && [ "$WM" ] && export WM && exec startx 
+echo "$WM"
+#setxkbmap caps:F24
 
 

@@ -23,5 +23,5 @@ if [ -f "$usermodmap" ]; then
     xmodmap "$usermodmap"
 fi
 
-exec "$WM"
+exec "$WM" 
 

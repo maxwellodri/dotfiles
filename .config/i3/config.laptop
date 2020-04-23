@@ -1,5 +1,5 @@
 ##########################################
-#PC specific customisation for i3        #
+#Laptop specific customisation for i3        #
 ##########################################
 
 #run install script to make proper i3 config by combining this with config.base 
@@ -33,12 +33,11 @@ bar {
 
 #Here executing programs on start up:
 
-exec --no-startup-id feh --bg-scale /home/maxwell/git-personal-AUR/dotfiles/arch-dingo.jpg
 exec --no-startup-id nm-applet #use this instead in addition to {systemctl enable NetworkManager.service}
 exec --no-startup-id xfce4-clipman
-#exec --no-startup-id caprine #as above
-#exec --no-startup-id pasystray 
-exec --no-startup-id /home/maxwell/git-personal-AUR/dotfiles/button/laptop-startup-multiptap.sh #enables multitap gestures 
+#exec --no-startup-id feh --bg-scale /home/maxwell/source/dotfiles/images/arch-dingo.jpg
+exec feh --bg-scale /home/maxwell/source/dotfiles/images/arch-dingo.jpg
+#exec --no-startup-id /home/maxwell/source/dotfiles/button/laptop-startup-multiptap.sh #enables multitap gestures 
 
 exec xmodmap -e "clear lock"
 exec xmodmap -e "keysym Caps_Lock = F24"

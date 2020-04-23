@@ -22,7 +22,9 @@ web_bookmarks = {
 'spotify': 'https://accounts.spotify.com/en/login?continue=https:%2F%2Fopen.spotify.com%2F',
 'rubular': 'https://rubular.com/',
 'afterpay': 'https://portal.afterpay.com/au/login-email',
-'uqll': 'https://www.crush.ninja/en-us/pages/uqloveletters/'
+'uqll': 'https://www.crush.ninja/en-us/pages/uqloveletters/',
+'st': 'https://www.suckless.org/',
+'github': 'https://github.com/login?return_to=%2Fmaxwellodri',
 
 }
 

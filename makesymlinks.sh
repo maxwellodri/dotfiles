@@ -9,7 +9,7 @@ dir=$dotfiles                   # dotfiles directory
 olddir=~/.dotfiles_old             # old dotfiles backup directory
 i3config=.config/i3/config #combines with below to make i3 
 i3statusconfig=.config/i3status/config
-
+zathura=.config/zathura/zathurarc
 terminatorconfig=.config/terminator/config
 #bspwmconfig=.config/bspwm/bspwmrc
 #sxhkdconfig=.config/sxhkd/sxhkdrc
@@ -18,7 +18,7 @@ terminatorconfig=.config/terminator/config
 #bsp=" $bspwmconfig $sxhkdconfig" #these arent finished yet in the git repo!
 pactl=.config/pulseaudio-ctl/config
 i3=" $i3config $i3statusconfig" #i3wm
-xfiles=" .xinitrc $terminatorconfig"
+xfiles=" .xinitrc $terminatorconfig $zathura"
 bash=" .bashrc .bashrc_extra .bash_profile"
 files=" .vimrc"    
 ########### Variables
