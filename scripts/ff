@@ -50,7 +50,6 @@ def websearch(args):
 #Main Script:
 web_bookmarks_path = "/home/maxwell/bin/web_bookmarks.txt" #path to bookmarks file 
 if len(sys.argv) == 1:
-    print("len 1")
     subprocess.call(['firefox','-new-tab'])
     exit()
 args = ' '.join(sys.argv[1:])

@@ -1,20 +1,17 @@
-#####################################################
-#       Extra bashrc file loaded for pc config      #
-#####################################################
 
 ################
 #exports:
 ###############
 export dotfiles_tag='laptop'
-export dotfiles="/home/maxwell/source/dotfiles" #dotfiles git repo
+export src='/home/maxwell/source'
+export dotfiles="$src/dotfiles" 
 export dotfiles_screen_brightness="/sys/devices/pci0000:00/0000:00:02.0/drm/card0/card0-eDP-1/intel_backlight/brightness"
 export uni="$HOME/uni"
 export chem="$uni/chem/calc_pert_results"
 ################
 #aliases:
 ###############
-alias pacman='sudo pacman' #for arch based
-alias dfn='df -h | grep -v tmpfs | grep -v run '
+alias dfn='df -h | grep -v tmpfs | grep -v run'
 alias sshuq="ssh -Y -C remote.labs.eait.uq.edu.au -l s4437079"
 alias todo='vim ~/todo'
 
@@ -22,6 +19,5 @@ alias todo='vim ~/todo'
 #alias sxrc='vim ~/.config/sxhkd/sxhkdrc'
 alias pychem='source ~/pyvenv/pychem/bin/activate'
 alias pycosc='source ~/pyvenv/pycosc/bin/activate'
-alias xmrc='vim ~/.xmonad/xmonad.hs && xmonad --recompile && echo "Restarting xomand..." && xmonad --restart && echo "Done restarting"'
 
 
