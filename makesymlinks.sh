@@ -10,7 +10,8 @@ olddir=~/.dotfiles_old             # old dotfiles backup directory
 i3config=.config/i3/config #combines with below to make i3 
 i3statusconfig=.config/i3status/config
 zathura=.config/zathura/zathurarc
-terminatorconfig=.config/terminator/config
+terminator=.config/terminator/config
+sh=.config/sh/shrc
 
 #bspwmconfig=.config/bspwm/bspwmrc
 #sxhkdconfig=.config/sxhkd/sxhkdrc
@@ -19,17 +20,17 @@ terminatorconfig=.config/terminator/config
 #bsp=" $bspwmconfig $sxhkdconfig" #these arent finished yet in the git repo!
 pactl=.config/pulseaudio-ctl/config
 i3=" $i3config $i3statusconfig" #i3wm
-xfiles=" .xinitrc $terminatorconfig $zathura"
-xfiles=" .xinitrc"
-terminatorconfig=.config/terminator/config
-bash=" .bashrc .bashrc_extra .bash_profile"
+xfiles=" .xinitrc $zathura"
+bash=" .bashrc .bashrc_extra .bash_profile $sh"
+zsh=" .zshrc .zshrc_extra .zprofile $sh" 
 files=" .vimrc"    
 ########### Variables
 pcfiles=" " #platform specific dotfiles
-laptopfiles=" $xfiles $pactl $i3 $bash $terminatorconfig"
-thinkpadfiles=" $xfiles $bash"
+laptopfiles=" $xfiles $pactl $i3 $zsh $terminator"
+thinkpadfiles=" $xfiles $zsh"
 chromebookfiles=" "
 rpifiles=" "
+all="$files$zsh$bash$xfiles$i3$pactl$sh$terminator$zathura" #all files
 
 ##########
 
@@ -57,25 +58,25 @@ case $1 in
                     files=$rpifiles$files
                     ;;
 
-    *)              if [ -n "$dotfiles_tag" ]; then
-                        #if dotfiles_tag is defined, in bashrc_extra or similar, then dont need to explicitly pass $1, and can infer from this
-                        tag="$dotfiles_tag"                      
-                    else
-                        echo "Pick a device and pass as first argument" 
-                        echo "Exiting..."
-                        exit
-                    fi
+    "clean")        echo "Removing all symlinks..." 
+                    for file in $all; do
+                        [ -L "$HOME/$file" ] && unlink "$HOME/$file" && echo "Unlinked $file"
+                    done
+                    echo "Finished unlinkng" && exit
+                    ;;
+
+    *)              
+                    echo "Pick a device and pass as first argument" 
+                    exit
                     ;;
 
 esac
 # create dotfiles_old in homedir
 echo "Creating $olddir for backup of any existing dotfiles in ~"
-mkdir -p $olddir
+mkdir -pv $olddir
 echo "...done"
-
-
 echo ""
-echo "Making needed parent directories, ignore any warnings about existing folders..."
+echo "Making needed parent directories..."
 for file in $files; do
     parent="$(dirname "$file")"
     mkdir -p "$HOME/$parent"
@@ -114,16 +115,27 @@ for file in $files; do
                                 src="$dir/$file"
                                 ;;
 
-        ".bashrc_extra")         src="$dir/.bashrc_extra_$tag"
+        ".bashrc_extra")        src="$dir/.bashrc_extra.$tag"
                                 ;;
 
-        "$i3statusconfig")       src="$dir/$file.$tag"
+        ".zshrc_extra")         src="$dir/.zshrc_extra.$tag"
+                                ;;
+
+        "$i3statusconfig")      src="$dir/$file.$tag"
                                 ;;
         
-        ".xinitrc")             src="$dir/$file.$tag"
+        ".xinitrc")             src="$dir/$file"
                                 ;;
 
         ".bash_profile")        src="$dir/$file.$tag"
+                                ;;
+
+        ".zprofile")            src="$dir/$file.$tag"
+                                ;;
+        "$sh")                  src="$dir/.config/sh/shrc"
+                                ;;
+
+        "$zathura")             src="$dir/.config/zathura/zathurarc"
                                 ;;
 
         *)                      src="$dir/$file"
@@ -133,8 +145,8 @@ for file in $files; do
     echo "Creating symlink from $src to ~/$file."
     echo " "
     ln -s "$src" "$HOME/$file"
-
 done
+
 echo "Done."
 echo "tag variable used = $tag"
 echo "Script is finished."
