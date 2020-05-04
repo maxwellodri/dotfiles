@@ -17,7 +17,8 @@ alias todo='vim ~/todo'
 
 #alias bsprc='vim ~/.config/bspwm/bspwmrc'
 #alias sxrc='vim ~/.config/sxhkd/sxhkdrc'
-alias pychem='source ~/pyvenv/pychem/bin/activate'
+alias pychem='cd $chem && source ~/pyvenv/pychem/bin/activate'
+alias pchem="cd $chem && pychem && python" 
 alias pycosc='source ~/pyvenv/pycosc/bin/activate'
 
 

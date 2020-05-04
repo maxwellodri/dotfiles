@@ -1,4 +1,4 @@
-#/bin/zsh
+#!/bin/zsh
 #
 # _______| |__  _ __ ___ 
 #|_  / __| '_ \| '__/ __|
@@ -26,8 +26,8 @@ compinit
 autoload -U colors && colors
 PS1="%B%{$fg[yellow]%}[%{$fg[magenta]%}%n%{$fg[green]%}@%{$fg[blue]%}%M %{$fg[red]%}%~%{$fg[yellow]%}]%{$reset_color%}$%b "
 
-[ -e "$HOME/.config/sh/shrc" ] && source "$HOME/.config/sh/shrc" #load alias and exports
 [ -e "$HOME/.zshrc_extra" ] && source "$HOME/.zshrc_extra" #load platform specifcs 
+[ -e "$HOME/.config/sh/shrc" ] && source "$HOME/.config/sh/shrc" #load alias and exports 
 
 # Basic auto/tab complete:
 autoload -U compinit

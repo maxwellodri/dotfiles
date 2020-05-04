@@ -65,7 +65,7 @@ volume master {
 }
 
 arch_updates {
-    cache_timeout = 3600 
+    cache_timeout = 15
     format = "Updates: {pacman},{aur}"
     hide_if_zero = True
 }
