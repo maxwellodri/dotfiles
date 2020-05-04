@@ -1,9 +1,0 @@
-https://github.com/sindresorhus/caprine/releases
-https://github.com/sindresorhus/caprine/releases/download/v2.31.0/caprine-2.31.0-x86_64.AppImage
-https://aur.archlinux.org/packages/spotblock-git/
-https://github.com/mahkoh/spotblock
-
-https://appget.net/packages/?q= #windows package manager alternative to chocolately or scoop ?? 
-https://fifteen.ai/
-STL ASCII to Binary and back file converter:
-https://github.com/cmpolis/convertSTL

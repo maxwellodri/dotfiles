@@ -109,8 +109,12 @@ for file in $files; do
                                     echo " "
                                     cat "$dir/$file.base" >> "$dir/$file"
                                 else
+                                    echo "Using $tag as extra"
                                     ln -sf "$dir/$file.$tag" "$dir/$file.extra"
+                                    echo "Using cat to create i3config, $dir/$file"
                                     cat "$dir/$file.base" "$dir/$file.$tag" >> "$dir/$file"
+                                    echo "from $file.base and $file.$tag"
+                                    echo "Done"
                                 fi
                                 src="$dir/$file"
                                 ;;

@@ -1,37 +1,10 @@
-set tabstop=4
-set softtabstop=0
-set shiftwidth=4
-set expandtab
-set smarttab
-set autoindent
-"color blue
-"color darkblue
-"color default
-"color delek
-"color desert
-"color elflord
-"color evening
-"color industry
-"color koehler
-"color morning
-"color murphy
-"color pablo
-"color peachpuff
-"color ron
-"color shine
-"color slate
-"color torte
-"color zellner
-color molokai
-set clipboard=unnamedplus
+"        _                    
+" __   _(_)_ __ ___  _ __ ___ 
+" \ \ / / | '_ ` _ \| '__/ __|
+"  \ V /| | | | | | | | | (__ 
+"   \_/ |_|_| |_| |_|_|  \___|
 
-set number
-"set relativenumber
-set nocompatible
-set whichwrap=b,s,<,>,[,] "traverse end of line with arrow keys
-
-
-"plugin stuff with pathogen below : need to install pathogen separately
+let mapleader =" "
 filetype off
 execute pathogen#infect()
 execute pathogen#helptags()
@@ -39,13 +12,26 @@ filetype plugin indent on
 syntax on
 set sessionoptions-=options
 
-autocmd Filetype make set noexpandtab
-autocmd FileType tex setlocal spell spelllang=en_au
-autocmd Filetype c set shiftwidth=4
-autocmd Filetype cpp set shiftwidth=4
+"   basics:
+    set tabstop=4
+    set softtabstop=0
+    set shiftwidth=4
+    set expandtab
+    set smarttab
+    set autoindent
+    set path+=** ""recursive subdirectory search
+    set wildmenu
+    set wildmode=longest,list,full
+    set encoding=utf-8
+    "color pablo
+    color molokai
+    set clipboard=unnamedplus
+    set number
+    set nocompatible
+    set whichwrap=b,s,<,>,[,] "traverse end of line with arrow keys
 
-"Python
-"let python_highlight_all=1
+autocmd Filetype make set noexpandtab "force tabs for make
+"PEP8 approved:
 autocmd Filetype python set tabstop=4 
 autocmd Filetype python set softtabstop=4
 autocmd Filetype python set shiftwidth=4
@@ -59,15 +45,15 @@ let g:NERDTreeWinSize=15
 map <C-a> :NERDTreeToggle<CR>
 
 "Syntastic
-"set statusline+=%#warningmsg#
-"set statusline+=%{SyntasticStatuslineFlag()}
-"set statusline+=%*
+set statusline+=%#warningmsg#
+set statusline+=%{SyntasticStatuslineFlag()}
+set statusline+=%*
 
-"let g:syntastic_always_populate_loc_list = 1
-"let g:syntastic_auto_loc_list = 1
-"let g:syntastic_check_on_open = 1
-"let g:syntastic_check_on_wq = 0
-"let g:syntastic_tex_lacheck_quiet_messages = { 'regex': '\Vpossible unwanted space at' } "Annoying LaTeX Message
+let g:syntastic_always_populate_loc_list = 1
+let g:syntastic_auto_loc_list = 1
+let g:syntastic_check_on_open = 1
+let g:syntastic_check_on_wq = 0
+let g:syntastic_tex_lacheck_quiet_messages = { 'regex': '\Vpossible unwanted space at' } "Annoying LaTeX Message
 
 "tagbar
 nmap <C-s> :TagbarToggle<CR>
@@ -76,6 +62,19 @@ let g:tagbar_autofocus = 1
 "let g:tagbar_left = 1
 let g_tagbar_width = 15
 
-"Automatically reload sxhkd on write:
-autocmd BufWritePost *sxhkdrc !killall sxhkd; setsid sxhkd &
+"snippets:
+nnoremap ,latex :-1read $dotfiles/snippets/assignment.tex<CR>72jo
+nnoremap ,texfig :-1read $dotfiles/snippets/figure.tex<CR><CR>$i
 
+
+command! Texit !pdflatex % 
+command! Maketags !ctags -R .
+map <leader>o :setlocal spell! spelllang=en_au<CR>
+autocmd BufWritePost *sxhkdrc !killall sxhkd; setsid sxhkd &
+"usage: ^]: jump to tag under cursorm g^] ambiguos tags, ^t, jump back up tag
+"stack
+    set splitbelow splitright
+    map <C-h> <C-w>h
+    map <C-j> <C-w>j
+    map <C-k> <C-w>k
+    map <C-l> <C-w>l

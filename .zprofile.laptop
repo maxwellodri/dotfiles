@@ -18,6 +18,9 @@ i3ws(){
 }
 
 WM=''  #override for cases below
+
+[ -f "$(which transmission-daemon)" ] && transmission-daemon
+
 if [ -z "$WM" ] ; then
     case $XDG_VTNR in
             1)      WM='/usr/bin/i3' 

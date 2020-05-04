@@ -5,6 +5,7 @@ case "$1" in
                 echo "Not setting pad buttons for tablet"
                 ;;
     *)
+                echo "Setting Default buttons..."
                 xsetwacom --set 'HUION Huion Tablet Pad pad' Button 1 "key +ctrl +z -z -ctrl"
                 xsetwacom --set 'HUION Huion Tablet Pad pad' Button 2 "key e"
                 xsetwacom --set 'HUION Huion Tablet Pad pad' Button 3 "key Menu"
@@ -13,6 +14,7 @@ case "$1" in
                 xsetwacom --set 'HUION Huion Tablet Pad pad' Button 10 "key ]"
                 xsetwacom --set 'HUION Huion Tablet Pad pad' Button 11 "key ["
                 xsetwacom --set 'HUION Huion Tablet Pad pad' Button 12 "key Tab"
+                echo "Done"
                 ;;
 esac
 

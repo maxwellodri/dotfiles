@@ -48,19 +48,27 @@ alias termrc="vim ~/.config/terminator/config"
 alias i3sbar="vim ~/.config/i3status/config && i3-msg restart"
 alias zathurarc="vim ~/.config/zathura/zathurarc"
 alias systemctl="sudo systemctl"
+alias dl="cd ~/Downloads"
+alias src="cd ~/source"
+alias p="sudo pacman"
+
+alias dwmrc="vim "$src"/dwm/config.h && sudo make clean install -C $src/dwm"
+alias ytdl="youtube-dl --abort-on-unavailable-fragment"
+alias r='ranger'
+alias tsm='transmission-remote'
+
+
+alias mkdir="mkdir -pv"
 alias ls="ls --color=auto -hN --group-directories-first"
 alias l="ls --color=auto -hN --group-directories-first"
 alias lsa="ls --color=auto -hNA --group-directories-first"
 alias cls="clear && ls"
 alias grep="grep --color=auto"
-alias dl="cd ~/Downloads"
-alias src="cd ~/source"
-alias mkdir="mkdir -pv"
-alias p="sudo pacman"
-
-alias dwmrc="vim "$src"/dwm/config.h && sudo make clean install -C $src/dwm"
-alias ytdl="youtube-dl --abort-on-unavailable-fragment"
-
+alias mv="mv -v"
+alias cp="cp -v"
+alias mpvr='mpv $(find . -maxdepth 1 | shuf | grep -x . -v )'
+function pd(){ pandoc -t plain "$1"| less }
+ 
 
 ################
 #Functions
