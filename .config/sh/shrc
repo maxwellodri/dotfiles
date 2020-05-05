@@ -68,8 +68,7 @@ alias mv="mv -v"
 alias cp="cp -v"
 alias mpvr='mpv $(find . -maxdepth 1 | shuf | grep -x . -v )'
 function pd(){ pandoc -t plain "$1"| less }
- 
-
+alias pacs="pacman -Slq | fzf -m --preview 'pacman -Si {1}' | xargs -ro sudo pacman -S"
 ################
 #Functions
 ################
