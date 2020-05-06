@@ -27,7 +27,10 @@ export RANGER_LOAD_DEFAULT_RC="FALSE"
 ################
 #Extras
 ################
-[ -e ~/.cargo/env ] && source "$HOME/.cargo/env"
+[ -e ~/.cargo/env ] && . ~/.cargo/env 
+#Functions:
+pd() { pandoc -T Plain "$1"| less; }
+HFIGlet () { figlet "$@" | sed -n "s/.*/\# &/p"; }
 
 ################
 #Aliases:
@@ -41,9 +44,9 @@ alias bashprofile="vim ~/.bash_profile"
 alias zprofile="vim ~/.zprofile"
 alias xrc="vim ~/.xinitrc"
 alias vimrc="vim ~/.vimrc"
-alias i3rc="vim $dotfiles/.config/i3/config.base && $dotfiles/makesymlinks.sh $dotfile_tag >> /dev/null && i3-msg reload"
-alias bm="vim $dotfiles/scripts/web_bookmarks.txt"
-alias i3tag="vim $dotfiles/.config/i3/config.extra && $dotfiles/makesymlinks.sh $dotfile_tag >> /dev/null && i3-msg reload"
+alias i3rc=vim "$dotfiles/.config/i3/config.base" && "$dotfiles/makesymlinks.sh" "$dotfile_tag" >> /dev/null && i3-msg reload
+alias bm=vim "$dotfiles/scripts/web_bookmarks.txt"
+alias i3tag=vim "$dotfiles/.config/i3/config.extra" && "$dotfiles/makesymlinks.sh" "$dotfile_tag" >> /dev/null && i3-msg reload
 alias termrc="vim ~/.config/terminator/config"
 alias i3sbar="vim ~/.config/i3status/config && i3-msg restart"
 alias zathurarc="vim ~/.config/zathura/zathurarc"
@@ -52,11 +55,9 @@ alias dl="cd ~/Downloads"
 alias src="cd ~/source"
 alias p="sudo pacman"
 
-alias dwmrc="vim "$src"/dwm/config.h && sudo make clean install -C $src/dwm"
 alias ytdl="youtube-dl --abort-on-unavailable-fragment"
 alias r='ranger'
 alias tsm='transmission-remote'
-
 
 alias mkdir="mkdir -pv"
 alias ls="ls --color=auto -hN --group-directories-first"
@@ -66,18 +67,8 @@ alias cls="clear && ls"
 alias grep="grep --color=auto"
 alias mv="mv -v"
 alias cp="cp -v"
-alias mpvr='mpv $(find . -maxdepth 1 | shuf | grep -x . -v )'
-function pd(){ pandoc -t plain "$1"| less }
+alias mpvr=mpv "$(find . -maxdepth 1 | shuf | grep -x . -v )"
 alias pacs="pacman -Slq | fzf -m --preview 'pacman -Si {1}' | xargs -ro sudo pacman -S"
-################
-#Functions
-################
 
-#resolves symlinks:
-function rlinks(){
-    ln -sf "$(realpath "$1")" "$(realpath "$2")"
-}
-#resolve symlink hell when cd'ing and send self to realpath of present dir
-function cdr(){
-    cd "$(realpath "$PWD")" || return
-}
+
+
