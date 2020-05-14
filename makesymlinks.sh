@@ -12,6 +12,7 @@ i3statusconfig=.config/i3status/config
 zathura=.config/zathura/zathurarc
 terminator=.config/terminator/config
 sh=.config/sh/shrc
+picom=.config/picom/config
 
 #bspwmconfig=.config/bspwm/bspwmrc
 #sxhkdconfig=.config/sxhkd/sxhkdrc
@@ -20,7 +21,7 @@ sh=.config/sh/shrc
 #bsp=" $bspwmconfig $sxhkdconfig" #these arent finished yet in the git repo!
 pactl=.config/pulseaudio-ctl/config
 i3=" $i3config $i3statusconfig" #i3wm
-xfiles=" .xinitrc $zathura"
+xfiles=" .xinitrc $zathura $picom"
 bash=" .bashrc .bashrc_extra .bash_profile $sh"
 zsh=" .zshrc .zshrc_extra .zprofile $sh" 
 files=" .vimrc"    
