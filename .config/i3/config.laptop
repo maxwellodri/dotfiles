@@ -1,12 +1,11 @@
 ##########################################
 #Laptop specific customisation for i3        #
 ##########################################
-
 #run install script to make proper i3 config by combining this with config.base 
 #this is only for pc specific stuff 
 
 # start a terminal
-bindsym $mod+Return exec terminator
+bindsym $mod+Return exec st
 #bindsym XF86MonBrightnessDown exec $dotfile/button/laptop-screen-brightness-d 
 #bindsym XF86MonBrightnessUp exec $dotfile/button/laptop-screen-brightness-u 
 

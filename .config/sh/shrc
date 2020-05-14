@@ -30,7 +30,7 @@ export RANGER_LOAD_DEFAULT_RC="FALSE"
 [ -e ~/.cargo/env ] && . ~/.cargo/env 
 #Functions:
 pd() { pandoc -T Plain "$1"| less; }
-HFIGlet () { figlet "$@" | sed -n "s/.*/\# &/p"; }
+hfiglet () { figlet "$@" | sed -n "s/.*/\# &/p"; }
 
 ################
 #Aliases:
@@ -44,9 +44,9 @@ alias bashprofile="vim ~/.bash_profile"
 alias zprofile="vim ~/.zprofile"
 alias xrc="vim ~/.xinitrc"
 alias vimrc="vim ~/.vimrc"
-alias i3rc=vim "$dotfiles/.config/i3/config.base" && "$dotfiles/makesymlinks.sh" "$dotfile_tag" >> /dev/null && i3-msg reload
-alias bm=vim "$dotfiles/scripts/web_bookmarks.txt"
-alias i3tag=vim "$dotfiles/.config/i3/config.extra" && "$dotfiles/makesymlinks.sh" "$dotfile_tag" >> /dev/null && i3-msg reload
+alias i3rc="vim $dotfiles/.config/i3/config.base && $dotfiles/makesymlinks.sh $dotfiles_tag >> /dev/null && i3-msg reload"
+alias bm="vim $dotfiles/scripts/web_bookmarks.txt"
+alias i3tag="vim $dotfiles/.config/i3/config.extra && $dotfiles/makesymlinks.sh $dotfiles_tag >> /dev/null && i3-msg reload"
 alias termrc="vim ~/.config/terminator/config"
 alias i3sbar="vim ~/.config/i3status/config && i3-msg restart"
 alias zathurarc="vim ~/.config/zathura/zathurarc"
@@ -70,5 +70,8 @@ alias cp="cp -v"
 alias mpvr=mpv "$(find . -maxdepth 1 | shuf | grep -x . -v )"
 alias pacs="pacman -Slq | fzf -m --preview 'pacman -Si {1}' | xargs -ro sudo pacman -S"
 
+
+#Addtional keybindings:
+bindkey -s '^t' 'st & disown\nclear\n' #st in pwd
 
 
