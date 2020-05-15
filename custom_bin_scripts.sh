@@ -18,6 +18,7 @@ case "$1" in
 
         *)  
                 mkdir -p "$bin"
+                mkdir -p "$HOME/.cache/dotfiles"
                 cd "$dscripts" || exit
                 echo "bin path: $bin"
                 find "$PWD" ! -name "$(printf "*\n*")" > tmpfile

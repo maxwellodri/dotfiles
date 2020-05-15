@@ -22,7 +22,8 @@ fi
 if [ -f "$usermodmap" ]; then
     xmodmap "$usermodmap"
 fi
-[ "$(basename "$WM")" = "dwm" ] $dotfiles/scripts/startdwm #autorestarts dwm on recomplilation
+[ "$(basename "$WM")" = dwm ] && $dotfiles/scripts/startdwm && echo "Starting autorecompilation script for dwm" #autorestarts dwm on recomplilation
 exec "$WM" & 
 picom -bc &
+echo "DONE $WM"
 
