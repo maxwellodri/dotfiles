@@ -29,6 +29,7 @@ set sessionoptions-=options
     set number
     set nocompatible
     set whichwrap=b,s,<,>,[,] "traverse end of line with arrow keys
+    call mkdir(expand('%:h'), 'p') "autocreate parent directory if it doesnt exist
 
 autocmd Filetype make set noexpandtab "force tabs for make
 "PEP8 approved:

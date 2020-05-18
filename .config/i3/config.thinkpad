@@ -1,0 +1,46 @@
+##########################################
+#Laptop specific customisation for i3        #
+##########################################
+#run install script to make proper i3 config by combining this with config.base 
+#this is only for pc specific stuff 
+
+# start a terminal
+bindsym $mod+Return exec st
+#bindsym XF86MonBrightnessDown exec $dotfile/button/laptop-screen-brightness-d 
+#bindsym XF86MonBrightnessUp exec $dotfile/button/laptop-screen-brightness-u 
+
+
+
+
+
+#use i3-status
+bar {
+    status_command py3status -c ~/.config/i3status/config
+    position top
+    #pasystray nm-applet xfce4-clipman 
+ 	colors {
+        	background #999999
+            statusline #ffffff
+        	focused_workspace  #000000 #ffffff 
+        	active_workspace   #ffffff #333333
+        	inactive_workspace #000000 #aaaaaa
+            urgent_workspace   #ffffff #900000
+    	}
+}
+
+#font pango:monospace 1
+
+#Here executing programs on start up:
+
+exec --no-startup-id nm-applet #use this instead in addition to {systemctl enable NetworkManager.service}
+exec --no-startup-id xfce4-clipman
+#exec --no-startup-id feh --bg-scale /home/maxwell/source/dotfiles/images/arch-dingo.jpg
+exec feh --bg-scale /home/maxwell/source/dotfiles/images/arch-dingo.jpg
+#exec --no-startup-id /home/maxwell/source/dotfiles/button/laptop-startup-multiptap.sh #enables multitap gestures 
+
+exec xmodmap -e "clear lock"
+exec xmodmap -e "keysym Caps_Lock = F24"
+
+
+#exec --no-startup-id start-pulseaudio-x11
+
