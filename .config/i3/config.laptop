@@ -40,6 +40,7 @@ exec feh --bg-scale /home/maxwell/source/dotfiles/images/arch-dingo.jpg
 
 exec xmodmap -e "clear lock"
 exec xmodmap -e "keysym Caps_Lock = F24"
+exec dunst
 
 
 #exec --no-startup-id start-pulseaudio-x11
