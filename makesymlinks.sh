@@ -1,4 +1,4 @@
-#!/bin/dash
+#!/bin/sh
 ############################
 # This script creates symlinks from the home directory to any desired dotfiles in ~/dotfiles, set by the variables below
 ############################
@@ -13,6 +13,7 @@ zathura=.config/zathura/zathurarc
 terminator=.config/terminator/config
 sh=.config/sh/shrc
 picom=.config/picom/config
+mutt=.config/mutt/config
 
 #bspwmconfig=.config/bspwm/bspwmrc
 #sxhkdconfig=.config/sxhkd/sxhkdrc
@@ -24,11 +25,11 @@ i3=" $i3config $i3statusconfig" #i3wm
 xfiles=" .xinitrc $zathura $picom"
 bash=" .bashrc .bashrc_extra .bash_profile $sh"
 zsh=" .zshrc .zshrc_extra .zprofile $sh" 
-files=" .vimrc"    
+files=" .vimrc $mutt"    
 ########### Variables
 pcfiles=" " #platform specific dotfiles
 laptopfiles=" $xfiles $pactl $i3 $zsh $terminator"
-thinkpadfiles=" $xfiles $zsh"
+thinkpadfiles=" $xfiles $zsh $i3"
 chromebookfiles=" "
 rpifiles=" "
 all="$files$zsh$bash$xfiles$i3$pactl$sh$terminator$zathura" #all files

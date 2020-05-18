@@ -24,6 +24,9 @@ WM=''  #override for cases below
 
 if [ -z "$WM" ] ; then
     case $XDG_VTNR in
+            2)      WM='/usr/bin/i3'
+                    ;;
+
             1)      WM='/usr/local/bin/dwm'
                     ;;
 
