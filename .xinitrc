@@ -54,10 +54,8 @@ fi
 #xterm -geometry 80x20+494-0 &
 #exec xterm -geometry 80x66+0+0 -name login
 
-[ "$(basename "$WM")" = dwm ] && [ -f "$src/dextra/dextra" ] && "$src/dextra/dextra"  && echo ""
 exec "$WM" &
-picom -bc &
-echo "Done"
+[ "$(basename "$WM")" = dwm ] && [ -f "$src/dwmshell/main.sh" ] && sh "$src/dwmshell/main.sh" && echo ""
 
 
 
