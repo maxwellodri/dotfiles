@@ -1,0 +1,103 @@
+py3status {
+    align = 'right'
+    markup = 'pango'
+    min_width = True
+
+    separator = False
+    separator_block_width = 0 
+
+    background = "#999999"
+    border = "#999999"
+
+    border_bottom = 1
+    border_left = 1
+    border_right = 1
+    border_top = 1
+
+    min_length = 0
+    position = 'center'
+}
+
+order += "arch_updates"
+order += "clock"
+order += "battery_level"
+order += "backlight"
+order += "volume master"
+
+#order += "volume_status"
+#order += "networkmanager"
+
+battery_level {
+    format = "{icon}:{percent}%"
+    charging_character = "⚡"
+    blocks = " 🔋"
+    measurement_mode = "sys"
+
+    threshold_bad = 10
+    threshold_degraded = 30
+    threshold_full = 90
+    color_bad = "#FF0000"
+    color_charging = "#FFFFFF"
+    color_degraded = "#FFFFFF"
+    color_good = "#FFFFFF"
+    
+
+}
+
+volume master {
+
+# control the volume with your mouse (need >i3-4.8)
+# toggle mute/unmute when I right click
+# increase the volume when I scroll the mouse wheel up
+# decrease the volume when I scroll the mouse wheel down
+
+    format = " 🎵:%volume"
+    #format_muted = " " #emojis require noto-fonts-emoji by google
+    format_muted = " 🎵:%volume"
+    device = "default"
+    mixer = "Master"
+    mixer_idx = 0
+    on_click 1 = "exec toggle pacmixer term" #LMB
+    on_click 2 = "exec pulseaudio-ctl mute-input toggle" #MMB
+    on_click 3 = "exec pulseaudio-ctl mute"  #RMB
+    on_click 4 = "exec pulseaudio-ctl up 1" #scroll up
+    on_click 5 = "exec pulseaudio-ctl down 1" #scroll down
+}
+
+arch_updates {
+    cache_timeout = 15
+    format = "Updates: {pacman},{aur}"
+    hide_if_zero = True
+}
+
+backlight {
+    brightness_minimal = 5
+    brightness_delta = 5
+    format = " 💻:{level}%"
+
+}
+
+clock {
+    block_hours = 24
+    format_time = " %d/%m %H:%M"
+}
+
+
+volume_status { 
+
+}
+
+
+networkmanager {
+    devices = ['w*']    # wireless only
+    cache_timeout = 10
+    format = "{format_device}"
+    format_device = " 🌐:[{ap1_signal}%]"
+
+    on_click 1 = "exec toggle nmtui term" #LMB
+    on_click 3 = "exec toggle nm-connection-editor" #MMB
+}
+
+
+
+#☻☼♪   unused unicode 

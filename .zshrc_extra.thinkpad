@@ -1,0 +1,23 @@
+
+################
+#exports:
+###############
+export dotfiles_tag='thinkpad'
+export src='/home/maxwell/source'
+export dotfiles="$src/dotfiles" 
+export uni="$HOME/uni"
+export chem="$uni/chem/calc_pert_results"
+################
+#aliases:
+###############
+alias dfn='df -h | grep -v tmpfs | grep -v run'
+alias sshuq="ssh -Y -C remote.labs.eait.uq.edu.au -l s4437079"
+alias todo='vim ~/todo'
+
+#alias bsprc='vim ~/.config/bspwm/bspwmrc'
+#alias sxrc='vim ~/.config/sxhkd/sxhkdrc'
+alias pychem='cd $chem && source ~/pyvenv/pychem/bin/activate'
+alias pchem="cd $chem && pychem && python" 
+alias pycosc='source ~/pyvenv/pycosc/bin/activate'
+
+
