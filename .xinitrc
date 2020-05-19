@@ -52,8 +52,8 @@ fi
 #xterm -geometry 80x20+494-0 &
 #exec xterm -geometry 80x66+0+0 -name login
 
-exec "$WM" &
-[ "$(basename "$WM")" = dwm ] && [ -f "$src/dwmshell/main.sh" ] && sh "$src/dwmshell/main.sh" && echo ""
+#[ "$WMNAME" = "dwm" ] && [ -f "$dotfiles/dwm/main" ] && "$dotfiles/dwm/main" 
+"$WM" 
 
 
 
