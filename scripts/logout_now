@@ -1,4 +1,4 @@
-#!/bin/bash
-exec i3-msg exit
-sleep 1
-exit
+#!/bin/sh
+[ "$WMNAME" = "dwm" ] && pkill -9 -t "tty$XDG_VTNR"
+[ "$WMNAME" = "i3" ] && i3-msg exit && sleep 1 && exit
+
