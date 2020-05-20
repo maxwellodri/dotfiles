@@ -12,7 +12,7 @@ i3statusconfig=.config/i3status/config
 zathura=.config/zathura/zathurarc
 terminator=.config/terminator/config
 sh=.config/sh/shrc
-picom=.config/picom/config
+picom=.config/picom/picom.conf
 mutt=.config/mutt/config
 
 #bspwmconfig=.config/bspwm/bspwmrc
@@ -29,7 +29,7 @@ files=" .vimrc $mutt"
 ########### Variables
 pcfiles=" " #platform specific dotfiles
 laptopfiles=" $xfiles $pactl $i3 $zsh $terminator"
-thinkpadfiles=" $xfiles $zsh $i3"
+thinkpadfiles=" $xfiles $zsh" #uses dwm
 chromebookfiles=" "
 rpifiles=" "
 all="$files$zsh$bash$xfiles$i3$pactl$sh$terminator$zathura" #all files
