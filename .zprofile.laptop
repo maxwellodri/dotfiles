@@ -40,6 +40,5 @@ fi
 
 [ ! "$DISPLAY" ]  && [ "$WM" ] && export WM && exec startx 
 echo "$WM failed?"
-#setxkbmap caps:F24
 
 

@@ -20,7 +20,6 @@ case $__architecture in
                         lscpu | grep Architecture
                         ;;
 esac
-[ "$__distro" = "Arch Linux" ] && sudo pacman -Syu base-devel git gvim ctags maim slop imagemagick xclip pandoc zsh xorg
 #yay -S pulseaudioctl pacmixer 
 
 #https://github.com/enkore/i3pystatus/ #alternate to py3status
