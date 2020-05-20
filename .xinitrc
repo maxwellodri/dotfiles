@@ -53,9 +53,7 @@ fi
 #exec xterm -geometry 80x66+0+0 -name login
 
 [ "$(basename "$WM")" = dwm ] && [ -f "$src/dextra/dextra" ] && "$src/dextra/dextra"  && echo ""
-exec "$WM" &
-picom -bc &
-echo "Done"
+exec "$WM" 
 
 
 
