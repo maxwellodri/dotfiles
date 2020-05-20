@@ -27,9 +27,9 @@ bash=" .bashrc .bashrc_extra .bash_profile $sh"
 zsh=" .zshrc .zshrc_extra .zprofile $sh" 
 files=" .vimrc $mutt"    
 ########### Variables
-pcfiles=" " #platform specific dotfiles
+pcfiles=" $xfiles $zsh" #platform specific dotfiles
 laptopfiles=" $xfiles $pactl $i3 $zsh $terminator"
-thinkpadfiles=" $xfiles $zsh $i3"
+thinkpadfiles=" $xfiles $zsh"
 chromebookfiles=" "
 rpifiles=" "
 all="$files$zsh$bash$xfiles$i3$pactl$sh$terminator$zathura" #all files
