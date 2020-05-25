@@ -69,6 +69,7 @@ nnoremap ,texfig :-1read $dotfiles/snippets/figure.tex<CR><CR>$i
 
 
 command! Texit !pdflatex % 
+command PP !python %
 command! Maketags !ctags -R .
 map <leader>o :setlocal spell! spelllang=en_au<CR>
 autocmd BufWritePost *sxhkdrc !killall sxhkd; setsid sxhkd &
