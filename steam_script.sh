@@ -8,7 +8,7 @@ then
     #change steams tray icon
     mkdir $olddir #if its not made already
     #make a backup:
-    sudo mv "/usr/share/pixmaps/$icon" "$olddir/$icon"
+#    sudo mv "/usr/share/pixmaps/$icon" "$olddir/$icon"
     sudo cp "$dotfiles/steam/$icon" "/usr/share/pixmaps/$icon"
     #Now we add scripts for launching games
     mkdir -p "$HOME/bin"
