@@ -1,4 +1,4 @@
-ctags 
+ctags
 maim
 slop
 imagemagick
@@ -10,3 +10,4 @@ fzf
 bc
 dunst
 entr
+#acpi
