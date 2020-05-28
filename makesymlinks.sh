@@ -14,6 +14,7 @@ terminator=.config/terminator/config
 sh=.config/sh/shrc
 picom=.config/picom/picom.conf
 mutt=.config/mutt/config
+dunst=.config/dunst/dunstrc
 
 #bspwmconfig=.config/bspwm/bspwmrc
 #sxhkdconfig=.config/sxhkd/sxhkdrc
@@ -22,7 +23,7 @@ mutt=.config/mutt/config
 #bsp=" $bspwmconfig $sxhkdconfig" #these arent finished yet in the git repo!
 pactl=.config/pulseaudio-ctl/config
 i3=" $i3config $i3statusconfig" #i3wm
-xfiles=" .xinitrc $zathura $picom"
+xfiles=" .xinitrc $zathura $picom $dunst"
 bash=" .bashrc .bashrc_extra .bash_profile $sh"
 zsh=" .zshrc .zshrc_extra .zprofile $sh" 
 files=" .vimrc $mutt"    
