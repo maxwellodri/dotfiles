@@ -1,7 +1,7 @@
 #!/bin/sh
 while true; do
     if [ "$(echo "$(date +%s)%5" | bc)" -eq "0" ]; then
-        battery="BAT: $(acpi | grep 'harg' | tr ' ' '\n' | awk '/%/ {print}' | sed s/,//)"
+        battery="BAT: $(acpi | grep 'harg\|Full' | tr ' ' '\n' | awk 'NR==1/%/ {print}' | sed s/,//)"
         network="NET: $(nmcli device | awk '!/disconnected/&&/connected/ {print $4,"[",$2,"]"}') $(nmcli device wifi | awk '/\*/ {print $9}')"
 
     fi
