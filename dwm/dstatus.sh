@@ -9,6 +9,9 @@ while true; do
         thinkpad)
                     OPT="$battery, $network"
                     ;;
+        pc) 
+                    OPT="$network"
+                    ;;
         *)  
                     OPT="NO TAG"
                     ;;
