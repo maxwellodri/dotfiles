@@ -1,0 +1,3 @@
+#!/bin/sh
+
+eval "firefox https://docs.rs/$1"

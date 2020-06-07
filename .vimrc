@@ -23,6 +23,9 @@ set sessionoptions-=options
     set wildmenu
     set wildmode=longest,list,full
     set encoding=utf-8
+    "syntax enable
+    "set background=dark
+    "color solarized
     "color pablo
     color molokai
     set clipboard=unnamedplus

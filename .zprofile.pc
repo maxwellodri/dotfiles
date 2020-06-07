@@ -18,15 +18,17 @@ i3ws(){
 }
 
 WM=''  #override for cases below
+export dotfiles="$HOME/source/dotfiles"
+export dotfiles_tag="pc"
 
 [ -f "$(which transmission-daemon)" ] && transmission-daemon
 
 if [ -z "$WM" ] ; then
     case $XDG_VTNR in
-            1)      WM='/usr/bin/i3' 
+            1)      WM='/usr/local/bin/dwm'
                     ;;
 
-            2)      WM='/usr/local/bin/dwm'
+            2)      WM='/usr/bin/i3' 
                     ;;
 
             6)      WM='/usr/bin/startxfce4' 
@@ -38,7 +40,7 @@ if [ -z "$WM" ] ; then
     esac
 fi
 
-[ ! "$DISPLAY" ]  && [ "$WM" ] && export WM && exec startx 
+[ ! "$DISPLAY" ]  && [ "$WM" ] && export WM && ssh-agent; exec startx 
 echo "$WM failed?"
 
 
