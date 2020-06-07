@@ -52,8 +52,8 @@ fi
 #xterm -geometry 80x20+494-0 &
 #exec xterm -geometry 80x66+0+0 -name login
 
-[ "$WMNAME" = "dwm" ] && [ -f "$dotfiles/dwm/main" ] && "$dotfiles/dwm/main"  #shell script to start for dwm, for starting other programs
-"$WM"  
+[ "$(basename $WM)" = "dwm" ] && [ -f "$dotfiles/dwm/dwmshell" ] && "$dotfiles/dwm/dwmshell" &  #shell script to start for dwm, for starting other programs
+exec $WM  
 
 
 

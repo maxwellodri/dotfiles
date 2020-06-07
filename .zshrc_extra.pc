@@ -1,0 +1,2 @@
+#!/bin/sh
+export dotfiles="$HOME/source/dotfiles"
