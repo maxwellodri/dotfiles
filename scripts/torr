@@ -1,5 +1,0 @@
-#!/bin/sh
-
-[ $(pidof transmission-daemon | wc -w) -eq 0 ] && transmission-daemon --download-dir "$HOME/downloads/tor"
-
-transmission-remote -ep -u 20 -a "$1"

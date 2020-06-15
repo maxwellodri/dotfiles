@@ -83,3 +83,15 @@ autocmd BufWritePost *sxhkdrc !killall sxhkd; setsid sxhkd &
     map <C-j> <C-w>j
     map <C-k> <C-w>k
     map <C-l> <C-w>l
+
+inoremap <left> <nop>
+inoremap <right> <nop>
+inoremap <down> <nop>
+inoremap <up> <nop>
+
+nnoremap <left> <nop>
+nnoremap <right> <nop>
+nnoremap <down> <nop>
+nnoremap <up> <nop>
+"set undodir ~/.vimdid
+"set undofile
