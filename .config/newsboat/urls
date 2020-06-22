@@ -1,0 +1,19 @@
+"- - - - - Linux - - - - -"
+https://www.archlinux.org/feeds/news/ "Linux" "~Arch Linux News"
+#PKGBUILDS:
+#https://github.com///commits/master.atom.
+https://github.com/DIGImend/digimend-kernel-drivers/commits/master.atom "PKGBUILDS" "~digimend-kernel-drivers"
+" "
+"- - - - - Podcasts - - - - -"
+https://feeds.simplecast.com/XA_851k3  "Podcasts" "~StackOverflow Podcast"
+" "
+"- - - - - Youtube - - - - -"
+#https://www.youtube.com/feeds/videos.xml?channel_id=
+https://www.youtube.com/feeds/videos.xml?channel_id=UC2eYFnH61tmytImy1mTYvhA "YT" "~Luke Smith YT"
+https://www.youtube.com/feeds/videos.xml?channel_id=UChl_NKOs1qqh_x7yJfaDpDw "YT" "~Tantan YT"
+https://www.youtube.com/feeds/videos.xml?channel_id=UCcmTXZ3oJVe0EHoTE4wCXpA "YT" "~Randall YT"
+https://www.youtube.com/feeds/videos.xml?channel_id=UCld68syR8Wi-GY_n4CaoJGA "YT" "~Brodie Robertson YT"
+" "
+"- - - - - 4chan boards - - - - -"
+https://boards.4chan.org/g/index.rss "4chan" "/g/"
+https://boards.4chan.org/pol/index.rss "4chan" "/pol"
