@@ -67,3 +67,6 @@ preexec() { echo -ne '\e[5 q' ;} # Use beam shape cursor for each new prompt.
 
 
 #bindkey -s '^v' 'clear\n' #bind ctrl-v to function
+#
+#
+[ -e "$HOME/todo" ] && cat todo
