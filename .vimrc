@@ -49,15 +49,15 @@ let g:NERDTreeWinSize=15
 map <C-a> :NERDTreeToggle<CR>
 
 "Syntastic
-set statusline+=%#warningmsg#
-set statusline+=%{SyntasticStatuslineFlag()}
-set statusline+=%*
+"set statusline+=%#warningmsg#
+"set statusline+=%{SyntasticStatuslineFlag()}
+"set statusline+=%*
 
-let g:syntastic_always_populate_loc_list = 1
-let g:syntastic_auto_loc_list = 1
-let g:syntastic_check_on_open = 1
-let g:syntastic_check_on_wq = 0
-let g:syntastic_tex_lacheck_quiet_messages = { 'regex': '\Vpossible unwanted space at' } "Annoying LaTeX Message
+"let g:syntastic_always_populate_loc_list = 1
+"let g:syntastic_auto_loc_list = 1
+"let g:syntastic_check_on_open = 1
+"let g:syntastic_check_on_wq = 0
+"let g:syntastic_tex_lacheck_quiet_messages = { 'regex': '\Vpossible unwanted space at' } "Annoying LaTeX Message
 
 "tagbar
 nmap <C-s> :TagbarToggle<CR>

@@ -10,7 +10,7 @@ poll_battery() {
 }
 
 poll_packages() {
-    [ $(which yay) ] && package="📦: $(yay -Qnu | wc -l)/$(yay -Qmu | wc -l)" #every hour on the hour poll for number of official and aur packages via yay
+    [ $(which yay) ] && package="📦: $(pacman -Qu | wc -l)/$(yay -Qmu | wc -l)" #every hour on the hour poll for number of official and aur packages via yay
     echo "$package"
 }
 

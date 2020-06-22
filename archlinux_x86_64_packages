@@ -12,9 +12,23 @@ dunst
 entr
 acpi
 openssh
+nvim
 exa
 newsboat
+git
+feh
+sxiv
+neofetch
+noto-fonts-emoji
+zsh-autosuggestions
+zsh-syntax-highlighting
+adobe-source-code-pro
+ttf-joypixels
+
 
 #AUR
 #task-spooler
+#pandoc-bin
+#electron-player
+#pacmixer
 
