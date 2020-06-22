@@ -58,6 +58,8 @@ alias p="sudo pacman"
 alias picomrc="vim ~/.config/picom/picom.conf"
 alias muttrc="vim ~/.config/mutt/config"
 alias mutt="neomutt -F ~/.config/mutt/config"
+alias newsboatrc="vim ~/.config/newsboat/config"
+alias url="vim ~/.config/newsboat/urls"
 
 alias ytdl="youtube-dl --abort-on-unavailable-fragment"
 #alias r='ranger'

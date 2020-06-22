@@ -10,8 +10,11 @@ fzf
 bc
 dunst
 entr
-#acpi
 acpi
 openssh
 exa
+newsboat
+
+#AUR
+#task-spooler
 
