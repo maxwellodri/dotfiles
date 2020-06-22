@@ -1,0 +1,8 @@
+#!/bin/sh
+echo "Starting scripts..."
+$dotfiles/dwm/dwmshell & #can run arbitrary shell commands from here
+echo "Starting dwm loop"
+while true; do
+    # Log stderror to a file
+    dwm 2> ~/.cache/dwm.log
+done
