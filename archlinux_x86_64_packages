@@ -1,9 +1,10 @@
+#to install: cat $FILE | grep -v # | xargs sudo pacman -S --noconfirm
 ctags
-maim
+nodejs
+neovim
 slop
 imagemagick
 xclip
-pandoc
 figlet
 neomutt
 fzf
@@ -12,7 +13,6 @@ dunst
 entr
 acpi
 openssh
-nvim
 exa
 newsboat
 git
@@ -22,13 +22,13 @@ neofetch
 noto-fonts-emoji
 zsh-autosuggestions
 zsh-syntax-highlighting
-adobe-source-code-pro
+adobe-source-code-pro-fonts
 ttf-joypixels
-
+cronie
 
 #AUR
 #task-spooler
-#pandoc-bin
-#electron-player
+#electronplayer
 #pacmixer
-
+#pandoc-bin
+#libxft-bgra
