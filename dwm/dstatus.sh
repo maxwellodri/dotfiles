@@ -1,7 +1,7 @@
 #!/bin/sh
 
 poll_network() {
-    network="🌐: $(nmcli device | awk '!/disconnected/&&/connected/ {print $4}') $(nmcli device wifi | awk '/\*/ {print $9}')" && [ $network = "🌐:" ] && network="🌐: NONE"
+    command -v nmcli &>/dev/null && network="🌐: $(nmcli device | awk '!/disconnected/&&/connected/ {print $4}') $(nmcli device wifi | awk '/\*/ {print $9}')" && [ $network = "🌐:" ] && network="🌐: NONE"
     echo "$network"
 }
 poll_battery() { 
@@ -10,7 +10,7 @@ poll_battery() {
 }
 
 poll_packages() {
-    [ $(which yay) ] && package="📦: $(pacman -Qu | wc -l)/$(yay -Qmu | wc -l)" #every hour on the hour poll for number of official and aur packages via yay
+    command -v yay &>/dev/null && package="📦: $(pacman -Qu | wc -l)/$(yay -Qmu | wc -l)" #every hour on the hour poll for number of official and aur packages via yay
     echo "$package"
 }
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 icon="steam_tray_mono.png"
 olddir="~/.dotfiles_old"
@@ -9,12 +9,12 @@ then
     mkdir $olddir #if its not made already
     #make a backup:
 #    sudo mv "/usr/share/pixmaps/$icon" "$olddir/$icon"
-    sudo cp "$dotfiles/steam/$icon" "/usr/share/pixmaps/$icon"
+#    sudo cp "$dotfiles/steam/$icon" "/usr/share/pixmaps/$icon"
     #Now we add scripts for launching games
     mkdir -p "$HOME/bin"
     echo "Changing directory to scripts folder...\n"
     for file in $(find $dotfiles/steam/scripts/*); do
-        echo $file
+        echo "Linking $(basename $file)..."
         ln -sf $file $bin/$(basename $file)  #use absolute paths!
     done
 elif [ "$1" = "remove" ]; #removal - works for any number of installed sccripts - incl manually linked ones

@@ -11,6 +11,7 @@
 ###############
 export TERM='terminator'
 export WEB='firefox'
+export BROWSER='firefox'
 export EMAIL='maxwellodri@gmail.com'
 export EMAILCLIENT='thunderbird'
 export EDITOR='vim'
@@ -21,7 +22,6 @@ export PATH=$PATH:$BIN #add /home/$USER/bin to path
 export PATH=$PATH:"$BIN/steam_scripts" #and subfolder for steam scripts
 export PATH=$PATH:$HOME/bin
 export dl="$HOME/Downloads"
-export RANGER_LOAD_DEFAULT_RC="FALSE"
 
 
 ################
@@ -62,19 +62,17 @@ alias newsboatrc="vim ~/.config/newsboat/config"
 alias url="vim ~/.config/newsboat/urls"
 
 alias ytdl="youtube-dl --abort-on-unavailable-fragment"
-#alias r='ranger'
 alias tsm='transmission-remote'
+alias mpvr="find . -maxdepth 1 | shuf | grep -x . -v | xargs mpv"
 
 alias mkdir="mkdir -pv"
 alias ls="exa --color=auto -h --group-directories-first"
 alias l="exa --color=auto -h --group-directories-first"
-alias lsa="exa --color=auto -hNA --group-directories-first"
+alias lsa="exa --color=auto -ha --group-directories-first"
 alias cls="clear && exa"
 alias grep="grep --color=auto"
 alias mv="mv -v"
 alias cp="cp -v"
-alias mpvr=mpv "$(find . -maxdepth 1 | shuf | grep -x . -v )"
-
 alias pacs="pacman -Slq | fzf -m --preview 'pacman -Si {1}' | xargs -ro sudo pacman -S"
 alias alp="vim $dotfiles/archlinux_x86_64_packages"
 
