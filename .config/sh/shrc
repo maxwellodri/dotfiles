@@ -28,6 +28,7 @@ export dl="$HOME/Downloads"
 #Extras
 ################
 [ -e ~/.cargo/env ] && . ~/.cargo/env 
+export JUPYTERLAB_DIR=$HOME/.local/share/jupyter/lab
 #Functions:
 pd() { pandoc -T Plain "$1"| less; }
 hfiglet () { figlet "$@" | sed -n "s/.*/\# &/p"; }
@@ -38,6 +39,7 @@ hfiglet () { figlet "$@" | sed -n "s/.*/\# &/p"; }
 alias zshrc="vim ~/.zshrc && source ~/.zshrc"
 alias bashrc="vim ~/.bashrc && source ~/.bashrc"
 alias shrc="vim ~/.config/sh/shrc && source ~/.config/sh/shrc"
+alias sxhkdrc="vim ~/.config/sxhkd/sxhkdrc"
 alias bashrctag="vim ~/.bashrc_extra && source ~/.bashrc"
 alias zshrctag="vim ~/.zshrc_extra && source ~/.zshrc_extra"
 alias bashprofile="vim ~/.bash_profile"

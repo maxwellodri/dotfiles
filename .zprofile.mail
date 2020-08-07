@@ -1,0 +1,10 @@
+#!/bin/sh
+export PATH=$HOME/bin:/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl
+export PATH="$HOME/.cargo/bin:$PATH"
+unset beep 
+
+WM=''  #override for cases below
+export dotfiles="$HOME/source/dotfiles"
+export dotfiles_tag="mail"
+
+
