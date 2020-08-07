@@ -11,7 +11,8 @@ Plug 'tpope/vim-sensible'
 Plug 'rust-lang/rust.vim'
 Plug 'tikhomirov/vim-glsl'
 Plug 'majutsushi/tagbar'        "requires ctags  to be installed
-Plug 'preservim/nerdtree'
+"Plug 'preservim/nerdtree'
+Plug 'JuliaEditorSupport/julia-vim'
 Plug 'PeterRincker/vim-searchlight'
 call plug#end()
 filetype plugin indent on
@@ -163,6 +164,7 @@ autocmd CursorHold * silent call CocActionAsync('highlight')
 
 " Symbol renaming.
 nmap <leader>rn <Plug>(coc-rename)
+map <leader><leader> :w<CR>:!rustfmt %<CR>
 
 " Formatting selected code.
 xmap <leader>f  <Plug>(coc-format-selected)
