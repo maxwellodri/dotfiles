@@ -64,6 +64,7 @@ case $1 in
                     ;;
     "mail")         tag="$1"
                     files=$mailfiles$files
+		    ;;
 
     "clean")        echo "Removing all symlinks..." 
                     for file in $all; do
