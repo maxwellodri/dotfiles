@@ -18,6 +18,7 @@ dunst=.config/dunst/dunstrc
 pactl=.config/pulseaudio-ctl/config
 newsboat=".config/newsboat/urls .config/newsboat/config"
 ytdl=.config/youtube-dl/config
+tmux=.config/tmux/config
 #bspwmconfig=.config/bspwm/bspwmrc
 #sxhkdconfig=.config/sxhkd/sxhkdrc
 
@@ -27,7 +28,7 @@ i3=" $i3config $i3statusconfig" #i3wm
 xfiles=" .xinitrc $zathura $picom $dunst"
 bash=" .bashrc .bashrc_extra .bash_profile $sh"
 zsh=" .zshrc .zshrc_extra .zprofile $sh" 
-files=" .vimrc $mutt $ytdl $newsboat"    
+files=" .vimrc $mutt $ytdl $newsboat $tmux"    
 ########### Variables
 pcfiles=" $xfiles $zsh" #platform specific dotfiles
 laptopfiles=" $xfiles $pactl $i3 $zsh $terminator"

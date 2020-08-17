@@ -1,0 +1,2 @@
+#!/bin/sh
+notify-send "Torrent Completed 😠 $(tsm -l | grep Seed | wc -l) 🌱"

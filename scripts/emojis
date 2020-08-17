@@ -1,4 +1,5 @@
 #!/bin/sh
-cat "$HOME/bin/unicode_fmt" | dmenu -i -l 20 | awk '{print $1}' | tr -d '\n' | xclip -selection clipboard
+emoji=$(cat "$HOME/bin/unicode_fmt" | dmenu -i -l 20 | awk '{print $1}' | tr -d '\n')
+[ $emoji != "" ] && echo $emoji | xclip -selection clipboard && pgrep -x dunst >/dev/null && notify-send "$(xclip -o -selection clipboard) => clipboard"
+echo $emoji
 
-pgrep -x dunst >/dev/null && notify-send "$(xclip -o -selection clipboard) => clipboard"

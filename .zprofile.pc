@@ -21,9 +21,12 @@ if [ -z "$WM" ] ; then
     case $XDG_VTNR in
             1)      WM='/usr/local/bin/dwm'
                     ;;
-            2)      WM='startplasma-x11'
-                    export DESKTOP_SESSION=plasma
+
+            2)      WM='/usr/local/bin/dwm'
                     ;;
+            #2)      WM='startplasma-x11'
+            #        export DESKTOP_SESSION=plasma
+            #        ;;
             *)      echo "Not starting X in this TTY, $XDG_VTNR"
                     WM=''
                     ;;
