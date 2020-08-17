@@ -46,6 +46,8 @@ alias bashprofile="vim ~/.bash_profile"
 alias zprofile="vim ~/.zprofile"
 alias xrc="vim ~/.xinitrc"
 alias vimrc="vim ~/.vimrc"
+alias tmuxrc="vim ~/.config/tmux/config"
+alias emacsrc="vim ~/.emacs.d/init.el"
 alias i3rc="vim $dotfiles/.config/i3/config.base && $dotfiles/makesymlinks.sh $dotfiles_tag >> /dev/null && i3-msg reload"
 alias bm="vim $dotfiles/scripts/web_bookmarks.txt"
 alias dunstrc="vim ~/.config/dunst/dunstrc"
@@ -64,7 +66,7 @@ alias newsboatrc="vim ~/.config/newsboat/config"
 alias url="vim ~/.config/newsboat/urls"
 
 alias ytdl="youtube-dl --abort-on-unavailable-fragment"
-alias tsm='transmission-remote'
+alias tsm='transmission-remote --torrent-done-script ~/bin/torrdone'
 alias mpvr="find . -maxdepth 1 | shuf | grep -x . -v | xargs mpv"
 
 alias mkdir="mkdir -pv"

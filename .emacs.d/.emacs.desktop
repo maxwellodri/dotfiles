@@ -1,0 +1,19 @@
+;; -*- mode: emacs-lisp; coding: emacs-mule; -*-
+;; --------------------------------------------------------------------------
+;; Desktop File for Emacs
+;; --------------------------------------------------------------------------
+;; Created Tue Aug 18 03:33:08 2020
+;; Desktop file format version 208
+;; Emacs version 26.3
+
+;; Global section:
+(setq desktop-saved-frameset [frameset 1 (24378 48980 369946 70000) (desktop . "208") "maxwell@elhablito" nil nil ((((minibuffer . t) (undecorated) (override-redirect) (font-backend xft x) (font . "-ADBO-Source Code Pro-normal-normal-normal-*-14-*-*-*-m-0-iso10646-1") (font-parameter . "Source Code Pro 10") (border-width . 0) (internal-border-width . 0) (right-divider-width . 0) (bottom-divider-width . 0) (vertical-scroll-bars . right) (horizontal-scroll-bars) (foreground-color . "black") (background-color . "honeydew") (mouse-color . "black") (border-color . "black") (screen-gamma) (line-spacing) (left-fringe . 8) (right-fringe . 8) (no-special-glyphs) (scroll-bar-foreground) (scroll-bar-background) (menu-bar-lines . 1) (tool-bar-lines . 0) (title) (wait-for-wm . t) (tool-bar-position . top) (inhibit-double-buffering) (icon-type . t) (auto-raise) (auto-lower) (cursor-type . box) (scroll-bar-width . 16) (scroll-bar-height . 0) (alpha) (no-focus-on-map) (no-accept-focus) (fullscreen) (visibility . t) (skip-taskbar) (z-group) (display-type . color) (background-mode . light) (cursor-color . "black") (environment) (frameset--id . "E1DB-E4F7-FF3D-E5AD") (frameset--mini t . t) (modeline . t) (unsplittable) (icon-name) (display . ":1") (explicit-name) (height . 57) (width . 103) (left + -1716) (top . 20)) ((min-height . 4) (min-width . 10) (min-height-ignore . 2) (min-width-ignore . 6) (min-height-safe . 1) (min-width-safe . 2) (min-pixel-height . 72) (min-pixel-width . 80) (min-pixel-height-ignore . 36) (min-pixel-width-ignore . 48) (min-pixel-height-safe . 18) (min-pixel-width-safe . 16)) leaf (pixel-width . 856) (pixel-height . 1008) (total-width . 107) (total-height . 56) (normal-height . 1.0) (normal-width . 1.0) (buffer "*scratch*" (selected . t) (hscroll . 0) (fringes 8 8 nil) (margins nil) (scroll-bars nil 2 t nil 0 t) (vscroll . 0) (dedicated) (point . 146) (start . 1))))])
+(setq desktop-missing-file-warning nil)
+(setq tags-file-name nil)
+(setq tags-table-list nil)
+(setq search-ring nil)
+(setq regexp-search-ring nil)
+(setq register-alist nil)
+(setq file-name-history nil)
+
+;; Buffer section -- buffers listed in same order as in buffer list:
