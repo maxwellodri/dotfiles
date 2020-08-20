@@ -2,6 +2,7 @@
 #adds wrappers and the like to path
 #assumes $bin is in path -> i.e. need makesymlink script to have already been run
 if [ "$bin" != "$HOME/bin" ] || [ -z "$dotfiles" ]; then
+    echo "bin var != ~/bin or dotfiles var doesnt exist"
     exit
 fi
 dscripts="$dotfiles/scripts"

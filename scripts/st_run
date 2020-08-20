@@ -1,2 +1,2 @@
 #!/bin/sh
-st -g "$(xrandr | grep connected | grep -v disconnected | awk '{print $4}')" -e tmux -f ~/.config/tmux/config
+st -g "$(xrandr | grep connected | grep -v disconnected | awk '{print $4}')" #-e tmux -f ~/.config/tmux/config

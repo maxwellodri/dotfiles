@@ -1,4 +1,5 @@
-"        _                    
+"
+"_                    
 " __   _(_)_ __ ___  _ __ ___ 
 " \ \ / / | '_ ` _ \| '__/ __|
 "  \ V /| | | | | | | | | (__ 
@@ -17,6 +18,7 @@ Plug 'PeterRincker/vim-searchlight'
 call plug#end()
 filetype plugin indent on
 syntax on
+set nohlsearch
 set sessionoptions-=options
 
 "   basics:
