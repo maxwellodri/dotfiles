@@ -29,6 +29,7 @@ export dl="$HOME/Downloads"
 ################
 [ -e ~/.cargo/env ] && . ~/.cargo/env 
 export JUPYTERLAB_DIR=$HOME/.local/share/jupyter/lab
+[ -e "$HOME/todo" ] && cat ~/todo
 #Functions:
 pd() { pandoc -T Plain "$1"| less; }
 hfiglet () { figlet "$@" | sed -n "s/.*/\# &/p"; }
@@ -36,6 +37,7 @@ hfiglet () { figlet "$@" | sed -n "s/.*/\# &/p"; }
 ################
 #Aliases:
 ###############
+[ -e "$HOME/todo" ] && alias todo="vim $HOME/todo" 
 alias zshrc="vim ~/.zshrc && source ~/.zshrc"
 alias bashrc="vim ~/.bashrc && source ~/.bashrc"
 alias shrc="vim ~/.config/sh/shrc && source ~/.config/sh/shrc"
@@ -55,7 +57,8 @@ alias i3tag="vim $dotfiles/.config/i3/config.extra && $dotfiles/makesymlinks.sh 
 alias termrc="vim ~/.config/terminator/config"
 alias i3sbar="vim ~/.config/i3status/config && i3-msg restart"
 alias zathurarc="vim ~/.config/zathura/zathurarc"
-alias systemctl="systemctl"
+alias mpdrc="vim ~/.config/mpd/mpd.conf"
+alias systemctl="sudo systemctl"
 alias dl="cd ~/Downloads"
 alias src="cd ~/source"
 alias p="sudo pacman"

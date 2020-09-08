@@ -15,6 +15,7 @@ export dotfiles_tag="pc"
 #[ -f "$(which transmission-daemon)" ] && transmission-daemon
 command transmission-daemon
 command ssh-agent
+[ ! -s ~/.config/mpd/pid ] && mpd
 #
 
 if [ -z "$WM" ] ; then
