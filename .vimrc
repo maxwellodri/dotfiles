@@ -57,7 +57,7 @@ autocmd Filetype python set shiftwidth=4
 autocmd Filetype python set autoindent 
 autocmd Filetype python set expandtab
 autocmd Filetype python set fileformat=unix 
-"Snippets:
+"LaTeX Snippets:
 nnoremap ,latex :-1read $dotfiles/snippets/assignment.tex<CR>72jo
 nnoremap ,texfig :-1read $dotfiles/snippets/figure.tex<CR><CR>$i
 "Commands:

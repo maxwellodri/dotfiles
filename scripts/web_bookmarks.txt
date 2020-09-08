@@ -26,6 +26,8 @@ web_bookmarks = {
 'st': 'https://www.suckless.org/',
 'gh': 'https://github.com/login?return_to=%2Fmaxwellodri',
 'vimtalk': 'https://www.youtube.com/watch?v=XA2WjJbmmoM',
+'sync': 'http://localhost:8384',
+'wifi-brostrend': 'https://gist.github.com/smac89/6101a814e44562e0420712731f386438',
 
 }
 
