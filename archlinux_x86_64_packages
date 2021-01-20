@@ -24,8 +24,11 @@ noto-fonts-emoji
 zsh-autosuggestions
 zsh-syntax-highlighting
 adobe-source-code-pro-fonts
+adobe-source-han-sans-otc-fonts
+mpd
 ttf-joypixels
 cronie
+rustup
 
 #AUR
 #task-spooler
