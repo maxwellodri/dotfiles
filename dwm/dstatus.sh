@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 poll_network() {
     command -v nmcli &>/dev/null && network="🌐: $(nmcli device | awk '!/disconnected/&&/connected/ {print $4}') $(nmcli device wifi | awk '/\*/ {print $9}')" && [ $network = "🌐:" ] && network="🌐: NONE"
@@ -39,11 +39,3 @@ while true; do
     xsetroot -name "🕒 $(date +%a-%d-%b-%R) $OPT"
 	sleep 1
 done
-
-
-
-Hello () {
-   echo "Hello World $1 $2"
-   return 10
-}
-

@@ -10,13 +10,15 @@ unset beep
 
 WM=''  #override for cases below
 export dotfiles="$HOME/source/dotfiles"
+export dotfile="$HOME/source/dotfiles"
 export dotfiles_tag="pc"
+export dotfile_tag="pc"
 
 #[ -f "$(which transmission-daemon)" ] && transmission-daemon
-command transmission-daemon
+#command transmission-daemon
 command ssh-agent
+#command xfce-polkit
 [ ! -s ~/.config/mpd/pid ] && mpd
-#
 
 if [ -z "$WM" ] ; then
     case $XDG_VTNR in
