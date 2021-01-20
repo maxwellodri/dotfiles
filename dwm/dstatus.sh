@@ -5,7 +5,7 @@ poll_network() {
     echo "$network"
 }
 poll_battery() { 
-    [ $(which acpi | cut -c 1) = "/" ] && battery="🔋: $(acpi | grep 'harg' | tr ' ' '\n' | awk '/%/ {print}' | sed s/,//)"
+    battery="🔋: $(acpi | grep 'harg' | tr ' ' '\n' | awk '/%/ {print}' | sed s/,//)"
     echo "$battery"
 }
 
