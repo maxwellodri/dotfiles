@@ -7,6 +7,7 @@ https://github.com/DIGImend/digimend-kernel-drivers/commits/master.atom "PKGBUIL
 "- - - - - Rust - - - - -"
 https://blog.rust-lang.org/feed.xml "Rust" "~Core Language"
 https://blog.rust-lang.org/inside-rust/feed.xml "Rust" "~Inside Rust"
+https://rustacean-station.org/podcast.rss "Rust" "~Rustacean Staiton Podcast"
 " "
 "- - - - - Podcasts - - - - -"
 https://feeds.simplecast.com/XA_851k3  "Podcasts" "~StackOverflow Podcast"
