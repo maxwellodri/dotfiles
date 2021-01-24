@@ -5,6 +5,6 @@ unset beep
 
 WM=''  #override for cases below
 export dotfiles="$HOME/source/dotfiles"
-export dotfiles_tag="mail"
+export dotfiles_tag="nox"
 
 
