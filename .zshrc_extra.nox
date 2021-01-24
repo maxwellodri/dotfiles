@@ -1,2 +1,3 @@
 #!/bin/sh
 export dotfiles="$HOME/source/dotfiles"
+export dotfiles_tag='nox'
