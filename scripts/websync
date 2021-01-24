@@ -1,0 +1,1 @@
+rsync -urvP ~/source/odridotnetdotau/site/ root@odri.net.au:/var/www/odri
