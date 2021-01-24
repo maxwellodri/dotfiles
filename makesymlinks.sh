@@ -36,7 +36,7 @@ laptopfiles=" $xfiles $pactl $i3 $zsh $terminator"
 thinkpadfiles=" $xfiles $zsh" #uses dwm
 chromebookfiles=" "
 rpifiles=" "
-mailfiles="$zsh"
+noxfiles="$zsh"
 all="$files$zsh$bash$xfiles$i3$pactl$sh$terminator$zathura" #all files
 
 ##########
@@ -64,8 +64,8 @@ case $1 in
     "rpi")          tag="$1"
                     files=$rpifiles$files
                     ;;
-    "mail")         tag="$1"
-                    files=$mailfiles$files
+    "nox")          tag="$1"
+                    files=$noxfiles$files
 		    ;;
 
     "clean")        echo "Removing all symlinks..." 
