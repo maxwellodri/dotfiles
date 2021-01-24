@@ -1,0 +1,4 @@
+#ArchLinux
+0 4 * * * pacman -Qg > /home/maxwell/packages.txt 
+0 4 * * * newsboat -x reload
+#DebianLinux
