@@ -1,0 +1,5 @@
+#!/bin/sh
+
+[ ! -f "$dotfiles/scripts/$1" ] && echo "#!/bin/sh"  > "$dotfiles/scripts/$1" && chmod +x "$dotfiles/scripts/$1" && vim "$dotfiles/scripts/$1" && $dotfiles/custom_bin_scripts.sh || echo "Script already exists choose a new name"
+
+
