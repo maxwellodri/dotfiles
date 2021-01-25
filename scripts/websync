@@ -1,1 +1,0 @@
-rsync -urvP --delete-after ~/source/odridotnetdotau/site/ root@odri.net.au:/var/www/odri
