@@ -30,9 +30,13 @@ export dl="$HOME/Downloads"
 [ -e ~/.cargo/env ] && . ~/.cargo/env 
 export JUPYTERLAB_DIR=$HOME/.local/share/jupyter/lab
 [ -e "$HOME/todo" ] && cat ~/todo
+
+################
 #Functions:
+################
 pd() { pandoc -T Plain "$1"| less; }
 hfiglet () { figlet "$@" | sed -n "s/.*/\# &/p"; }
+kn() { pgrep $@ | xargs kill -9 }
 
 #Addtional keybindings:
 bindkey -s '^t' 'st & disown\nclear\n' #st in pwd
@@ -40,7 +44,8 @@ bindkey -s '^t' 'st & disown\nclear\n' #st in pwd
 #Aliases:
 ###############
 alias dfn='df -h | egrep "Filesystem|nvme|sd"'
-[ -e "$HOME/todo" ] && alias todo="vim $HOME/todo" 
+alias todo="vim $HOME/todo" 
+alias myip='curl ipinfo.io/ip'
 alias zshrc="vim ~/.zshrc && source ~/.zshrc"
 alias bashrc="vim ~/.bashrc && source ~/.bashrc"
 alias shrc="vim ~/.config/sh/shrc && source ~/.config/sh/shrc"
@@ -88,5 +93,6 @@ alias cp="cp -v"
 alias pacs="pacman -Slq | fzf -m --preview 'pacman -Si {1}' | xargs -ro sudo pacman -S"
 alias alp="vim $dotfiles/archlinux_x86_64_packages"
 alias dfn='df -h | egrep "Filesystem|nvme|sd"'
+alias untar='tar -zxvf'
 
 alias screensave="xclip -selection clipboard -target image/png -out > out.png"
