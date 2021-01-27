@@ -30,6 +30,7 @@ ttf-joypixels
 cronie
 rustup
 xsel
+detox
 
 #AUR
 #task-spooler
@@ -38,3 +39,4 @@ xsel
 #pandoc-bin
 #libxft-bgra
 #dragon-drag-and-drop
+#mutt-wziard
