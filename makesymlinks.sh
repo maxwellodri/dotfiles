@@ -13,20 +13,21 @@ zathura=.config/zathura/zathurarc
 terminator=.config/terminator/config
 sh=.config/sh/shrc
 picom=.config/picom/picom.conf
-mutt=.config/mutt/config
+mutt=.config/mutt/muttrc
 dunst=.config/dunst/dunstrc
 pactl=.config/pulseaudio-ctl/config
 newsboat=".config/newsboat/urls .config/newsboat/config"
 ytdl=.config/youtube-dl/config
 tmux=.config/tmux/config
 emacs=.emacs.d/*
+ncmpcpp=".config/mpd/mpd.conf .config/ncmpcpp/config"
 #bspwmconfig=.config/bspwm/bspwmrc
 #sxhkdconfig=.config/sxhkd/sxhkdrc
 
 ########### Meta Variables
 #bsp=" $bspwmconfig $sxhkdconfig" #these arent finished yet in the git repo!
 i3=" $i3config $i3statusconfig" #i3wm
-xfiles=" .xinitrc $zathura $picom $dunst"
+xfiles=" .xinitrc $zathura $picom $dunst $ncmpcpp"
 bash=" .bashrc .bashrc_extra .bash_profile $sh"
 zsh=" .zshrc .zshrc_extra .zprofile $sh" 
 files=" .vimrc .config/nvim $mutt $ytdl $newsboat $tmux $emacs"    
