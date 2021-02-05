@@ -13,7 +13,7 @@ export TERM='terminator'
 export WEB='firefox'
 export BROWSER='firefox'
 export EMAIL='maxwellodri@gmail.com'
-export EMAILCLIENT='thunderbird'
+export EMAILCLIENT='neomutt'
 export EDITOR='vim'
 export VISUAL='vim'
 export BIN="$HOME/bin"
@@ -67,7 +67,6 @@ alias i3sbar="vim ~/.config/i3status/config && i3-msg restart"
 alias zathurarc="vim ~/.config/zathura/zathurarc"
 alias s="sudo systemctl"
 alias dl="cd ~/Downloads"
-alias src="cd ~/source"
 alias p="sudo pacman"
 alias picomrc="vim ~/.config/picom/picom.conf"
 alias muttrc="vim ~/.config/mutt/config"
@@ -78,6 +77,7 @@ alias dragon="dragon-drag-and-drop"
 
 alias mpdrc="vim ~/.config/mpd/mpd.conf"
 alias ncmpcpprc="vim ~/.config/ncmpcpp/config"
+alias ncm="ncmpcpp"
 alias ytdl="youtube-dl --abort-on-unavailable-fragment"
 alias tsm='transmission-remote --torrent-done-script ~/bin/torrdone'
 alias tsmr='transmission-remote -l | grep -v 'Queued''
@@ -97,3 +97,5 @@ alias dfn='df -h | egrep "Filesystem|nvme|sd"'
 alias untar='tar -zxvf'
 
 alias screensave="xclip -selection clipboard -target image/png -out > out.png"
+
+alias USB="/home/maxwell/media/usb"

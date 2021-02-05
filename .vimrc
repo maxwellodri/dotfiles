@@ -8,7 +8,7 @@
 filetype off
 call plug#begin('~/.vim/plugged')
 Plug 'neoclide/coc.nvim', {'branch': 'release'} "Requires node
-let g:coc_disable_startup_warning = 1 "Because debian version is <0.4.0
+"let g:coc_disable_startup_warning = 1 "Because debian version is <0.4.0
 Plug 'tpope/vim-sensible'
 Plug 'rust-lang/rust.vim'
 Plug 'tikhomirov/vim-glsl'
