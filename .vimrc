@@ -1,4 +1,4 @@
-"_                    
+
 " __   _(_)_ __ ___  _ __ ___ 
 " \ \ / / | '_ ` _ \| '__/ __|
 "  \ V /| | | | | | | | | (__ 
@@ -15,10 +15,13 @@ Plug 'majutsushi/tagbar'        "requires ctags  to be installed
 "Plug 'preservim/nerdtree'
 Plug 'JuliaEditorSupport/julia-vim'
 Plug 'PeterRincker/vim-searchlight'
+Plug 'kevinoid/vim-jsonc'
+Plug 'SirVer/ultisnips'
+Plug 'honza/vim-snippets'
 call plug#end()
 filetype plugin indent on
 syntax on
-set nohlsearch
+"set nohlsearch
 set sessionoptions-=options
 
 "   basics:
@@ -68,13 +71,17 @@ command! Maketags !ctags -R
 "usage: ^]: jump to tag under cursorm g^] ambiguos tags, ^t, jump back up tag
 "stack
 "Fix Search Highlighting:
-autocmd InsertEnter * call EndHighlight()
+autocmd InsertEnter * nohlsearch "EndHighlight()
+nmap <Esc> :nohlsearch<CR>q:<CR>
+imap <Esc> <Esc>:nohlsearch<CR>q:<CR>
+
 
 function EndHighlight()
-    match
-    let s:lastsearch = @/
-    nohlsearch
-    redraw
+    "match
+    "let s:lastsearch = @/
+    "nohlsearch
+    nohl
+    "redraw
 endfunction
 
 "Remaps:
@@ -238,3 +245,6 @@ nnoremap <silent><nowait> <space>k  :<C-u>CocPrev<CR>
 " Resume latest coc list.
 nnoremap <silent><nowait> <space>p  :<C-u>CocListResume<CR>
 
+let g:UltiSnipsExpandTrigger="<tab>"
+let g:UltiSnipsJumpForwardTrigger="<c-k>"
+let g:UltiSnipsJumpBackwardTrigger="<c-j>"

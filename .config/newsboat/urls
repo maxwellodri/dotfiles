@@ -50,6 +50,7 @@ https://www.youtube.com/feeds/videos.xml?channel_id=#UCXtxgWwk55kVJo9lCCZRdmg "Y
 https://www.youtube.com/feeds/videos.xml?channel_id=UCbfYPyITQ-7l4upoX8nvctg "Tech" "~2 Minute Papers"
 https://www.youtube.com/feeds/videos.xml?channel_id=UCd1m1uND6bF88YmueZDmKkA "Tech" "AI Syndicate"
 https://www.youtube.com/feeds/videos.xml?channel_id=UCsnGwSIHyoYN0kiINAGUKxg "Tech" "Wolfgang's Channel"
+https://www.youtube.com/feeds/videos.xml?channel_id=UCoebwHSTvwalADTJhps0emA "Tech" "Wes Bos"
 " "
 "- - - - - Dota - - - - -"
 https://www.youtube.com/feeds/videos.xml?channel_id=UCGSfTJl4HUoo1W5giij86XA "Dota" "~SirActionSlacks"
@@ -73,4 +74,8 @@ https://boards.4chan.org/pol/index.rss "4chan" "/pol"
 
 "- - - - - Blogs - - - - -"
 https://airlied.blogspot.com/feeds/posts/default "Blog" "~David Arlie Linux Graphics"
+
+"- - - - - Twitter - - - - -"
+#https://nitter.net/username/rss
+https://tweet.lambda.dance/jonhoo/rss "Twitter" "Jon Gjengset"
 

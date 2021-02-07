@@ -32,6 +32,8 @@ web_bookmarks = {
 'epik': 'https://registrar.epik.com/domain/portfolio',
 'vultr': 'https://my.vultr.com/',
 'suckless': 'https://suckless.org/',
+'nitter': 'https://tweet.lambda.dance/',
+'rssreddit': 'https://old.reddit.com/r/pathogendavid/comments/tv8m9/pathogendavids_guide_to_rss_and_reddit/',
 
 }
 
