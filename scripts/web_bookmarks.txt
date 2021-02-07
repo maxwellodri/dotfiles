@@ -31,6 +31,7 @@ web_bookmarks = {
 'vfio': 'https://wiki.archlinux.org/index.php/PCI_passthrough_via_OVMF',
 'epik': 'https://registrar.epik.com/domain/portfolio',
 'vultr': 'https://my.vultr.com/',
+'suckless': 'https://suckless.org/',
 
 }
 
