@@ -3,6 +3,7 @@ https://www.archlinux.org/feeds/news/ "Linux" "~Arch Linux News"
 #PKGBUILDS:
 #https://github.com///commits/master.atom.
 https://github.com/DIGImend/digimend-kernel-drivers/commits/master.atom "PKGBUILDS" "~digimend-kernel-drivers"
+https://suckless.org/atom.xml "Linux" "Suckless New"
 " "
 "- - - - - Rust - - - - -"
 https://blog.rust-lang.org/feed.xml "Rust" "~Core Language"

@@ -29,7 +29,7 @@ export dl="$HOME/Downloads"
 ################
 [ -e ~/.cargo/env ] && . ~/.cargo/env 
 export JUPYTERLAB_DIR=$HOME/.local/share/jupyter/lab
-[ -e "$HOME/todo" ] && cat ~/todo
+[ -e "$HOME/.todo" ] && cat $HOME/.todo
 
 ################
 #Functions:
@@ -44,7 +44,6 @@ bindkey -s '^t' 'st & disown\nclear\n' #st in pwd
 #Aliases:
 ###############
 alias dfn='df -h | egrep "Filesystem|nvme|sd"'
-alias todo="vim $HOME/todo" 
 alias myip='curl ipinfo.io/ip'
 alias zshrc="vim ~/.zshrc && source ~/.zshrc"
 alias bashrc="vim ~/.bashrc && source ~/.bashrc"
@@ -67,6 +66,7 @@ alias i3sbar="vim ~/.config/i3status/config && i3-msg restart"
 alias zathurarc="vim ~/.config/zathura/zathurarc"
 alias s="sudo systemctl"
 alias dl="cd ~/Downloads"
+alias lock='slock -m "$(cowsay "$(fortune)")"'
 alias p="sudo pacman"
 alias picomrc="vim ~/.config/picom/picom.conf"
 alias muttrc="vim ~/.config/mutt/config"
