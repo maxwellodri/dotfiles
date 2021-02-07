@@ -28,10 +28,5 @@ then
             echo "unlinked $bin/$(basename $file)"
         fi
     done
-elif [ "$1" = "restoreicon" ]; #restore icon - requires installation to have been run or wont work
-then
-    sudo mv "$olddir/$icon" "/usr/share/pixmaps/$icon"
-else
-    echo "Invalid Arg"
 fi
 
