@@ -6,7 +6,8 @@ cd ~/.vim/colors && curl -LSO https://raw.githubusercontent.com/tomasr/molokai/m
 
 curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
     https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-
+cd $dotfiles/vim
+vim -S coc-installer.vim
 
 #https://github.com/szymonmaszke/vimpyter #for jupyter notebook
 #git clone https://github.com/vim/vim.git #vim src
