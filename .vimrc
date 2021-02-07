@@ -6,20 +6,36 @@
 "                             
 
 filetype off
+set termguicolors
+let s:plug = '~/.vim/plugged'
+function! CocPlugins(arg)
+  :CocInstall coc-rust-analyzer
+  :CocInstall coc-json 
+  :CocInstall coc-tsserver
+  :CocInstall coc-html
+  :CocInstall coc-css
+  :CocInstall coc-sh
+  :CocInstall coc-clangd
+  :CocInstall coc-highlight
+  :CocInstall coc-yaml
+endfunction
 " ==========
 "
 " Plugins
 "
 " ==========
-call plug#begin('~/.vim/plugged')
 " =============
 " Autocomplete
 " =============
-Plug 'neoclide/coc.nvim', {'branch': 'release'} "Requires node
+"
+call plug#begin(s:plug)
+"coc requires node, force update of coc plugins with :CocUpdate!
+Plug 'neoclide/coc.nvim', {'branch': 'release', 'do': function('CocPlugins') }
 "let g:coc_disable_startup_warning = 1 "Because debian version is <0.4.0 (old)
 " =================
 " Language Support
 " =================
+Plug 'sheerun/vim-polyglot' "all in one bundle
 Plug 'rust-lang/rust.vim'
 Plug 'tikhomirov/vim-glsl'
 Plug 'JuliaEditorSupport/julia-vim'
@@ -42,15 +58,15 @@ Plug 'tpope/vim-sensible'
 Plug 'SirVer/ultisnips'
 Plug 'honza/vim-snippets'
 " ===============
-" Colour Schemes
+" Color Schemes
 " ===============
 Plug 'tomasiser/vim-code-dark'
 Plug 'tomasr/molokai'
-"color pablo "fallback
-color molokai
-"color codedark
-"set background=dark
-"color solarized
+Plug 'morhetz/gruvbox'
+Plug 'ghifarit53/tokyonight-vim' 
+Plug 'ajmwagar/vim-deus' 
+Plug 'sainnhe/edge'
+Plug 'pineapplegiant/spaceduck'
 " =======
 " Unused 
 " =======
@@ -60,6 +76,26 @@ color molokai
 "map <C-a> :NERDTreeToggle<CR>
 "
 call plug#end()
+
+" ===============
+"
+" Colour Options
+"
+" ===============
+set background=dark    
+let g:tokyonight_style = 'night' " available: night, storm
+let g:tokyonight_enable_italic = 1
+let g:tokyonight_current_word = 'underline'
+let g:deus_termcolors=256
+color pablo "fallback
+color codedark
+color tokyonight
+color molokai
+
+"set t_Co=256
+"let &t_8f = "\<Esc>[38;2;%lu;%lu;%lum"
+"let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
+"
 "
 " =============
 " 
@@ -68,6 +104,8 @@ call plug#end()
 " =============
 filetype plugin indent on
 syntax on
+set statusline^=%{coc#status()}%{get(b:,'coc_current_function','')}
+set statusline+=%{FugitiveStatusline()}
 set sessionoptions-=options
 set tabstop=4
 set softtabstop=0
@@ -116,9 +154,9 @@ nnoremap ,texfig :-1read $dotfiles/snippets/figure.tex<CR><CR>$i
 " =================
 "  Compile from vim
 " =================
-command! Texit !pdflatex % 
-command PP !python %
-command! Maketags !ctags -R
+"command! Texit !pdflatex % 
+"command PP !python %
+"command! Maketags !ctags -R
 "autocmd BufWritePost *sxhkdrc !killall sxhkd; setsid sxhkd &
 "usage: ^]: jump to tag under cursorm g^] ambiguos tags, ^t, jump back up tag
 "stack
@@ -269,7 +307,6 @@ command! -nargs=0 OR   :call     CocAction('runCommand', 'editor.action.organize
 " Add (Neo)Vim's native statusline support.
 " NOTE: Please see `:h coc-status` for integrations with external plugins that
 " provide custom statusline: lightline.vim, vim-airline.
-set statusline^=%{coc#status()}%{get(b:,'coc_current_function','')}
 
 " Mappings for CoCList
 " Show all diagnostics.
@@ -289,6 +326,6 @@ nnoremap <silent><nowait> <space>k  :<C-u>CocPrev<CR>
 " Resume latest coc list.
 nnoremap <silent><nowait> <space>p  :<C-u>CocListResume<CR>
 
-let g:UltiSnipsExpandTrigger="," "need to remap away from default <tab> to avoid conflict with coc autocomplete
+let g:UltiSnipsExpandTrigger="<F2>" "need to remap away from default <tab> to avoid conflict with coc autocomplete
 let g:UltiSnipsJumpForwardTrigger="<c-k>"
 let g:UltiSnipsJumpBackwardTrigger="<c-j>"

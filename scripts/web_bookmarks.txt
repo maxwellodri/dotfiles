@@ -34,6 +34,9 @@ web_bookmarks = {
 'suckless': 'https://suckless.org/',
 'nitter': 'https://tweet.lambda.dance/',
 'rssreddit': 'https://old.reddit.com/r/pathogendavid/comments/tv8m9/pathogendavids_guide_to_rss_and_reddit/',
+'vimcolorschemes': 'https://vimcolorschemes.com/',
+'vimstatusline': 'https://www.sainnhe.dev/post/status-line-config/',
+'reacttutorial': 'https://www.youtube.com/watch?v=Ke90Tje7VS0',
 
 }
 

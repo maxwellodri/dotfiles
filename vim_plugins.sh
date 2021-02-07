@@ -4,7 +4,7 @@
 #cd ~/.vim/colors && curl -LSO https://raw.githubusercontent.com/tomasr/molokai/master/colors/molokai.vim #molokai theme
 
 
-python3 -m pip install --user --upgrade pynvim #needed for python nvim plugins
+python3 -m pip install --user --upgrade pynvim || echo "Need to install python3" #needed for python nvim plugins
 curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
     https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 cd $dotfiles/setup_vim && vim -S coc-installer.vim
