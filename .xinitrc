@@ -37,7 +37,4 @@ fi
 
 [ "$(basename $WM)" = "dwm" ] && [ -f "$dotfiles/dwm/dwmshell" ] && "$dotfiles/dwm/dwmshell" &  #shell script to start for dwm, for starting other programs
 exec $WM  
-
-
-
-
+setxkbmap -option caps:escape
