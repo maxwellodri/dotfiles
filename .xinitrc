@@ -38,9 +38,10 @@ fi
 [ "$(basename "$WM")" = "dwm" ] && [ -f "$dotfiles/dwm/dwmshell" ] && "$dotfiles/dwm/dwmshell" &  #shell script to start for dwm, for starting other programs
 setxkbmap -option caps:escape #change capslock to a 2nd escape
 if [ "$(basename "$WM")" = "dwm" ]; then
-    while :; do
+    while [ "$KILLDWM" != "true" ]; do
 	    ssh-agent dwm
     done
+    unset KILLDWM
 else 
     exec "$WM"
 fi

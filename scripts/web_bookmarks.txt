@@ -37,6 +37,7 @@ web_bookmarks = {
 'vimcolorschemes': 'https://vimcolorschemes.com/',
 'vimstatusline': 'https://www.sainnhe.dev/post/status-line-config/',
 'reacttutorial': 'https://www.youtube.com/watch?v=Ke90Tje7VS0',
+'pywal': 'https://github.com/dylanaraps/pywal/wiki/Customization'
 
 }
 

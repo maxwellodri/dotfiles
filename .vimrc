@@ -15,7 +15,7 @@ function! CocPlugins(arg)
   :CocInstall coc-html
   :CocInstall coc-css
   :CocInstall coc-sh
-  :CocInstall coc-clangd
+"  :CocInstall coc-clangd
   :CocInstall coc-highlight
   :CocInstall coc-yaml
 endfunction
@@ -106,6 +106,7 @@ filetype plugin indent on
 syntax on
 set statusline^=%{coc#status()}%{get(b:,'coc_current_function','')}
 set statusline+=%{FugitiveStatusline()}
+set statusline+=%t "add file name to statusline
 set sessionoptions-=options
 set tabstop=4
 set softtabstop=0
