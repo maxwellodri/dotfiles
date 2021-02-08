@@ -27,14 +27,14 @@ ncmpcpp=".config/mpd/mpd.conf .config/ncmpcpp/config"
 ########### Meta Variables
 #bsp=" $bspwmconfig $sxhkdconfig" #these arent finished yet in the git repo!
 i3=" $i3config $i3statusconfig" #i3wm
-xfiles=" .xinitrc $zathura $picom $dunst $ncmpcpp"
+xfiles=" .xinitrc $zathura $picom $dunst $ncmpcpp .Xresources"
 bash=" .bashrc .bashrc_extra .bash_profile $sh"
 zsh=" .zshrc .zshrc_extra .zprofile $sh" 
 files=" .vimrc .config/nvim $mutt $ytdl $newsboat $tmux $emacs"    
 ########### Variables
 pcfiles=" $xfiles $zsh" #platform specific dotfiles
 laptopfiles=" $xfiles $pactl $i3 $zsh $terminator"
-thinkpadfiles=" $xfiles $zsh" #uses dwm
+thinkpadfiles=" $xfiles $zsh" 
 chromebookfiles=" "
 rpifiles=" "
 noxfiles="$zsh"

@@ -1,0 +1,2 @@
+#!/bin/sh
+KILLDWM="true" && kn dwm
