@@ -35,6 +35,12 @@ fi
 #xterm -geometry 80x20+494-0 &
 #exec xterm -geometry 80x66+0+0 -name login
 
-[ "$(basename $WM)" = "dwm" ] && [ -f "$dotfiles/dwm/dwmshell" ] && "$dotfiles/dwm/dwmshell" &  #shell script to start for dwm, for starting other programs
-exec $WM  
-setxkbmap -option caps:escape
+[ "$(basename "$WM")" = "dwm" ] && [ -f "$dotfiles/dwm/dwmshell" ] && "$dotfiles/dwm/dwmshell" &  #shell script to start for dwm, for starting other programs
+setxkbmap -option caps:escape #change capslock to a 2nd escape
+if [ "$(basename "$WM")" = "dwm" ]; then
+    while :; do
+	    ssh-agent dwm
+    done
+else 
+    exec "$WM"
+fi
