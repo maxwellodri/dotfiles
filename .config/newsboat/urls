@@ -46,7 +46,8 @@ https://www.youtube.com/feeds/videos.xml?channel_id=UC-yW4nmn2F8whCmd98ZXaIA "YT
 https://www.youtube.com/feeds/videos.xml?channel_id=UC7YOGHUfC1Tb6E4pudI9STA "YT" "~Mental Outlaw"
 #UCZEvYxVEr0MMUG2ZCpG8bRA
 https://www.youtube.com/feeds/videos.xml?channel_id=UCp3yVOm6A55nx65STpm3tXQ "YT" "~Craft Computing"
-https://www.youtube.com/feeds/videos.xml?channel_id=#UCXtxgWwk55kVJo9lCCZRdmg "YT" "~Veratasium"
+https://www.youtube.com/feeds/videos.xml?channel_id=UCXtxgWwk55kVJo9lCCZRdmg "YT" "~Veratasium"
+https://www.youtube.com/feeds/videos.xml?channel_id=UCeTfBygNb1TahcNpZyELO8g "YT" "~Jacob Geller"
 " "
 "- - - - - Tech - - - - -"
 https://www.youtube.com/feeds/videos.xml?channel_id=UCbfYPyITQ-7l4upoX8nvctg "Tech" "~2 Minute Papers"
@@ -76,10 +77,14 @@ https://boards.4chan.org/pol/index.rss "4chan" "/pol"
 
 "- - - - - Blogs - - - - -"
 https://airlied.blogspot.com/feeds/posts/default "Blog" "~David Arlie Linux Graphics"
+https://xkcd.com/rss.xml "Blog" "`xkcd"
+https://aws.amazon.com/blogs/opensource/feed?sc_ichannel=ha&sc_icampaign=acq_awsblogsb&sc_icontent=opensource-follow "aws"
 
 "- - - - - Twitter - - - - -"
 #https://nitter.net/username/rss
 https://tweet.lambda.dance/jonhoo/rss "Twitter" "~Jon Gjengset"
 "- - - - - Reddit - - - - -"
 https://www.reddit.com/r/unixporn.rss "Tech" "~unixporn"
-
+"- - - - - Github - - - - -"
+https://github.com/bevyengine/bevy/releases.atom "Bevy" "~Bevy Releases"
+https://github.com/dimforge/bevy_rapier/releases.atom "Bevy" "~Bevy Rapier Releases"
