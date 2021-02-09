@@ -1,0 +1,4 @@
+#!/bin/sh
+[ -z "$1" ] && echo 'Usage: paper "/path/to/wallpaper/image"' && exit
+[ -e "$1" ] && wal -i "$1" && echo "hi" && cd ~/source/dwm && echo "hello" && sudo make clean install && pkill dwm #|| echo "File "$1" does not exist" && exit
+#wal -i "$1" && cd ~/source/dwm && sudo make clean install && pkill dwm

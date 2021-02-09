@@ -31,6 +31,14 @@ web_bookmarks = {
 'vfio': 'https://wiki.archlinux.org/index.php/PCI_passthrough_via_OVMF',
 'epik': 'https://registrar.epik.com/domain/portfolio',
 'vultr': 'https://my.vultr.com/',
+'suckless': 'https://suckless.org/',
+'nitter': 'https://tweet.lambda.dance/',
+'rssreddit': 'https://old.reddit.com/r/pathogendavid/comments/tv8m9/pathogendavids_guide_to_rss_and_reddit/',
+'vimcolorschemes': 'https://vimcolorschemes.com/',
+'vimstatusline': 'https://www.sainnhe.dev/post/status-line-config/',
+'reacttutorial': 'https://www.youtube.com/watch?v=Ke90Tje7VS0',
+'pywal': 'https://github.com/dylanaraps/pywal/wiki/Customization',
+'quake3invsqrt': 'https://www.youtube.com/watch?v=p8u_k2LIZyo',
 
 }
 

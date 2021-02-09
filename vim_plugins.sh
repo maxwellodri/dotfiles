@@ -1,12 +1,13 @@
 #!/bin/sh
 #below taken from pathogen github page 
-mkdir -p ~/.vim/autoload ~/.vim/bundle ~/.vim/colors && \
-cd ~/.vim/colors && curl -LSO https://raw.githubusercontent.com/tomasr/molokai/master/colors/molokai.vim #molokai theme
+#mkdir -p ~/.vim/autoload ~/.vim/bundle ~/.vim/colors && \
+#cd ~/.vim/colors && curl -LSO https://raw.githubusercontent.com/tomasr/molokai/master/colors/molokai.vim #molokai theme
 
 
+python3 -m pip install --user --upgrade pynvim || echo "Need to install python3" #needed for python nvim plugins
 curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
     https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-
+cd $dotfiles/setup_vim && vim -S coc-installer.vim
 
 #https://github.com/szymonmaszke/vimpyter #for jupyter notebook
 #git clone https://github.com/vim/vim.git #vim src
