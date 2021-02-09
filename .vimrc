@@ -1,58 +1,149 @@
-
-
-"_                    
+"        _                    
 " __   _(_)_ __ ___  _ __ ___ 
 " \ \ / / | '_ ` _ \| '__/ __|
 "  \ V /| | | | | | | | | (__ 
 "   \_/ |_|_| |_| |_|_|  \___|
+"                             
 
 filetype off
-call plug#begin('~/.vim/plugged')
-Plug 'neoclide/coc.nvim', {'branch': 'release'} "Requires node
-"let g:coc_disable_startup_warning = 1 "Because debian version is <0.4.0
-Plug 'tpope/vim-sensible'
+set termguicolors
+let s:plug = '~/.vim/plugged'
+function! CocPlugins(arg)
+  :CocInstall coc-rust-analyzer
+  :CocInstall coc-json 
+  :CocInstall coc-tsserver
+  :CocInstall coc-html
+  :CocInstall coc-css
+  :CocInstall coc-sh
+"  :CocInstall coc-clangd
+  :CocInstall coc-highlight
+  :CocInstall coc-yaml
+endfunction
+" ==========
+"
+" Plugins
+"
+" ==========
+" =============
+" Autocomplete
+" =============
+"
+call plug#begin(s:plug)
+"coc requires node, force update of coc plugins with :CocUpdate!
+Plug 'neoclide/coc.nvim', {'branch': 'release', 'do': function('CocPlugins') }
+"let g:coc_disable_startup_warning = 1 "Because debian version is <0.4.0 (old)
+" =================
+" Language Support
+" =================
+Plug 'sheerun/vim-polyglot' "all in one bundle
 Plug 'rust-lang/rust.vim'
 Plug 'tikhomirov/vim-glsl'
-Plug 'majutsushi/tagbar'        "requires ctags  to be installed
-"Plug 'preservim/nerdtree'
 Plug 'JuliaEditorSupport/julia-vim'
+Plug 'kevinoid/vim-jsonc'
+" ====
+" Git
+" ====
+Plug 'tpope/vim-fugitive'
+" ======
+" Search
+" ======
 Plug 'PeterRincker/vim-searchlight'
+<<<<<<< HEAD
 Plug 'ron-rs/ron.vim'
+=======
+" ==============
+" Miscellaneous
+" ==============
+Plug 'tpope/vim-sensible'
+" =========
+" Snippets
+" =========
+Plug 'SirVer/ultisnips'
+Plug 'honza/vim-snippets'
+" ===============
+" Color Schemes
+" ===============
+Plug 'tomasiser/vim-code-dark'
+Plug 'tomasr/molokai'
+Plug 'morhetz/gruvbox'
+Plug 'ghifarit53/tokyonight-vim' 
+Plug 'ajmwagar/vim-deus' 
+Plug 'sainnhe/edge'
+Plug 'pineapplegiant/spaceduck'
+" =======
+" Unused 
+" =======
+"Plug 'preservim/tagbar'        "requires ctags  to be installed
+"Plug 'preservim/nerdtree'
+"let g:NERDTreeWinSize=15
+"map <C-a> :NERDTreeToggle<CR>
+"
+>>>>>>> cb5aa707a931df23daf5c8d2d74536eaa6df9145
 call plug#end()
+
+" ===============
+"
+" Colour Options
+"
+" ===============
+set background=dark    
+let g:tokyonight_style = 'night' " available: night, storm
+let g:tokyonight_enable_italic = 1
+let g:tokyonight_current_word = 'underline'
+let g:deus_termcolors=256
+color pablo "fallback
+color codedark
+color tokyonight
+color molokai
+
+"set t_Co=256
+"let &t_8f = "\<Esc>[38;2;%lu;%lu;%lum"
+"let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
+"
+"
+" =============
+" 
+" Basic Options 
+"
+" =============
 filetype plugin indent on
 syntax on
-set nohlsearch
+set statusline^=%{coc#status()}%{get(b:,'coc_current_function','')}
+set statusline+=%{FugitiveStatusline()}
+set statusline+=%t "add file name to statusline
 set sessionoptions-=options
-
-"   basics:
-    set tabstop=4
-    set softtabstop=0
-    set shiftwidth=4
-    set expandtab
-    set smarttab
-    set autoindent
-    set path+=** ""recursive subdirectory search
-    set wildmenu
-    set wildmode=longest,list,full
-    set encoding=utf-8
-    syntax enable
-    "set background=dark
-    "color solarized
-    "color pablo
-    color molokai
-    set clipboard=unnamedplus
-    set number
-    set nocompatible
-    set whichwrap=b,s,<,>,[,] "traverse end of line with arrow keys
-    call mkdir(expand('%:h'), 'p') "autocreate parent directory if it doesnt exist
-    set hidden
-
+set tabstop=4
+set softtabstop=0
+set expandtab
+set smarttab
+set autoindent
+set path+=** ""recursive subdirectory search
+set wildmenu
+set wildmode=longest,list,full
+set encoding=utf-8
+syntax enable
+set clipboard=unnamedplus
+set number
+set nocompatible
+set whichwrap=b,s,<,>,[,] "traverse end of line with arrow keys
+call mkdir(expand('%:h'), 'p') "autocreate parent directory if it doesnt exist
+set hidden
 let mapleader =" "
 map <leader>o :setlocal spell! spelllang=en_au<CR>
-"Filetypes:
-"Make:
+
+" =========================
+" 
+" Filetype Specfic Options
+"
+" =========================
+"
+" =====
+" Make
+" =====
 autocmd Filetype make set noexpandtab "force tabs for make
-"Python:
+" =====
+" Python   
+" =====
 autocmd Filetype python set tabstop=4 
 autocmd Filetype python set softtabstop=4
 autocmd Filetype python set shiftwidth=4
@@ -60,25 +151,28 @@ autocmd Filetype python set shiftwidth=4
 autocmd Filetype python set autoindent 
 autocmd Filetype python set expandtab
 autocmd Filetype python set fileformat=unix 
-"LaTeX Snippets:
+" ==============
+" LaTeX Snippets
+" ==============
 nnoremap ,latex :-1read $dotfiles/snippets/assignment.tex<CR>72jo
 nnoremap ,texfig :-1read $dotfiles/snippets/figure.tex<CR><CR>$i
-"Commands:
-command! Texit !pdflatex % 
-command PP !python %
-command! Maketags !ctags -R
+" =================
+"  Compile from vim
+" =================
+"command! Texit !pdflatex % 
+"command PP !python %
+"command! Maketags !ctags -R
 "autocmd BufWritePost *sxhkdrc !killall sxhkd; setsid sxhkd &
 "usage: ^]: jump to tag under cursorm g^] ambiguos tags, ^t, jump back up tag
 "stack
-"Fix Search Highlighting:
-autocmd InsertEnter * call EndHighlight()
+"
+" ========================
+" Fix Search Highlighting
+" ========================
+nmap <Esc> :nohlsearch<CR>q:<CR>
+imap <Esc> <Esc>:nohlsearch<CR>q:<CR>
 
-function EndHighlight()
-    match
-    let s:lastsearch = @/
-    nohlsearch
-    redraw
-endfunction
+
 
 "Remaps:
     set splitbelow splitright
@@ -96,10 +190,6 @@ nnoremap <left> <nop>
 nnoremap <right> <nop>
 nnoremap <down> <nop>
 nnoremap <up> <nop>
-"Plugins:
-"Nerdtree:
-let g:NERDTreeWinSize=15
-map <C-a> :NERDTreeToggle<CR>
 
 
 "Tagbar:
@@ -146,6 +236,7 @@ endif
 " Use `:CocDiagnostics` to get all diagnostics of current buffer in location list.
 nmap <silent> [g <Plug>(coc-diagnostic-prev)
 nmap <silent> ]g <Plug>(coc-diagnostic-next)
+
 
 " GoTo code navigation.
 nmap <silent> gd <Plug>(coc-definition)
@@ -221,7 +312,6 @@ command! -nargs=0 OR   :call     CocAction('runCommand', 'editor.action.organize
 " Add (Neo)Vim's native statusline support.
 " NOTE: Please see `:h coc-status` for integrations with external plugins that
 " provide custom statusline: lightline.vim, vim-airline.
-set statusline^=%{coc#status()}%{get(b:,'coc_current_function','')}
 
 " Mappings for CoCList
 " Show all diagnostics.
@@ -241,3 +331,6 @@ nnoremap <silent><nowait> <space>k  :<C-u>CocPrev<CR>
 " Resume latest coc list.
 nnoremap <silent><nowait> <space>p  :<C-u>CocListResume<CR>
 
+let g:UltiSnipsExpandTrigger="<F2>" "need to remap away from default <tab> to avoid conflict with coc autocomplete
+let g:UltiSnipsJumpForwardTrigger="<c-k>"
+let g:UltiSnipsJumpBackwardTrigger="<c-j>"
