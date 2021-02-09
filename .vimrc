@@ -48,6 +48,7 @@ Plug 'tpope/vim-fugitive'
 " Search
 " ======
 Plug 'PeterRincker/vim-searchlight'
+Plug 'ron-rs/ron.vim'
 " ==============
 " Miscellaneous
 " ==============
