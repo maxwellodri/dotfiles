@@ -2,7 +2,7 @@
 export PATH="$PATH:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:/home/maxwell/bin:/home/maxwell/bin"
 export PATH=$PATH:/usr/local/sbin:/usr/bin:/sbin:/bin #set some nice paths
 export PATH="$HOME/.cargo/bin:$PATH"
-export TERM='terminator'
+export TERM='st'
 unset beep 
 source ~/.zshrc
 [ -f /usr/share/vulkan/icd.d/nvidia_icd.json ] && export VK_ICO_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json 
@@ -21,7 +21,6 @@ if [ -z "$WM" ] ; then
     esac
 fi
 
-[ ! "$DISPLAY" ]  && [ "$WM" ] && export WM && export WMNAME="$(basename $WM)" && startx 
-echo "$WM failed to start"
+[ ! "$DISPLAY" ]  && [ "$WM" ] && export WM && export WMNAME="$(basename $WM)" && startx || echo "$WM failed to start"
 
 
