@@ -76,7 +76,6 @@ Plug 'pineapplegiant/spaceduck'
 "let g:NERDTreeWinSize=15
 "map <C-a> :NERDTreeToggle<CR>
 "
->>>>>>> cb5aa707a931df23daf5c8d2d74536eaa6df9145
 call plug#end()
 
 " ===============
