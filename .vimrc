@@ -1,4 +1,5 @@
-"
+
+
 "_                    
 " __   _(_)_ __ ___  _ __ ___ 
 " \ \ / / | '_ ` _ \| '__/ __|
@@ -16,6 +17,7 @@ Plug 'majutsushi/tagbar'        "requires ctags  to be installed
 "Plug 'preservim/nerdtree'
 Plug 'JuliaEditorSupport/julia-vim'
 Plug 'PeterRincker/vim-searchlight'
+Plug 'ron-rs/ron.vim'
 call plug#end()
 filetype plugin indent on
 syntax on
