@@ -19,11 +19,6 @@ network="$(poll_network)"
 #packages="$(poll_packages)"
 
 while true; do
-    if [ "$(echo "$(date +%s)%5" | bc)" -eq "0" ]; then #every five seconds poll these:
-        battery="$(poll_battery)"
-        network="$(poll_network)"
-        continue 
-    fi
 
     [ $(date +%M) -eq "0" ] && packages="$(poll_packages)"
     case $dotfiles_tag in 
@@ -39,4 +34,9 @@ while true; do
     esac
     xsetroot -name "🕒 $(date +%a-%d-%b-%R)$OPT"
 	sleep 1
+    if [ "$(echo "$(date +%s)%1" | bc)" -eq "0" ]; then #every five seconds poll these:
+        battery="$(poll_battery)"
+        network="$(poll_network)"
+        continue 
+    fi
 done
