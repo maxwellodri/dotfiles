@@ -40,6 +40,7 @@ Plug 'rust-lang/rust.vim'
 Plug 'tikhomirov/vim-glsl'
 Plug 'JuliaEditorSupport/julia-vim'
 Plug 'kevinoid/vim-jsonc'
+Plug 'lervag/vimtex'
 " ====
 " Git
 " ====
@@ -67,7 +68,7 @@ Plug 'morhetz/gruvbox'
 Plug 'ghifarit53/tokyonight-vim' 
 Plug 'ajmwagar/vim-deus' 
 Plug 'sainnhe/edge'
-Plug 'pineapplegiant/spaceduck'
+"Plug 'pineapplegiant/spaceduck'
 " =======
 " Unused 
 " =======
@@ -89,13 +90,10 @@ let g:tokyonight_enable_italic = 1
 let g:tokyonight_current_word = 'underline'
 let g:deus_termcolors=256
 color pablo "fallback
-color codedark
 color tokyonight
+color codedark
 color molokai
 
-"set t_Co=256
-"let &t_8f = "\<Esc>[38;2;%lu;%lu;%lum"
-"let &t_8b = "\<Esc>[48;2;%lu;%lu;%lum"
 "
 "
 " =============
@@ -128,6 +126,14 @@ set hidden
 let mapleader =" "
 map <leader>o :setlocal spell! spelllang=en_au<CR>
 
+" ========================
+" 
+" Cursor Specific Options
+"
+" ========================
+set cul "cursor line is highlighted
+set guicursor=n-v-c-sm:block,i-ci-ve:ver25-Cursor,r-cr-o:hor20
+highlight Cursor guifg=white guibg=black
 " =========================
 " 
 " Filetype Specfic Options
@@ -144,7 +150,7 @@ autocmd Filetype make set noexpandtab "force tabs for make
 autocmd Filetype python set tabstop=4 
 autocmd Filetype python set softtabstop=4
 autocmd Filetype python set shiftwidth=4
-"autocmd Filetype python set textwidth=79
+"autocmd Filetype python set textwidth=79 "pep conformance except this line
 autocmd Filetype python set autoindent 
 autocmd Filetype python set expandtab
 autocmd Filetype python set fileformat=unix 
@@ -166,8 +172,8 @@ nnoremap ,texfig :-1read $dotfiles/snippets/figure.tex<CR><CR>$i
 " ========================
 " Fix Search Highlighting
 " ========================
-nmap <Esc> :nohlsearch<CR>q:<CR>
-imap <Esc> <Esc>:nohlsearch<CR>q:<CR>
+nmap <Esc> :nohlsearch<CR>
+imap <Esc> <Esc>:nohlsearch<CR>
 
 
 

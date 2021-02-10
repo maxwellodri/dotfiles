@@ -1,7 +1,7 @@
 
 ################
 #exports:
-###############
+################
 export src='/home/maxwell/source'
 export dotfiles="$src/dotfiles" 
 ################
