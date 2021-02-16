@@ -21,11 +21,11 @@ ytdl=.config/youtube-dl/config
 tmux=.config/tmux/config
 emacs=.emacs.d/*
 ncmpcpp=".config/mpd/mpd.conf .config/ncmpcpp/config"
-#bspwmconfig=.config/bspwm/bspwmrc
-#sxhkdconfig=.config/sxhkd/sxhkdrc
+bspwmconfig=.config/bspwm/bspwmrc
+sxhkdconfig=.config/sxhkd/sxhkdrc
 
 ########### Meta Variables
-#bsp=" $bspwmconfig $sxhkdconfig" #these arent finished yet in the git repo!
+bsp=" $bspwmconfig $sxhkdconfig" #these arent finished yet in the git repo!
 i3=" $i3config $i3statusconfig" #i3wm
 xfiles=" .xinitrc $zathura $picom $dunst $ncmpcpp .Xresources"
 bash=" .bashrc .bashrc_extra .bash_profile $sh"
@@ -153,6 +153,10 @@ for file in $files; do
         "$zathura")             src="$dir/.config/zathura/zathurarc"
                                 ;;
 
+        "$mutt")                src="$dir/.config/zathura/zathurarc"
+                                mkdir -p "$HOME/attach"
+                            
+                                ;;
         *)                      src="$dir/$file"
                                 ;;
     

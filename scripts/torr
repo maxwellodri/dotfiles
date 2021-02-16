@@ -1,0 +1,3 @@
+#!/bin/sh
+
+transmission-remote -a "$(xclip -o)" --torrent-done-script ~/bin/torrdone

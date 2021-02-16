@@ -25,7 +25,7 @@ def websearch(args):
     #params['color_text'] = 'k8=g' #default, dark grey
     #params['color_links'] = 'k9=b'#blue 
     #params['color_visited_links'] = 'kaa=p' #
-    #params['color_theme'] = 'kae=t' #t for terminal, r for retro, d for dark
+    params['color_theme'] = 'kae=d' #t for terminal, r for retro, d for dark
     #params['size'] = 'ks=n' #large textsize
     #params['width'] = 'kw=n' #normal
     #params['placement'] = 'km=m' #middle

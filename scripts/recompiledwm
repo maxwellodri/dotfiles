@@ -1,0 +1,3 @@
+#!/bin/sh
+cd ~/source/dwm 
+sudo make clean install && pkill dwm

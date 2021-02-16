@@ -36,6 +36,7 @@ if [ -z "$WM" ] ; then
     esac
 fi
 export WM
-[ ! "$DISPLAY" ] && [ -n "$WM" ] && startx && echo "$WM failed?"
+export WMNAME="$(basename "$WM")"
+[ ! "$DISPLAY" ] && [ -n "$WM" ] && startx || echo "$WM failed?"
 
 
