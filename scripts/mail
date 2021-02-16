@@ -1,0 +1,15 @@
+#!/usr/bin/env bash 
+#bash over sh is needed below for globbing all arguments except $1
+
+cd "$HOME/attach/" || exit 1
+case "$1" in 
+    "admin") 
+        neomutt -e "source ~/.config/mutt/accounts/2-admin@odri.net.au.muttrc" "${@:2}" #gets all arguments except $1
+        ;;
+    "maxwell") 
+        neomutt -e "source ~/.config/mutt/accounts/1-maxwell@odri.net.au.muttrc"  "${@:2}"
+        ;;
+    "*")
+        echo "Invald Mail Address" && exit 1
+        ;;
+esac

@@ -12,7 +12,6 @@
 export TERM='st'
 export WEB='firefox'
 export BROWSER='firefox'
-export EMAIL='maxwellodri@gmail.com'
 export EMAILCLIENT='neomutt'
 export EDITOR='vim'
 export VISUAL='vim'
@@ -39,7 +38,8 @@ hfiglet () { figlet "$@" | sed -n "s/.*/\# &/p"; }
 kn() { pgrep $@ | xargs kill -9 }
 
 #Addtional keybindings:
-bindkey -s '^t' 'st & disown\nclear\n' #st in pwd
+#bindkey -s '^t' 'st & disown\nclear\n' #st in pwd
+bindkey -s 'C-c' 'kill -9 !%' #ruthless version of standard ctrl-c => should always kill the process rather than asking the process to shut down nicely
 ################
 #Aliases:
 ###############
@@ -69,8 +69,9 @@ alias sys="sudo systemctl"
 alias dl="cd ~/Downloads"
 alias p="sudo pacman"
 alias picomrc="vim ~/.config/picom/picom.conf"
-alias muttrc="vim ~/.config/mutt/config"
-alias mutt="neomutt"
+alias muttrc="vim ~/.config/mutt/muttrc"
+alias mutt='cd ~/attach && neomutt -e "source ~/.config/mutt/accounts/1-maxwell@odri.net.au.muttrc"'
+alias mwrc='sudo vim /usr/share/mutt-wizard'
 alias newsboatrc="vim ~/.config/newsboat/config"
 alias url="vim ~/.config/newsboat/urls"
 alias dragon="dragon-drag-and-drop"
@@ -84,10 +85,11 @@ alias tsmr='transmission-remote -l | grep -v 'Queued''
 alias mpvr="find . -maxdepth 1 | shuf | grep -x . -v | xargs mpv"
 
 alias mkdir="mkdir -pv"
+alias ls="exa --color=auto -hal --group-directories-first"
+alias lt="exa --color=auto -hal --group-directories-first"
 alias ls="exa --color=auto -h --group-directories-first"
-alias l="exa --color=auto -h --group-directories-first"
 alias lsa="exa --color=auto -ha --group-directories-first"
-alias cls="clear && exa"
+alias lls="/bin/ls"
 alias grep="grep --color=auto"
 alias mv="mv -v"
 alias cp="cp -v"

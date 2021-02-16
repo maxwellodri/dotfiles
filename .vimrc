@@ -5,24 +5,25 @@
 "   \_/ |_|_| |_| |_|_|  \___|
 "                             
 
-filetype off
+filetype on
 set termguicolors
 let s:plug = '~/.vim/plugged'
 function! CocPlugins(arg)
-  :CocInstall coc-rust-analyzer
-  :CocInstall coc-json 
-  :CocInstall coc-tsserver
-  :CocInstall coc-html
-  :CocInstall coc-css
-  :CocInstall coc-sh
-"  :CocInstall coc-clangd
-  :CocInstall coc-highlight
-  :CocInstall coc-yaml
+  CocInstall coc-rust-analyzer
+  CocInstall coc-json 
+  CocInstall coc-tsserver
+  CocInstall coc-html
+  CocInstall coc-css
+  CocInstall coc-sh
+"  CocInstall coc-clangd
+  CocInstall coc-highlight
+  CocInstall coc-yaml
+  CocInstall coc-pyright
+  CocEnable
 endfunction
 " ==========
 "
 " Plugins
-"
 " ==========
 " =============
 " Autocomplete
@@ -41,6 +42,8 @@ Plug 'tikhomirov/vim-glsl'
 Plug 'JuliaEditorSupport/julia-vim'
 Plug 'kevinoid/vim-jsonc'
 Plug 'lervag/vimtex'
+Plug 'ron-rs/ron.vim'
+Plug 'leafgarland/typescript-vim'
 " ====
 " Git
 " ====
@@ -49,7 +52,6 @@ Plug 'tpope/vim-fugitive'
 " Search
 " ======
 Plug 'PeterRincker/vim-searchlight'
-Plug 'ron-rs/ron.vim'
 " ==============
 " Miscellaneous
 " ==============
@@ -80,129 +82,15 @@ Plug 'sainnhe/edge'
 call plug#end()
 
 " ===============
-"
-" Colour Options
-"
+" Coc.nvim 
 " ===============
-set background=dark    
-let g:tokyonight_style = 'night' " available: night, storm
-let g:tokyonight_enable_italic = 1
-let g:tokyonight_current_word = 'underline'
-let g:deus_termcolors=256
-color pablo "fallback
-color tokyonight
-color codedark
-color molokai
+let g:coc_start_at_startup = 1
+"inoremap <left> <nop>
+"inoremap <right> <nop>
+"inoremap <down> CocNext Coc
+"inoremap <up> CocPrev
+"imap <up> CocPrev
 
-"
-"
-" =============
-" 
-" Basic Options 
-"
-" =============
-filetype plugin indent on
-syntax on
-set statusline^=%{coc#status()}%{get(b:,'coc_current_function','')}
-set statusline+=%{FugitiveStatusline()}
-set statusline+=%t "add file name to statusline
-set sessionoptions-=options
-set tabstop=4
-set softtabstop=0
-set expandtab
-set smarttab
-set autoindent
-set path+=** ""recursive subdirectory search
-set wildmenu
-set wildmode=longest,list,full
-set encoding=utf-8
-syntax enable
-set clipboard=unnamedplus
-set number
-set nocompatible
-set whichwrap=b,s,<,>,[,] "traverse end of line with arrow keys
-call mkdir(expand('%:h'), 'p') "autocreate parent directory if it doesnt exist
-set hidden
-let mapleader =" "
-map <leader>o :setlocal spell! spelllang=en_au<CR>
-
-" ========================
-" 
-" Cursor Specific Options
-"
-" ========================
-set cul "cursor line is highlighted
-set guicursor=n-v-c-sm:block,i-ci-ve:ver25-Cursor,r-cr-o:hor20
-highlight Cursor guifg=white guibg=black
-" =========================
-" 
-" Filetype Specfic Options
-"
-" =========================
-"
-" =====
-" Make
-" =====
-autocmd Filetype make set noexpandtab "force tabs for make
-" =====
-" Python   
-" =====
-autocmd Filetype python set tabstop=4 
-autocmd Filetype python set softtabstop=4
-autocmd Filetype python set shiftwidth=4
-"autocmd Filetype python set textwidth=79 "pep conformance except this line
-autocmd Filetype python set autoindent 
-autocmd Filetype python set expandtab
-autocmd Filetype python set fileformat=unix 
-" ==============
-" LaTeX Snippets
-" ==============
-nnoremap ,latex :-1read $dotfiles/snippets/assignment.tex<CR>72jo
-nnoremap ,texfig :-1read $dotfiles/snippets/figure.tex<CR><CR>$i
-" =================
-"  Compile from vim
-" =================
-"command! Texit !pdflatex % 
-"command PP !python %
-"command! Maketags !ctags -R
-"autocmd BufWritePost *sxhkdrc !killall sxhkd; setsid sxhkd &
-"usage: ^]: jump to tag under cursorm g^] ambiguos tags, ^t, jump back up tag
-"stack
-"
-" ========================
-" Fix Search Highlighting
-" ========================
-nmap <Esc> :nohlsearch<CR>
-imap <Esc> <Esc>:nohlsearch<CR>
-
-
-
-"Remaps:
-    set splitbelow splitright
-    map <C-h> <C-w>h
-    map <C-j> <C-w>j
-    map <C-k> <C-w>k
-    map <C-l> <C-w>l
-
-inoremap <left> <nop>
-inoremap <right> <nop>
-inoremap <down> <nop>
-inoremap <up> <nop>
-
-nnoremap <left> <nop>
-nnoremap <right> <nop>
-nnoremap <down> <nop>
-nnoremap <up> <nop>
-
-
-"Tagbar:
-nmap <C-s> :TagbarToggle<CR>
-let g:tagbar_autoclose = 1
-let g:tagbar_autofocus = 1
-"let g:tagbar_left = 1
-let g_tagbar_width = 15
-
-"Coc:
 set cmdheight=2
 set updatetime=300
 set shortmess+=c
@@ -219,6 +107,12 @@ inoremap <silent><expr> <TAB>
       \ <SID>check_back_space() ? "\<TAB>" :
       \ coc#refresh()
 inoremap <expr><S-TAB> pumvisible() ? "\<C-p>" : "\<C-h>"
+
+inoremap <silent><expr> <down>
+      \ pumvisible() ? "\<C-n>" :
+      \ <SID>check_back_space() ? "\<TAB>" :
+      \ coc#refresh()
+inoremap <expr><S-up> pumvisible() ? "\<C-p>" : "\<C-h>" 
 
 function! s:check_back_space() abort
   let col = col('.') - 1
@@ -258,12 +152,11 @@ function! s:show_documentation()
   endif
 endfunction
 
+nmap <leader>rn <Plug>(coc-rename)
 " Highlight the symbol and its references when holding the cursor.
 autocmd CursorHold * silent call CocActionAsync('highlight')
 
 " Symbol renaming.
-nmap <leader>rn <Plug>(coc-rename)
-map <leader><leader> :w<CR>:!rustfmt %<CR>
 
 " Formatting selected code.
 xmap <leader>f  <Plug>(coc-format-selected)
@@ -334,6 +227,136 @@ nnoremap <silent><nowait> <space>k  :<C-u>CocPrev<CR>
 " Resume latest coc list.
 nnoremap <silent><nowait> <space>p  :<C-u>CocListResume<CR>
 
+" ===============
+"
+" Colour Options
+"
+" ===============
+set background=dark    
+let g:tokyonight_style = 'night' " available: night, storm
+let g:tokyonight_enable_italic = 1
+let g:tokyonight_current_word = 'underline'
+let g:deus_termcolors=256
+color pablo "fallback
+color tokyonight
+color codedark
+color molokai
+
+"
+"
+" =============
+" 
+" Basic Options 
+"
+" =============
+filetype plugin indent on
+syntax on
+set statusline^=%{coc#status()}%{get(b:,'coc_current_function','')}
+set statusline+=%{FugitiveStatusline()}
+set statusline+=%t "add file name to statusline
+set sessionoptions-=options
+set tabstop=4
+set softtabstop=2
+set expandtab
+set smarttab
+set autoindent
+set path+=** ""recursive subdirectory search
+set wildmenu
+set wildmode=longest,list,full
+set encoding=utf-8
+syntax enable
+set clipboard=unnamedplus
+set number
+set nocompatible
+set whichwrap=b,s,<,>,[,] "traverse end of line with arrow keys
+call mkdir(expand('%:h'), 'p') "autocreate parent directory if it doesnt exist
+set hidden
+let mapleader =" "
+map <leader>o :setlocal spell! spelllang=en_au<CR>
+
+" ========================
+" 
+" Cursor Specific Options
+"
+" ========================
+set cul "cursor line is highlighted
+set guicursor=n-v-c-sm:block,i-ci-ve:ver25-Cursor,r-cr-o:hor20
+highlight Cursor guifg=white guibg=black
+" =========================
+" 
+" Filetype Specfic Options
+"
+" =========================
+"
+" =====
+" Make
+" =====
+autocmd Filetype make set noexpandtab "force tabs for make
+" =====
+" Python   
+" =====
+autocmd Filetype python set tabstop=4 
+autocmd Filetype python set softtabstop=4
+autocmd Filetype python set shiftwidth=4
+"autocmd Filetype python set textwidth=79 "pep conformance except this line
+autocmd Filetype python set autoindent 
+autocmd Filetype python set expandtab
+autocmd Filetype python set fileformat=unix 
+" =====
+" Mutt   
+" =====
+au BufRead /tmp/mutt-* set tw=72
+" ==============
+" LaTeX Snippets
+" ==============
+nnoremap ,latex :-1read $dotfiles/snippets/assignment.tex<CR>72jo
+nnoremap ,texfig :-1read $dotfiles/snippets/figure.tex<CR><CR>$i
+" =================
+"  Compile from vim
+" =================
+"command! Texit !pdflatex % 
+"command PP !python %
+"command! Maketags !ctags -R
+"autocmd BufWritePost *sxhkdrc !killall sxhkd; setsid sxhkd &
+"usage: ^]: jump to tag under cursorm g^] ambiguos tags, ^t, jump back up tag
+"stack
+"
+" ========================
+" Fix Search Highlighting
+" ========================
+nmap <Esc> :nohlsearch<CR>
+imap <Esc> <Esc>:nohlsearch<CR>
+
+
+
+"Remaps:
+    set splitbelow splitright
+    map <C-h> <C-w>h
+    map <C-j> <C-w>j
+    map <C-k> <C-w>k
+    map <C-l> <C-w>l
+
+inoremap <left> <nop>
+inoremap <right> <nop>
+inoremap <down> <nop>
+inoremap <up> <nop>
+
+nnoremap <left> <nop>
+nnoremap <right> <nop>
+nnoremap <down> <nop>
+nnoremap <up> <nop>
+
+
+"Tagbar:
+nmap <C-s> :TagbarToggle<CR>
+let g:tagbar_autoclose = 1
+let g:tagbar_autofocus = 1
+"let g:tagbar_left = 1
+let g_tagbar_width = 15
+
+
 let g:UltiSnipsExpandTrigger="<F2>" "need to remap away from default <tab> to avoid conflict with coc autocomplete
 let g:UltiSnipsJumpForwardTrigger="<c-k>"
 let g:UltiSnipsJumpBackwardTrigger="<c-j>"
+
+map <leader><leader> :w<CR>:!rustfmt %<CR>

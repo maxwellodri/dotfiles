@@ -39,6 +39,9 @@ web_bookmarks = {
 'reacttutorial': 'https://www.youtube.com/watch?v=Ke90Tje7VS0',
 'pywal': 'https://github.com/dylanaraps/pywal/wiki/Customization',
 'quake3invsqrt': 'https://www.youtube.com/watch?v=p8u_k2LIZyo',
-
+'rust crud': 'https://medium.com/sean3z/building-a-restful-crud-api-with-rust-1867308352d8',
+'coc': 'https://github.com/neoclide/coc.nvim/wiki/Language-servers',
+'bevy': 'https://github.com/bevyengine/bevy',
+'cookbook': 'https://bevy-cheatbook.github.io/',
 }
 
