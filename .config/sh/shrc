@@ -48,7 +48,7 @@ alias myip='curl ipinfo.io/ip'
 alias zshrc="vim ~/.zshrc && source ~/.zshrc"
 alias bashrc="vim ~/.bashrc && source ~/.bashrc"
 alias shrc="vim ~/.config/sh/shrc && source ~/.config/sh/shrc"
-alias sxhkdrc="vim ~/.config/sxhkd/sxhkdrc"
+alias sxhkdrc="vim ~/.config/sxhkd/sxhkdrc && pkill -USR1 -x sxhkd"
 alias bashrctag="vim ~/.bashrc_extra && source ~/.bashrc"
 alias zshrctag="vim ~/.zshrc_extra && source ~/.zshrc_extra"
 alias bashprofile="vim ~/.bash_profile"
@@ -82,6 +82,7 @@ alias ncm="ncmpcpp"
 alias ytdl="youtube-dl --abort-on-unavailable-fragment"
 alias tsm='transmission-remote --torrent-done-script ~/bin/torrdone'
 alias tsmr='transmission-remote -l | grep -v 'Queued''
+alias tsmd="transmission-remote -l | grep 100%"
 alias mpvr="find . -maxdepth 1 | shuf | grep -x . -v | xargs mpv"
 
 alias mkdir="mkdir -pv"

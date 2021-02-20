@@ -25,9 +25,8 @@ bspwmconfig=.config/bspwm/bspwmrc
 sxhkdconfig=.config/sxhkd/sxhkdrc
 
 ########### Meta Variables
-bsp=" $bspwmconfig $sxhkdconfig" #these arent finished yet in the git repo!
 i3=" $i3config $i3statusconfig" #i3wm
-xfiles=" .xinitrc $zathura $picom $dunst $ncmpcpp .Xresources"
+xfiles=" .xinitrc $zathura $picom $dunst $ncmpcpp .Xresources $sxhkdconfig"
 bash=" .bashrc .bashrc_extra .bash_profile $sh"
 zsh=" .zshrc .zshrc_extra .zprofile $sh" 
 files=" .vimrc .config/nvim $mutt $ytdl $newsboat $tmux $emacs"    

@@ -22,7 +22,7 @@ command ssh-agent
 
 if [ -z "$WM" ] ; then
     case $XDG_VTNR in
-            1)      WM='/usr/local/bin/dwm'
+            1)      echo "bspwm ;(" #WM='/usr/bin/bspwm'
                     ;;
 
             2)      WM='/usr/local/bin/dwm'
