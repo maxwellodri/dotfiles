@@ -1,0 +1,3 @@
+#!/bin/sh
+
+sleep $(echo "$1*1" | bc -lq) && paplay $dotfiles/media/alarm.wav
