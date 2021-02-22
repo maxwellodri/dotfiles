@@ -1,5 +1,5 @@
 super + Escape
-	pkill -USR1 -x sxhkd && notify-send "sxhkd reloaded 🤔"
+	pkill -USR1 -x sxhkd && notify-send "🤔 sxhkd reloaded 🤔"
 super + shift + Escape
 	st -e vim ~/.config/sxhkd/sxhkdrc
 super + Return
@@ -12,6 +12,16 @@ super + e
 	emojis
 super + shift + Tab
 	lock
+super + shift + c
+	cd ~/source/dwm && sudo make clean install && pkill dwm && notify-send "😈 recompiled dwm 😈 "
+	#[ "$(basename "$WM")"=="dwm" ] && pkill dwm
+super + shift + m
+	pgrep ncmpcpp && pkill ncmpcpp || st -e ncmpcpp #toggle ncmpcpp
+super + shift + n
+	pgrep newsboat && pkill newsboat || st -e newsboat #toggle newsboat
+super + ctrl + n
+	pkill newsboat; newsboat -x reload && notify-send "🥺 Newsboat has finished reloading 🥺"
+	
 super + Insert
 	passmenu
 XF86AudioPlay
