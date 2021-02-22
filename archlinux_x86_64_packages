@@ -32,6 +32,7 @@ rustup
 xsel
 detox
 htop
+xdo
 
 #AUR
 #task-spooler

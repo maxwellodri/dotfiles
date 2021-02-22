@@ -49,9 +49,10 @@ Plug 'leafgarland/typescript-vim'
 " ====
 Plug 'tpope/vim-fugitive'
 " ======
-" Search
+" Search/find
 " ======
 Plug 'PeterRincker/vim-searchlight'
+Plug 'preservim/nerdtree'
 " ==============
 " Miscellaneous
 " ==============
@@ -75,9 +76,6 @@ Plug 'sainnhe/edge'
 " Unused 
 " =======
 "Plug 'preservim/tagbar'        "requires ctags  to be installed
-"Plug 'preservim/nerdtree'
-"let g:NERDTreeWinSize=15
-"map <C-a> :NERDTreeToggle<CR>
 "
 call plug#end()
 
@@ -85,6 +83,7 @@ call plug#end()
 " Coc.nvim 
 " ===============
 let g:coc_start_at_startup = 1
+let g:coc_enable_locationlist = 1
 "inoremap <left> <nop>
 "inoremap <right> <nop>
 "inoremap <down> CocNext Coc
@@ -205,9 +204,6 @@ command! -nargs=? Fold :call     CocAction('fold', <f-args>)
 " Add `:OR` command for organize imports of the current buffer.
 command! -nargs=0 OR   :call     CocAction('runCommand', 'editor.action.organizeImport')
 
-" Add (Neo)Vim's native statusline support.
-" NOTE: Please see `:h coc-status` for integrations with external plugins that
-" provide custom statusline: lightline.vim, vim-airline.
 
 " Mappings for CoCList
 " Show all diagnostics.
@@ -251,9 +247,6 @@ color molokai
 " =============
 filetype plugin indent on
 syntax on
-set statusline^=%{coc#status()}%{get(b:,'coc_current_function','')}
-set statusline+=%{FugitiveStatusline()}
-set statusline+=%t "add file name to statusline
 set sessionoptions-=options
 set tabstop=4
 set softtabstop=2
@@ -276,12 +269,61 @@ map <leader>o :setlocal spell! spelllang=en_au<CR>
 
 " ========================
 " 
+" Statusline
+"
+" ========================
+"
+function! StatusDiagnostic() abort
+  let info = get(b:, 'coc_diagnostic_info', {})
+  if empty(info) | return '' | endif
+  let msgs = []
+  if get(info, 'error', 0)
+    call add(msgs, 'E' . info['error'])
+  endif
+  if get(info, 'warning', 0)
+	call add(msgs, 'W' . info['warning'])
+  endif
+  return join(msgs, ' ') . ' ' . get(g:, 'coc_status', '')
+endfunction
+"set laststatus=2
+"set statusline=
+"set statusline+=%#function#\ %l "color theming
+"set statusline+=%f "add file name to statusline %t
+set laststatus=2
+set statusline=
+set statusline+=%1*\ %f\ %*
+set statusline+=%= "LHS/RHS  divider
+"set statusline+=%2*\ %{coc#status()}%{get(b:,'coc_current_function','')}
+set statusline+=%2*\ %{StatusDiagnostic()}
+set statusline+=%2*\ %{FugitiveStatusline()}
+set statusline+=%2*\ %l/%L "Line current/Linemax
+set statusline+=%2*\ %m "is modified
+set statusline+=%2*\ %r "is readonly
+"set statusline+=%3*\ ‹‹
+"set statusline+=%3*\ %{strftime('%R',getftime(expand('%')))}
+"set statusline+=%3*\ ::
+"set statusline+=%3*\ %n
+"set statusline+=%3*\ ››\ %*
+
+hi User1 guifg=#FFFFFF guibg=#191f26 gui=BOLD
+hi User2 guifg=#000000 guibg=#959ca6
+hi User3 guifg=#CCCCCC guibg=#444444
+
+" ========================
+" 
 " Cursor Specific Options
 "
 " ========================
 set cul "cursor line is highlighted
 set guicursor=n-v-c-sm:block,i-ci-ve:ver25-Cursor,r-cr-o:hor20
 highlight Cursor guifg=white guibg=black
+" ========================
+" 
+" Nerdtree
+"
+" ========================
+let g:NERDTreeWinSize=25
+map <C-a> :NERDTreeToggle<CR>
 " =========================
 " 
 " Filetype Specfic Options
@@ -324,8 +366,8 @@ nnoremap ,texfig :-1read $dotfiles/snippets/figure.tex<CR><CR>$i
 " ========================
 " Fix Search Highlighting
 " ========================
-nmap <Esc> :nohlsearch<CR>
-imap <Esc> <Esc>:nohlsearch<CR>
+nmap <silent> <Esc> :nohlsearch<CR>
+imap <silent> <Esc> <Esc>:nohlsearch<CR>
 
 
 
@@ -360,3 +402,7 @@ let g:UltiSnipsJumpForwardTrigger="<c-k>"
 let g:UltiSnipsJumpBackwardTrigger="<c-j>"
 
 map <leader><leader> :w<CR>:!rustfmt %<CR>
+
+" Add (Neo)Vim's native statusline support.
+" NOTE: Please see `:h coc-status` for integrations with external plugins that
+" provide custom statusline: lightline.vim, vim-airline.

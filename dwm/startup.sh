@@ -1,4 +1,5 @@
 #!/bin/sh
+xrdb ~/.Xresources &
 feh --bg-scale "$dotfiles/images/low-poly_red.jpg" &
 dunst &
 picom &
