@@ -1,6 +1,6 @@
 #!/bin/sh
 export PATH="$PATH:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:/home/maxwell/bin:/home/maxwell/bin"
-export PATH=$PATH:/usr/local/sbin:/usr/bin:/sbin:/bin #set some nice paths
+export PATH=$PATH:/usr/local/sbin:/usr/bin:/sbin:/bin:/home/maxwell/.local/bin #set some nice paths
 export PATH="$HOME/.cargo/bin:$PATH"
 export TERM='st'
 unset beep 
@@ -14,6 +14,8 @@ if [ -z "$WM" ] ; then
     case $XDG_VTNR in
             1)      WM='/usr/local/bin/dwm'
                     ;;
+
+#            2)      WM='/usr/bin/bspwm' ;;
 
             *)      echo "Not starting X in this TTY, $XDG_VTNR"
                     WM=''

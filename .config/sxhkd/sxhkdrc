@@ -3,7 +3,7 @@ super + Escape
 super + shift + Escape
 	st -e vim ~/.config/sxhkd/sxhkdrc
 super + Return
-	st
+	st 
 super +  Home
 	todo
 super + d

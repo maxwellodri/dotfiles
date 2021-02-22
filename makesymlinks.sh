@@ -21,7 +21,7 @@ ytdl=.config/youtube-dl/config
 tmux=.config/tmux/config
 emacs=.emacs.d/*
 ncmpcpp=".config/mpd/mpd.conf .config/ncmpcpp/config"
-bspwmconfig=.config/bspwm/bspwmrc
+bsp=".config/bspwm/bspwmrc .config/bspwm/terminals .config/bspwm/swallow .config/bspwm/noswallow"
 sxhkdconfig=.config/sxhkd/sxhkdrc
 
 ########### Meta Variables
@@ -31,9 +31,9 @@ bash=" .bashrc .bashrc_extra .bash_profile $sh"
 zsh=" .zshrc .zshrc_extra .zprofile $sh" 
 files=" .vimrc .config/nvim $mutt $ytdl $newsboat $tmux $emacs"    
 ########### Variables
-pcfiles=" $xfiles $zsh" #platform specific dotfiles
+pcfiles=" $xfiles $zsh $bsp" #platform specific dotfiles
 laptopfiles=" $xfiles $pactl $i3 $zsh $terminator"
-thinkpadfiles=" $xfiles $zsh" 
+thinkpadfiles=" $xfiles $zsh $bsp" 
 chromebookfiles=" "
 rpifiles=" "
 noxfiles="$zsh"
