@@ -1,2 +1,0 @@
-#!/bin/sh
-newsboat -x reload && notify-send "Newsboat finished reloading feeds" && newsboat
