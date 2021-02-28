@@ -28,7 +28,6 @@ export dl="$HOME/Downloads"
 ################
 [ -e ~/.cargo/env ] && . ~/.cargo/env 
 export JUPYTERLAB_DIR=$HOME/.local/share/jupyter/lab
-[ -e "$HOME/.todo" ] && cat $HOME/.todo
 
 ################
 #Functions:
