@@ -1,4 +1,5 @@
 #to install: cat $FILE | grep -v # | xargs sudo pacman -S --noconfirm
+xdotool
 ctags
 nodejs
 neovim
