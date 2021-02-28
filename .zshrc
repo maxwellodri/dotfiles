@@ -18,7 +18,7 @@ source ~/.cache/wal/colors-tty.sh
 setopt autocd #type name of dir to cd
 unsetopt beep #no beep
 bindkey -v #vim keys
-export KEYTIMEOUT=1 #xtra option for vim keys
+#export KEYTIMEOUT=1 #xtra option for vim keys
 zstyle :compinstall filename '/home/maxwell/.zshrc'
 
 autoload -Uz compinit

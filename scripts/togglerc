@@ -1,0 +1,10 @@
+#!/bin/sh
+if [ -n "$1" ]; then 
+    c=$1 | sed -e "s|$HOME|~|"
+    id=xdotool search --name "$(realpath "$1")"
+    notify-send "$HOME. 1: $1, c: $c"
+    [ -n "$id" ] && xdotool search --name "$(realpath "$1")" windowkill || st -e vim "$(realpath "$1")"
+
+else
+    notify-send "supply input argument $1 ?"
+fi

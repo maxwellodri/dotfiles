@@ -1,7 +1,8 @@
 super + Escape
 	pkill -USR1 -x sxhkd && notify-send "🤔 sxhkd reloaded 🤔"
 super + shift + Escape
-	st -e vim ~/.config/sxhkd/sxhkdrc
+	togglerc ~/.config/sxhkd/sxhkdrc
+	#st -e vim ~/.config/sxhkd/sxhkdrc
 super + Return
 	st 
 super +  Home
@@ -21,7 +22,12 @@ super + shift + n
 	pgrep newsboat && pkill newsboat || st -e newsboat #toggle newsboat
 super + ctrl + n
 	pkill newsboat; newsboat -x reload && notify-send "🥺 Newsboat has finished reloading 🥺"
-	
+super + c
+	pgrep calcurse && pkill calcurse || st -e calcurse #toggle ncmpcpp
+super + shift + v
+	xdotool search --name "$(realpath ~/.vimrc)" && xdotool search --name "$(realpath ~/.vimrc)" windowkill || st -e vim $(realpath ~/.vimrc)
+super + shift + a
+	art.sh
 super + Insert
 	passmenu
 XF86AudioPlay

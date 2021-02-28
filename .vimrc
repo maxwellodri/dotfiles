@@ -15,6 +15,7 @@ function! CocPlugins(arg)
   CocInstall coc-html
   CocInstall coc-css
   CocInstall coc-sh
+  CocInstall coc-pyright
 "  CocInstall coc-clangd
   CocInstall coc-highlight
   CocInstall coc-yaml
@@ -44,6 +45,7 @@ Plug 'kevinoid/vim-jsonc'
 Plug 'lervag/vimtex'
 Plug 'ron-rs/ron.vim'
 Plug 'leafgarland/typescript-vim'
+Plug 'raimon49/requirements.txt.vim' "requirement.txt support
 " ====
 " Git
 " ====
@@ -57,6 +59,9 @@ Plug 'preservim/nerdtree'
 " Miscellaneous
 " ==============
 Plug 'tpope/vim-sensible'
+Plug 'machakann/vim-highlightedyank' "highlight on yank
+Plug 'farmergreg/vim-lastplace' "Keep cursor on quit
+Plug 'Raimondi/delimitMate' "auto create quotes, bracket pairs 
 " =========
 " Snippets
 " =========
@@ -82,15 +87,17 @@ call plug#end()
 " ===============
 " Coc.nvim 
 " ===============
+let g:coc_user_config = {}
+let g:coc_user_config['coc.preferences.jumpCommand'] = ':vsp'
 let g:coc_start_at_startup = 1
 let g:coc_enable_locationlist = 1
+nmap <silent> gd :call CocAction('jumpDefinition', 'vsp')<CR>
 "inoremap <left> <nop>
 "inoremap <right> <nop>
 "inoremap <down> CocNext Coc
 "inoremap <up> CocPrev
 "imap <up> CocPrev
 
-set cmdheight=2
 set updatetime=300
 set shortmess+=c
 if has("patch-8.1.1564")
@@ -135,7 +142,6 @@ nmap <silent> ]g <Plug>(coc-diagnostic-next)
 
 
 " GoTo code navigation.
-nmap <silent> gd <Plug>(coc-definition)
 nmap <silent> gy <Plug>(coc-type-definition)
 nmap <silent> gi <Plug>(coc-implementation)
 nmap <silent> gr <Plug>(coc-references)
@@ -225,6 +231,19 @@ nnoremap <silent><nowait> <space>p  :<C-u>CocListResume<CR>
 
 " ===============
 "
+" git
+"
+" ===============
+noremap <Leader>ga :Gwrite<CR>
+noremap <Leader>gc :Gcommit<CR>
+noremap <Leader>gsh :Gpush<CR>
+noremap <Leader>gll :Gpull<CR>
+noremap <Leader>gs :Gstatus<CR>
+noremap <Leader>gb :Gblame<CR>
+noremap <Leader>gd :Gvdiff<CR>
+"noremap <Leader>gr :Gremove<CR>
+" ===============
+"
 " Colour Options
 "
 " ===============
@@ -245,6 +264,13 @@ color molokai
 " Basic Options 
 "
 " =============
+set title
+set titlestring=%F "necessary to be able to 'toggle' configs in sxhkd
+if exists('$SHELL')
+    set shell=$SHELL
+else
+    set shell=/bin/sh
+endif
 filetype plugin indent on
 syntax on
 set sessionoptions-=options
@@ -265,14 +291,36 @@ set whichwrap=b,s,<,>,[,] "traverse end of line with arrow keys
 call mkdir(expand('%:h'), 'p') "autocreate parent directory if it doesnt exist
 set hidden
 let mapleader =" "
-map <leader>o :setlocal spell! spelllang=en_au<CR>
+"toggle spellchecker:
+map <silent><leader>o :setlocal spell! spelllang=en_au<CR>
+"reload vimrc:
+map <silent><leader>v :so $MYVIMRC<CR> 
+nnoremap <leader>b :ls<CR>:b<space>
+"generic compile script:
+nnoremap <leader>c :!compile %<CR>
 
+" Search mappings: Going to the next one in a search will center on the line it's found in.
+nnoremap n nzzzv
+nnoremap N Nzzzv
+"Abbreviations
+cnoreabbrev W! w!
+cnoreabbrev Q! q!
+cnoreabbrev Qall! qall!
+cnoreabbrev Wq wq
+cnoreabbrev Wa wa
+cnoreabbrev wQ wq
+cnoreabbrev WQ wq
+cnoreabbrev W w
+cnoreabbrev Q q
+cnoreabbrev Qall qall
+set wildignore+=*/tmp/*,*.so,*.swp,*.zip,*.pyc,*.db,*.sqlite
 " ========================
 " 
 " Statusline
 "
 " ========================
 "
+set cmdheight=2 " space below the statusline
 function! StatusDiagnostic() abort
   let info = get(b:, 'coc_diagnostic_info', {})
   if empty(info) | return '' | endif
@@ -309,6 +357,7 @@ hi User1 guifg=#FFFFFF guibg=#191f26 gui=BOLD
 hi User2 guifg=#000000 guibg=#959ca6
 hi User3 guifg=#CCCCCC guibg=#444444
 
+"set statusline=%F%m%r%h%w%=(%{&ff}/%Y)\ (line\ %l\/%L,\ col\ %c)\
 " ========================
 " 
 " Cursor Specific Options
@@ -322,8 +371,15 @@ highlight Cursor guifg=white guibg=black
 " Nerdtree
 "
 " ========================
-let g:NERDTreeWinSize=25
 map <C-a> :NERDTreeToggle<CR>
+
+let g:NERDTreeWinSize=25
+let g:NERDTreeChDirMode=2
+let g:NERDTreeIgnore=['\.rbc$', '\~$', '\.pyc$', '\.db$', '\.sqlite$', '__pycache__']
+let g:NERDTreeSortOrder=['^__\.py$', '\/$', '*', '\.swp$', '\.bak$', '\~$']
+let g:NERDTreeShowBookmarks=1
+let g:nerdtree_tabs_focus_on_files=1
+let g:NERDTreeMapOpenInTabSilent = '<RightMouse>'
 " =========================
 " 
 " Filetype Specfic Options
@@ -340,10 +396,17 @@ autocmd Filetype make set noexpandtab "force tabs for make
 autocmd Filetype python set tabstop=4 
 autocmd Filetype python set softtabstop=4
 autocmd Filetype python set shiftwidth=4
-"autocmd Filetype python set textwidth=79 "pep conformance except this line
+autocmd Filetype python set textwidth=79 "pep conformance 🤔
 autocmd Filetype python set autoindent 
 autocmd Filetype python set expandtab
 autocmd Filetype python set fileformat=unix 
+autocmd Filetype python map <silent><leader><leader> :w<CR>:CocCommand python.runLinting<CR>
+"add #type: ignore to EOL to ignore type warnings for pyright:
+autocmd Filetype python map <silent>,ignore $a #type: ignore<Esc> 
+" =====
+" Rust   
+" =====
+autocmd Filetype rust map <silent><leader><leader> :w<CR>:!rustfmt %<CR>:!cargo check<CR>
 " =====
 " Mutt   
 " =====
@@ -354,29 +417,26 @@ au BufRead /tmp/mutt-* set tw=72
 nnoremap ,latex :-1read $dotfiles/snippets/assignment.tex<CR>72jo
 nnoremap ,texfig :-1read $dotfiles/snippets/figure.tex<CR><CR>$i
 " =================
-"  Compile from vim
+"  Yank Highlighting
 " =================
-"command! Texit !pdflatex % 
-"command PP !python %
-"command! Maketags !ctags -R
-"autocmd BufWritePost *sxhkdrc !killall sxhkd; setsid sxhkd &
-"usage: ^]: jump to tag under cursorm g^] ambiguos tags, ^t, jump back up tag
-"stack
-"
+let g:highlightedyank_highlight_duration = 1000
+" =================
+"  Lastplace Cursor
+" =================
+let g:lastplace_ignore = "gitcommit,gitrebase,svn,hgcommit"
 " ========================
 " Fix Search Highlighting
 " ========================
 nmap <silent> <Esc> :nohlsearch<CR>
 imap <silent> <Esc> <Esc>:nohlsearch<CR>
-
-
-
-"Remaps:
-    set splitbelow splitright
-    map <C-h> <C-w>h
-    map <C-j> <C-w>j
-    map <C-k> <C-w>k
-    map <C-l> <C-w>l
+" ========================
+" Splits
+" ========================
+set splitbelow splitright
+map <C-h> <C-w>h
+map <C-j> <C-w>j
+map <C-k> <C-w>k
+map <C-l> <C-w>l
 
 inoremap <left> <nop>
 inoremap <right> <nop>
@@ -401,7 +461,6 @@ let g:UltiSnipsExpandTrigger="<F2>" "need to remap away from default <tab> to av
 let g:UltiSnipsJumpForwardTrigger="<c-k>"
 let g:UltiSnipsJumpBackwardTrigger="<c-j>"
 
-map <leader><leader> :w<CR>:!rustfmt %<CR>
 
 " Add (Neo)Vim's native statusline support.
 " NOTE: Please see `:h coc-status` for integrations with external plugins that
