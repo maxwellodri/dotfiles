@@ -1,0 +1,2 @@
+#!/bin/sh
+[ -z "$1" ] && notify-send "Started ETH mining" && ethminer -U --pool stratum://49a347eeab83bf3a2979ba919bbb1a3553a20250@asia1.ethpool.org:3333
