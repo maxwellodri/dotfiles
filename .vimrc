@@ -241,8 +241,7 @@ noremap <Leader>gll :Gpull<CR>
 noremap <Leader>gs :Gstatus<CR>
 noremap <Leader>gb :Gblame<CR>
 noremap <Leader>gd :Gvdiff<CR>
-"noremap <Leader>gr :Gremove<CR>
-" ===============
+"noremap <Leader>gr :Gremove<CR> ===============
 "
 " Colour Options
 "
@@ -297,7 +296,7 @@ map <silent><leader>o :setlocal spell! spelllang=en_au<CR>
 map <silent><leader>v :so $MYVIMRC<CR> 
 nnoremap <leader>b :ls<CR>:b<space>
 "generic compile script:
-nnoremap <leader>c :!compile %<CR>
+nnoremap <leader>c :w<CR>!compile %<CR>
 
 " Search mappings: Going to the next one in a search will center on the line it's found in.
 nnoremap n nzzzv
