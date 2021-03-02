@@ -1,10 +1,8 @@
 #!/bin/sh
 if [ -n "$1" ]; then 
-    c=$1 | sed -e "s|$HOME|~|"
-    id=xdotool search --name "$(realpath "$1")"
-    notify-send "$HOME. 1: $1, c: $c"
-    [ -n "$id" ] && xdotool search --name "$(realpath "$1")" windowkill || st -e vim "$(realpath "$1")"
-
+    regex="$(echo "$1" | sed -e "s|$HOME|~|")"
+    #regex=$1
+    xdotool search --name "$regex" && xdotool search --name "$regex" windowkill || st -e vim $1
 else
-    notify-send "supply input argument $1 ?"
+    echo "Usage: togglerc <path to config file>"
 fi
