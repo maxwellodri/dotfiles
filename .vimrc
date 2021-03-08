@@ -44,6 +44,7 @@ Plug 'lervag/vimtex'
 Plug 'ron-rs/ron.vim'
 Plug 'leafgarland/typescript-vim'
 Plug 'raimon49/requirements.txt.vim' "requirement.txt support
+Plug 'alvan/vim-closetag' "html tag closing
 " ====
 " Git
 " ====
@@ -566,8 +567,24 @@ nnoremap <right> <nop>
 nnoremap <down> <nop>
 nnoremap <up> <nop>
 
+" ========================
+" closetag
+" ========================
+let g:closetag_filenames = '*.html,*.xhtml,*.phtml'
+let g:closetag_xhtml_filenames = '*.xhtml,*.jsx, *.tsx'
+let g:closetag_xhtml_filenames = '*.xhtml,*.jsx, *.tsx'
+let g:closetag_xhtml_filetypes = 'xhtml,jsx, tsx'
+let g:closetag_emptyTags_caseSensitive = 1
+let g:closetag_regions = {
+    \ 'typescript.tsx': 'jsxRegion,tsxRegion',
+    \ 'javascript.jsx': 'jsxRegion',
+    \ }
+let g:closetag_shortcut = '>'
+let g:closetag_close_shortcut = '<leader>>'
 
-"Tagbar:
+" ========================
+" Tagbar
+" ========================
 nmap <C-s> :TagbarToggle<CR>
 let g:tagbar_autoclose = 1
 let g:tagbar_autofocus = 1

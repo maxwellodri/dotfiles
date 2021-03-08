@@ -6,23 +6,20 @@ export TERM='st'
 unset beep 
 source ~/.zshrc
 [ -f /usr/share/vulkan/icd.d/nvidia_icd.json ] && export VK_ICO_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json 
+[ -e /usr/share/nvm/init-nvm.sh ] && source /usr/share/nvm/init-nvm.sh
 
-WM=''  #override for cases below
-
-
-if [ -z "$WM" ] ; then
-    case $XDG_VTNR in
-            1)      WM='/usr/local/bin/dwm'
-                    ;;
-
-#            2)      WM='/usr/bin/bspwm' ;;
-
-            *)      echo "Not starting X in this TTY, $XDG_VTNR"
-                    WM=''
-                    ;;
-    esac
+if [ "/dev/tty$XDG_VTNR" = $(tty) ]; then  #if shell is a login shell/tty
+    if [ -z "$WM" ] ; then
+        case $XDG_VTNR in
+                1)      WM='/usr/local/bin/dwm'
+                        ;;
+    
+                *)      echo "Not starting X in this TTY, $XDG_VTNR"
+                        WM=''
+                        ;;
+        esac
+    fi
+    [ ! "$DISPLAY" ]  && [ "$WM" ] && export WM && export WMNAME="$(basename $WM)" && startx || echo "$WM failed to start"
 fi
-
-[ ! "$DISPLAY" ]  && [ "$WM" ] && export WM && export WMNAME="$(basename $WM)" && startx || echo "$WM failed to start"
 
 
