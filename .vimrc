@@ -16,6 +16,7 @@ function! CocPlugins(arg)
   CocInstall coc-css
   CocInstall coc-sh
   CocInstall coc-pyright
+  CocInstall coc-xml
 "  CocInstall coc-clangd
   CocInstall coc-highlight
   CocInstall coc-yaml
@@ -296,7 +297,7 @@ map <silent><leader>o :setlocal spell! spelllang=en_au<CR>
 map <silent><leader>v :so $MYVIMRC<CR> 
 nnoremap <leader>b :ls<CR>:b<space>
 "generic compile script:
-nnoremap <leader>c :w<CR>!compile %<CR>
+nnoremap <leader>c :w<CR>:!compile %<CR>
 
 " Search mappings: Going to the next one in a search will center on the line it's found in.
 nnoremap n nzzzv

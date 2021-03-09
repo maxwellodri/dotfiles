@@ -1,2 +1,2 @@
 #!/bin/sh
-[ -z "$1" ] && notify-send "Started ETH mining" && ethminer -U --pool stratum://49a347eeab83bf3a2979ba919bbb1a3553a20250@asia1.ethpool.org:3333
+pgrep ethminer && pkill ethminer && notify-send "Stopped ETH mining" || notify-send "Started ETH mining" && ethminer -U --pool stratum://49a347eeab83bf3a2979ba919bbb1a3553a20250@asia1.ethpool.org:3333 > $HOME/.cache/gpumine/ethminer.log
