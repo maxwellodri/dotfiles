@@ -4,7 +4,7 @@
 "  \ V /| | | | | | | | | (__ 
 "   \_/ |_|_| |_| |_|_|  \___|
 "                             
-set termguicolors
+"set termguicolors
 let s:plug = '~/.vim/plugged'
 function! CocPlugins(arg)
   CocInstall coc-rust-analyzer
