@@ -36,6 +36,8 @@ super + Insert
 super + shift + c
 	cd ~/source/dwm && sudo make clean install && pkill dwm && notify-send "😈 recompiled dwm 😈 "
 	#[ "$(basename "$WM")"=="dwm" ] && pkill dwm
+super + shift + g
+	gpumine
 super + shift + m
 	pgrep ncmpcpp && pkill ncmpcpp || st -e ncmpcpp #toggle ncmpcpp
 super + shift + n
