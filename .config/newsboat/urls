@@ -92,7 +92,7 @@ https://www.reddit.com/r/rustjerk.rss "Reddit" "Tech" "Rust" "~Rust Jerk"
 "- - - - - Github - - - - -"
 https://github.com/bevyengine/bevy/releases.atom "Bevy" "~Bevy Releases"
 https://github.com/dimforge/bevy_rapier/releases.atom "Bevy" "~Bevy Rapier Releases"
-https://github.com/bevyengine/bevy/commits/master.atom "Bevy" "Bevy GH Commits"
+https://github.com/bevyengine/bevy/commits/main.atom "Bevy" "~Bevy GH Commits"
 https://github.com/DIGImend/digimend-kernel-drivers/commits/master.atom "PKGBUILDS" "~digimend-kernel-drivers"
 
 

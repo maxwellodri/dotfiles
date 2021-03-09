@@ -5,7 +5,8 @@ poll_network() {
     echo "$network"
 }
 poll_battery() { 
-    battery="🔋: $(acpi | awk '{print $4}' | head -n1 | sed s/,//)"
+    #battery="🔋: $(acpi | awk '{print $4}' | head -n1 | sed s/,//)"
+    battery="🔋: $(echo $(acpi | awk '{print $4}' | tr -d , | awk -v RS=  '{$1=$1}1' | awk '{print $1 "+" $2 }' | tr -d % | bc | tr -d '\n'; echo "/2") | bc)%"
     echo "$battery"
 }
 #

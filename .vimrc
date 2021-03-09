@@ -4,9 +4,7 @@
 "  \ V /| | | | | | | | | (__ 
 "   \_/ |_|_| |_| |_|_|  \___|
 "                             
-
-filetype on
-set termguicolors
+"set termguicolors
 let s:plug = '~/.vim/plugged'
 function! CocPlugins(arg)
   CocInstall coc-rust-analyzer
@@ -47,6 +45,7 @@ Plug 'lervag/vimtex'
 Plug 'ron-rs/ron.vim'
 Plug 'leafgarland/typescript-vim'
 Plug 'raimon49/requirements.txt.vim' "requirement.txt support
+Plug 'alvan/vim-closetag' "html tag closing
 " ====
 " Git
 " ====
@@ -62,7 +61,7 @@ Plug 'preservim/nerdtree'
 Plug 'tpope/vim-sensible'
 Plug 'machakann/vim-highlightedyank' "highlight on yank
 Plug 'farmergreg/vim-lastplace' "Keep cursor on quit
-Plug 'Raimondi/delimitMate' "auto create quotes, bracket pairs 
+"Plug 'Raimondi/delimitMate' "auto create quotes, bracket pairs 
 " =========
 " Snippets
 " =========
@@ -85,6 +84,127 @@ Plug 'sainnhe/edge'
 "
 call plug#end()
 
+" =============
+" 
+" Basic Options 
+"
+" =============
+filetype on
+"set termguicolors
+set title
+set titlestring=%F "necessary to be able to 'toggle' configs in sxhkd
+if exists('$SHELL')
+    set shell=$SHELL
+else
+    set shell=/bin/sh
+endif
+filetype plugin indent on
+syntax on
+set sessionoptions-=options
+set tabstop=4
+set softtabstop=2
+set expandtab
+set smarttab
+set autoindent
+set path+=** ""recursive subdirectory search
+set wildmenu
+set wildmode=longest,list,full
+set encoding=utf-8
+syntax enable
+set clipboard=unnamedplus
+set number
+set nocompatible
+set whichwrap=b,s,<,>,[,] "traverse end of line with arrow keys
+call mkdir(expand('%:h'), 'p') "autocreate parent directory if it doesnt exist
+set hidden
+let mapleader =" "
+"toggle spellchecker:
+map <silent><leader>o :setlocal spell! spelllang=en_au<CR>
+"reload vimrc:
+map <silent><leader>v :so $MYVIMRC<CR> 
+nnoremap <leader>b :ls<CR>:b<space>
+"generic compile script:
+nnoremap <leader>c :!compile %<CR>
+
+" Search mappings: Going to the next one in a search will center on the line it's found in.
+nnoremap n nzzzv
+nnoremap N Nzzzv
+"Abbreviations
+cnoreabbrev W! w!
+cnoreabbrev Q! q!
+cnoreabbrev Qall! qall!
+cnoreabbrev Wq wq
+cnoreabbrev Wa wa
+cnoreabbrev wQ wq
+cnoreabbrev WQ wq
+cnoreabbrev W w
+cnoreabbrev Q q
+cnoreabbrev Qall qall
+set wildignore+=*/tmp/*,*.so,*.swp,*.zip,*.pyc,*.db,*.sqlite
+
+" ========================
+" 
+" Statusline
+"
+" ========================
+"
+set cmdheight=2 " space below the statusline
+function! StatusDiagnostic() abort
+  let info = get(b:, 'coc_diagnostic_info', {})
+  if empty(info) | return '' | endif
+  let msgs = []
+  if get(info, 'error', 0)
+    call add(msgs, 'E' . info['error'])
+  endif
+  if get(info, 'warning', 0)
+	call add(msgs, 'W' . info['warning'])
+  endif
+  return join(msgs, ' ') . ' ' . get(g:, 'coc_status', '')
+endfunction
+
+set laststatus=2
+set statusline=
+set statusline+=%2*\ %f\ %*
+set statusline+=%= "LHS/RHS  divider
+"set statusline+=%2*\ %{coc#status()}%{get(b:,'coc_current_function','')}
+set statusline+=%1*\ %{StatusDiagnostic()} "coc diagnostics
+set statusline+=%1*\ %{FugitiveStatusline()} "fugitive
+set statusline+=%1*\ %l/%L\ (%c) "Line current/Linemax
+set statusline+=%1*\ %m "is modified
+set statusline+=%1*\ %r "is readonly
+
+hi User1 guifg=#FFFFFF guibg=#191f26 gui=BOLD
+hi User2 guifg=#000000 guibg=#959ca6
+hi User3 guifg=#000000 guibg=#4cbf99
+
+"set laststatus=2
+"set statusline=
+"set statusline+=%2*\ %l
+"set statusline+=\ %*
+"set statusline+=%1*\ ‹‹
+"set statusline+=%1*\ %f\ %*
+"set statusline+=%1*\ ››
+"set statusline+=%1*\ %m
+"set statusline+=%3*\ %F
+"set statusline+=%=
+"set statusline+=%3*\ ‹‹
+"set statusline+=%3*\ %{strftime('%R',getftime(expand('%')))}
+"set statusline+=%3*\ ::
+"set statusline+=%3*\ %n
+"set statusline+=%3*\ ››\ %*
+"
+"hi User1 guifg=#FFFFFF guibg=#191f26 gui=BOLD
+"hi User2 guifg=#000000 guibg=#959ca6
+"hi User3 guifg=#000000 guibg=#4cbf99
+"set statusline=%F%m%r%h%w%=(%{&ff}/%Y)\ (line\ %l\/%L,\ col\ %c)\
+" ========================
+" 
+" Cursor Specific Options
+"
+" ========================
+set cul "cursor line is highlighted
+set guicursor=n-v-c-sm:block,i-ci-ve:ver25-Cursor,r-cr-o:hor20
+highlight Cursor guifg=white guibg=black
 " ===============
 " Coc.nvim 
 " ===============
@@ -448,8 +568,24 @@ nnoremap <right> <nop>
 nnoremap <down> <nop>
 nnoremap <up> <nop>
 
+" ========================
+" closetag
+" ========================
+let g:closetag_filenames = '*.html,*.xhtml,*.phtml'
+let g:closetag_xhtml_filenames = '*.xhtml,*.jsx, *.tsx'
+let g:closetag_xhtml_filenames = '*.xhtml,*.jsx, *.tsx'
+let g:closetag_xhtml_filetypes = 'xhtml,jsx, tsx'
+let g:closetag_emptyTags_caseSensitive = 1
+let g:closetag_regions = {
+    \ 'typescript.tsx': 'jsxRegion,tsxRegion',
+    \ 'javascript.jsx': 'jsxRegion',
+    \ }
+let g:closetag_shortcut = '>'
+let g:closetag_close_shortcut = '<leader>>'
 
-"Tagbar:
+" ========================
+" Tagbar
+" ========================
 nmap <C-s> :TagbarToggle<CR>
 let g:tagbar_autoclose = 1
 let g:tagbar_autofocus = 1
