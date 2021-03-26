@@ -4,6 +4,7 @@
 ################
 export src='/home/maxwell/source'
 export dotfiles="$src/dotfiles" 
+export SWAP="$HOME/media/drive_swappy/swapfile"
 ################
 #aliases:
 ###############
