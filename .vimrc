@@ -4,7 +4,7 @@
 "  \ V /| | | | | | | | | (__ 
 "   \_/ |_|_| |_| |_|_|  \___|
 "                             
-"set termguicolors
+set termguicolors
 let s:plug = '~/.vim/plugged'
 function! CocPlugins(arg)
   CocInstall coc-rust-analyzer
@@ -68,13 +68,17 @@ Plug 'farmergreg/vim-lastplace' "Keep cursor on quit
 Plug 'SirVer/ultisnips'
 Plug 'honza/vim-snippets'
 " ===============
+" Wiki 
+" ===============
+Plug 'vimwiki/vimwiki'
+" ===============
 " Color Schemes
 " ===============
 Plug 'tomasiser/vim-code-dark'
 Plug 'tomasr/molokai'
 Plug 'morhetz/gruvbox'
 Plug 'ghifarit53/tokyonight-vim' 
-Plug 'ajmwagar/vim-deus' 
+
 Plug 'sainnhe/edge'
 "Plug 'pineapplegiant/spaceduck'
 " =======
@@ -117,18 +121,23 @@ set nocompatible
 set whichwrap=b,s,<,>,[,] "traverse end of line with arrow keys
 call mkdir(expand('%:h'), 'p') "autocreate parent directory if it doesnt exist
 set hidden
+
+" ========================
+" 
+"  Basic Keybindings
+"
+" ========================
 let mapleader =" "
 "toggle spellchecker:
 map <silent><leader>o :setlocal spell! spelllang=en_au<CR>
 "reload vimrc:
-map <silent><leader>v :so $MYVIMRC<CR> 
-nnoremap <leader>b :ls<CR>:b<space>
+map <silent><leader>v :so $MYVIMRC<CR>:echo "Reloaded $MYVIMRC"
 "generic compile script:
 nnoremap <leader>c :!compile %<CR>
 
 " Search mappings: Going to the next one in a search will center on the line it's found in.
-nnoremap n nzzzv
-nnoremap N Nzzzv
+"nnoremap n nzzzv
+"nnoremap N Nzzzv
 "Abbreviations
 cnoreabbrev W! w!
 cnoreabbrev Q! q!
@@ -141,6 +150,20 @@ cnoreabbrev W w
 cnoreabbrev Q q
 cnoreabbrev Qall qall
 set wildignore+=*/tmp/*,*.so,*.swp,*.zip,*.pyc,*.db,*.sqlite
+
+" ========================
+" 
+" Tab Navigation
+"
+" ========================
+nnoremap tk :tabnext<CR>
+nnoremap tj :tabprev<CR>
+nnoremap tn :tabnew<CR>
+nnoremap td  :tabclose<CR>
+nnoremap th  :tabfirst<CR>
+nnoremap tl  :tablast<CR>
+nnoremap tt  :tabe<Space>
+nnoremap tm  :tabm<Space>
 
 " ========================
 " 
@@ -204,7 +227,7 @@ hi User3 guifg=#000000 guibg=#4cbf99
 " ========================
 set cul "cursor line is highlighted
 set guicursor=n-v-c-sm:block,i-ci-ve:ver25-Cursor,r-cr-o:hor20
-highlight Cursor guifg=white guibg=black
+highlight Cursor guifg=white guibg=white
 " ===============
 " Coc.nvim 
 " ===============
@@ -412,9 +435,9 @@ call mkdir(expand('%:h'), 'p') "autocreate parent directory if it doesnt exist
 set hidden
 let mapleader =" "
 "toggle spellchecker:
-map <silent><leader>o :setlocal spell! spelllang=en_au<CR>
+map <silent><leader>o :setlocal spell! spelllang=en_au<CR>:echo "Toggle Spellcheck"<CR>
 "reload vimrc:
-map <silent><leader>v :so $MYVIMRC<CR> 
+map <silent><leader>v :so $MYVIMRC<CR>:echo "Reloaded vimrc"<CR>
 nnoremap <leader>b :ls<CR>:b<space>
 "generic compile script:
 nnoremap <leader>c :w<CR>:!compile %<CR>
@@ -526,7 +549,11 @@ autocmd Filetype python map <silent>,ignore $a #type: ignore<Esc>
 " =====
 " Rust   
 " =====
+"
+" TODO autocmd Filetype rust map <leader>t :tabe "$(git rev-parse --show-toplevel)/Cargo.toml"
+
 autocmd Filetype rust map <silent><leader><leader> :w<CR>:!rustfmt %<CR>:!cargo check<CR>
+autocmd Filetype rust map <silent><leader>r :w<CR>:!rustfmt %<CR>:!cargo run<CR>
 " =====
 " Mutt   
 " =====

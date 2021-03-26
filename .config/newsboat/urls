@@ -53,6 +53,9 @@ https://www.youtube.com/feeds/videos.xml?channel_id=UCoebwHSTvwalADTJhps0emA "Te
 https://www.youtube.com/feeds/videos.xml?channel_id=UC1JTQBa5QxZCpXrFSkMxmPw "Tech" "GameDev" "Gaming" "~Raycevick"
 https://www.youtube.com/feeds/videos.xml?channel_id=UC1H1NWNTG2Xi3pt85ykVSHA "Tech" "AI" "GameDev" "~Jordan Harrod"
 https://www.youtube.com/feeds/videos.xml?channel_id=UCYYVRU_fbEseBXwogp3CuMQ "Gaming" "~AmphibiousAmphibian"
+https://www.youtube.com/feeds/videos.xml?channel_id=UCq7dxy_qYNEBcHqQVCbc20w "Tech" "~Creel"
+https://www.youtube.com/feeds/videos.xml?channel_id=UCJetJ7nDNLlEzDLXv7KIo0w "Tech" "~Gavin Freeborn"
+https://www.youtube.com/feeds/videos.xml?channel_id=UCUd0Pj06Jt1kgW-VdvmgIQQ "Tech" "GameDev" "Games" "~Steven GameDev"
 " "
 " "
 "- - - - - Dota - - - - -"
@@ -93,7 +96,9 @@ https://www.reddit.com/r/rustjerk.rss "Reddit" "Tech" "Rust" "~Rust Jerk"
 https://github.com/bevyengine/bevy/releases.atom "Bevy" "~Bevy Releases"
 https://github.com/dimforge/bevy_rapier/releases.atom "Bevy" "~Bevy Rapier Releases"
 https://github.com/bevyengine/bevy/commits/main.atom "Bevy" "~Bevy GH Commits"
+https://github.com/sburris0/bevy_flycam/commits/main.atom "Bevy" "~Bevy flycam GH Commits"
 https://github.com/DIGImend/digimend-kernel-drivers/commits/master.atom "PKGBUILDS" "~digimend-kernel-drivers"
+https://github.com/GloriousEggroll/proton-ge-custom/releases.atom "Proton" "~GloriousEggroll Proton Releases"
 
 
 #TODO:
