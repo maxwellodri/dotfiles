@@ -1,4 +1,5 @@
-#to install: cat $FILE | grep -v # | xargs sudo pacman -S --noconfirm
+#to install: cat $FILE | grep -v # | xargs sudo pacman -S --noconfirm -needed
+man
 xdotool
 ctags
 nodejs
@@ -34,6 +35,8 @@ xsel
 detox
 htop
 xdo
+python-pynvim
+pavucontrol
 
 #AUR
 #task-spooler
