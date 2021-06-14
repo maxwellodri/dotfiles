@@ -1,6 +1,6 @@
 #!/bin/sh
 emoji=$(cat "$HOME/bin/unicode_fmt" | dmenu -i -l 20 | awk '{print $1}' | tr -d '\n')
-[ $emoji != "" ] && echo $emoji | tr -d "\n" | tr -d " " | xclip -selection clipboard && pgrep -x dunst >/dev/null && notify-send "$(xclip -o -selection clipboard) => clipboard"
+[ $emoji != "" ] && echo $emoji | tr -d "\n" | tr -d " " | xclip -selection clipboard && pgrep -x dunst >/dev/null && notify-send -t 700 "$(xclip -o -selection clipboard) => clipboard"
 echo $emoji 
 
 

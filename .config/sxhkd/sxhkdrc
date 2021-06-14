@@ -35,8 +35,8 @@ super + Insert
 #  \__\___/ \__, |\__, |_|\___|
 #           |___/ |___/        
 #Programs:
-super + shift + c
-	cd ~/source/dwm && sudo make clean install && pkill dwm && notify-send "😈 recompiled dwm 😈 "
+#super + shift + c
+	#cd ~/source/dwm && sudo make clean install && pkill dwm && notify-send "😈 recompiled dwm 😈 "
 	#[ "$(basename "$WM")"=="dwm" ] && pkill dwm
 super + shift + g
 	gpumine
@@ -44,6 +44,7 @@ super + shift + m
 	pgrep ncmpcpp && pkill ncmpcpp || st -e ncmpcpp #toggle ncmpcpp
 super + shift + n
 	pgrep newsboat && pkill newsboat || st -e newsboat #toggle newsboat
+	#pgrep newsboat && notify-send "🤠a Newsboat is reloading 🤠" || st -e newsboat #toggle newsboat
 super + ctrl + n
 	pkill newsboat; notify-send "🥺 Starting to reload Newsboat 🥺" && newsboat -x reload && notify-send "🥺 Newsboat has finished reloading 🥺"
 super + c
