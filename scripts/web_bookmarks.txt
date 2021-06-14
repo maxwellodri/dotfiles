@@ -43,5 +43,8 @@ web_bookmarks = {
 'bevy': 'https://github.com/bevyengine/bevy',
 'cookbook': 'https://bevy-cheatbook.github.io/',
 'wallet': 'https://ethereum-balance.com/?wa=49a347eeab83bf3a2979ba919bbb1a3553a20250',
+'sfx': 'https://www.freesoundslibrary.com',
+'rtx': 'http://www.realtimerendering.com/raytracinggems/unofficial_RayTracingGems_v1.7.pdf',
+'networkmanager-gnome-blog': 'https://blogs.gnome.org/thaller/2016/08/26/mac-address-spoofing-in-networkmanager-1-4-0/',
 }
 

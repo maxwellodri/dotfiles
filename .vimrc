@@ -16,6 +16,7 @@ function! CocPlugins(arg)
   CocInstall coc-pyright
   CocInstall coc-xml
 "  CocInstall coc-clangd
+  CocInstall coc-julia
   CocInstall coc-highlight
   CocInstall coc-yaml
   CocInstall coc-pyright
@@ -46,6 +47,7 @@ Plug 'ron-rs/ron.vim'
 Plug 'leafgarland/typescript-vim'
 Plug 'raimon49/requirements.txt.vim' "requirement.txt support
 Plug 'alvan/vim-closetag' "html tag closing
+Plug 'jupyter-vim/jupyter-vim' "see https://github.com/jupyter-vim/jupyter-vim for setup instructions
 " ====
 " Git
 " ====
@@ -61,6 +63,7 @@ Plug 'preservim/nerdtree'
 Plug 'tpope/vim-sensible'
 Plug 'machakann/vim-highlightedyank' "highlight on yank
 Plug 'farmergreg/vim-lastplace' "Keep cursor on quit
+Plug 'luochen1990/rainbow'
 "Plug 'Raimondi/delimitMate' "auto create quotes, bracket pairs 
 " =========
 " Snippets
@@ -236,6 +239,7 @@ let g:coc_user_config['coc.preferences.jumpCommand'] = ':vsp'
 let g:coc_start_at_startup = 1
 let g:coc_enable_locationlist = 1
 nmap <silent> gd :call CocAction('jumpDefinition', 'vsp')<CR>
+"nmap <silent> gd <Plug>(coc-definition)
 "inoremap <left> <nop>
 "inoremap <right> <nop>
 "inoremap <down> CocNext Coc
@@ -525,10 +529,25 @@ let g:nerdtree_tabs_focus_on_files=1
 let g:NERDTreeMapOpenInTabSilent = '<RightMouse>'
 " =========================
 " 
+" Jupyter Vim
+"
+" =========================
+let g:jupyter_mapkeys = 1
+" =========================
+" 
 " Filetype Specfic Options
 "
 " =========================
 "
+" =====
+" vimrc
+" =====
+if has('autocmd') " ignore this section if your vim does not support autocommands
+    augroup reload_vimrc
+        autocmd!
+        autocmd! BufWritePost $MYVIMRC,$MYGVIMRC nested source %
+    augroup END
+endif
 " =====
 " Make
 " =====
@@ -552,6 +571,8 @@ autocmd Filetype python map <silent>,ignore $a #type: ignore<Esc>
 "
 " TODO autocmd Filetype rust map <leader>t :tabe "$(git rev-parse --show-toplevel)/Cargo.toml"
 
+let g:rustfmt_autosave = 1
+let g:rust_cargo_use_clippy = 1
 autocmd Filetype rust map <silent><leader><leader> :w<CR>:!rustfmt %<CR>:!cargo check<CR>
 autocmd Filetype rust map <silent><leader>r :w<CR>:!rustfmt %<CR>:!cargo run<CR>
 " =====
@@ -566,11 +587,15 @@ nnoremap ,texfig :-1read $dotfiles/snippets/figure.tex<CR><CR>$i
 " =================
 "  Yank Highlighting
 " =================
-let g:highlightedyank_highlight_duration = 1000
+let g:highlightedyank_highlight_duration = 700
 " =================
 "  Lastplace Cursor
 " =================
 let g:lastplace_ignore = "gitcommit,gitrebase,svn,hgcommit"
+" ========================
+" Rainbow Brackets
+" ========================
+let g:rainbow_active = 1 "set to 0 if you want to enable it later via :RainbowToggle
 " ========================
 " Fix Search Highlighting
 " ========================

@@ -34,7 +34,9 @@ fi
 #xterm -geometry 80x50+494+51 &
 #xterm -geometry 80x20+494-0 &
 #exec xterm -geometry 80x66+0+0 -name login
-setxkbmap -option caps:escape #change capslock to a 2nd escape
+
+setxkbmap -option caps:escape 
+#change capslock to a 2nd escape
 [ "$(basename "$WM")" = "dwm" ] && [ -f "$dotfiles/dwm/dwmshell" ] && "$dotfiles/dwm/dwmshell"  #shell script to start for dwm, for starting other programs
 if [ "$(basename "$WM")" = "dwm" ]; then
     while [ "$KILLDWM" != "true" ]; do
