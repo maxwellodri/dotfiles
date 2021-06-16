@@ -21,6 +21,7 @@ export PATH=$PATH:$BIN #add /home/$USER/bin to path
 export PATH=$PATH:"$BIN/steam_scripts" #and subfolder for steam scripts
 export PATH=$PATH:$HOME/bin
 export dl="$HOME/Downloads"
+export game="$HOME/source/game"
 
 
 ################
