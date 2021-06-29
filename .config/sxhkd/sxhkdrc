@@ -46,7 +46,7 @@ super + shift + n
 	pgrep newsboat && pkill newsboat || st -e newsboat #toggle newsboat
 	#pgrep newsboat && notify-send "🤠a Newsboat is reloading 🤠" || st -e newsboat #toggle newsboat
 super + ctrl + n
-	pkill newsboat; notify-send "🥺 Starting to reload Newsboat 🥺" && newsboat -x reload && notify-send "🥺 Newsboat has finished reloading 🥺"
+	pkill newsboat; notify-send -t 750 "🥺 Starting to reload Newsboat 🥺" && newsboat -x reload && notify-send -t 750 "🥺 Newsboat has finished reloading 🥺"
 super + c
 	pgrep calcurse && pkill calcurse || st -e calcurse #toggle ncmpcpp
 super + Escape

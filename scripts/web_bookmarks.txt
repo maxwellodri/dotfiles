@@ -46,5 +46,10 @@ web_bookmarks = {
 'sfx': 'https://www.freesoundslibrary.com',
 'rtx': 'http://www.realtimerendering.com/raytracinggems/unofficial_RayTracingGems_v1.7.pdf',
 'networkmanager-gnome-blog': 'https://blogs.gnome.org/thaller/2016/08/26/mac-address-spoofing-in-networkmanager-1-4-0/',
+'amplify': 'https://ap-southeast-2.console.aws.amazon.com/amplify/home?region=ap-southeast-2#/',
+'apigateway': 'https://ap-southeast-2.console.aws.amazon.com/apigateway/main/apis?region=ap-southeast-2',
+'lambda': 'https://ap-southeast-2.console.aws.amazon.com/lambda/home?region=ap-southeast-2#/functions',
+'dynamodb': 'https://ap-southeast-2.console.aws.amazon.com/dynamodb/home?region=ap-southeast-2',
+'aws': 'https://console.aws.amazon.com/console/home',
 }
 

@@ -1,2 +1,2 @@
 #!/bin/sh
-notify-send "Torrent Completed 😠"
+notify-send -t 750 "Torrent Completed 😠"
