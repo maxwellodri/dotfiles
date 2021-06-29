@@ -40,6 +40,7 @@ setxkbmap -option caps:escape
 [ "$(basename "$WM")" = "dwm" ] && [ -f "$dotfiles/dwm/dwmshell" ] && "$dotfiles/dwm/dwmshell"  #shell script to start for dwm, for starting other programs
 if [ "$(basename "$WM")" = "dwm" ]; then
     while [ "$KILLDWM" != "true" ]; do
+        setxkbmap -option caps:escape 
         sxhkd &
 	    ssh-agent dwm
     done
