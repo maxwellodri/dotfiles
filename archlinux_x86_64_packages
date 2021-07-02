@@ -1,4 +1,4 @@
-#to install: cat $FILE | grep -v # | xargs sudo pacman -S --noconfirm -needed
+#run arch_package_install.sh
 man
 xdotool
 ctags
