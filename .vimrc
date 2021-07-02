@@ -6,33 +6,9 @@
 "                             
 set termguicolors
 let s:plug = '~/.vim/plugged'
-function! CocPlugins(arg)
-  CocInstall coc-rust-analyzer
-  CocInstall coc-json 
-  CocInstall coc-tsserver
-  CocInstall coc-html
-  CocInstall coc-css
-  CocInstall coc-sh
-  CocInstall coc-pyright
-  CocInstall coc-xml
-"  CocInstall coc-clangd
-  CocInstall coc-julia
-  CocInstall coc-highlight
-  CocInstall coc-yaml
-  CocInstall coc-pyright
-  CocEnable
-endfunction
-" ==========
-"
-" Plugins
-" ==========
-" =============
-" Autocomplete
-" =============
-"
 call plug#begin(s:plug)
 "coc requires node, force update of coc plugins with :CocUpdate!
-Plug 'neoclide/coc.nvim', {'branch': 'release', 'do': function('CocPlugins') }
+Plug 'neoclide/coc.nvim', {'branch': 'release' }
 "let g:coc_disable_startup_warning = 1 "Because debian version is <0.4.0 (old)
 " =================
 " Language Support
@@ -57,6 +33,8 @@ Plug 'tpope/vim-fugitive'
 " ======
 Plug 'PeterRincker/vim-searchlight'
 Plug 'preservim/nerdtree'
+Plug 'Xuyuanp/nerdtree-git-plugin'
+Plug 'ryanoasis/vim-devicons'
 " ==============
 " Miscellaneous
 " ==============
@@ -234,6 +212,25 @@ highlight Cursor guifg=white guibg=white
 " ===============
 " Coc.nvim 
 " ===============
+let g:coc_global_extensions = [
+  \ 'coc-snippets',
+  \ 'coc-pairs',
+  \ 'coc-tsserver',
+  \ 'coc-eslint', 
+  \ 'coc-prettier', 
+  \ 'coc-json', 
+  \ 'coc-rust-analyzer',
+  \ 'coc-tsserver',
+  \ 'coc-html',
+  \ 'coc-css',
+  \ 'coc-sh',
+  \ 'coc-pyright',
+  \ 'coc-xml',
+  \ 'coc-julia',
+  \ 'coc-highlight',
+  \ 'coc-yaml',
+  \ 'coc-pyright',
+  \ ]
 let g:coc_user_config = {}
 let g:coc_user_config['coc.preferences.jumpCommand'] = ':vsp'
 let g:coc_start_at_startup = 1
@@ -527,6 +524,19 @@ let g:NERDTreeSortOrder=['^__\.py$', '\/$', '*', '\.swp$', '\.bak$', '\~$']
 let g:NERDTreeShowBookmarks=1
 let g:nerdtree_tabs_focus_on_files=1
 let g:NERDTreeMapOpenInTabSilent = '<RightMouse>'
+let g:NERDTreeGitStatusUseNerdFonts = 1
+let g:NERDTreeGitStatusIndicatorMapCustom = {
+                \ 'Modified'  :'✹',
+                \ 'Staged'    :'✚',
+                \ 'Untracked' :'✭',
+                \ 'Renamed'   :'➜',
+                \ 'Unmerged'  :'═',
+                \ 'Deleted'   :'✖',
+                \ 'Dirty'     :'✗',
+                \ 'Ignored'   :'☒',
+                \ 'Clean'     :'✔︎',
+                \ 'Unknown'   :'?',
+                \ }
 " =========================
 " 
 " Jupyter Vim
