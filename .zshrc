@@ -12,8 +12,8 @@ HISTFILE=~/.cache/histfile
 HISTSIZE=1000
 SAVEHIST=1000
 
-(cat ~/.cache/wal/sequences &) #pywal
-source ~/.cache/wal/colors-tty.sh
+#(cat ~/.cache/wal/sequences &) #pywal
+#source ~/.cache/wal/colors-tty.sh
 
 setopt autocd #type name of dir to cd
 unsetopt beep #no beep
