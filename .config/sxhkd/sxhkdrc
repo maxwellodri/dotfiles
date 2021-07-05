@@ -28,6 +28,8 @@ super + shift + a
 	art.sh
 super + Insert
 	passmenu
+super + shift + b
+	bookmarks
 #  _                    _      
 # | |_ ___   __ _  __ _| | ___ 
 # | __/ _ \ / _` |/ _` | |/ _ \
