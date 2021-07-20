@@ -37,11 +37,12 @@ detox
 htop
 xdo
 python-qtconsole
-#pass-update
 python-pynvim
 pavucontrol
+github-cli
 
 #AUR
+#pass-update
 #task-spooler
 #electronplayer
 #pacmixer

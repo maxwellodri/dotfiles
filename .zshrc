@@ -13,7 +13,7 @@ HISTSIZE=1000
 SAVEHIST=1000
 
 #(cat ~/.cache/wal/sequences &) #pywal
-#source ~/.cache/wal/colors-tty.sh
+source ~/.cache/wal/colors-tty.sh
 
 setopt autocd #type name of dir to cd
 unsetopt beep #no beep
@@ -21,17 +21,17 @@ bindkey -v #vim keys
 #export KEYTIMEOUT=1 #xtra option for vim keys
 zstyle :compinstall filename '/home/maxwell/.zshrc'
 
-autoload -Uz compinit
+autoload -Uz compinit #zshrc autocompletion
 compinit
-# End of lines added by compinstall
-#
 # Enable colors and change prompt:
 autoload -U colors && colors
 PS1="%B%{$fg[yellow]%}[%{$fg[magenta]%}%n%{$fg[green]%}@%{$fg[blue]%}%M %{$fg[red]%}%~%{$fg[yellow]%}]%{$reset_color%}$%b "
 
 [ -e "$HOME/.zshrc_extra" ] && source "$HOME/.zshrc_extra" #load platform specifcs 
 [ -e "$HOME/.config/sh/shrc" ] && source "$HOME/.config/sh/shrc" #load alias and exports 
-
+[ -e "/usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ] && source "/usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+[ -e "/usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" ] && source "/usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" && bindkey '^ ' autosuggest-accept
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#46ff00,bg=black,bold,underline"
 # Basic auto/tab complete:
 autoload -U compinit
 zstyle ':completion:*' menu select
@@ -72,3 +72,8 @@ preexec() { echo -ne '\e[5 q' ;} # Use beam shape cursor for each new prompt.
 #bindkey -s '^v' 'clear\n' #bind ctrl-v to function
 #
 
+#improved help - see arch wiki zsh article
+autoload -Uz run-help
+(( ${+aliases[run-help]} )) && unalias run-help
+alias help=run-help
+autoload -Uz run-help-git run-help-ip run-help-openssl run-help-p4 run-help-sudo run-help-svk run-help-svn
