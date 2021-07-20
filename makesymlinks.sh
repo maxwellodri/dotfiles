@@ -19,6 +19,7 @@ pactl=.config/pulseaudio-ctl/config
 newsboat=".config/newsboat/urls .config/newsboat/config"
 ytdl=.config/youtube-dl/config
 tmux=.tmux.conf
+gpg=.gnupg/gpg-agent.conf
 emacs=.emacs.d/*
 ncmpcpp=".config/mpd/mpd.conf .config/ncmpcpp/config"
 bsp=".config/bspwm/bspwmrc .config/bspwm/terminals .config/bspwm/swallow .config/bspwm/noswallow"
@@ -29,7 +30,7 @@ i3=" $i3config $i3statusconfig" #i3wm
 xfiles=" .xinitrc $zathura $picom $dunst $ncmpcpp .Xresources $sxhkdconfig"
 bash=" .bashrc .bashrc_extra .bash_profile $sh"
 zsh=" .zshrc .zshrc_extra .zprofile $sh" 
-files=" .vimrc .config/nvim $mutt $ytdl $newsboat $tmux"
+files=" .vimrc .config/nvim $mutt $ytdl $newsboat $tmux $gpg"
 ########### Variables
 pcfiles=" $xfiles $zsh $bsp" #platform specific dotfiles
 laptopfiles=" $xfiles $pactl $i3 $zsh $terminator"
