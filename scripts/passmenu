@@ -30,7 +30,8 @@ password=$(printf '%s\n' "${password_files[@]}" | "$dmenu" "$@")
 
 if [[ $typeit -eq 0 ]]; then
 	#pass show -c "$password" 2>/dev/null
-	pass show "$password" | xclip -i -sel clip
+	pass show "$password" | xclip -i -sel clip && async_clear_clipboard
+	
 else
-	pass show "$password" | { IFS= read -r pass; printf %s "$pass"; } | $xdotool
+	pass show "$password" | { IFS= read -r pass; printf %s "$pass"; } | $xdotool && async_clear_clipboard
 fi

@@ -2,14 +2,9 @@
 web_bookmarks = {
 'AIBlog': 'http://bootstrappingartificialintelligence.fr/WordPress3/',
 'RustShell': 'https://www.joshmcguigan.com/blog/build-your-own-shell-rust/',
-<<<<<<< HEAD
-'bb': 'https://blackboard.qut.edu.au/auth-saml/saml/login?apId=_132_1&redirectUrl=https%3A%2F%2blackboard.qut.edu.au%2Fwebapps%2Fportal%2Fexecute%2FdefaultTab',
 'qut': 'https://qutvirtual4.qut.edu.au/group/student/home',
-'tpb': 'https://proxybay.github.io/',
-=======
 'bb': 'https://qutvirtual4.qut.edu.au/group/student/home',
 'tpb': 'https://piratebay-proxylist.com/',
->>>>>>> d54f5a6cf593153404cb7f585afebd9b2576e3b2
 'desmos': 'https://www.desmos.com/calculator',
 'sinet': 'https://www.sinet.uq.edu.au/psp/ps/?cmd=login&languageCd=ENG&',
 'complex': 'https://courses.smp.uq.edu.au/MATH3401/',
