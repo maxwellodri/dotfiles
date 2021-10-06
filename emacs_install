@@ -1,4 +1,6 @@
 #!/bin/sh
+[ -z $dotfiles_tag ] && echo "Link emacs dotfiles first" && exit 1
+[ ! -e ~/.emacs.d/ ]  && echo "Emacs config directory not present, link dotfiles first" && exit 1
 sudo pacman -S emacs &&
 systemctl --user enable --now emacs
 

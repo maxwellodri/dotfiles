@@ -19,10 +19,6 @@
 (require 'use-package)
 (setq use-package-verbose t)
 (setq use-package-always-ensure t)
-(eval-when-compile (require 'use-package))
-(use-package auto-compile
-  :config (auto-compile-on-load-mode))
-(setq load-prefer-newer t)
 
 (use-package org
   :ensure t)
@@ -35,6 +31,11 @@
 ;; the rest of the configuration can be found in:
 (org-babel-load-file (concat user-emacs-directory "config.org"))
 
+
+(eval-when-compile (require 'use-package))
+(use-package auto-compile
+  :config (auto-compile-on-load-mode))
+(setq load-prefer-newer t)
 
 (fset 'yes-or-no-p 'y-or-n-p)
 (server-start)

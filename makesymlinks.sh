@@ -21,7 +21,7 @@ newsboat=".config/newsboat/urls .config/newsboat/config"
 ytdl=.config/youtube-dl/config
 tmux=.tmux.conf
 gpg=.gnupg/gpg-agent.conf
-emacs=.emacs.d
+emacs=.emacs.d/*
 ncmpcpp=".config/mpd/mpd.conf .config/ncmpcpp/config"
 bsp=".config/bspwm/bspwmrc .config/bspwm/terminals .config/bspwm/swallow .config/bspwm/noswallow"
 sxhkdconfig=.config/sxhkd/sxhkdrc
@@ -156,8 +156,8 @@ for file in $files; do
 
         "$mutt")                src="$dir/.config/zathura/zathurarc"
                                 mkdir -p "$HOME/attach"
-                            
                                 ;;
+
         *)                      src="$dir/$file"
                                 ;;
     
