@@ -22,6 +22,8 @@ super + d
 	dmenu_run
 super + e
 	emojis
+super + f
+	emacsclient -nc
 super + shift + Tab
 	lock
 super + shift + a
@@ -30,6 +32,10 @@ super + Insert
 	passmenu
 super + shift + b
 	bookmarks
+super + shift + q
+	set_kb_map
+super + shift + e
+	emacsclient -c
 #  _                    _      
 # | |_ ___   __ _  __ _| | ___ 
 # | __/ _ \ / _` |/ _` | |/ _ \
