@@ -37,17 +37,23 @@ fi
 
 setxkbmap -option caps:escape 
 #change capslock to a 2nd escape
+echo $WM
+
+#export DESKTOP_SESSION=plasma
+#exec startplasma-x11 
+
 [ "$(basename "$WM")" = "dwm" ] && [ -f "$dotfiles/dwm/dwmshell" ] && "$dotfiles/dwm/dwmshell"  #shell script to start for dwm, for starting other programs
 if [ "$(basename "$WM")" = "dwm" ]; then
-    while [ "$KILLDWM" != "true" ]; do
-        setxkbmap -option caps:escape 
         sxhkd &
+        xrandr --output HDMI-1 --primay --mode 1920x1080 --rate 60.00
+        setxkbmap -option caps:escape 
+        #xautolock -time 20 -locker "lockme" -detectsleep &
+    while [ "$KILLDWM" != "true" ]; do
 	    ssh-agent dwm
     done
     unset KILLDWM
-elif ["$(basename "$WM")" = "bspwm" ]; then
+elif [ "$(basename "$WM")" = "penrose" ]; then
     sxhkd &
-    exec bspwm
-else 
-    exec "$WM"
+    #xautolock -time 20 -locker "lockme" -detectsleep &
+    ssh-agent penrose
 fi
