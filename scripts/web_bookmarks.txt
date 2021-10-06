@@ -2,7 +2,7 @@
 web_bookmarks = {
 'AIBlog': 'http://bootstrappingartificialintelligence.fr/WordPress3/',
 'RustShell': 'https://www.joshmcguigan.com/blog/build-your-own-shell-rust/',
-'bb': 'https://learn.uq.edu.au/webapps/login/?action=default_login',
+'bb': 'https://qutvirtual4.qut.edu.au/group/student/home',
 'tpb': 'https://piratebay-proxylist.com/',
 'desmos': 'https://www.desmos.com/calculator',
 'sinet': 'https://www.sinet.uq.edu.au/psp/ps/?cmd=login&languageCd=ENG&',
@@ -14,7 +14,8 @@ web_bookmarks = {
 'johncarmacktalks': 'https://www.youtube.com/watch?v=IyUgHPs86XM',
 'tni': 'https://toolsnotincluded.net',
 'oniass': 'https://oni-assistant.com/',
-'scihub': 'https://whereisscihub.now.sh/go',
+'scihub': 'https://sci-hub.hkvisa.net',
+'harrydelcryptotax': 'https://www.youtube.com/watch?v=h3SJriwN5Uc',
 'messenger': 'https://www.facebook.com/messages/t/',
 'fb': 'https://www.facebook.com/messages/t/',
 'sms': 'https://www.receive-sms-online.info/',
