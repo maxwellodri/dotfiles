@@ -54,5 +54,6 @@ web_bookmarks = {
 'dynamodb': 'https://ap-southeast-2.console.aws.amazon.com/dynamodb/home?region=ap-southeast-2',
 'aws': 'https://console.aws.amazon.com/console/home',
 'theta': 'https://wallet.thetatoken.org/unlock/keystore-file',
+'dotfiles': 'https://github.com/maxwellodri/dotfiles'
 }
 
