@@ -6,7 +6,10 @@
 *.log
 *.AppImage
 .emacs.d/*
-!.emacs.d/config.org
-!.emacs.d/init.el
-!.emacs.d/resources
-!.emacs.d/snippets
+org/+
+org/*.el$
+!org/$
+!org/*.org$
+!.emacs.d/init.el$
+!.emacs.d/resources$
+!.emacs.d/snippets$

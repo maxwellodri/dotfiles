@@ -4,8 +4,6 @@
 # \__ \>  <| | | |   < (_| | | | (__ 
 # |___/_/\_\_| |_|_|\_\__,_|_|  \___|
 #                                    
-super + shift + q
-	xdo close
 super + shift + x
 	xdo kill
 #  ____                                          
@@ -22,8 +20,6 @@ super + d
 	dmenu_run
 super + e
 	emojis
-super + f
-	emacsclient -nc
 super + shift + Tab
 	lock
 super + shift + a
@@ -35,7 +31,8 @@ super + shift + b
 super + shift + q
 	set_kb_map
 super + shift + e
-	emacsclient -c
+	emacs_runner
+
 #  _                    _      
 # | |_ ___   __ _  __ _| | ___ 
 # | __/ _ \ / _` |/ _` | |/ _ \

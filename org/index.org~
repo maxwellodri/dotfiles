@@ -1,0 +1,6 @@
+* Config
+  [[~/.emacs.d/init.el]]
+  [[~/org/config.org]]
+* TODO
+  remap :q to goto index.org if only buffer open
+  

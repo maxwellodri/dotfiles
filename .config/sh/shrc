@@ -101,7 +101,8 @@ alias pacs="pacman -Slq | fzf -m --preview 'pacman -Si {1}' | xargs -ro sudo pac
 alias alp="vim $dotfiles/archlinux_x86_64_packages"
 alias dfn='df -h | egrep "Filesystem|nvme|sd"'
 alias untar='tar -zxvf'
-
 alias screensave="xclip -selection clipboard -target image/png -out > out.png"
+
+command -v ytop > /dev/null && alias htop=ytop
 
 alias USB="/home/maxwell/media/usb"

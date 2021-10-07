@@ -1,0 +1,7 @@
+#!/bin/sh
+if ! ps -e -o args | grep -q '^emacs --daemon$'; then
+	notify-send -t 1250 "Starting emacs daemon 🤗"
+	emacs --daemon &
+else
+	emacsclient -c
+fi
