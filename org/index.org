@@ -14,6 +14,9 @@
   Magit
   ob-julia  ttps://github.com/gjkerns/ob-julia/blob/master/ob-julia-doc.org
   https://github.com/hagmonk/org-kanban
+  http://jr0cket.co.uk/2013/08/manage-dev-life-with-emacs-org-mode.html
+  http://jr0cket.co.uk/2016/09/Kanban-board-Emacs-Org-mode-to-get-work-done.html
+  http://jr0cket.co.uk/2013/08/configure-emacs-org-mode-to-manage-your-tasks.html.html
 * Tasks
   buy RAM
   buy toothbrush holder
