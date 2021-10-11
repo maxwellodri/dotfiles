@@ -5,70 +5,6 @@
 "   \_/ |_|_| |_| |_|_|  \___|
 "                             
 set termguicolors
-let s:plug = '~/.vim/plugged'
-call plug#begin(s:plug)
-"coc requires node, force update of coc plugins with :CocUpdate!
-Plug 'neoclide/coc.nvim', {'branch': 'release' }
-"let g:coc_disable_startup_warning = 1 "Because debian version is <0.4.0 (old)
-" =================
-" Language Support
-" =================
-Plug 'sheerun/vim-polyglot' "all in one bundle
-Plug 'rust-lang/rust.vim'
-Plug 'tikhomirov/vim-glsl'
-Plug 'JuliaEditorSupport/julia-vim'
-Plug 'kevinoid/vim-jsonc'
-Plug 'lervag/vimtex'
-Plug 'ron-rs/ron.vim'
-Plug 'leafgarland/typescript-vim'
-Plug 'raimon49/requirements.txt.vim' "requirement.txt support
-Plug 'alvan/vim-closetag' "html tag closing
-Plug 'jupyter-vim/jupyter-vim' "see https://github.com/jupyter-vim/jupyter-vim for setup instructions
-" ====
-" Git
-" ====
-Plug 'tpope/vim-fugitive'
-" ======
-" Search/find
-" ======
-Plug 'PeterRincker/vim-searchlight'
-Plug 'preservim/nerdtree'
-Plug 'Xuyuanp/nerdtree-git-plugin'
-Plug 'ryanoasis/vim-devicons'
-" ==============
-" Miscellaneous
-" ==============
-Plug 'tpope/vim-sensible'
-Plug 'machakann/vim-highlightedyank' "highlight on yank
-Plug 'farmergreg/vim-lastplace' "Keep cursor on quit
-Plug 'luochen1990/rainbow'
-"Plug 'Raimondi/delimitMate' "auto create quotes, bracket pairs 
-" =========
-" Snippets
-" =========
-Plug 'SirVer/ultisnips'
-Plug 'honza/vim-snippets'
-" ===============
-" Wiki 
-" ===============
-Plug 'vimwiki/vimwiki'
-" ===============
-" Color Schemes
-" ===============
-Plug 'tomasiser/vim-code-dark'
-Plug 'tomasr/molokai'
-Plug 'morhetz/gruvbox'
-Plug 'ghifarit53/tokyonight-vim' 
-
-Plug 'sainnhe/edge'
-"Plug 'pineapplegiant/spaceduck'
-" =======
-" Unused 
-" =======
-"Plug 'preservim/tagbar'        "requires ctags  to be installed
-"
-call plug#end()
-
 " =============
 " 
 " Basic Options 
@@ -148,101 +84,12 @@ nnoremap tm  :tabm<Space>
 
 " ========================
 " 
-" Statusline
-"
-" ========================
-"
-set cmdheight=2 " space below the statusline
-function! StatusDiagnostic() abort
-  let info = get(b:, 'coc_diagnostic_info', {})
-  if empty(info) | return '' | endif
-  let msgs = []
-  if get(info, 'error', 0)
-    call add(msgs, 'E' . info['error'])
-  endif
-  if get(info, 'warning', 0)
-	call add(msgs, 'W' . info['warning'])
-  endif
-  return join(msgs, ' ') . ' ' . get(g:, 'coc_status', '')
-endfunction
-
-set laststatus=2
-set statusline=
-set statusline+=%2*\ %f\ %*
-set statusline+=%= "LHS/RHS  divider
-"set statusline+=%2*\ %{coc#status()}%{get(b:,'coc_current_function','')}
-set statusline+=%1*\ %{StatusDiagnostic()} "coc diagnostics
-set statusline+=%1*\ %{FugitiveStatusline()} "fugitive
-set statusline+=%1*\ %l/%L\ (%c) "Line current/Linemax
-set statusline+=%1*\ %m "is modified
-set statusline+=%1*\ %r "is readonly
-
-hi User1 guifg=#FFFFFF guibg=#191f26 gui=BOLD
-hi User2 guifg=#000000 guibg=#959ca6
-hi User3 guifg=#000000 guibg=#4cbf99
-
-"set laststatus=2
-"set statusline=
-"set statusline+=%2*\ %l
-"set statusline+=\ %*
-"set statusline+=%1*\ ‹‹
-"set statusline+=%1*\ %f\ %*
-"set statusline+=%1*\ ››
-"set statusline+=%1*\ %m
-"set statusline+=%3*\ %F
-"set statusline+=%=
-"set statusline+=%3*\ ‹‹
-"set statusline+=%3*\ %{strftime('%R',getftime(expand('%')))}
-"set statusline+=%3*\ ::
-"set statusline+=%3*\ %n
-"set statusline+=%3*\ ››\ %*
-"
-"hi User1 guifg=#FFFFFF guibg=#191f26 gui=BOLD
-"hi User2 guifg=#000000 guibg=#959ca6
-"hi User3 guifg=#000000 guibg=#4cbf99
-"set statusline=%F%m%r%h%w%=(%{&ff}/%Y)\ (line\ %l\/%L,\ col\ %c)\
-" ========================
-" 
 " Cursor Specific Options
 "
 " ========================
 set cul "cursor line is highlighted
 set guicursor=n-v-c-sm:block,i-ci-ve:ver25-Cursor,r-cr-o:hor20
 highlight Cursor guifg=white guibg=white
-" ===============
-" Coc.nvim 
-" ===============
-let g:coc_global_extensions = [
-  \ 'coc-snippets',
-  \ 'coc-pairs',
-  \ 'coc-tsserver',
-  \ 'coc-eslint', 
-  \ 'coc-prettier', 
-  \ 'coc-json', 
-  \ 'coc-rust-analyzer',
-  \ 'coc-tsserver',
-  \ 'coc-html',
-  \ 'coc-css',
-  \ 'coc-sh',
-  \ 'coc-pyright',
-  \ 'coc-xml',
-  \ 'coc-julia',
-  \ 'coc-highlight',
-  \ 'coc-yaml',
-  \ 'coc-pyright',
-  \ ]
-let g:coc_user_config = {}
-let g:coc_user_config['coc.preferences.jumpCommand'] = ':vsp'
-let g:coc_start_at_startup = 1
-let g:coc_enable_locationlist = 1
-nmap <silent> gd :call CocAction('jumpDefinition', 'vsp')<CR>
-"nmap <silent> gd <Plug>(coc-definition)
-"inoremap <left> <nop>
-"inoremap <right> <nop>
-"inoremap <down> CocNext Coc
-"inoremap <up> CocPrev
-"imap <up> CocPrev
-
 set updatetime=300
 set shortmess+=c
 if has("patch-8.1.1564")
@@ -250,143 +97,8 @@ if has("patch-8.1.1564")
 else
   set signcolumn=yes
 endif
-" Use tab for trigger completion with characters ahead and navigate.
-" NOTE: Use command ':verbose imap <tab>' to make sure tab is not mapped by
-" other plugin before putting this into your config.
-inoremap <silent><expr> <TAB>
-      \ pumvisible() ? "\<C-n>" :
-      \ <SID>check_back_space() ? "\<TAB>" :
-      \ coc#refresh()
-inoremap <expr><S-TAB> pumvisible() ? "\<C-p>" : "\<C-h>"
 
-inoremap <silent><expr> <down>
-      \ pumvisible() ? "\<C-n>" :
-      \ <SID>check_back_space() ? "\<TAB>" :
-      \ coc#refresh()
-inoremap <expr><S-up> pumvisible() ? "\<C-p>" : "\<C-h>" 
-
-function! s:check_back_space() abort
-  let col = col('.') - 1
-  return !col || getline('.')[col - 1]  =~# '\s'
-endfunction
-" Use <c-space> to trigger completion.
-inoremap <silent><expr> <c-space> coc#refresh()
-" Use <cr> to confirm completion, `<C-g>u` means break undo chain at current
-" position. Coc only does snippet and additional edit on confirm.
-" <cr> could be remapped by other vim plugin, try `:verbose imap <CR>`.
-if exists('*complete_info')
-  inoremap <expr> <cr> complete_info()["selected"] != "-1" ? "\<C-y>" : "\<C-g>u\<CR>"
-else
-  inoremap <expr> <cr> pumvisible() ? "\<C-y>" : "\<C-g>u\<CR>"
-endif
-
-" Use `[g` and `]g` to navigate diagnostics
-" Use `:CocDiagnostics` to get all diagnostics of current buffer in location list.
-nmap <silent> [g <Plug>(coc-diagnostic-prev)
-nmap <silent> ]g <Plug>(coc-diagnostic-next)
-
-
-" GoTo code navigation.
-nmap <silent> gy <Plug>(coc-type-definition)
-nmap <silent> gi <Plug>(coc-implementation)
-nmap <silent> gr <Plug>(coc-references)
-
-" Use K to show documentation in preview window.
-nnoremap <silent> K :call <SID>show_documentation()<CR>
-
-function! s:show_documentation()
-  if (index(['vim','help'], &filetype) >= 0)
-    execute 'h '.expand('<cword>')
-  else
-    call CocAction('doHover')
-  endif
-endfunction
-
-nmap <leader>rn <Plug>(coc-rename)
-" Highlight the symbol and its references when holding the cursor.
-autocmd CursorHold * silent call CocActionAsync('highlight')
-
-" Symbol renaming.
-
-" Formatting selected code.
-xmap <leader>f  <Plug>(coc-format-selected)
-nmap <leader>f  <Plug>(coc-format-selected)
-
-augroup mygroup
-  autocmd!
-  " Setup formatexpr specified filetype(s).
-  autocmd FileType typescript,json setl formatexpr=CocAction('formatSelected')
-  " Update signature help on jump placeholder.
-  autocmd User CocJumpPlaceholder call CocActionAsync('showSignatureHelp')
-augroup end
-
-" Applying codeAction to the selected region.
-" Example: `<leader>aap` for current paragraph
-xmap <leader>a  <Plug>(coc-codeaction-selected)
-nmap <leader>a  <Plug>(coc-codeaction-selected)
-
-" Remap keys for applying codeAction to the current buffer.
-nmap <leader>ac  <Plug>(coc-codeaction)
-" Apply AutoFix to problem on the current line.
-nmap <leader>qf  <Plug>(coc-fix-current)
-
-" Map function and class text objects
-" NOTE: Requires 'textDocument.documentSymbol' support from the language server.
-xmap if <Plug>(coc-funcobj-i)
-omap if <Plug>(coc-funcobj-i)
-xmap af <Plug>(coc-funcobj-a)
-omap af <Plug>(coc-funcobj-a)
-xmap ic <Plug>(coc-classobj-i)
-omap ic <Plug>(coc-classobj-i)
-xmap ac <Plug>(coc-classobj-a)
-omap ac <Plug>(coc-classobj-a)
-
-" Use CTRL-S for selections ranges.
-" Requires 'textDocument/selectionRange' support of LS, ex: coc-tsserver
-nmap <silent> <C-s> <Plug>(coc-range-select)
-xmap <silent> <C-s> <Plug>(coc-range-select)
-
-" Add `:Format` command to format current buffer.
-command! -nargs=0 Format :call CocAction('format')
-
-" Add `:Fold` command to fold current buffer.
-command! -nargs=? Fold :call     CocAction('fold', <f-args>)
-
-" Add `:OR` command for organize imports of the current buffer.
-command! -nargs=0 OR   :call     CocAction('runCommand', 'editor.action.organizeImport')
-
-
-" Mappings for CoCList
-" Show all diagnostics.
-nnoremap <silent><nowait> <space>a  :<C-u>CocList diagnostics<cr>
-" Manage extensions.
-nnoremap <silent><nowait> <space>e  :<C-u>CocList extensions<cr>
-" Show commands.
-nnoremap <silent><nowait> <space>c  :<C-u>CocList commands<cr>
-" Find symbol of current document.
-nnoremap <silent><nowait> <space>o  :<C-u>CocList outline<cr>
-" Search workspace symbols.
-nnoremap <silent><nowait> <space>s  :<C-u>CocList -I symbols<cr>
-" Do default action for next item.
-nnoremap <silent><nowait> <space>j  :<C-u>CocNext<CR>
-" Do default action for previous item.
-nnoremap <silent><nowait> <space>k  :<C-u>CocPrev<CR>
-" Resume latest coc list.
-nnoremap <silent><nowait> <space>p  :<C-u>CocListResume<CR>
-
-" ===============
-"
-" git
-"
-" ===============
-noremap <Leader>ga :Gwrite<CR>
-noremap <Leader>gc :Gcommit<CR>
-noremap <Leader>gsh :Gpush<CR>
-noremap <Leader>gll :Gpull<CR>
-noremap <Leader>gs :Gstatus<CR>
-noremap <Leader>gb :Gblame<CR>
-noremap <Leader>gd :Gvdiff<CR>
-"noremap <Leader>gr :Gremove<CR> ===============
+"===============
 "
 " Colour Options
 "
@@ -397,9 +109,9 @@ let g:tokyonight_enable_italic = 1
 let g:tokyonight_current_word = 'underline'
 let g:deus_termcolors=256
 color pablo "fallback
-color tokyonight
-color codedark
-color molokai
+"color tokyonight
+"color codedark
+"color molokai
 
 "
 "
@@ -458,50 +170,6 @@ cnoreabbrev W w
 cnoreabbrev Q q
 cnoreabbrev Qall qall
 set wildignore+=*/tmp/*,*.so,*.swp,*.zip,*.pyc,*.db,*.sqlite
-" ========================
-" 
-" Statusline
-"
-" ========================
-"
-set cmdheight=2 " space below the statusline
-function! StatusDiagnostic() abort
-  let info = get(b:, 'coc_diagnostic_info', {})
-  if empty(info) | return '' | endif
-  let msgs = []
-  if get(info, 'error', 0)
-    call add(msgs, 'E' . info['error'])
-  endif
-  if get(info, 'warning', 0)
-	call add(msgs, 'W' . info['warning'])
-  endif
-  return join(msgs, ' ') . ' ' . get(g:, 'coc_status', '')
-endfunction
-"set laststatus=2
-"set statusline=
-"set statusline+=%#function#\ %l "color theming
-"set statusline+=%f "add file name to statusline %t
-set laststatus=2
-set statusline=
-set statusline+=%1*\ %f\ %*
-set statusline+=%= "LHS/RHS  divider
-"set statusline+=%2*\ %{coc#status()}%{get(b:,'coc_current_function','')}
-set statusline+=%2*\ %{StatusDiagnostic()}
-set statusline+=%2*\ %{FugitiveStatusline()}
-set statusline+=%2*\ %l/%L "Line current/Linemax
-set statusline+=%2*\ %m "is modified
-set statusline+=%2*\ %r "is readonly
-"set statusline+=%3*\ ‹‹
-"set statusline+=%3*\ %{strftime('%R',getftime(expand('%')))}
-"set statusline+=%3*\ ::
-"set statusline+=%3*\ %n
-"set statusline+=%3*\ ››\ %*
-
-hi User1 guifg=#FFFFFF guibg=#191f26 gui=BOLD
-hi User2 guifg=#000000 guibg=#959ca6
-hi User3 guifg=#CCCCCC guibg=#444444
-
-"set statusline=%F%m%r%h%w%=(%{&ff}/%Y)\ (line\ %l\/%L,\ col\ %c)\
 " ========================
 " 
 " Cursor Specific Options
@@ -630,36 +298,3 @@ nnoremap <right> <nop>
 nnoremap <down> <nop>
 nnoremap <up> <nop>
 
-" ========================
-" closetag
-" ========================
-let g:closetag_filenames = '*.html,*.xhtml,*.phtml'
-let g:closetag_xhtml_filenames = '*.xhtml,*.jsx, *.tsx'
-let g:closetag_xhtml_filenames = '*.xhtml,*.jsx, *.tsx'
-let g:closetag_xhtml_filetypes = 'xhtml,jsx, tsx'
-let g:closetag_emptyTags_caseSensitive = 1
-let g:closetag_regions = {
-    \ 'typescript.tsx': 'jsxRegion,tsxRegion',
-    \ 'javascript.jsx': 'jsxRegion',
-    \ }
-let g:closetag_shortcut = '>'
-let g:closetag_close_shortcut = '<leader>>'
-
-" ========================
-" Tagbar
-" ========================
-nmap <C-s> :TagbarToggle<CR>
-let g:tagbar_autoclose = 1
-let g:tagbar_autofocus = 1
-"let g:tagbar_left = 1
-let g_tagbar_width = 15
-
-
-let g:UltiSnipsExpandTrigger="<F2>" "need to remap away from default <tab> to avoid conflict with coc autocomplete
-let g:UltiSnipsJumpForwardTrigger="<c-k>"
-let g:UltiSnipsJumpBackwardTrigger="<c-j>"
-
-
-" Add (Neo)Vim's native statusline support.
-" NOTE: Please see `:h coc-status` for integrations with external plugins that
-" provide custom statusline: lightline.vim, vim-airline.

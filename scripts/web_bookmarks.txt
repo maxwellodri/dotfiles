@@ -5,6 +5,7 @@ web_bookmarks = {
 'qut': 'https://qutvirtual4.qut.edu.au/group/student/home',
 'bb': 'https://qutvirtual4.qut.edu.au/group/student/home',
 'tpb': 'https://piratebay-proxylist.com/',
+'linode': 'https://cloud.linode.com/',
 'desmos': 'https://www.desmos.com/calculator',
 'sinet': 'https://www.sinet.uq.edu.au/psp/ps/?cmd=login&languageCd=ENG&',
 'complex': 'https://courses.smp.uq.edu.au/MATH3401/',
