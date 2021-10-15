@@ -29,9 +29,12 @@ super + Insert
 super + shift + b
 	bookmarks
 super + shift + q
-	set_kb_map
+	set_kb_map && notify-send -t 1000 "Correctly Set Capslock => Escape 😍"
 super + shift + e
 	emacs_runner
+super + shift + t
+	torr && notify-send -t 750 "Torrent Added 🏴‍☠️"
+
 
 #  _                    _      
 # | |_ ___   __ _  __ _| | ___ 
@@ -56,8 +59,8 @@ super + c
 	pgrep calcurse && pkill calcurse || st -e calcurse #toggle ncmpcpp
 super + Escape
 	pkill -USR1 -x sxhkd && notify-send "🤔 sxhkd reloaded 🤔"
-super + shift + t
-	pgrep transmission-da && pkill transmission-da && notify-send "Killing transmission" || notify-send "Starting transmission" && transmission-daemon 
+#super + shift + t
+#	pgrep transmission-da && pkill transmission-da && notify-send "Killing transmission" || notify-send "Starting transmission" && transmission-daemon 
 #Config Files:
 super + shift + v
 	togglerc ~/.vimrc

@@ -298,3 +298,8 @@ nnoremap <right> <nop>
 nnoremap <down> <nop>
 nnoremap <up> <nop>
 
+set t_u7=
+
+
+
+

@@ -3,8 +3,7 @@
 (require 'package)
 (package-initialize)
 (setq package-archives '(("melpa" . "http://melpa.org/packages/")
-                         ("gnu" . "http://elpa.gnu.org/packages/")))
-(setq vc-follow-symlinks t)
+                         ("gnu" . "http://elpa.gnu.org/packages/"))) (setq vc-follow-symlinks t)
 
 
 (defconst ha/emacs-directory (concat (getenv "HOME") ".emacs.d/"))
@@ -29,7 +28,11 @@
   :ensure t
   :config
   (evil-mode 1))
-
+(defconst config-org (expand-file-name "config.org" org-directory)
+  "Should be ~/org/config.org on *nix"
+)
 ;; the rest of the configuration can be found in:
-(org-babel-load-file (concat org-directory "/config.org"))
+(when (file-exists-p config-org)
+  (org-babel-load-file config-org)
+)
 

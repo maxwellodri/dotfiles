@@ -34,7 +34,7 @@ cronie
 rustup
 xsel
 detox
-htop
+#htop
 xdo
 python-qtconsole
 python-pynvim
@@ -52,3 +52,4 @@ github-cli
 #mutt-wziard
 #xsendkeys
 #nerd-fonts-fira-code
+#ytop
