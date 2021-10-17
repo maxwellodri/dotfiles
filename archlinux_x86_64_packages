@@ -40,6 +40,7 @@ python-qtconsole
 python-pynvim
 pavucontrol
 github-cli
+libvterm
 
 #AUR
 #pass-update
