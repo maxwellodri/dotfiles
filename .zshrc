@@ -18,6 +18,46 @@ SAVEHIST=1000
 setopt autocd #type name of dir to cd
 unsetopt beep #no beep
 bindkey -v #vim keys
+#set yanking to yank to system clipboard
+function vi-yank-xclip {
+    zle vi-yank
+   echo "$CUTBUFFER" | xclip -i #xclip is obviously X11/Linux only
+}
+zle -N vi-yank-xclip
+bindkey -M vicmd 'y' vi-yank-xclip
+
+#export RPROMPT="%{$fg[blue]%}[INSERT]%{$reset_color%}"
+## Callback for vim mode change
+#function zle-keymap-select () {
+#    # Only supported in these terminals
+#    if [ "$TERM" = "xterm-256color" ] || [ "$TERM" = "st" ] || [ "$TERM" = "screen-256color" ]; then
+#        if [ $KEYMAP = vicmd ]; then
+#            # Command mode
+#            export RPROMPT="%{$fg[green]%}[NORMAL]%{$reset_color%}"
+#
+#            # Set block cursor
+#            echo -ne '\e[1 q'
+#        else
+#            # Insert mode
+#            export RPROMPT="%{$fg[blue]%}[INSERT]%{$reset_color%}"
+#
+#            # Set beam cursor
+#            echo -ne '\e[5 q'
+#        fi
+#    fi
+#
+#    if typeset -f prompt_pure_update_vim_prompt_widget > /dev/null; then
+#        # Refresh prompt and call Pure super function
+#        prompt_pure_update_vim_prompt_widget
+#    fi
+#}
+#
+## Bind the callback
+#zle -N zle-keymap-select
+#
+## Reduce latency when pressing <Esc>
+#export KEYTIMEOUT=1
+
 #export KEYTIMEOUT=1 #xtra option for vim keys
 zstyle :compinstall filename '/home/maxwell/.zshrc'
 

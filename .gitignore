@@ -13,3 +13,6 @@ org/*.el$
 !.emacs.d/init.el$
 !.emacs.d/resources$
 !.emacs.d/snippets$
+*~
+[#]*[#]
+.\#*

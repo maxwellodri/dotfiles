@@ -31,6 +31,13 @@
 (defconst config-org (expand-file-name "config.org" org-directory)
   "Should be ~/org/config.org on *nix"
 )
+;; Set languages for org-babel to load
+;(org-babel-do-load-languages
+; 'org-babel-load-languages
+; '((emacs-lisp . t)
+;   (julia . t)
+;   (python . t)
+;   (jupyter . t)))
 ;; the rest of the configuration can be found in:
 (when (file-exists-p config-org)
   (org-babel-load-file config-org)
