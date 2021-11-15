@@ -1,0 +1,3 @@
+#!/bin/sh
+img="$dotfiles/images/tink.png"
+xclip -verbose -se c -t image/png "$img" 

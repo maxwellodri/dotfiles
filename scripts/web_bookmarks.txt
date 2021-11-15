@@ -57,6 +57,7 @@ web_bookmarks = {
 'theta': 'https://wallet.thetatoken.org/unlock/keystore-file',
 'dotfiles': 'https://github.com/maxwellodri/dotfiles',
 'deck': 'https://nextcloud.odri.net.au/apps/deck/',
-'nc': 'https://nextcloud.odri.net.au'
+'nc': 'https://nextcloud.odri.net.au',
+'melpa': 'https://melpa.org/#/'
 }
 

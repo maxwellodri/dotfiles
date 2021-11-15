@@ -41,6 +41,7 @@ python-pynvim
 pavucontrol
 github-cli
 libvterm
+xcape
 
 #AUR
 #pass-update

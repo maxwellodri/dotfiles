@@ -46,7 +46,10 @@ echo $WM
 if [ "$(basename "$WM")" = "dwm" ]; then
         sxhkd &
         xrandr --output HDMI-1 --primay --mode 1920x1080 --rate 60.00
-        setxkbmap -option caps:escape 
+        # make CapsLock behave like Ctrl:
+        setxkbmap -option caps:escape
+        # make short-pressed Ctrl behave like Escape:
+        #xcape -e 'Control_L=Escape'
         #xautolock -time 20 -locker "lockme" -detectsleep &
     while [ "$KILLDWM" != "true" ]; do
 	    ssh-agent dwm
