@@ -30,6 +30,7 @@ export game="$HOME/source/game"
 #Extras
 ################
 [ -e ~/.cargo/env ] && . ~/.cargo/env 
+export WORKON_HOME="/home/maxwell/pyvenv" #cant nest variables this is a hack to let emacs load successfully
 export JUPYTERLAB_DIR=$HOME/.local/share/jupyter/lab
 
 ################

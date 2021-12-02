@@ -117,3 +117,25 @@ autoload -Uz run-help
 (( ${+aliases[run-help]} )) && unalias run-help
 alias help=run-help
 autoload -Uz run-help-git run-help-ip run-help-openssl run-help-p4 run-help-sudo run-help-svk run-help-svn
+
+#emacs vterm stuff:
+vterm_printf(){
+    if [ -n "$TMUX" ] && ([ "${TERM%%-*}" = "tmux" ] || [ "${TERM%%-*}" = "screen" ] ); then
+        # Tell tmux to pass the escape sequences through
+        printf "\ePtmux;\e\e]%s\007\e\\" "$1"
+    elif [ "${TERM%%-*}" = "screen" ]; then
+        # GNU screen (screen, screen-256color, screen-256color-bce)
+        printf "\eP\e]%s\007\e\\" "$1"
+    else
+        printf "\e]%s\e\\" "$1"
+    fi
+}
+
+if [[ "$INSIDE_EMACS" = 'vterm' ]]; then
+    alias clear='vterm_printf "51;Evterm-clear-scrollback";tput clear'
+fi
+vterm_prompt_end() {
+    vterm_printf "51;A$(whoami)@$(hostname):$(pwd)";
+}
+setopt PROMPT_SUBST
+PROMPT=$PROMPT'%{$(vterm_prompt_end)%}'
