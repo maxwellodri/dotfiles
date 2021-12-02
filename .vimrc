@@ -8,18 +8,28 @@
 
 filetype on
 set termguicolors
-let s:plug = '~/.vim/plugged'
-" ==========
-"
-" Plugins
-" ==========
-"coc requires node, force update of coc plugins with :CocUpdate!
-"Plug 'neoclide/coc.nvim', {'branch': 'release', 'do': function('CocPlugins') }
-"let g:coc_disable_startup_warning = 1 "Because debian version is <0.4.0 (old)
+let s:plug = '~/.vim/plugged' "Plugins:
+call plug#begin()
+
+"TODO
+"Plug 'scrooloose/nerdtree'
+"Plug 'jistr/vim-nerdtree-tabs'
+"Plug 'tpope/vim-commentary'
+"Plug 'vim-airline/vim-airline'
+"Plug 'vim-airline/vim-airline-themes'
+"Plug 'airblade/vim-gitgutter'
+"Plug 'vim-scripts/grep.vim'
+"Plug 'vim-scripts/CSApprox'
+"Plug 'Raimondi/delimitMate'
+"Plug 'majutsushi/tagbar'
+"Plug 'Yggdroot/indentLine'
+"Plug 'editor-bootstrap/vim-bootstrap-updater'
+"Plug 'tpope/vim-rhubarb' " required by fugitive to :Gbrowse
+"Plug 'preservim/tagbar'        "requires ctags  to be installed
 " =================
 " Language Support
 " =================
-Plug 'sheerun/vim-polyglot' "all in one bundle
+Plug 'sheerun/vim-polyglot' "AIO bundle
 Plug 'rust-lang/rust.vim'
 Plug 'tikhomirov/vim-glsl'
 Plug 'JuliaEditorSupport/julia-vim'
@@ -33,9 +43,10 @@ Plug 'raimon49/requirements.txt.vim' "requirement.txt support
 " ====
 Plug 'tpope/vim-fugitive'
 " ======
-" Search
+" Search / File Finding
 " ======
 Plug 'PeterRincker/vim-searchlight'
+Plug 'preservim/nerdtree'
 " ==============
 " Miscellaneous
 " ==============
@@ -59,13 +70,6 @@ Plug 'ajmwagar/vim-deus'
 Plug 'sainnhe/edge'
 Plug 'jnurmine/Zenburn'
 "Plug 'pineapplegiant/spaceduck'
-" =======
-" Unused 
-" =======
-"Plug 'preservim/tagbar'        "requires ctags  to be installed
-"Plug 'preservim/nerdtree'
-"let g:NERDTreeWinSize=15
-"map <C-a> :NERDTreeToggle<CR>
 "
 call plug#end()
 
@@ -74,6 +78,7 @@ call plug#end()
 " Basic Options 
 "
 " =============
+color gruvbox
 filetype on
 "set termguicolors
 set title
@@ -85,7 +90,7 @@ else
 endif
 filetype plugin indent on
 syntax on
-set statusline^=%{coc#status()}%{get(b:,'coc_current_function','')}
+"set statusline^=%{coc#status()}%{get(b:,'coc_current_function','')}
 set statusline+=%{FugitiveStatusline()}
 set sessionoptions-=options
 set tabstop=4
@@ -135,12 +140,12 @@ set wildignore+=*/tmp/*,*.so,*.swp,*.zip,*.pyc,*.db,*.sqlite
 "
 " ========================
 nnoremap <silent>tk :tabnext<CR>
-nnoremap tj :tabprev<CR>
+nnoremap <silent>tj :tabprev<CR>
 nnoremap tn :tabnew<CR>
 nnoremap td  :tabclose<CR>
 nnoremap th  :tabfirst<CR>
 nnoremap tl  :tablast<CR>
-nnoremap tt  :tabe<Space>
+nnoremap te  :tabe<Space>
 nnoremap tm  :tabm<Space>
 
 " ========================
@@ -148,6 +153,7 @@ nnoremap tm  :tabm<Space>
 " Statusline
 "
 " ========================
+" TODO
 set cmdheight=2 " space below the statusline
 "set laststatus=2
 "set statusline=
@@ -179,220 +185,12 @@ set guicursor=n-v-c-sm:block-Cursor
 set guicursor+=i-ci-ve:ver25-iCursor
 set guicursor+=r-cr-o:hor20
 
-hi User1 guifg=#FFFFFF guibg=#191f26 gui=BOLD
-hi User2 guifg=#FFFFFF guibg=#959ca6
-hi User3 guifg=#FFFFFF guibg=#444444
+highlight Cursor guifg=white guibg=black
+highlight iCursor guifg=white guibg=steelblue
 
-highlight Cursor guifg=green guibg=green
-highlight iCursor guifg=white guibg=white
-" ========================
-" 
-" Statusline
-"
-" ========================
-"
-set cmdheight=2 " space below the statusline
-"function! StatusDiagnostic() abort
-"  let info = get(b:, 'coc_diagnostic_info', {})
-"  if empty(info) | return '' | endif
-"  let msgs = []
-"  if get(info, 'error', 0)
-"    call add(msgs, 'E' . info['error'])
-"  endif
-"  if get(info, 'warning', 0)
-"	call add(msgs, 'W' . info['warning'])
-"  endif
-"  return join(msgs, ' ') . ' ' . get(g:, 'coc_status', '')
-"endfunction
+hi! TermCursor guifg=NONE guibg=#ebdbb2 gui=NONE cterm=NONE
+hi! TermCursorNC guifg=#ebdbb2 guibg=#3c3836 gui=NONE cterm=NONE
 
-set laststatus=2
-set statusline=
-set statusline+=%2*\ %f\ %*
-set statusline+=%= "LHS/RHS  divider
-"set statusline+=%2*\ %{coc#status()}%{get(b:,'coc_current_function','')}
-"set statusline+=%1*\ %{StatusDiagnostic()} "coc diagnostics
-set statusline+=%1*\ %{FugitiveStatusline()} "fugitive
-set statusline+=%1*\ %l/%L\ (%c) "Line current/Linemax
-set statusline+=%1*\ %m "is modified
-set statusline+=%1*\ %r "is readonly
-
-hi User1 guifg=#FFFFFF guibg=#191f26 gui=BOLD
-hi User2 guifg=#000000 guibg=#959ca6
-hi User3 guifg=#000000 guibg=#4cbf99
-
-"set laststatus=2
-"set statusline=
-"set statusline+=%2*\ %l
-"set statusline+=\ %*
-"set statusline+=%1*\ ‹‹
-"set statusline+=%1*\ %f\ %*
-"set statusline+=%1*\ ››
-"set statusline+=%1*\ %m
-"set statusline+=%3*\ %F
-"set statusline+=%=
-"set statusline+=%3*\ ‹‹
-"set statusline+=%3*\ %{strftime('%R',getftime(expand('%')))}
-"set statusline+=%3*\ ::
-"set statusline+=%3*\ %n
-"set statusline+=%3*\ ››\ %*
-"
-"hi User1 guifg=#FFFFFF guibg=#191f26 gui=BOLD
-"hi User2 guifg=#000000 guibg=#959ca6
-"hi User3 guifg=#000000 guibg=#4cbf99
-"set statusline=%F%m%r%h%w%=(%{&ff}/%Y)\ (line\ %l\/%L,\ col\ %c)\
-" ===============
-" Coc.nvim 
-" ===============
-let g:coc_user_config = {}
-let g:coc_user_config['coc.preferences.jumpCommand'] = ':vsp'
-let g:coc_start_at_startup = 1
-let g:coc_enable_locationlist = 1
-nmap <silent> gd :call CocAction('jumpDefinition', 'vsp')<CR>
-"inoremap <left> <nop>
-"inoremap <right> <nop>
-"inoremap <down> CocNext Coc
-"inoremap <up> CocPrev
-"imap <up> CocPrev
-
-set updatetime=300
-set shortmess+=c
-if has("patch-8.1.1564")
-  set signcolumn=number
-else
-  set signcolumn=yes
-endif
-" Use tab for trigger completion with characters ahead and navigate.
-" NOTE: Use command ':verbose imap <tab>' to make sure tab is not mapped by
-" other plugin before putting this into your config.
-inoremap <silent><expr> <TAB>
-      \ pumvisible() ? "\<C-n>" :
-      \ <SID>check_back_space() ? "\<TAB>" :
-      \ coc#refresh()
-inoremap <expr><S-TAB> pumvisible() ? "\<C-p>" : "\<C-h>"
-
-inoremap <silent><expr> <down>
-      \ pumvisible() ? "\<C-n>" :
-      \ <SID>check_back_space() ? "\<TAB>" :
-      \ coc#refresh()
-inoremap <expr><S-up> pumvisible() ? "\<C-p>" : "\<C-h>" 
-
-inoremap <silent><expr> <down>
-      \ pumvisible() ? "\<C-n>" :
-      \ <SID>check_back_space() ? "\<TAB>" :
-      \ coc#refresh()
-inoremap <expr><S-up> pumvisible() ? "\<C-p>" : "\<C-h>" 
-
-function! s:check_back_space() abort
-  let col = col('.') - 1
-  return !col || getline('.')[col - 1]  =~# '\s'
-endfunction
-" Use <c-space> to trigger completion.
-inoremap <silent><expr> <c-space> coc#refresh()
-" Use <cr> to confirm completion, `<C-g>u` means break undo chain at current
-" position. Coc only does snippet and additional edit on confirm.
-" <cr> could be remapped by other vim plugin, try `:verbose imap <CR>`.
-if exists('*complete_info')
-  inoremap <expr> <cr> complete_info()["selected"] != "-1" ? "\<C-y>" : "\<C-g>u\<CR>"
-else
-  inoremap <expr> <cr> pumvisible() ? "\<C-y>" : "\<C-g>u\<CR>"
-endif
-
-" Use `[g` and `]g` to navigate diagnostics
-" Use `:CocDiagnostics` to get all diagnostics of current buffer in location list.
-nmap <silent> [g <Plug>(coc-diagnostic-prev)
-nmap <silent> ]g <Plug>(coc-diagnostic-next)
-
-
-" GoTo code navigation.
-nmap <silent> gy <Plug>(coc-type-definition)
-nmap <silent> gi <Plug>(coc-implementation)
-nmap <silent> gr <Plug>(coc-references)
-
-" Use K to show documentation in preview window.
-nnoremap <silent> K :call <SID>show_documentation()<CR>
-
-function! s:show_documentation()
-  if (index(['vim','help'], &filetype) >= 0)
-    execute 'h '.expand('<cword>')
-  else
-    call CocAction('doHover')
-  endif
-endfunction
-
-nmap <leader>rn <Plug>(coc-rename)
-" Highlight the symbol and its references when holding the cursor.
-"autocmd CursorHold * silent call CocActionAsync('highlight')
-
-" Symbol renaming.
-
-" Formatting selected code.
-xmap <leader>f  <Plug>(coc-format-selected)
-nmap <leader>f  <Plug>(coc-format-selected)
-
-"augroup mygroup
-"  autocmd!
-"  " Setup formatexpr specified filetype(s).
-"  autocmd FileType typescript,json setl formatexpr=CocAction('formatSelected')
-"  " Update signature help on jump placeholder.
-"  autocmd User CocJumpPlaceholder call CocActionAsync('showSignatureHelp')
-"augroup end
-"
-"" Applying codeAction to the selected region.
-"" Example: `<leader>aap` for current paragraph
-"xmap <leader>a  <Plug>(coc-codeaction-selected)
-"nmap <leader>a  <Plug>(coc-codeaction-selected)
-"
-"" Remap keys for applying codeAction to the current buffer.
-"nmap <leader>ac  <Plug>(coc-codeaction)
-"" Apply AutoFix to problem on the current line.
-"nmap <leader>qf  <Plug>(coc-fix-current)
-"
-"" Map function and class text objects
-"" NOTE: Requires 'textDocument.documentSymbol' support from the language server.
-"xmap if <Plug>(coc-funcobj-i)
-"omap if <Plug>(coc-funcobj-i)
-"xmap af <Plug>(coc-funcobj-a)
-"omap af <Plug>(coc-funcobj-a)
-"xmap ic <Plug>(coc-classobj-i)
-"omap ic <Plug>(coc-classobj-i)
-"xmap ac <Plug>(coc-classobj-a)
-"omap ac <Plug>(coc-classobj-a)
-"
-"" Use CTRL-S for selections ranges.
-"" Requires 'textDocument/selectionRange' support of LS, ex: coc-tsserver
-"nmap <silent> <C-s> <Plug>(coc-range-select)
-"xmap <silent> <C-s> <Plug>(coc-range-select)
-"
-"" Add `:Format` command to format current buffer.
-"command! -nargs=0 Format :call CocAction('format')
-"
-"" Add `:Fold` command to fold current buffer.
-"command! -nargs=? Fold :call     CocAction('fold', <f-args>)
-"
-"" Add `:OR` command for organize imports of the current buffer.
-"command! -nargs=0 OR   :call     CocAction('runCommand', 'editor.action.organizeImport')
-
-" Add (Neo)Vim's native statusline support.
-" NOTE: Please see `:h coc-status` for integrations with external plugins that
-" provide custom statusline: lightline.vim, vim-airline.
-
-" Mappings for CoCList
-" Show all diagnostics.
-"nnoremap <silent><nowait> <space>a  :<C-u>CocList diagnostics<cr>
-"" Manage extensions.
-"nnoremap <silent><nowait> <space>e  :<C-u>CocList extensions<cr>
-"" Show commands.
-"nnoremap <silent><nowait> <space>c  :<C-u>CocList commands<cr>
-"" Find symbol of current document.
-"nnoremap <silent><nowait> <space>o  :<C-u>CocList outline<cr>
-"" Search workspace symbols.
-"nnoremap <silent><nowait> <space>s  :<C-u>CocList -I symbols<cr>
-"" Do default action for next item.
-"nnoremap <silent><nowait> <space>j  :<C-u>CocNext<CR>
-"" Do default action for previous item.
-"nnoremap <silent><nowait> <space>k  :<C-u>CocPrev<CR>
-"" Resume latest coc list.
-"nnoremap <silent><nowait> <space>p  :<C-u>CocListResume<CR>
 
 " ===============
 "
@@ -408,24 +206,23 @@ noremap <Leader>gb :Gblame<CR>
 noremap <Leader>gd :Gvdiff<CR>
 "noremap <Leader>gr :Gremove<CR>
 
-hi User1 guifg=#FFFFFF guibg=#191f26 gui=BOLD
-hi User2 guifg=#000000 guibg=#959ca6
-hi User3 guifg=#CCCCCC guibg=#444444
-
 " ========================
 " 
 " Nerdtree
 "
 " ========================
-map <C-a> :NERDTreeToggle<CR>
+map <silent><C-a> :NERDTreeToggle<CR>
 
-let g:NERDTreeWinSize=25
+let g:NERDTreeWinSize=70
 let g:NERDTreeChDirMode=2
 let g:NERDTreeIgnore=['\.rbc$', '\~$', '\.pyc$', '\.db$', '\.sqlite$', '__pycache__']
 let g:NERDTreeSortOrder=['^__\.py$', '\/$', '*', '\.swp$', '\.bak$', '\~$']
 let g:NERDTreeShowBookmarks=1
 let g:nerdtree_tabs_focus_on_files=1
 let g:NERDTreeMapOpenInTabSilent = '<RightMouse>'
+let g:NERDTreeWinPos = "right"
+autocmd VimEnter * NERDTree | wincmd p
+autocmd BufEnter * if tabpagenr('$') == 1 && winnr('$') == 1 && exists('b:NERDTree') && b:NERDTree.isTabTree() | quit | endif "Exit Vim if NERDTree is the only window remaining in the only tab.
 " =========================
 " 
 " Filetype Specfic Options
@@ -446,7 +243,6 @@ autocmd Filetype python set textwidth=79 "pep conformance 🤔
 autocmd Filetype python set autoindent 
 autocmd Filetype python set expandtab
 autocmd Filetype python set fileformat=unix 
-autocmd Filetype python map <silent><leader><leader> :w<CR>:CocCommand python.runLinting<CR>
 "add #type: ignore to EOL to ignore type warnings for pyright:
 autocmd Filetype python map <silent>,ignore $a #type: ignore<Esc> 
 " =====
@@ -510,6 +306,4 @@ let g:UltiSnipsJumpForwardTrigger="<c-k>"
 let g:UltiSnipsJumpBackwardTrigger="<c-j>"
 
 
-" Add (Neo)Vim's native statusline support.
-" NOTE: Please see `:h coc-status` for integrations with external plugins that
 " provide custom statusline: lightline.vim, vim-airline.
