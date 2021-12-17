@@ -1,4 +1,4 @@
 #!/bin/sh
-#clear clipboard after 30 seconds if not overwritten already
+#clear clipboard after 30 seconds if not overwritten already - need to has prev_clipboard and compare hashes not raw values bc passwords
 prev_clipboard=$(xclip -sel clipboard -o)
 sleep 60s && test "$(xclip -sel clipboard -o)" = "$prev_clipboard" && echo "" | xclip -sel clipboard -i && pgrep -x dunst >/dev/null && notify-send -t 700  "Clipboard cleared"

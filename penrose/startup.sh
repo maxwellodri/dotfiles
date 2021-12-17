@@ -6,7 +6,6 @@ picom -b --config ~/.config/picom/picom.conf &
 /usr/lib/xfce-polkit/xfce-polkit &
 [ $dotfiles_tag = "pc" ] && steam -silent &
 wal -R &
-#emacs_runner "startup" & 
 #$dotfiles/monitor-setup.sh &
 echo "Done startup"
 #exit

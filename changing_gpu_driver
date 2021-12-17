@@ -1,0 +1,3 @@
+-> update grub => edit cfg and then rebuild grub
+-> update mkinitcpio => mkinitcpio -P 
+-> add new driver

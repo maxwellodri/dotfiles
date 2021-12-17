@@ -42,8 +42,7 @@ pavucontrol
 github-cli
 libvterm
 xcape
-
-#AUR
+#AUR -> install rust via rustup before AUR
 #pass-update
 #task-spooler
 #electronplayer
@@ -55,3 +54,4 @@ xcape
 #xsendkeys
 #nerd-fonts-fira-code
 #ytop
+#steamguard-cli-git

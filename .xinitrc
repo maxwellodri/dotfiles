@@ -56,7 +56,7 @@ if [ "$(basename "$WM")" = "dwm" ]; then
     done
     unset KILLDWM
 elif [ "$(basename "$WM")" = "penrose" ]; then
-    sxhkd &
+    $dotfiles/penrose/startup.sh
     #xautolock -time 20 -locker "lockme" -detectsleep &
     ssh-agent penrose
 fi

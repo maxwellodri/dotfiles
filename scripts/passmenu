@@ -30,8 +30,12 @@ password=$(printf '%s\n' "${password_files[@]}" | "$dmenu" "$@")
 
 if [[ $typeit -eq 0 ]]; then
 	#pass show -c "$password" 2>/dev/null
-	pass show "$password" | xclip -i -sel clip && async_clear_clipboard
+	passcmd=""
+	echo "$password" | grep -E "otp\/" > /dev/null  && passcmd="otp"
+	#TODO add steamguard support using steamguard-cli
+	pass $passcmd show "$password" | xclip -i -sel clip & setsid setsid async_clear_clipboard
 	
 else
-	pass show "$password" | { IFS= read -r pass; printf %s "$pass"; } | $xdotool && async_clear_clipboard
+	notify-send "Something went horribly wrong in pass"
+	#pass show "$password" | grep -v "otpauth" | { IFS= read -r pass; printf %s "$pass"; } | $xdotool && async_clear_clipboard
 fi

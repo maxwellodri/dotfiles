@@ -58,6 +58,10 @@ web_bookmarks = {
 'dotfiles': 'https://github.com/maxwellodri/dotfiles',
 'deck': 'https://nextcloud.odri.net.au/apps/deck/',
 'nc': 'https://nextcloud.odri.net.au/apps/files',
-'melpa': 'https://melpa.org/#/'
+'melpa': 'https://melpa.org/#/',
+'coinspot': 'https://www.coinspot.com.au/my/dashboard',
+'avax': 'https://wallet.avax.network/',
+'snowtrace': 'https://snowtrace.io',
+'metamask': 'moz-extension://c8a27d12-8ae5-4f29-97c3-18c68b008ff4/home.html#'
 }
 
