@@ -21,7 +21,7 @@ export BIN="$HOME/bin"
 export bin="$BIN"
 export PATH=$PATH:$BIN #add /home/$USER/bin to path
 export PATH=$PATH:"$BIN/steam_scripts" #and subfolder for steam scripts
-export PATH=$HOME/bin:$PATH
+export PATH=$HOME/bin:$PATH:$HOME/.local/bin
 export dl="$HOME/Downloads"
 export game="$HOME/source/game"
 
@@ -61,6 +61,8 @@ alias zprofile="vim ~/.zprofile"
 alias xrc="vim ~/.xinitrc"
 alias xres="vim ~/.Xresources && xrdb ~/.Xresources"
 alias vimrc="vim ~/.vimrc"
+alias vw="vim ~/vimwiki/index.wiki"
+alias initrc="vim ~/.config/nvim/init.vim"
 alias tmuxrc="vim ~/.tmux.conf"
 alias emacsrc="vim ~/.emacs.d/init.el"
 alias i3rc="vim $dotfiles/.config/i3/config.base && $dotfiles/makesymlinks.sh $dotfiles_tag >> /dev/null && i3-msg reload"

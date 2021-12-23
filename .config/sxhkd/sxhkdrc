@@ -30,8 +30,8 @@ super + shift + b
 	bookmarks
 super + shift + q
 	set_kb_map && notify-send -t 1000 "Correctly Set Capslock => Escape 😍"
-super + shift + e
-	emacs_runner
+super + shift + w
+	togglerc ~/vimwiki/index.wiki
 super + shift + t
 	torr && notify-send -t 750 "Torrent Added 🏴‍☠️"
 

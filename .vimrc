@@ -5,6 +5,7 @@
 "  \ V /| | | | | | | | | (__ 
 "   \_/ |_|_| |_| |_|_|  \___|
 "                             
+"NB: LSP settings are found in init.vim 
 
 filetype on
 set termguicolors
@@ -29,6 +30,7 @@ call plug#begin()
 " =================
 " Language Support
 " =================
+Plug 'neovim/nvim-lspconfig' 
 Plug 'sheerun/vim-polyglot' "AIO bundle
 Plug 'rust-lang/rust.vim'
 Plug 'tikhomirov/vim-glsl'
@@ -70,6 +72,10 @@ Plug 'ajmwagar/vim-deus'
 Plug 'sainnhe/edge'
 Plug 'jnurmine/Zenburn'
 "Plug 'pineapplegiant/spaceduck'
+" ===============
+" NoteTaking & Vim Wiki
+" ===============
+Plug 'vimwiki/vimwiki'
 "
 call plug#end()
 
@@ -234,7 +240,12 @@ autocmd BufEnter * if tabpagenr('$') == 1 && winnr('$') == 1 && exists('b:NERDTr
 " =====
 autocmd Filetype make set noexpandtab "force tabs for make
 " =====
-" Python   
+" Markdown
+" =====
+autocmd Filetype markdown set conceallevel=2
+
+" =====
+" mescaPython   
 " =====
 autocmd Filetype python set tabstop=4 
 autocmd Filetype python set softtabstop=4
