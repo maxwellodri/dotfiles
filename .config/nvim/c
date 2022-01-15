@@ -1,0 +1,11 @@
+init.vim:    nnoremap <silent><leader>V :w<CR>:so $MYVIMRC<CR>:PlugInstall<CR>
+init.vim:    nnoremap <leader>ff <cmd>Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍<CR>
+init.vim:    nnoremap <leader>fg <cmd>Telescope live_grep prompt_prefix=🔍<CR>
+init.vim:    "nnoremap <leader>ar :NvimTreeRefresh<CR>
+init.vim:    "nnoremap <leader>an :NvimTreeFindFile<CR>
+init.vim:"autocmd Filetype rust map <silent><leader><leader> :w<CR>:!rustfmt %<CR>:!cargo check<CR>
+init.vim:"nnoremap ,latex :-1read $dotfiles/snippets/assignment.tex<CR>72jo "use <leader>,<CMD> 
+lua/user/lsp/handlers.lua:  -- vim.api.nvim_buf_set_keymap(bufnr, "n", "<leader>rn", "<cmd>lua vim.lsp.buf.rename()<CR>", opts)
+lua/user/lsp/handlers.lua:  -- vim.api.nvim_buf_set_keymap(bufnr, "n", "<leader>ca", "<cmd>lua vim.lsp.buf.code_action()<CR>", opts)
+lua/user/lsp/handlers.lua:  -- vim.api.nvim_buf_set_keymap(bufnr, "n", "<leader>f", "<cmd>lua vim.diagnostic.open_float()<CR>", opts)
+lua/user/lsp/handlers.lua:  vim.api.nvim_buf_set_keymap(bufnr, "n", "<leader>q", "<cmd>lua vim.diagnostic.setloclist()<CR>", opts)

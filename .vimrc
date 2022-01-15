@@ -5,316 +5,119 @@
 "  \ V /| | | | | | | | | (__ 
 "   \_/ |_|_| |_| |_|_|  \___|
 "                             
-"NB: LSP settings are found in init.vim 
-
-filetype on
-set termguicolors
-let s:plug = '~/.vim/plugged' "Plugins:
-call plug#begin()
-
-"TODO
-"Plug 'scrooloose/nerdtree'
-"Plug 'jistr/vim-nerdtree-tabs'
-"Plug 'tpope/vim-commentary'
-"Plug 'vim-airline/vim-airline'
-"Plug 'vim-airline/vim-airline-themes'
-"Plug 'airblade/vim-gitgutter'
-"Plug 'vim-scripts/grep.vim'
-"Plug 'vim-scripts/CSApprox'
-"Plug 'Raimondi/delimitMate'
-"Plug 'majutsushi/tagbar'
-"Plug 'Yggdroot/indentLine'
-"Plug 'editor-bootstrap/vim-bootstrap-updater'
-"Plug 'tpope/vim-rhubarb' " required by fugitive to :Gbrowse
-"Plug 'preservim/tagbar'        "requires ctags  to be installed
-" =================
-" Language Support
-" =================
-Plug 'neovim/nvim-lspconfig' 
-Plug 'sheerun/vim-polyglot' "AIO bundle
-Plug 'rust-lang/rust.vim'
-Plug 'tikhomirov/vim-glsl'
-Plug 'JuliaEditorSupport/julia-vim'
-Plug 'kevinoid/vim-jsonc'
-Plug 'lervag/vimtex'
-Plug 'ron-rs/ron.vim'
-Plug 'leafgarland/typescript-vim'
-Plug 'raimon49/requirements.txt.vim' "requirement.txt support
-" ====
-" Git
-" ====
-Plug 'tpope/vim-fugitive'
-" ======
-" Search / File Finding
-" ======
-Plug 'PeterRincker/vim-searchlight'
-Plug 'preservim/nerdtree'
-" ==============
-" Miscellaneous
-" ==============
-Plug 'tpope/vim-sensible'
-Plug 'machakann/vim-highlightedyank' "highlight on yank
-Plug 'farmergreg/vim-lastplace' "Keep cursor on quit
-Plug 'Raimondi/delimitMate' "auto create quotes, bracket pairs 
-" =========
-" Snippets
-" =========
-Plug 'SirVer/ultisnips'
-Plug 'honza/vim-snippets'
-" ===============
-" Color Schemes
-" ===============
-Plug 'tomasiser/vim-code-dark'
-Plug 'tomasr/molokai'
-Plug 'morhetz/gruvbox'
-Plug 'ghifarit53/tokyonight-vim' 
-Plug 'ajmwagar/vim-deus' 
-Plug 'sainnhe/edge'
-Plug 'jnurmine/Zenburn'
-"Plug 'pineapplegiant/spaceduck'
-" ===============
-" NoteTaking & Vim Wiki
-" ===============
-Plug 'vimwiki/vimwiki'
 "
-call plug#end()
-
-" =============
-" 
-" Basic Options 
-"
-" =============
-color gruvbox
-filetype on
-"set termguicolors
-set title
-set titlestring=%F "necessary to be able to 'toggle' configs in sxhkd
-if exists('$SHELL')
-    set shell=$SHELL
-else
-    set shell=/bin/sh
-endif
 filetype plugin indent on
-syntax on
-"set statusline^=%{coc#status()}%{get(b:,'coc_current_function','')}
-set statusline+=%{FugitiveStatusline()}
-set sessionoptions-=options
-set tabstop=4
-set softtabstop=2
-set expandtab
-set smarttab
-set autoindent
-set path+=** ""recursive subdirectory search
-set wildmenu
-set wildmode=longest,list,full
-set encoding=utf-8
 syntax enable
-set clipboard=unnamedplus
-set number
-set nocompatible
-set whichwrap=b,s,<,>,[,] "traverse end of line with arrow keys
 call mkdir(expand('%:h'), 'p') "autocreate parent directory if it doesnt exist
-set hidden
-let mapleader =" "
-"toggle spellchecker:
-map <silent><leader>o :setlocal spell! spelllang=en_au<CR>
-"reload vimrc:
-map <silent><leader>v :so $MYVIMRC<CR> 
-nnoremap <leader>b :ls<CR>
-"generic compile script:
-nnoremap <leader>c :!compile %<CR>
+if exists('$SHELL') "probably unnecesary
+    set shell=$SHELL
+    else 
+    set shell=/bin/sh 
+    endif
+" set variables
+    set textwidth=0
+    set nowrap
+    set termguicolors
+    set title
+    set titlestring=%F "necessary to be able to 'toggle' configs in sxhkd
+    set sessionoptions-=options
+    set softtabstop=4
+    set shiftwidth=0
+    set expandtab
+    set tabstop=4
+    set shiftwidth=4
+    set smarttab
+    set autoindent
+    set path+=** ""recursive subdirectory search
+    set wildmenu
+    set wildmode=longest,list,full
+    set encoding=utf-8
+    set clipboard=unnamedplus
+    set number
+    set nocompatible
+    set ignorecase
+    set smartcase
+    set noswapfile
+    set nobackup
+    set scrolloff=8
+    set incsearch
+    set signcolumn=yes
+    set whichwrap=b,s,<,>,[,] "traverse end of line with arrow keys
+    set hidden
+    set wildignore+=*/tmp/*,*.so,*.swp,*.zip,*.pyc,*.db,*.sqlite
+    set wildignore+=*.pyc
+    set wildignore+=*_build/*
 
+" Leader bindings
+    let mapleader =" "
+    map <silent><leader>o :setlocal spell! spelllang=en_au<CR>
+    map <silent><leader>v :w<CR>:so $MYVIMRC<CR>:echo "Reloaded vimrc"<CR>
+    nnoremap <leader>c :!compile %<CR> 
+    nmap <silent> <Esc> :nohlsearch<CR>
+    imap <silent> <Esc> <Esc>:nohlsearch<CR>
+    "fix line indenting ==> 
+    nnoremap <leader><TAB> ^=$ 
 " Search mappings: Going to the next one in a search will center on the line it's found in.
-nnoremap n nzzzv
-nnoremap N Nzzzv
-"Abbreviations
-cnoreabbrev W! w!
-cnoreabbrev Q! q!
-cnoreabbrev Qall! qall!
-cnoreabbrev Wq wq
-cnoreabbrev Wa wa
-cnoreabbrev wQ wq
-cnoreabbrev WQ wq
-cnoreabbrev W w
-cnoreabbrev Q q
-cnoreabbrev Qall qall
-set wildignore+=*/tmp/*,*.so,*.swp,*.zip,*.pyc,*.db,*.sqlite
+    nnoremap n nzzzv
+    nnoremap N Nzzzv
+" Abbreviations Remaps
+    cnoreabbrev W! w!
+    cnoreabbrev Q! q!
+    cnoreabbrev Qall! qall!
+    cnoreabbrev Wq wq
+    cnoreabbrev Wa wa
+    cnoreabbrev wQ wq
+    cnoreabbrev WQ wq
+    cnoreabbrev W w
+    cnoreabbrev Q q
+    cnoreabbrev Qall qall
+    nnoremap ZA :wqa<CR>
 
-" ========================
-" 
+
+
+" Unbind Arrow Keys
+    inoremap <left> <nop>
+    inoremap <right> <nop>
+    inoremap <down> <nop>
+    inoremap <up> <nop>
+    nnoremap <left> <nop>
+    nnoremap <right> <nop>
+    nnoremap <down> <nop>
+    nnoremap <up> <nop>
+
+" Cursor Options
+    set cul "cursor line is highlighted
+    set guicursor=n-v-c-sm:block-Cursor
+    set guicursor+=i-ci-ve:ver25-iCursor
+    set guicursor+=r-cr-o:hor20
+function! s:get_visual_selection()
+    " Why is this not a built-in Vim script function?!
+    let [line_start, column_start] = getpos("'<")[1:2]
+    let [line_end, column_end] = getpos("'>")[1:2]
+    let lines = getline(line_start, line_end)
+    if len(lines) == 0
+        return ''
+    endif
+    let lines[-1] = lines[-1][: column_end - (&selection == 'inclusive' ? 1 : 2)]
+    let lines[0] = lines[0][column_start - 1:]
+    return join(lines, "\n")
+    endfunction
+" Split Options
+    set splitbelow splitright
+    map <C-h> <C-w>h
+    map <C-j> <C-w>j
+    map <C-k> <C-w>k
+    map <C-l> <C-w>l
 " Tab Navigation
-"
-" ========================
-nnoremap <silent>tk :tabnext<CR>
-nnoremap <silent>tj :tabprev<CR>
-nnoremap tn :tabnew<CR>
-nnoremap td  :tabclose<CR>
-nnoremap th  :tabfirst<CR>
-nnoremap tl  :tablast<CR>
-nnoremap te  :tabe<Space>
-nnoremap tm  :tabm<Space>
-
-" ========================
-" 
-" Statusline
-"
-" ========================
-" TODO
-set cmdheight=2 " space below the statusline
-"set laststatus=2
-"set statusline=
-"set statusline+=%#function#\ %l "color theming
-"set statusline+=%f "add file name to statusline %t
-set laststatus=2
-set statusline=
-set statusline+=%1*\ %f\ %*
-set statusline+=%= "LHS/RHS  divider
-set statusline+=%2*\ %{FugitiveStatusline()}
-set statusline+=%2*\ %l/%L "Line current/Linemax
-set statusline+=%2*\ %m "is modified
-set statusline+=%2*\ %r "is readonly
-"set statusline+=%3*\ ‹‹
-"set statusline+=%3*\ %{strftime('%R',getftime(expand('%')))}
-"set statusline+=%3*\ ::
-"set statusline+=%3*\ %n
-"set statusline+=%3*\ ››\ %*
+    nnoremap <silent><leader>tk :tabnext<CR>
+    nnoremap <silent><leader>tj :tabprev<CR>
+    nnoremap <leader>tn :w<CR>:tabnew<CR>
+    nnoremap <leader>td  :tabclose<CR>
+    nnoremap <silent><leader>th  :tabfirst<CR>
+    nnoremap <silent><leader>tl  :tablast<CR>
+    nnoremap <leader>te  :w<CR>:tabe<Space>
+    nnoremap <leader>tm  :tabm<Space>
 
 
-"set statusline=%F%m%r%h%w%=(%{&ff}/%Y)\ (line\ %l\/%L,\ col\ %c)\
-" ========================
-" 
-" Cursor Specific Options
-"
-" ========================
-set cul "cursor line is highlighted
-set guicursor=n-v-c-sm:block-Cursor
-set guicursor+=i-ci-ve:ver25-iCursor
-set guicursor+=r-cr-o:hor20
-
-highlight Cursor guifg=white guibg=black
-highlight iCursor guifg=white guibg=steelblue
-
-hi! TermCursor guifg=NONE guibg=#ebdbb2 gui=NONE cterm=NONE
-hi! TermCursorNC guifg=#ebdbb2 guibg=#3c3836 gui=NONE cterm=NONE
-
-
-" ===============
-"
-" git
-"
-" ===============
-noremap <Leader>ga :Gwrite<CR>
-noremap <Leader>gc :Gcommit<CR>
-noremap <Leader>gsh :Gpush<CR>
-noremap <Leader>gll :Gpull<CR>
-noremap <Leader>gs :Gstatus<CR>
-noremap <Leader>gb :Gblame<CR>
-noremap <Leader>gd :Gvdiff<CR>
-"noremap <Leader>gr :Gremove<CR>
-
-" ========================
-" 
-" Nerdtree
-"
-" ========================
-map <silent><C-a> :NERDTreeToggle<CR>
-
-let g:NERDTreeWinSize=70
-let g:NERDTreeChDirMode=2
-let g:NERDTreeIgnore=['\.rbc$', '\~$', '\.pyc$', '\.db$', '\.sqlite$', '__pycache__']
-let g:NERDTreeSortOrder=['^__\.py$', '\/$', '*', '\.swp$', '\.bak$', '\~$']
-let g:NERDTreeShowBookmarks=1
-let g:nerdtree_tabs_focus_on_files=1
-let g:NERDTreeMapOpenInTabSilent = '<RightMouse>'
-let g:NERDTreeWinPos = "right"
-autocmd VimEnter * NERDTree | wincmd p
-autocmd BufEnter * if tabpagenr('$') == 1 && winnr('$') == 1 && exists('b:NERDTree') && b:NERDTree.isTabTree() | quit | endif "Exit Vim if NERDTree is the only window remaining in the only tab.
-" =========================
-" 
-" Filetype Specfic Options
-"
-" =========================
-"
-" =====
-" Make
-" =====
-autocmd Filetype make set noexpandtab "force tabs for make
-" =====
-" Markdown
-" =====
-autocmd Filetype markdown set conceallevel=2
-
-" =====
-" mescaPython   
-" =====
-autocmd Filetype python set tabstop=4 
-autocmd Filetype python set softtabstop=4
-autocmd Filetype python set shiftwidth=4
-autocmd Filetype python set textwidth=79 "pep conformance 🤔
-autocmd Filetype python set autoindent 
-autocmd Filetype python set expandtab
-autocmd Filetype python set fileformat=unix 
-"add #type: ignore to EOL to ignore type warnings for pyright:
-autocmd Filetype python map <silent>,ignore $a #type: ignore<Esc> 
-" =====
-" Rust   
-" =====
-autocmd Filetype rust map <silent><leader><leader> :w<CR>:!rustfmt %<CR>:!cargo check<CR>
-" =====
-" Mutt   
-" =====
-au BufRead /tmp/mutt-* set tw=72
-" ==============
-" LaTeX Snippets
-" ==============
-nnoremap ,latex :-1read $dotfiles/snippets/assignment.tex<CR>72jo
-nnoremap ,texfig :-1read $dotfiles/snippets/figure.tex<CR><CR>$i
-" =================
-"  Yank Highlighting
-" =================
-let g:highlightedyank_highlight_duration = 1000
-" =================
-"  Lastplace Cursor
-" =================
-let g:lastplace_ignore = "gitcommit,gitrebase,svn,hgcommit"
-" ========================
-" Fix Search Highlighting
-" ========================
-nmap <silent> <Esc> :nohlsearch<CR>
-imap <silent> <Esc> <Esc>:nohlsearch<CR>
-" ========================
-" Splits
-" ========================
-set splitbelow splitright
-map <C-h> <C-w>h
-map <C-j> <C-w>j
-map <C-k> <C-w>k
-map <C-l> <C-w>l
-
-inoremap <left> <nop>
-inoremap <right> <nop>
-inoremap <down> <nop>
-inoremap <up> <nop>
-
-nnoremap <left> <nop>
-nnoremap <right> <nop>
-nnoremap <down> <nop>
-nnoremap <up> <nop>
-
-
-" ========================
-" Tagbar
-" ========================
-nmap <C-s> :TagbarToggle<CR>
-let g:tagbar_autoclose = 1
-let g:tagbar_autofocus = 1
-"let g:tagbar_left = 1
-let g_tagbar_width = 15
-
-
-let g:UltiSnipsExpandTrigger="<F2>" "need to remap away from default <tab> to avoid conflict with coc autocomplete
-let g:UltiSnipsJumpForwardTrigger="<c-k>"
-let g:UltiSnipsJumpBackwardTrigger="<c-j>"
-
-
-" provide custom statusline: lightline.vim, vim-airline.
+" Make Options
+    autocmd Filetype make set noexpandtab "force tabs for make

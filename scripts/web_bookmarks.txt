@@ -62,6 +62,8 @@ web_bookmarks = {
 'coinspot': 'https://www.coinspot.com.au/my/dashboard',
 'avax': 'https://wallet.avax.network/',
 'snowtrace': 'https://snowtrace.io',
-'metamask': 'moz-extension://c8a27d12-8ae5-4f29-97c3-18c68b008ff4/home.html#'
+'metamask': 'moz-extension://c8a27d12-8ae5-4f29-97c3-18c68b008ff4/home.html#',
+'vim': 'https://vim.rtorr.com',
+'wt': 'https://app.wonderland.money/#/stake'
 }
 

@@ -25,6 +25,8 @@ function vi-yank-xclip {
 }
 zle -N vi-yank-xclip
 bindkey -M vicmd 'y' vi-yank-xclip
+source /usr/share/fzf/key-bindings.zsh
+source /usr/share/fzf/completion.zsh
 
 #export RPROMPT="%{$fg[blue]%}[INSERT]%{$reset_color%}"
 ## Callback for vim mode change

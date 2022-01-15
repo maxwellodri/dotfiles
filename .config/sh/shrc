@@ -6,6 +6,7 @@
 # ___) |  _  | |___| |___| |___   / ___ \ |_| | |\  | |_| |___) || |  | | |___ 
 #|____/|_| |_|_____|_____|_____| /_/   \_\____|_| \_|\___/|____/ |_| |___\____|
 #
+echo "Acorn Sir"
 ################
 #exports:
 ###############
@@ -46,6 +47,7 @@ bindkey -s 'C-c' 'kill -9 !%' #ruthless version of standard ctrl-c => should alw
 ################
 #Aliases:
 ###############
+#type fzf >> /dev/null && type fd >> /dev/null 
 alias crontab='VISUAL=vim && crontab'
 alias dfn='df -h | egrep "Filesystem|nvme|sd"'
 alias myip='curl ipinfo.io/ip'
@@ -60,9 +62,8 @@ alias bashprofile="vim ~/.bash_profile"
 alias zprofile="vim ~/.zprofile"
 alias xrc="vim ~/.xinitrc"
 alias xres="vim ~/.Xresources && xrdb ~/.Xresources"
-alias vimrc="vim ~/.vimrc"
-alias vw="vim ~/vimwiki/index.wiki"
-alias initrc="vim ~/.config/nvim/init.vim"
+type nvim  >>/dev/null && alias vimrc='PREV_DIR=$(pwd) && cd ~/.config/nvim/ && vim init.vim && cd $PREV_DIR' || alias vimrc='vim ~/.vimrc'
+alias vw='PREV_DIR=$(pwd) && cd ~/vimwiki && vim index.wiki && cd $PREV_DIR'
 alias tmuxrc="vim ~/.tmux.conf"
 alias emacsrc="vim ~/.emacs.d/init.el"
 alias i3rc="vim $dotfiles/.config/i3/config.base && $dotfiles/makesymlinks.sh $dotfiles_tag >> /dev/null && i3-msg reload"

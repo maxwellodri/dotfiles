@@ -158,6 +158,10 @@ for file in $files; do
                                 mkdir -p "$HOME/attach"
                                 ;;
 
+        .vimrc)                 src="$dir/$file"
+                                ln -s "$src" "$HOME/.config/nvim/vimrc"
+                                ;;
+
         *)                      src="$dir/$file"
                                 ;;
     
