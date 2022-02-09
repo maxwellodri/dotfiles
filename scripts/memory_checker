@@ -1,0 +1,6 @@
+#!/bin/sh
+current=$(free  | tail -n 2 | head -n1 | awk '{print $3}')
+total=$(free | grep Mem | awk '{print $2}')
+#echo "Total: $total Current: $current"
+printf %.0f $(echo "$current/$total * 100" |  bc -l)
+#printf %.2f $(echo "$float/1.18" | bc -l)

@@ -99,7 +99,7 @@ local opts = {
 	server = {
 		-- standalone file support
 		-- setting it to false may improve startup time
-		standalone = true,
+		standalone = false,
 	}, -- rust-analyer options
 
     -- debugging stuff

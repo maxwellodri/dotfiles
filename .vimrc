@@ -84,6 +84,8 @@ if exists('$SHELL') "probably unnecesary
     nnoremap <right> <nop>
     nnoremap <down> <nop>
     nnoremap <up> <nop>
+    nnoremap K <nop>
+
 
 " Cursor Options
     set cul "cursor line is highlighted
@@ -104,10 +106,10 @@ function! s:get_visual_selection()
     endfunction
 " Split Options
     set splitbelow splitright
-    map <C-h> <C-w>h
-    map <C-j> <C-w>j
-    map <C-k> <C-w>k
-    map <C-l> <C-w>l
+    "map <C-h> <C-w>h
+    "map <C-j> <C-w>j
+    "map <C-k> <C-w>k
+    "map <C-l> <C-w>l
 " Tab Navigation
     nnoremap <silent><leader>tk :tabnext<CR>
     nnoremap <silent><leader>tj :tabprev<CR>
@@ -117,7 +119,11 @@ function! s:get_visual_selection()
     nnoremap <silent><leader>tl  :tablast<CR>
     nnoremap <leader>te  :w<CR>:tabe<Space>
     nnoremap <leader>tm  :tabm<Space>
+    nnoremap <leader>tv  :vsplit<Space>
 
 
 " Make Options
     autocmd Filetype make set noexpandtab "force tabs for make
+
+    inoremap <left> <nop>
+

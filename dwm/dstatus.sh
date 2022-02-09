@@ -33,7 +33,7 @@ while true; do
                     OPT="NO TAG"
                     ;;
     esac
-    xsetroot -name "🕒 $(date +%a-%d-%b-%R)$OPT"
+    xsetroot -name "🕒 $(date +%a-%d-%b-%R) $(sh $dotfile/scripts/memory_checker)% Mem$OPT"
 	sleep 1
     if [ "$(echo "$(date +%s)%1" | bc)" -eq "0" ]; then #every five seconds poll these:
         battery="$(poll_battery)"
