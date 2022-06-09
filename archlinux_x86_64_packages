@@ -1,4 +1,5 @@
 #run arch_package_install.sh
+mold
 man
 xdotool
 ctags

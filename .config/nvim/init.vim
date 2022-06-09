@@ -350,8 +350,7 @@ let &packpath=&runtimepath
     autocmd Filetype python set fileformat=unix 
     "add #type: ignore to EOL to ignore type warnings for pyright:
     autocmd Filetype python map <silent>,ignore $a #type: ignore<Esc> 
-    "lua require'lspconfig'.pyright.setup{on_attach=require'nvim-cmp'.on_attach}
-    "lua cmd = { "pyright-langserver", "--stdio" } filetypes = { "python" } root_dir = function(startpath) return M.search_ancestors(startpath, matcher) end settings = { python = {analysis = {autoSearchPaths = true, diagnosticMode = "workspace", useLibraryCodeForTypes = true}}} single_file_support = true
+    autocmd BufWritePre *.py lua vim.lsp.buf.formatting_sync(nil, 1000)
 
 " Mutt Options
     au BufRead /tmp/mutt-* set tw=72

@@ -48,11 +48,32 @@ if exists('$SHELL') "probably unnecesary
     set wildignore+=*.pyc
     set wildignore+=*_build/*
 
+" Shell function
+  command! -complete=shellcmd -nargs=+ Shell call s:RunShellCommand(<q-args>)
+  function! s:RunShellCommand(cmdline)
+  echo a:cmdline
+  let expanded_cmdline = a:cmdline
+  for part in split(a:cmdline, ' ')
+     if part[0] =~ '\v[%#<]'
+        let expanded_part = fnameescape(expand(part))
+        let expanded_cmdline = substitute(expanded_cmdline, part, expanded_part, '')
+     endif
+  endfor
+  botright new
+  setlocal buftype=nofile bufhidden=wipe nobuflisted noswapfile nowrap
+  call setline(1, 'You entered:    ' . a:cmdline)
+  call setline(2, 'Expanded Form:  ' .expanded_cmdline)
+  call setline(3,substitute(getline(2),'.','=','g'))
+  execute '$read !'. expanded_cmdline
+  setlocal nomodifiable
+  1
+  endfunction
+
 " Leader bindings
     let mapleader =" "
     map <silent><leader>o :setlocal spell! spelllang=en_au<CR>
     map <silent><leader>v :w<CR>:so $MYVIMRC<CR>:echo "Reloaded vimrc"<CR>
-    nnoremap <leader>c :!compile %<CR> 
+    nnoremap <leader>c :Shell compile %<CR> 
     nmap <silent> <Esc> :nohlsearch<CR>
     imap <silent> <Esc> <Esc>:nohlsearch<CR>
     "fix line indenting ==> 
@@ -104,6 +125,7 @@ function! s:get_visual_selection()
     let lines[0] = lines[0][column_start - 1:]
     return join(lines, "\n")
     endfunction
+
 " Split Options
     set splitbelow splitright
     "map <C-h> <C-w>h
@@ -120,6 +142,7 @@ function! s:get_visual_selection()
     nnoremap <leader>te  :w<CR>:tabe<Space>
     nnoremap <leader>tm  :tabm<Space>
     nnoremap <leader>tv  :vsplit<Space>
+    nnoremap <leader>rc  :Shell!<Space>
 
 
 " Make Options
