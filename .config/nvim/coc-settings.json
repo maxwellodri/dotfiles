@@ -1,6 +1,6 @@
 {
     "rust-analyzer.experimental.procAttrMacros": false,
-    "rust-analyzer.procMacro.enable": false, //TODO update when proc macros are fixed in RA
+    "rust-analyzer.procMacro.enable": true, //TODO update when proc macros are fixed in RA
     "python.analysis.useLibraryCodeForTypes": false,
     "suggest.noselect": false,
       "coc.preferences.formatOnSaveFiletypes": [

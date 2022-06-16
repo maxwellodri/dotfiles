@@ -1,11 +1,12 @@
 #!/bin/sh
 xrdb ~/.Xresources &
-feh --bg-scale "$dotfiles/images/low-poly_red.jpg" &
 dunst &
 picom -b --config ~/.config/picom/picom.conf &
 /usr/lib/xfce-polkit/xfce-polkit &
 [ $dotfiles_tag = "pc" ] && steam -silent &
-wal -R &
+feh --bg-scale "$dotfiles/images/low_poly_red.jpg"
+#notify-send "$dotfiles/images/low-poly_red.jpg"
+#wal -R &
 #emacs_runner "startup" & 
 #$dotfiles/monitor-setup.sh &
 echo "Done startup"

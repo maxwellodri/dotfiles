@@ -1,5 +1,6 @@
 set runtimepath^=~/.vim runtimepath+=~/.vim/after
 runtime! expand('$HOME') + '/.config/nvim/plugin'
+" TODO add rust analyzer commands
 let &packpath=&runtimepath
 " Autoinstall VimPlug
     let data_dir = has('nvim') ? stdpath('data') . '/site' : '~/.vim'
@@ -194,7 +195,8 @@ let &packpath=&runtimepath
     lua require('user.treesitter-settings')
 " Telescope
     lua require('user.telescope-settings')
-    nnoremap <leader>ff <cmd>Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
+    nnoremap <leader>fo <cmd>Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
+    nnoremap <leader>ff :tabnew<CR>:Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>fg <cmd>Telescope live_grep prompt_prefix=🔍🤔<CR>
 
 " AnyFold + Fold Cylce
@@ -370,3 +372,4 @@ let &packpath=&runtimepath
 "let g:tagbar_autofocus = 1
 ""let g:tagbar_left = 1
 "let g_tagbar_width = 15
+"

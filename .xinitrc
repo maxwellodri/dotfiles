@@ -42,6 +42,7 @@ echo $WM
 #export DESKTOP_SESSION=plasma
 #exec startplasma-x11 
 
+export LUTRIS_SKIP_INIT
 [ "$(basename "$WM")" = "dwm" ] && [ -f "$dotfiles/dwm/dwmshell" ] && "$dotfiles/dwm/dwmshell"  #shell script to start for dwm, for starting other programs
 if [ "$(basename "$WM")" = "dwm" ]; then
         sxhkd &
