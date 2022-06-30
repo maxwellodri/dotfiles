@@ -14,7 +14,7 @@ SAVEHIST=1000
 
 #(cat ~/.cache/wal/sequences &) #pywal
 [ -e ~/.cache/wal/colors-tty.sh ] && source ~/.cache/wal/colors-tty.sh
-
+[ -e /etc/profile.d/google-cloud-sdk.sh ] && source /etc/profile.d/google-cloud-sdk.sh
 setopt autocd #type name of dir to cd
 unsetopt beep #no beep
 bindkey -v #vim keys
@@ -25,8 +25,42 @@ function vi-yank-xclip {
 }
 zle -N vi-yank-xclip
 bindkey -M vicmd 'y' vi-yank-xclip
+
 source /usr/share/fzf/key-bindings.zsh
 source /usr/share/fzf/completion.zsh
+
+function _fuzzy_vim {
+    #zle push-input
+    zle clear-input
+    BUFFER="fuzzy_vim"
+    zle accept-line
+}
+
+zle -N _fuzzy_vim
+bindkey -M vicmd '^X' _fuzzy_vim
+bindkey -M viins '^X' _fuzzy_vim
+
+_fvim() {
+  return "abc"
+  #local cmd="${FZF_CTRL_T_COMMAND:-"command find -L . -mindepth 1 \\( -path '*/\\.*' -o -fstype 'sysfs' -o -fstype 'devfs' -o -fstype 'devtmpfs' -o -fstype 'proc' \\) -prune \
+  #  -o -type f -print \
+  #  -o -type d -print \
+  #  -o -type l -print 2> /dev/null | cut -b3-"}"
+  #setopt localoptions pipefail no_aliases 2> /dev/null
+  #local item
+  #eval "$cmd" | FZF_DEFAULT_OPTS="--height ${FZF_TMUX_HEIGHT:-40%} --reverse --bind=ctrl-z:ignore $FZF_DEFAULT_OPTS $FZF_CTRL_T_OPTS" $(__fzfcmd) -m "$@" | while read item; do
+  #  echo -n "${(q)item} "
+  #done
+  #local ret=$?
+  #echo
+  #return $ret
+}
+
+#zle -C _fvim
+#bindkey -M vicmd '^O' _fvim 
+#bindkey -M viins '^O' _fvim
+#bindkey -M emacs '^O' _fvim
+
 
 #export RPROMPT="%{$fg[blue]%}[INSERT]%{$reset_color%}"
 ## Callback for vim mode change
@@ -55,10 +89,11 @@ source /usr/share/fzf/completion.zsh
 #}
 #
 ## Bind the callback
-#zle -N zle-keymap-select
-#
-## Reduce latency when pressing <Esc>
-#export KEYTIMEOUT=1
+zle -N zle-keymap-select
+
+
+# Reduce latency when pressing <Esc>
+export KEYTIMEOUT=1
 
 #export KEYTIMEOUT=1 #xtra option for vim keys
 zstyle :compinstall filename '/home/maxwell/.zshrc'

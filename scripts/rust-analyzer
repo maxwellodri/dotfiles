@@ -1,0 +1,3 @@
+#!/bin/sh
+#/usr/bin/rust-analyzer $@
+rustup run nightly rust-analyzer

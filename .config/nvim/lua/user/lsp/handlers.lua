@@ -71,6 +71,7 @@ M.setup = function()
     border = "rounded",
   })
   vim.lsp.handlers["textDocument/definition"] = goto_definition('vsplit')
+  vim.lsp.handlers["textDocument/implementation"] = goto_definition('')
 end
 
 local function lsp_highlight_document(client)

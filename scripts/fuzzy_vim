@@ -1,0 +1,4 @@
+#!/bin/sh
+file=$(fd -E Games | fzf) #eclude Games
+realpath $file &>/dev/null || exit
+[ -f $file ] && vim $file

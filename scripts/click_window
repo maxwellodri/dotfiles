@@ -1,0 +1,4 @@
+#!/bin/sh
+window="$(printf '%d' $(xwininfo | grep "Window id" | awk '{print $4}'))"
+echo $window
+#xdotool windowquit $window

@@ -23,6 +23,7 @@ export PATH=$PATH:"$BIN/steam_scripts" #and subfolder for steam scripts
 export PATH=$HOME/bin:$PATH:$HOME/.local/bin
 export dl="$HOME/Downloads"
 export game="$HOME/source/game"
+export torr="$HOME/media/xd/torrents"
 
 
 ################

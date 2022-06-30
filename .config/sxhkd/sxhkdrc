@@ -14,14 +14,18 @@ super + shift + x
 #                  |___/                         
 super + Return
 	st 
-super +  Home
+super + Home
 	todo
+super + shift + d
+	togglerc ~/todo/todo.txt
+super + ctrl + c
+    xdotool windowclose $(click_window)
 super + d
 	dmenu_run
 super + e
 	emojis
 super + shift + Tab
-	lock
+	lockme
 super + shift + a
 	art.sh
 super + Insert

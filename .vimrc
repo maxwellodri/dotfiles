@@ -106,7 +106,9 @@ if exists('$SHELL') "probably unnecesary
     nnoremap <down> <nop>
     nnoremap <up> <nop>
     nnoremap K <nop>
-
+    nnoremap L <nop>
+    nnoremap H <nop>
+    nnoremap J <nop>
 
 " Cursor Options
     set cul "cursor line is highlighted

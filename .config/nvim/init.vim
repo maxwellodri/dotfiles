@@ -1,6 +1,7 @@
 set runtimepath^=~/.vim runtimepath+=~/.vim/after
 runtime! expand('$HOME') + '/.config/nvim/plugin'
 " TODO add rust analyzer commands
+"let g:polyglot_disabled = ['rust']
 let &packpath=&runtimepath
 " Autoinstall VimPlug
     let data_dir = has('nvim') ? stdpath('data') . '/site' : '~/.vim'
@@ -73,7 +74,6 @@ let &packpath=&runtimepath
     Plug 'hrsh7th/cmp-nvim-lua'
     Plug 'L3MON4D3/LuaSnip' "snippet engine
     Plug 'rafamadriz/friendly-snippets' "a bunch of snippets to use
-    " Plug 'filipdutescu/renamer.nvim', { 'branch': 'master' }
     Plug 'mfussenegger/nvim-dap'
     "" ====
     "" Git
@@ -197,7 +197,7 @@ let &packpath=&runtimepath
     lua require('user.telescope-settings')
     nnoremap <leader>fo <cmd>Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>ff :tabnew<CR>:Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
-    nnoremap <leader>fg <cmd>Telescope live_grep prompt_prefix=🔍🤔<CR>
+    nnoremap <leader>rg <cmd>Telescope live_grep prompt_prefix=🔍🤔<CR>
 
 " AnyFold + Fold Cylce
     "autocmd Filetype Telescope* call AnyFoldTelescope else call AnyFoldActivate
@@ -360,6 +360,16 @@ let &packpath=&runtimepath
     "emp
 " Rust Options
     autocmd BufWritePre *.rs lua vim.lsp.buf.formatting_sync(nil, 1000)
+    autocmd Filetype rust nnoremap <silent><leader>ds :Gcd src<CR>:echo "Changed to src/ dir"<CR> 
+    "Fix above, its broken in workspaces
+    autocmd Filetype rust nnoremap <silent><leader>M :lua require'rust-tools.expand_macro'.expand_macro()<CR>
+    autocmd Filetype rust nnoremap <silent>gk :lua require'rust-tools.parent_module'.parent_module()<CR>
+    "autocmd Filetype rust nnoremap <silent><leader>dr :Gcd<CR>:echo "Changed to git root dir"<CR>
+    "consider changing above command to be called whenever a rust file is opened rather than as executable
+" Navigation
+    nnoremap <silent><leader>dr :Gcd<CR>:echo "Changed to git root dir"<CR>
+    nnoremap <silent><leader>dS :Gcd<CR>:echo "Changed to $src dir"<CR>
+    nnoremap <silent><leader>dh :cd<CR>:echo "Changed to home dir"<CR>
 "end
 "autocmd Filetype rust map <silent><leader><leader> :w<CR>:!rustfmt %<CR>:!cargo check<CR>
 "nnoremap ,latex :-1read $dotfiles/snippets/assignment.tex<CR>72jo "use <leader>,<CMD> 
@@ -373,3 +383,6 @@ let &packpath=&runtimepath
 ""let g:tagbar_left = 1
 "let g_tagbar_width = 15
 "
+"
+
+"TODO unset shift L and shift H
