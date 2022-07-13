@@ -2,6 +2,7 @@
 export PATH=$HOME/bin:/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl
 export PATH="$HOME/.cargo/bin:$PATH"
 export LIBRARY_PATH=$LIBRARY_PATH:$HOME/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib
+export LUTRIS_SKIP_INIT=1
 unset beep 
 [ -f /usr/share/vulkan/icd.d/nvidia_icd.json ] && export VK_ICO_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json 
 

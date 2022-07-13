@@ -38,6 +38,8 @@ super + shift + w
 	togglerc ~/vimwiki/index.wiki
 super + shift + t
 	torr && notify-send -t 750 "Torrent Added 🏴‍☠️"
+super + ctrl + shift + s
+    wholescreensave && sleep 0.2 && notify-send -t 1000 "Screenshot Taken"
 
 
 #  _                    _      

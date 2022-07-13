@@ -2,7 +2,7 @@ return {
   settings = {
       ["rust-analyzer"] = {
 				procMacro = {
-					enable = true,
+					enable = false,
 				attributes = {
 					enable = true,
 				}

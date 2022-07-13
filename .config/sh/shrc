@@ -47,6 +47,7 @@ bindkey -s 'C-c' 'kill -9 !%' #ruthless version of standard ctrl-c => should alw
 #Aliases:
 ###############
 #type fzf >> /dev/null && type fd >> /dev/null 
+alias cat='bat'
 alias crontab='VISUAL=vim && crontab'
 alias dfn='df -h | egrep "Filesystem|nvme|sd"'
 alias myip='curl ipinfo.io/ip'

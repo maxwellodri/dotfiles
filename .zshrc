@@ -32,13 +32,33 @@ source /usr/share/fzf/completion.zsh
 function _fuzzy_vim {
     #zle push-input
     zle clear-input
-    BUFFER="fuzzy_vim"
+    BUFFER="source $bin/fuzzy_vim"
     zle accept-line
+    #zle clear-input
+    #BUFFER="clear"
+    #zle accept-line
+
+}
+
+function _sterm {
+    #zle push-input
+    zle clear-input
+    BUFFER=" setsid -f st -d . 1&>/dev/null" #space before setsid so it doesnt show up in history
+
+    zle accept-line
+    #zle clear-input
+    #BUFFER="clear"
+    #zle accept-line
+
 }
 
 zle -N _fuzzy_vim
 bindkey -M vicmd '^X' _fuzzy_vim
 bindkey -M viins '^X' _fuzzy_vim
+
+zle -N _sterm
+bindkey -M vicmd '^T' _sterm
+bindkey -M viins '^T' _sterm #overrides default fzf/key-bindings.zsh
 
 _fvim() {
   return "abc"

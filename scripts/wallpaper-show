@@ -1,0 +1,3 @@
+#!/bin/sh
+pkill show
+shuf -zen1 $dotfiles/shaders/* | xargs --null show -m root &

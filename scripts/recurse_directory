@@ -1,0 +1,8 @@
+#!/bin/sh
+root="$(git rev-parse --show-toplevel)"
+while [[ true ]]; do
+    [ "$(basename $PWD)" == "src" ] && echo "$PWD" && exit;
+    [ "$PWD" == "$root" ] && echo "$PWD" && exit;
+    [ "$PWD" == "/" ] && echo "$root" && exit;
+    cd ..
+done

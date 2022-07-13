@@ -1,4 +1,15 @@
 #!/bin/sh
-file=$(fd -E Games | fzf) #eclude Games
-realpath $file &>/dev/null || exit
-[ -f $file ] && vim $file
+interact ()
+{
+    file=$1
+    [ -f $file ] && vim $file #TODO cd to git root as well
+    [ -d $file ] && cd $file 
+    clear
+
+}
+cd ~/
+file=$(fd -E Games | fzf) #exclude Games
+#realpath $file &>/dev/null || exit
+#[ -f $file ] && vim $file || [ -d $file ] && cd $file || exit
+interact $file
+

@@ -73,7 +73,7 @@ if exists('$SHELL') "probably unnecesary
     let mapleader =" "
     map <silent><leader>o :setlocal spell! spelllang=en_au<CR>
     map <silent><leader>v :w<CR>:so $MYVIMRC<CR>:echo "Reloaded vimrc"<CR>
-    nnoremap <leader>c :Shell compile %<CR> 
+    "nnoremap <leader>c :Shell compile %<CR> 
     nmap <silent> <Esc> :nohlsearch<CR>
     imap <silent> <Esc> <Esc>:nohlsearch<CR>
     "fix line indenting ==> 

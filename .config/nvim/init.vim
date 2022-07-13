@@ -80,14 +80,16 @@ let &packpath=&runtimepath
     "" ====
     Plug 'tpope/vim-fugitive'
     " ======
-    " Search / File Finding
+    " Search / File Finding / Navigation
     " ======
     Plug 'PeterRincker/vim-searchlight'
     Plug 'preservim/nerdtree'
     Plug 'pseewald/vim-anyfold'
     Plug 'arecarn/vim-fold-cycle'
     Plug 'nvim-telescope/telescope.nvim'
+    Plug 'nvim-telescope/telescope-ui-select.nvim'
     Plug 'kyazdani42/nvim-tree.lua' "library of functions, used by other modules
+    Plug 'stsewd/gx-extended.vim' "requires gx from vim-markdown (contained in vim-polyglot) to be disabled
     " ==============
     " Visual / Appearance
     " ==============
@@ -195,8 +197,11 @@ let &packpath=&runtimepath
     lua require('user.treesitter-settings')
 " Telescope
     lua require('user.telescope-settings')
+    lua require("telescope").load_extension("ui-select")
     nnoremap <leader>fo <cmd>Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>ff :tabnew<CR>:Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
+    nnoremap <leader>fv :vsplit<CR>:Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
+    nnoremap <leader>fs <cmd>Telescope lsp_document_symbols find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>rg <cmd>Telescope live_grep prompt_prefix=🔍🤔<CR>
 
 " AnyFold + Fold Cylce
@@ -326,13 +331,6 @@ let &packpath=&runtimepath
     lua require('user.cmp')
     lua require('user.lsp')
 
-" renamer.nvim
-    "lua require('user.renamer')
-    "nnoremap <silent> <leader>rn <cmd>lua require('renamer').rename()<cr>
-    "vnoremap <silent> <leader>rn <cmd>lua require('renamer').rename()<cr>
-    "hi default link RenamerNormal Normal
-    "hi default link RenamerBorder RenamerNormal
-    "hi default link RenamerTitle Identifier
 " rust_tools.nvim
     lua require("user.rust_tools")
 " Markdown Options
@@ -360,7 +358,8 @@ let &packpath=&runtimepath
     "emp
 " Rust Options
     autocmd BufWritePre *.rs lua vim.lsp.buf.formatting_sync(nil, 1000)
-    autocmd Filetype rust nnoremap <silent><leader>ds :Gcd src<CR>:echo "Changed to src/ dir"<CR> 
+    autocmd Filetype rust nnoremap <silent><leader>ds :cd %:h<CR>:cd | !recurse_directory<CR> 
+    ":echo "Changed to src/ dir"<CR> 
     "Fix above, its broken in workspaces
     autocmd Filetype rust nnoremap <silent><leader>M :lua require'rust-tools.expand_macro'.expand_macro()<CR>
     autocmd Filetype rust nnoremap <silent>gk :lua require'rust-tools.parent_module'.parent_module()<CR>
