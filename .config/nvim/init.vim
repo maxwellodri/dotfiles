@@ -224,7 +224,7 @@ let &packpath=&runtimepath
     let g:fold_cycle_toggle_max_close = 1
 
 " Nerdtree
-   map <silent><C-a> :NERDTreeToggle<CR>
+   map <silent><C-b> :NERDTreeToggle<CR>
    let g:NERDTreeWinSize=70
    let g:NERDTreeChDirMode=2
    let g:NERDTreeIgnore=['\.rbc$', '\~$', '\.pyc$', '\.db$', '\.sqlite$', '__pycache__']
@@ -355,10 +355,59 @@ let &packpath=&runtimepath
 " Mutt Options
     au BufRead /tmp/mutt-* set tw=72
 " VimWiki Options
-    "emp
+    "unmap <leader>ww
+    "unmap <leader>wt
+    "unmap <leader>ws
+    "unmap <leader>wd
+    "unmap <leader>wr
+    nnoremap <leader>wo <Plug>VimwikiIndex
 " Rust Options
+    function! GetSrcDir(...) abort
+        if a:0 == 0
+            let l:dir_curr = expand('%:p:h')
+        else
+            let l:dir_curr = a:1
+        endif
+    
+        let l:dir_last = ""
+    
+        while l:dir_last != l:dir_curr
+            if isdirectory(l:dir_curr . '/src') || filereadable(l:dir_curr . '/src')
+                return l:dir_curr . '/src'
+            else
+                let l:dir_last = l:dir_curr
+                let l:dir_curr = fnamemodify(l:dir_curr, ':h')
+            endif
+        endwhile
+        return ""
+    endfunction
+    
+    function! CdSrcDir()
+      let g:src_dir = GetSrcDir()
+      if strlen(g:src_dir)
+        execute 'cd' fnameescape(g:src_dir)
+        echo 'Changed to src/'
+      endif
+    endfunction
+
+    function! CdParent()
+      let g:parent_dir = expand('%:h:p')
+      if strlen(g:parent_dir)
+        execute 'cd' fnameescape(g:parent_dir)
+        echo 'Changed to parent'
+      endif
+    endfunction
+    
+    "command! -nargs=0 ProjectRoot echo GetProjectRoot()
+    "command! -nargs=0 CdProjectRoot call CdProjectRoot()
+    "command -nargs=1 Mycd call MyCd()
     autocmd BufWritePre *.rs lua vim.lsp.buf.formatting_sync(nil, 1000)
-    autocmd Filetype rust nnoremap <silent><leader>ds :cd %:h<CR>:cd | !recurse_directory<CR> 
+    autocmd Filetype rust nnoremap <leader>ds :call CdSrcDir()<CR>
+    autocmd Filetype rust nnoremap <leader>dS :call CdParent()<CR>
+    "nvim_command('cd %:h <Bar> cd | !recurse_directory %')
+    "<Bar> echo "Changed to src/ directory"<CR>
+    "autocmd Filetype rust nmap <leader>ds :cd | silent !recurse_directory %<CR>
+    "<CR>:echo "Changed to src directory"<CR>
     ":echo "Changed to src/ dir"<CR> 
     "Fix above, its broken in workspaces
     autocmd Filetype rust nnoremap <silent><leader>M :lua require'rust-tools.expand_macro'.expand_macro()<CR>
@@ -367,7 +416,6 @@ let &packpath=&runtimepath
     "consider changing above command to be called whenever a rust file is opened rather than as executable
 " Navigation
     nnoremap <silent><leader>dr :Gcd<CR>:echo "Changed to git root dir"<CR>
-    nnoremap <silent><leader>dS :Gcd<CR>:echo "Changed to $src dir"<CR>
     nnoremap <silent><leader>dh :cd<CR>:echo "Changed to home dir"<CR>
 "end
 "autocmd Filetype rust map <silent><leader><leader> :w<CR>:!rustfmt %<CR>:!cargo check<CR>

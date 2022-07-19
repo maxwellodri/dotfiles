@@ -6,6 +6,7 @@ picom -b --config ~/.config/picom/picom.conf &
 [ $dotfiles_tag = "pc" ] && steam -silent &
 #feh --bg-scale "$dotfiles/images/low_poly_red.jpg"
 wallpaper-show
+$bin/monitor.sh
 #notify-send "$dotfiles/images/low-poly_red.jpg"
 #wal -R &
 #emacs_runner "startup" & 

@@ -36,6 +36,8 @@ super + shift + q
 	set_kb_map && notify-send -t 1000 "Correctly Set Capslock => Escape 😍"
 super + shift + w
 	togglerc ~/vimwiki/index.wiki
+super + w
+    wallpaper-shader
 super + shift + t
 	torr && notify-send -t 750 "Torrent Added 🏴‍☠️"
 super + ctrl + shift + s

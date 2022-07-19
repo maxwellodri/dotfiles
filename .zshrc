@@ -32,7 +32,7 @@ source /usr/share/fzf/completion.zsh
 function _fuzzy_vim {
     #zle push-input
     zle clear-input
-    BUFFER="source $bin/fuzzy_vim"
+    BUFFER=" source $bin/fuzzy_vim"
     zle accept-line
     #zle clear-input
     #BUFFER="clear"
@@ -51,10 +51,19 @@ function _sterm {
     #zle accept-line
 
 }
+function _git_root {
+    zle clear-input
+    BUFFER=" cd $(git rev-parse --show-toplevel)"
+    zle accept-line
+}
 
 zle -N _fuzzy_vim
 bindkey -M vicmd '^X' _fuzzy_vim
 bindkey -M viins '^X' _fuzzy_vim
+
+zle -N _git_root
+bindkey -M viins '^G' _git_root
+bindkey -M vicmd '^G' _git_root
 
 zle -N _sterm
 bindkey -M vicmd '^T' _sterm
