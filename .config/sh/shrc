@@ -73,6 +73,7 @@ alias i3tag="vim $dotfiles/.config/i3/config.extra && $dotfiles/makesymlinks.sh 
 alias termrc="vim ~/.config/terminator/config"
 alias i3sbar="vim ~/.config/i3status/config && i3-msg restart"
 alias zathurarc="vim ~/.config/zathura/zathurarc"
+alias rofirc="vim ~/.config/rofi/config.rasi"
 alias sys="sudo systemctl"
 alias dl="cd ~/Downloads"
 alias p="sudo pacman"

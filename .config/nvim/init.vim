@@ -51,7 +51,6 @@ let &packpath=&runtimepath
     endfunction
     Plug 'nvim-treesitter/nvim-treesitter', {'do': function('TSCustomInstall') }
     Plug 'sheerun/vim-polyglot' "AIO bundle
-    Plug 'rust-lang/rust.vim'
     Plug 'tikhomirov/vim-glsl'
     Plug 'JuliaEditorSupport/julia-vim'
     Plug 'kevinoid/vim-jsonc'
@@ -59,6 +58,12 @@ let &packpath=&runtimepath
     Plug 'ron-rs/ron.vim'
     Plug 'leafgarland/typescript-vim'
     Plug 'raimon49/requirements.txt.vim' "requirement.txt support
+    Plug 'DingDean/wgsl.vim' 
+    " ============ "
+    " Rust Support "
+    " ============ "
+    Plug 'rust-lang/rust.vim'
+    Plug 'saecki/crates.nvim'
     Plug 'simrat39/rust-tools.nvim'
     " =================
     " LSP / cmp / LuaSnip
@@ -79,6 +84,7 @@ let &packpath=&runtimepath
     "" Git
     "" ====
     Plug 'tpope/vim-fugitive'
+    Plug 'kdheepak/lazygit.nvim'
     " ======
     " Search / File Finding / Navigation
     " ======
@@ -203,6 +209,7 @@ let &packpath=&runtimepath
     nnoremap <leader>fv :vsplit<CR>:Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>fs <cmd>Telescope lsp_document_symbols find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>rg <cmd>Telescope live_grep prompt_prefix=🔍🤔<CR>
+    nnoremap <leader>rv :vsplit<CR>:<cmd>Telescope live_grep prompt_prefix=🔍🤔<CR>
 
 " AnyFold + Fold Cylce
     "autocmd Filetype Telescope* call AnyFoldTelescope else call AnyFoldActivate
@@ -310,19 +317,17 @@ let &packpath=&runtimepath
     "" a list of groups can be found at `:help nvim_tree_highlight`
     "highlight NvimTreeFolderIcon guibg=blue
     "lua require('nvimtree-settings')
-" Fugitive
-   "" noremap <Leader>ga :Gwrite<CR>
-   "" noremap <Leader>gc :Gcommit<CR>
-   "" noremap <Leader>gsh :Gpush<CR>
-   "" noremap <Leader>gll :Gpull<CR>
-   "" noremap <Leader>gs :Gstatus<CR>
-   "" noremap <Leader>gb :Gblame<CR>
-   "" noremap <Leader>gd :Gvdiff<CR>
-   "" noremap <Leader>gr :Gremove<CR>
-   "Plugin has beeb updated -> fixme 
+" lazygit
+    let g:lazygit_floating_window_winblend = 0 " transparency of floating window
+    let g:lazygit_floating_window_scaling_factor = 0.9 " scaling factor for floating window
+    let g:lazygit_floating_window_corner_chars = ['╭', '╮', '╰', '╯'] " customize lazygit popup window corner characters
+    let g:lazygit_floating_window_use_plenary = 0 " use plenary.nvim to manage floating window if available
+    let g:lazygit_use_neovim_remote = 1 " fallback to 0 if neovim-remote is not installed
+    nnoremap <silent> <leader>gg :LazyGit<CR>
+    lua require("telescope").load_extension("lazygit")
 
 " Yank Highlighting
-   let g:highlightedyank_highlight_duration = 700
+   let g:highlightedyank_highlight_duration = 650
 " Lastplace
     let g:lastplace_ignore = "gitcommit,gitrebase,svn,hgcommit"
 
@@ -331,8 +336,6 @@ let &packpath=&runtimepath
     lua require('user.cmp')
     lua require('user.lsp')
 
-" rust_tools.nvim
-    lua require("user.rust_tools")
 " Markdown Options
     autocmd Filetype markdown set conceallevel=2
 " Lua Options
@@ -397,26 +400,41 @@ let &packpath=&runtimepath
         echo 'Changed to parent'
       endif
     endfunction
-    
-    "command! -nargs=0 ProjectRoot echo GetProjectRoot()
-    "command! -nargs=0 CdProjectRoot call CdProjectRoot()
-    "command -nargs=1 Mycd call MyCd()
+
+    lua require('crates').setup()
+    lua require("user.rust_tools")
     autocmd BufWritePre *.rs lua vim.lsp.buf.formatting_sync(nil, 1000)
     autocmd Filetype rust nnoremap <leader>ds :call CdSrcDir()<CR>
     autocmd Filetype rust nnoremap <leader>dS :call CdParent()<CR>
-    "nvim_command('cd %:h <Bar> cd | !recurse_directory %')
-    "<Bar> echo "Changed to src/ directory"<CR>
-    "autocmd Filetype rust nmap <leader>ds :cd | silent !recurse_directory %<CR>
-    "<CR>:echo "Changed to src directory"<CR>
-    ":echo "Changed to src/ dir"<CR> 
-    "Fix above, its broken in workspaces
     autocmd Filetype rust nnoremap <silent><leader>M :lua require'rust-tools.expand_macro'.expand_macro()<CR>
     autocmd Filetype rust nnoremap <silent>gk :lua require'rust-tools.parent_module'.parent_module()<CR>
-    "autocmd Filetype rust nnoremap <silent><leader>dr :Gcd<CR>:echo "Changed to git root dir"<CR>
-    "consider changing above command to be called whenever a rust file is opened rather than as executable
+    autocmd Filetype rust nnoremap <silent>gb :RustOpenDocs<CR>
+
 " Navigation
     nnoremap <silent><leader>dr :Gcd<CR>:echo "Changed to git root dir"<CR>
     nnoremap <silent><leader>dh :cd<CR>:echo "Changed to home dir"<CR>
+    nnoremap <silent><leader>bn :bn<CR>
+    nnoremap <silent><leader>bp :bp<CR>
+    nnoremap <silent><leader>bl :bl<CR>
+    nnoremap <silent><leader>bf :bf<CR>
+    nnoremap <silent><leader>bd :bd<CR>
+" Splits
+    nnoremap <silent><C-Left> <C-w>10>
+    nnoremap <silent><C-Right> <C-w>10<
+    nnoremap <silent><C-Down> <C-w>10-
+    nnoremap <silent><C-Up> <C-w>10+
+    "TODO add buffer hotkeys with leader i.e. <leader>
+" Font
+  lua require("user.font")
+" Neovide
+"
+   set mouse=n
+   let g:neovide_cursor_vfx_mode = "wireframe"
+   let g:neovide_cursor_animation_length=0.035
+   let g:neovide_cursor_trail_length=0.01
+
+   let g:neovide_scroll_animation_length = 0.3
+   let g:neovide_cursor_unfocused_outline_width=0.125
 "end
 "autocmd Filetype rust map <silent><leader><leader> :w<CR>:!rustfmt %<CR>:!cargo check<CR>
 "nnoremap ,latex :-1read $dotfiles/snippets/assignment.tex<CR>72jo "use <leader>,<CMD> 
