@@ -1,7 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 export TEMR_ITALICS=true
-if command -v nvim &>/dev/null ; then
+if command -v neovide &>/dev/null && xprop -root &> /dev/null ; then
+    NEOVIDE_MULTIGRID=1 /usr/bin/neovide --multigrid "$@"
+elif command -v neovim &>/dev/null ; then
     /usr/bin/nvim "$@"
-else 
+else
     /usr/bin/vim "$@"
 fi
