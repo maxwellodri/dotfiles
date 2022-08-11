@@ -25,10 +25,11 @@ emacs=".emacs.d/init.el"
 ncmpcpp=".config/mpd/mpd.conf .config/ncmpcpp/config"
 bsp=".config/bspwm/bspwmrc .config/bspwm/terminals .config/bspwm/swallow .config/bspwm/noswallow"
 sxhkdconfig=.config/sxhkd/sxhkdrc
+rofi=.config/rofi/config.rasi
 
 ########### Meta Variables
 i3=" $i3config $i3statusconfig" #i3wm
-xfiles=" .xinitrc $zathura $picom $dunst $ncmpcpp .Xresources $sxhkdconfig"
+xfiles=" .xinitrc $zathura $picom $dunst $ncmpcpp .Xresources $sxhkdconfig $rofi"
 bash=" .bashrc .bashrc_extra .bash_profile $sh $pam"
 zsh=" .zshrc .zshrc_extra .zprofile $sh $pam" 
 files=" .vimrc .config/nvim $mutt $ytdl $newsboat $tmux $gpg $emacs"
