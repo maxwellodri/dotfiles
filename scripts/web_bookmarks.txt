@@ -67,6 +67,7 @@ web_bookmarks = {
 'vim': 'https://vim.rtorr.com',
 'wt': 'https://app.wonderland.money/#/stake',
 'cal': 'https://nextcloud.odri.net.au/apps/calendar/dayGridMonth/now',
-'skyrimmodmapper': 'https://modmapper.com/'
+'skyrimmodmapper': 'https://modmapper.com/',
+'bevydocs': 'https://docs.rs/bevy/latest',
 }
 

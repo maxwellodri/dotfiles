@@ -21,6 +21,9 @@ commands = {
 					enable = true,
 				}
 			},
+			checkOnSave = {
+				command = "clippy",
+			},
 			cargo = {
 				loadOutDirsFromCheck = true,
 			},

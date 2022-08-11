@@ -1,23 +1,18 @@
 //--- hatsuyuki ---
 // by Catzpaw 2016
-#ifdef GL_ES
-precision mediump float;
-#endif
-
-#extension GL_OES_standard_derivatives : enable
+#version 450
 #define speed 1.
 uniform float time;
 uniform vec2 mouse;
 uniform vec2 resolution;
+out vec4 out_color;
 
 vec3 hsv2rgb(vec3 c) {
 	vec4 K = vec4(1.0, 1.0 / 2.0, 1.0 / 1.0, 2.0);
 	vec3 p = abs(fract(c.xxx + K.xyz) * 5.0 - K.www);
 	return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
 }
-
 void main(void){
-
     vec2 uv = -1.0 + 2.0*gl_FragCoord.xy / resolution.xy;
     uv.x *=  resolution.x / resolution.y;
     vec2 ms = (mouse.xy / resolution.xy);
@@ -56,5 +51,5 @@ void main(void){
     // vigneting
     color *= sqrt(1.5-0.5*length(uv));
 
-    gl_FragColor = vec4(color,1.0);
+  out_color =  vec4(color,1.0);
 }

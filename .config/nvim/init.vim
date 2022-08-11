@@ -1,7 +1,5 @@
 set runtimepath^=~/.vim runtimepath+=~/.vim/after
 runtime! expand('$HOME') + '/.config/nvim/plugin'
-" TODO add rust analyzer commands
-"let g:polyglot_disabled = ['rust']
 let &packpath=&runtimepath
 " Autoinstall VimPlug
     let data_dir = has('nvim') ? stdpath('data') . '/site' : '~/.vim'
@@ -50,6 +48,7 @@ let &packpath=&runtimepath
         endif
     endfunction
     Plug 'nvim-treesitter/nvim-treesitter', {'do': function('TSCustomInstall') }
+    Plug 'nvim-treesitter/nvim-treesitter-context'
     Plug 'sheerun/vim-polyglot' "AIO bundle
     Plug 'tikhomirov/vim-glsl'
     Plug 'JuliaEditorSupport/julia-vim'
@@ -201,6 +200,8 @@ let &packpath=&runtimepath
         
 " Treeitter
     lua require('user.treesitter-settings')
+" Treeitter Context
+    lua require('user.treesitter-context')
 " Telescope
     lua require('user.telescope-settings')
     lua require("telescope").load_extension("ui-select")
@@ -231,7 +232,7 @@ let &packpath=&runtimepath
     let g:fold_cycle_toggle_max_close = 1
 
 " Nerdtree
-   map <silent><C-b> :NERDTreeToggle<CR>
+   map <silent><leader>bb :NERDTreeToggle<CR>
    let g:NERDTreeWinSize=70
    let g:NERDTreeChDirMode=2
    let g:NERDTreeIgnore=['\.rbc$', '\~$', '\.pyc$', '\.db$', '\.sqlite$', '__pycache__']
@@ -332,7 +333,7 @@ let &packpath=&runtimepath
     let g:lastplace_ignore = "gitcommit,gitrebase,svn,hgcommit"
 
 " LSP / cmp / luasnip
-    set completeopt=menu,menuone,noselect
+    set completeopt=menu,menuone,noselect,preview
     lua require('user.cmp')
     lua require('user.lsp')
 
@@ -409,6 +410,8 @@ let &packpath=&runtimepath
     autocmd Filetype rust nnoremap <silent><leader>M :lua require'rust-tools.expand_macro'.expand_macro()<CR>
     autocmd Filetype rust nnoremap <silent>gk :lua require'rust-tools.parent_module'.parent_module()<CR>
     autocmd Filetype rust nnoremap <silent>gb :RustOpenDocs<CR>
+" wgsl
+   lua require'lspconfig'.wgsl_analyzer.setup{}
 
 " Navigation
     nnoremap <silent><leader>dr :Gcd<CR>:echo "Changed to git root dir"<CR>
@@ -418,6 +421,15 @@ let &packpath=&runtimepath
     nnoremap <silent><leader>bl :bl<CR>
     nnoremap <silent><leader>bf :bf<CR>
     nnoremap <silent><leader>bd :bd<CR>
+    nnoremap <silent><C-k> 10k
+    nnoremap <silent><C-j> 10j
+    nnoremap <silent><C-h> 10h
+    nnoremap <silent><C-l> 10l
+
+    vnoremap <silent><C-k> 10k
+    vnoremap <silent><C-j> 10j
+    vnoremap <silent><C-h> 10h
+    vnoremap <silent><C-l> 10l
 " Splits
     nnoremap <silent><C-Left> <C-w>10>
     nnoremap <silent><C-Right> <C-w>10<
@@ -426,9 +438,10 @@ let &packpath=&runtimepath
     "TODO add buffer hotkeys with leader i.e. <leader>
 " Font
   lua require("user.font")
+
 " Neovide
 "
-   set mouse=n
+   set mouse=nv
    let g:neovide_cursor_vfx_mode = "wireframe"
    let g:neovide_cursor_animation_length=0.035
    let g:neovide_cursor_trail_length=0.01

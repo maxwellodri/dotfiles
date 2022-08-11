@@ -2,7 +2,7 @@
 if [ -n "$1" ]; then 
     regex="$(echo "$1" | sed -e "s|$HOME|~|")"
     #regex=$1
-    xdotool search --name "$regex" && xdotool search --name "$regex" windowkill || st -e vim $1
+    xdotool search --name "$regex" && xdotool search --name "$regex" windowkill || st -e nvim $1
 else
     echo "Usage: togglerc <path to config file>"
 fi
