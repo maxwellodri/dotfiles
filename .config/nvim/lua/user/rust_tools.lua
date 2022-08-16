@@ -4,7 +4,7 @@ local opts = {
         autoSetHints = true,
         -- Whether to show hover actions inside the hover window
         -- This overrides the default hover handler
-        hover_with_actions = true,
+        -- hover_with_actions = true, //FIXME this was deprecated
 		-- how to execute terminal commands
 		-- options right now: termopen / quickfix
 		executor = require("rust-tools/executors").termopen,

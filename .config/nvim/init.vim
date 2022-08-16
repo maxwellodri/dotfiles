@@ -28,6 +28,8 @@ let &packpath=&runtimepath
     " Miscellaneous
     " ==============
     Plug 'tpope/vim-sensible'
+    Plug 'tpope/vim-surround' "adds s vim adjevtive
+    Plug 'tpope/vim-eunuch' "unix commands
     Plug 'farmergreg/vim-lastplace' "Keep cursor on quit
     Plug 'Raimondi/delimitMate' "auto create quotes, bracket pairs 
     Plug 'nvim-lua/plenary.nvim' "library of functions, used by other modules
@@ -62,6 +64,7 @@ let &packpath=&runtimepath
     " Rust Support "
     " ============ "
     Plug 'rust-lang/rust.vim'
+    Plug 'arzg/vim-rust-syntax-ext'
     Plug 'saecki/crates.nvim'
     Plug 'simrat39/rust-tools.nvim'
     " =================
@@ -214,15 +217,17 @@ let &packpath=&runtimepath
 
 " AnyFold + Fold Cylce
     "autocmd Filetype Telescope* call AnyFoldTelescope else call AnyFoldActivate
+    "
     augroup vim_anyfold
         autocmd!
         autocmd Filetype vim AnyFoldActivate
-        autocmd Filetype vim set foldlevel=0
+        autocmd Filetype vim setlocal foldnestmax=1
+        autocmd Filetype vim setlocal foldminlines=0
+        autocmd Filetype vim setlocal foldlevelstart=1
     augroup END
     hi Folded term=underline
-    autocmd Filetype cpp set foldignore=#/
     "let g:anyfold_identify_comments=2
-    autocmd User anyfoldLoaded normal zv
+    "autocmd User anyfoldLoaded normal zv
 
     let g:fold_cycle_default_mapping = 0 "disable default mappings
     
@@ -230,6 +235,20 @@ let &packpath=&runtimepath
     let g:fold_cycle_toggle_max_open  = 1
     " Won't open when max fold is closed
     let g:fold_cycle_toggle_max_close = 1
+    augroup rust_fold 
+        autocmd!
+        autocmd Filetype rust setlocal foldminlines=10
+        autocmd Filetype rust setlocal foldnestmax=1
+        autocmd Filetype rust setlocal foldlevel=0
+        autocmd Filetype vim setlocal foldlevelstart=1
+        autocmd Filetype rust setlocal foldmethod=expr
+        autocmd Filetype rust setlocal foldexpr=nvim_treesitter#foldexpr()
+    augroup END
+    autocmd Filetype cpp setlocal foldignore=#/
+    "autocmd Filetype Rust set foldminlines=10
+    "autocmd Filetype Rust set foldnestmax=2
+    "autocmd Filetype Rust set foldmethod=expr
+    "autocmd Filetype Rust set foldexpr=nvim_treesitter#foldexpr()
 
 " Nerdtree
    map <silent><leader>bb :NERDTreeToggle<CR>
@@ -413,7 +432,7 @@ let &packpath=&runtimepath
 " wgsl
    lua require'lspconfig'.wgsl_analyzer.setup{}
 
-" Navigation
+" Navigation & Splits
     nnoremap <silent><leader>dr :Gcd<CR>:echo "Changed to git root dir"<CR>
     nnoremap <silent><leader>dh :cd<CR>:echo "Changed to home dir"<CR>
     nnoremap <silent><leader>bn :bn<CR>
@@ -430,7 +449,6 @@ let &packpath=&runtimepath
     vnoremap <silent><C-j> 10j
     vnoremap <silent><C-h> 10h
     vnoremap <silent><C-l> 10l
-" Splits
     nnoremap <silent><C-Left> <C-w>10>
     nnoremap <silent><C-Right> <C-w>10<
     nnoremap <silent><C-Down> <C-w>10-

@@ -42,6 +42,10 @@ super + shift + t
 	torr && notify-send -t 750 "Torrent Added 🏴‍☠️"
 super + ctrl + shift + s
     wholescreensave && sleep 0.2 && notify-send -t 1000 "Screenshot Taken"
+super + shift + o
+    xdotool mousemove 2200 1000 && sleep 0.1 && xdotool mousemove 2250 1050 && sleep 0.1 && xdotool mousemove 2300 && 1000
+super + shift + s
+    screensave
 
 
 #  _                    _      
@@ -57,7 +61,8 @@ super + ctrl + shift + s
 super + shift + g
 	gpumine
 super + shift + m
-	pgrep ncmpcpp && pkill ncmpcpp || st -e ncmpcpp #toggle ncmpcpp
+    ~/bin/monitor.sh && feh --bg-scale "$dotfiles/images/low_poly_red.jpg"
+#	pgrep ncmpcpp && pkill ncmpcpp || st -e ncmpcpp #toggle ncmpcpp
 super + shift + n
 	pgrep newsboat && pkill newsboat || st -e newsboat #toggle newsboat
 	#pgrep newsboat && notify-send "🤠a Newsboat is reloading 🤠" || st -e newsboat #toggle newsboat

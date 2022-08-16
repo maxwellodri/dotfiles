@@ -152,3 +152,7 @@ function! s:get_visual_selection()
 
     inoremap <left> <nop>
 
+" F13 to Escape
+
+
+
