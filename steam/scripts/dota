@@ -1,3 +1,2 @@
 #!/bin/sh
-pgrep dota | xargs kill -9
 steam -applaunch 570

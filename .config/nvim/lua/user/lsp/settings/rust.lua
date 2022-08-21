@@ -1,10 +1,51 @@
-local opts = {
+local ra =  {
+commands = {
+	RustOpenDocs = {
+	      function()
+	        vim.lsp.buf_request(vim.api.nvim_get_current_buf(), 'experimental/externalDocs', vim.lsp.util.make_position_params(), function(err, url)
+	          if err then
+	            error(tostring(err))
+	          else
+	            vim.fn['netrw#BrowseX'](url, 0)
+	          end
+	        end)
+	      end,
+	      description = 'Open documentation for the symbol under the cursor in default browser',
+	    },
+	},
+  settings = {
+      ["rust-analyzer"] = {
+				procMacro = {
+					enable = true,
+				attributes = {
+					enable = true,
+				}
+			},
+			checkOnSave = {
+				command = "clippy",
+			},
+			cargo = {
+				loadOutDirsFromCheck = true,
+			},
+    }
+	}
+}
+local generic_opts = {
+  on_attach = require("user.lsp.handlers").on_attach,
+  capabilities = require("user.lsp.handlers").capabilities,
+  config = require("user.lsp.handlers").config,
+}
+
+local extension_path = vim.env.HOME .. '/.vscode/extensions/vadimcn.vscode-lldb-1.6.7/'
+local codelldb_path = extension_path .. 'adapter/codelldb'
+local liblldb_path = extension_path .. 'lldb/lib/liblldb.so'
+
+OPTS = {
     tools = { -- rust-tools options
         -- Automatically set inlay hints (type hints)
         autoSetHints = true,
         -- Whether to show hover actions inside the hover window
         -- This overrides the default hover handler
-        -- hover_with_actions = true, //FIXME this was deprecated
 		-- how to execute terminal commands
 		-- options right now: termopen / quickfix
 		executor = require("rust-tools/executors").termopen,
@@ -27,7 +68,7 @@ local opts = {
         inlay_hints = {
 
             -- Only show inlay hints for the current line
-            only_current_line = true,
+            only_current_line = false,
 
             -- Event which triggers a refersh of the inlay hints.
             -- You can make this "CursorMoved" or "CursorMoved,CursorMovedI" but
@@ -97,9 +138,14 @@ local opts = {
     -- these override the defaults set by rust-tools.nvim
     -- see https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#rust_analyzer
 	server = {
+    commands = ra.commands,
+    settings = ra.settings,
 		-- standalone file support
 		-- setting it to false may improve startup time
 		standalone = false,
+    capabilities = generic_opts.capabilities,
+    config = generic_opts.config,
+    on_attach = generic_opts.on_attach,
 	}, -- rust-analyer options
 
     -- debugging stuff
@@ -111,5 +157,4 @@ local opts = {
         }
     }
 }
-
-require('rust-tools').setup(opts)
+return OPTS

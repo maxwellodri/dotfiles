@@ -63,25 +63,41 @@ let &packpath=&runtimepath
     " ============ "
     " Rust Support "
     " ============ "
+    function! RustToolsCustomInstall(info) 
+        " info is a dictionary with 3 fields
+        " - name:   name of the plugin
+        " - status: 'installed', 'updated', or 'unchanged'
+        " - force:  set on PlugInstall! or PlugUpdate!
+        if a:info.status == 'installed'
+            echo "Ensure the LLDB VSCode Extension is installed; see https://github.com/simrat39/rust-tools.nvim/wiki/Debugging"
+        endif
+        if a:info.status == 'updated'
+            echo "Check the LLDB VSCode Extension for updates!"
+        endif
+    endfunction
     Plug 'rust-lang/rust.vim'
     Plug 'arzg/vim-rust-syntax-ext'
     Plug 'saecki/crates.nvim'
-    Plug 'simrat39/rust-tools.nvim'
+    Plug 'simrat39/rust-tools.nvim', {'do': function('RustToolsCustomInstall') }
     " =================
     " LSP / cmp / LuaSnip
     " =================
+    Plug 'williamboman/mason.nvim'
+    Plug 'williamboman/mason-lspconfig.nvim'
+    Plug 'jose-elias-alvarez/null-ls.nvim'
     Plug 'neovim/nvim-lspconfig' 
     Plug 'hrsh7th/nvim-cmp'
     Plug 'hrsh7th/cmp-buffer'
     Plug 'hrsh7th/cmp-path'
     Plug 'hrsh7th/cmp-cmdline'
     Plug 'hrsh7th/cmp-nvim-lsp'
-    Plug 'williamboman/nvim-lsp-installer'
     Plug 'saadparwaiz1/cmp_luasnip' 
     Plug 'hrsh7th/cmp-nvim-lua'
+    Plug 'hrsh7th/cmp-nvim-lsp-document-symbol'
     Plug 'L3MON4D3/LuaSnip' "snippet engine
     Plug 'rafamadriz/friendly-snippets' "a bunch of snippets to use
     Plug 'mfussenegger/nvim-dap'
+    Plug 'onsails/lspkind.nvim'
     "" ====
     "" Git
     "" ====
@@ -115,6 +131,7 @@ let &packpath=&runtimepath
     Plug 'ajmwagar/vim-deus' 
     Plug 'sainnhe/edge'
     Plug 'jnurmine/Zenburn'
+    Plug 'arzg/vim-colors-xcode'
     "Plug 'pineapplegiant/spaceduck'
     " ===============
     " NoteTaking & Vim Wiki
@@ -216,145 +233,59 @@ let &packpath=&runtimepath
     nnoremap <leader>rv :vsplit<CR>:<cmd>Telescope live_grep prompt_prefix=🔍🤔<CR>
 
 " AnyFold + Fold Cylce
-    "autocmd Filetype Telescope* call AnyFoldTelescope else call AnyFoldActivate
-    "
-    augroup vim_anyfold
-        autocmd!
-        autocmd Filetype vim AnyFoldActivate
-        autocmd Filetype vim setlocal foldnestmax=1
-        autocmd Filetype vim setlocal foldminlines=0
-        autocmd Filetype vim setlocal foldlevelstart=1
-    augroup END
-    hi Folded term=underline
-    "let g:anyfold_identify_comments=2
-    "autocmd User anyfoldLoaded normal zv
+  autocmd Filetype Telescope* call AnyFoldTelescope 
+  augroup vim_anyfold
+    autocmd!
+    autocmd Filetype vim AnyFoldActivate
+    autocmd Filetype vim set foldnestmax=0
+    autocmd Filetype vim set foldminlines=0
+    autocmd Filetype vim set foldlevelstart=1
+  augroup END
+  hi Folded term=underline
+  autocmd User anyfoldLoaded normal zv
+  "let g:anyfold_identify_comments=2
 
-    let g:fold_cycle_default_mapping = 0 "disable default mappings
-    
-    " Won't close when max fold is opened
-    let g:fold_cycle_toggle_max_open  = 1
-    " Won't open when max fold is closed
-    let g:fold_cycle_toggle_max_close = 1
-    augroup rust_fold 
-        autocmd!
-        autocmd Filetype rust setlocal foldminlines=10
-        autocmd Filetype rust setlocal foldnestmax=1
-        autocmd Filetype rust setlocal foldlevel=0
-        autocmd Filetype vim setlocal foldlevelstart=1
-        autocmd Filetype rust setlocal foldmethod=expr
-        autocmd Filetype rust setlocal foldexpr=nvim_treesitter#foldexpr()
-    augroup END
-    autocmd Filetype cpp setlocal foldignore=#/
-    "autocmd Filetype Rust set foldminlines=10
-    "autocmd Filetype Rust set foldnestmax=2
-    "autocmd Filetype Rust set foldmethod=expr
-    "autocmd Filetype Rust set foldexpr=nvim_treesitter#foldexpr()
+  let g:fold_cycle_default_mapping = 0 "disable default mappings
+  " Won't close when max fold is opened
+  let g:fold_cycle_toggle_max_open  = 1
+  " Won't open when max fold is closed
+  let g:fold_cycle_toggle_max_close = 1
+  augroup rust_fold 
+      autocmd!
+      autocmd Filetype rust set foldminlines=20
+      autocmd Filetype rust set foldnestmax=1
+      autocmd Filetype rust set foldlevel=0
+      autocmd Filetype rust set foldmethod=expr
+      autocmd Filetype rust set foldexpr=nvim_treesitter#foldexpr()
+  augroup END
+  autocmd Filetype cpp setlocal foldignore=#/
 
 " Nerdtree
-   map <silent><leader>bb :NERDTreeToggle<CR>
-   let g:NERDTreeWinSize=70
-   let g:NERDTreeChDirMode=2
-   let g:NERDTreeIgnore=['\.rbc$', '\~$', '\.pyc$', '\.db$', '\.sqlite$', '__pycache__']
-   let g:NERDTreeSortOrder=['^__\.py$', '\/$', '*', '\.swp$', '\.bak$', '\~$']
-   let g:NERDTreeShowBookmarks=1
-   let g:nerdtree_tabs_focus_on_files=1
-   let g:NERDTreeMapOpenInTabSilent = '<RightMouse>'
-   let g:NERDTreeWinPos = "right"
-   "autocmd VimEnter * NERDTree | wincmd p
-   autocmd BufEnter * if tabpagenr('$') == 1 && winnr('$') == 1 && exists('b:NERDTree') && b:NERDTree.isTabTree() | quit | endif "Exit Vim if NERDTree is the only window remaining in the only tab.
-   autocmd BufWritePost * silent! NERDTreeRefreshRoot 
-" NvimTree
-    "let g:nvim_tree_quit_on_open = 1 "0 by default, closes the tree when you open a file
-    "let g:nvim_tree_indent_markers = 1 "0 by default, this option shows indent markers when folders are open
-    "let g:nvim_tree_git_hl = 1 "0 by default, will enable file highlight for git attributes (can be used without the icons).
-    "let g:nvim_tree_highlight_opened_files = 1 "0 by default, will enable folder and file icon highlight for opened files/directories.
-    "let g:nvim_tree_root_folder_modifier = ':~' "This is the default. See :help filename-modifiers for more options
-    "let g:nvim_tree_add_trailing = 1 "0 by default, append a trailing slash to folder names
-    "let g:nvim_tree_group_empty = 1 " 0 by default, compact folders that only contain a single folder into one node in the file tree
-    "let g:nvim_tree_disable_window_picker = 1 "0 by default, will disable the window picker.
-    "let g:nvim_tree_icon_padding = ' ' "one space by default, used for rendering the space between the icon and the filename. Use with caution, it could break rendering if you set an empty string depending on your font.
-    "let g:nvim_tree_symlink_arrow = ' >> ' " defaults to ' ➛ '. used as a separator between symlinks' source and target.
-    "let g:nvim_tree_respect_buf_cwd = 1 "0 by default, will change cwd of nvim-tree to that of new buffer's when opening nvim-tree.
-    "let g:nvim_tree_create_in_closed_folder = 0 "1 by default, When creating files, sets the path of a file when cursor is on a closed folder to the parent folder when 0, and inside the folder when 1.
-    "let g:nvim_tree_refresh_wait = 500 "1000 by default, control how often the tree can be refreshed, 1000 means the tree can be refresh once per 1000ms.
-    "let g:nvim_tree_window_picker_exclude = {
-    "    \   'filetype': [
-    "    \     'notify',
-    "    \     'packer',
-    "    \     'qf'
-    "    \   ],
-    "    \   'buftype': [
-    "    \     'terminal'
-    "    \   ]
-    "    \ }
-    "" Dictionary of buffer option names mapped to a list of option values that
-    "" indicates to the window picker that the buffer's window should not be
-    "" selectable.
-    "let g:nvim_tree_special_files = { 'README.md': 1, 'Makefile': 1, 'MAKEFILE': 1 } " List of filenames that gets highlighted with NvimTreeSpecialFile
-    "let g:nvim_tree_show_icons = {
-    "    \ 'git': 1,
-    "    \ 'folders': 0,
-    "    \ 'files': 0,
-    "    \ 'folder_arrows': 0,
-    "    \ }
-    ""If 0, do not show the icons for one of 'git' 'folder' and 'files'
-    ""1 by default, notice that if 'files' is 1, it will only display
-    ""if nvim-web-devicons is installed and on your runtimepath.
-    ""if folder is 1, you can also tell folder_arrows 1 to show small arrows next to the folder icons.
-    ""but this will not work when you set indent_markers (because of UI conflict)
-    "
-    "" default will show icon by default if no icon is provided
-    "" default shows no icon by default
-    "let g:nvim_tree_icons = {
-    "    \ 'default': '',
-    "    \ 'symlink': '',
-    "    \ 'git': {
-    "    \   'unstaged': "✗",
-    "    \   'staged': "✓",
-    "    \   'unmerged': "",
-    "    \   'renamed': "➜",
-    "    \   'untracked': "★",
-    "    \   'deleted': "",
-    "    \   'ignored': "◌"
-    "    \   },
-    "    \ 'folder': {
-    "    \   'arrow_open': "",
-    "    \   'arrow_closed': "",
-    "    \   'default': "",
-    "    \   'open': "",
-    "    \   'empty': "",
-    "    \   'empty_open': "",
-    "    \   'symlink': "",
-    "    \   'symlink_open': "",
-    "    \   }
-    "    \ }
-    "
-    "nnoremap <C-a> :NvimTreeToggle<CR>
-    "nnoremap <leader>ar :NvimTreeRefresh<CR>
-    "nnoremap <leader>an :NvimTreeFindFile<CR>
-    "" NvimTreeOpen, NvimTreeClose, NvimTreeFocus, NvimTreeFindFileToggle, and NvimTreeResize are also available if you need them
-    "
-    "" a list of groups can be found at `:help nvim_tree_highlight`
-    "highlight NvimTreeFolderIcon guibg=blue
-    "lua require('nvimtree-settings')
+  map <silent><leader>bb :NERDTreeToggle<CR>
+  let g:NERDTreeWinSize=70
+  let g:NERDTreeChDirMode=2
+  let g:NERDTreeIgnore=['\.rbc$', '\~$', '\.pyc$', '\.db$', '\.sqlite$', '__pycache__']
+  let g:NERDTreeSortOrder=['^__\.py$', '\/$', '*', '\.swp$', '\.bak$', '\~$']
+  let g:NERDTreeShowBookmarks=1
+  let g:nerdtree_tabs_focus_on_files=1
+  let g:NERDTreeMapOpenInTabSilent = '<RightMouse>'
+  let g:NERDTreeWinPos = "right"
+  "autocmd VimEnter * NERDTree | wincmd p
+  autocmd BufEnter * if tabpagenr('$') == 1 && winnr('$') == 1 && exists('b:NERDTree') && b:NERDTree.isTabTree() | quit | endif "Exit Vim if NERDTree is the only window remaining in the only tab.
+  autocmd BufWritePost * silent! NERDTreeRefreshRoot 
 " lazygit
-    let g:lazygit_floating_window_winblend = 0 " transparency of floating window
-    let g:lazygit_floating_window_scaling_factor = 0.9 " scaling factor for floating window
-    let g:lazygit_floating_window_corner_chars = ['╭', '╮', '╰', '╯'] " customize lazygit popup window corner characters
-    let g:lazygit_floating_window_use_plenary = 0 " use plenary.nvim to manage floating window if available
-    let g:lazygit_use_neovim_remote = 1 " fallback to 0 if neovim-remote is not installed
-    nnoremap <silent> <leader>gg :LazyGit<CR>
-    lua require("telescope").load_extension("lazygit")
+   let g:lazygit_floating_window_winblend = 0 " transparency of floating window
+   let g:lazygit_floating_window_scaling_factor = 0.9 " scaling factor for floating window
+   let g:lazygit_floating_window_corner_chars = ['╭', '╮', '╰', '╯'] " customize lazygit popup window corner characters
+   let g:lazygit_floating_window_use_plenary = 0 " use plenary.nvim to manage floating window if available
+   let g:lazygit_use_neovim_remote = 1 " fallback to 0 if neovim-remote is not installed
+   nnoremap <silent> <leader>gg :LazyGit<CR>
+   lua require("telescope").load_extension("lazygit")
 
 " Yank Highlighting
-   let g:highlightedyank_highlight_duration = 650
+  let g:highlightedyank_highlight_duration = 650
 " Lastplace
-    let g:lastplace_ignore = "gitcommit,gitrebase,svn,hgcommit"
-
-" LSP / cmp / luasnip
-    set completeopt=menu,menuone,noselect,preview
-    lua require('user.cmp')
-    lua require('user.lsp')
+  let g:lastplace_ignore = "gitcommit,gitrebase,svn,hgcommit"
 
 " Markdown Options
     autocmd Filetype markdown set conceallevel=2
@@ -362,7 +293,6 @@ let &packpath=&runtimepath
     autocmd Filetype lua set softtabstop=2
     autocmd Filetype lua set tabstop=2
     autocmd Filetype lua set shiftwidth=2
-
 " Python Options
     autocmd Filetype python set tabstop=4 
     autocmd Filetype python set softtabstop=4
@@ -384,6 +314,13 @@ let &packpath=&runtimepath
     "unmap <leader>wd
     "unmap <leader>wr
     nnoremap <leader>wo <Plug>VimwikiIndex
+" LSP / cmp / luasnip
+  set completeopt=menu,menuone,noselect,preview
+  lua require("user.mason")
+  lua require("user.lsp")
+  nnoremap <leader><C-m> :Mason<CR>
+  lua require('user.cmp').setup()
+
 " Rust Options
     function! GetSrcDir(...) abort
         if a:0 == 0
@@ -419,19 +356,15 @@ let &packpath=&runtimepath
         execute 'cd' fnameescape(g:parent_dir)
         echo 'Changed to parent'
       endif
-    endfunction
-
-    lua require('crates').setup()
-    lua require("user.rust_tools")
-    autocmd BufWritePre *.rs lua vim.lsp.buf.formatting_sync(nil, 1000)
+    endfunctio
+    
+    autocmd BufWritePre *.rs lua vim.lsp.buf.format({timeout_ms = 1000 })
     autocmd Filetype rust nnoremap <leader>ds :call CdSrcDir()<CR>
     autocmd Filetype rust nnoremap <leader>dS :call CdParent()<CR>
     autocmd Filetype rust nnoremap <silent><leader>M :lua require'rust-tools.expand_macro'.expand_macro()<CR>
     autocmd Filetype rust nnoremap <silent>gk :lua require'rust-tools.parent_module'.parent_module()<CR>
     autocmd Filetype rust nnoremap <silent>gb :RustOpenDocs<CR>
-" wgsl
-   lua require'lspconfig'.wgsl_analyzer.setup{}
-
+    lua require('crates').setup()
 " Navigation & Splits
     nnoremap <silent><leader>dr :Gcd<CR>:echo "Changed to git root dir"<CR>
     nnoremap <silent><leader>dh :cd<CR>:echo "Changed to home dir"<CR>
@@ -466,6 +399,9 @@ let &packpath=&runtimepath
 
    let g:neovide_scroll_animation_length = 0.3
    let g:neovide_cursor_unfocused_outline_width=0.125
+    if exists("g:neovide")
+        set titlestring="%F Neovide"
+    endif
 "end
 "autocmd Filetype rust map <silent><leader><leader> :w<CR>:!rustfmt %<CR>:!cargo check<CR>
 "nnoremap ,latex :-1read $dotfiles/snippets/assignment.tex<CR>72jo "use <leader>,<CMD> 

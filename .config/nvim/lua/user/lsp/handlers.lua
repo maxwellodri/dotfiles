@@ -72,7 +72,6 @@ M.setup = function()
     border = "rounded",
   })
   vim.lsp.handlers["textDocument/definition"] = goto_definition('e')
-  -- vim.lsp.handlers["textDocument/implementation"] = goto_definition('e')
 end
 
 local function lsp_highlight_document(client)
@@ -123,19 +122,16 @@ M.on_attach = function(client, bufnr)
         augroup END
       ]]
   end
-  if client.name == "tsserver" then
-    client.resolved_capabilities.document_formatting = false
-  end
   lsp_keymaps(bufnr)
   lsp_highlight_document(client)
 end
-local capabilities = vim.lsp.protocol.make_client_capabilities()
 
 local status_ok, cmp_nvim_lsp = pcall(require, "cmp_nvim_lsp")
 if not status_ok then
   return
 end
 
+local capabilities = vim.lsp.protocol.make_client_capabilities()
 M.capabilities = cmp_nvim_lsp.update_capabilities(capabilities)
 
 return M

@@ -15,23 +15,23 @@ if exists('$SHELL') "probably unnecesary
     set shell=/bin/sh 
     endif
 " set variables
+    set encoding=utf-8
     set textwidth=0
     set nowrap
     set termguicolors
     set title
-    set titlestring=%F "necessary to be able to 'toggle' configs in sxhkd
+    "set titlestring=%F "necessary to be able to 'toggle' configs in sxhkd
+    set titlestring=nvim
     set sessionoptions-=options
     set softtabstop=4
-    set shiftwidth=0
-    set expandtab
     set tabstop=4
     set shiftwidth=4
+    set expandtab
     set smarttab
     set autoindent
     set path+=** ""recursive subdirectory search
     set wildmenu
     set wildmode=longest,list,full
-    set encoding=utf-8
     set clipboard=unnamedplus
     set number
     set nocompatible
@@ -151,8 +151,8 @@ function! s:get_visual_selection()
     autocmd Filetype make set noexpandtab "force tabs for make
 
     inoremap <left> <nop>
-
-" F13 to Escape
-
-
-
+" Vimscript Options
+    autocmd Filetype vim set softtabstop=2
+    autocmd Filetype vim set tabstop=2
+    autocmd Filetype vim set shiftwidth=2
+    
