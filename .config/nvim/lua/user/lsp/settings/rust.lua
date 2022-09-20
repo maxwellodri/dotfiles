@@ -1,19 +1,31 @@
-local ra =  {
-commands = {
-	RustOpenDocs = {
-	      function()
-	        vim.lsp.buf_request(vim.api.nvim_get_current_buf(), 'experimental/externalDocs', vim.lsp.util.make_position_params(), function(err, url)
-	          if err then
-	            error(tostring(err))
-	          else
-	            vim.fn['netrw#BrowseX'](url, 0)
-	          end
-	        end)
-	      end,
-	      description = 'Open documentation for the symbol under the cursor in default browser',
-	    },
-	},
-  settings = {
+function Toggle_inlay_hints()
+    local hints = _G.RUSTTOOLSINLAY or OPTS.inlay_hints
+    if hints == true then
+        -- require('rust-tools').inlay_hints.disable()
+        vim.cmd("RustDisableInlayHints")
+    else
+        vim.cmd("RustEnableInlayHints")
+    -- require('rust-tools').inlay_hints.enable()
+    end
+    _G.RUSTTOOLSINLAY = not _G.RUSTTOOLSINLAY
+end
+
+local ra_commands = {
+	-- RustOpenDocs = {
+	--       function()
+	--         vim.lsp.buf_request(vim.api.nvim_get_current_buf(), 'experimental/externalDocs', vim.lsp.util.make_position_params(), function(err, url)
+	--           if err then
+	--             error(tostring(err))
+	--           else
+	--             vim.fn['netrw#BrowseX'](url, 0)
+	--           end
+	--         end)
+	--       end,
+	--       description = 'Open documentation for the symbol under the cursor in default browser',
+	--     },
+}
+
+local ra_settings = {
       ["rust-analyzer"] = {
 				procMacro = {
 					enable = true,
@@ -27,14 +39,24 @@ commands = {
 			cargo = {
 				loadOutDirsFromCheck = true,
 			},
+            imports = { prefix = "crate" },
+            inlay_hints = { lifetimeElisionHints = { enable = "skip_trivial" }, },
     }
-	}
 }
+
 local generic_opts = {
   on_attach = require("user.lsp.handlers").on_attach,
   capabilities = require("user.lsp.handlers").capabilities,
   config = require("user.lsp.handlers").config,
 }
+
+local function ra_callback (status)
+    if status == "ok" then
+        vim.cmd('echo "RustAnalyzer fully loaded 😌!"')
+    else
+        vim.cmd("echo RustAnalyzer is 🤮!")
+    end
+end
 
 local extension_path = vim.env.HOME .. '/.vscode/extensions/vadimcn.vscode-lldb-1.6.7/'
 local codelldb_path = extension_path .. 'adapter/codelldb'
@@ -43,7 +65,7 @@ local liblldb_path = extension_path .. 'lldb/lib/liblldb.so'
 OPTS = {
     tools = { -- rust-tools options
         -- Automatically set inlay hints (type hints)
-        autoSetHints = true,
+        autoSetHints = false,
         -- Whether to show hover actions inside the hover window
         -- This overrides the default hover handler
 		-- how to execute terminal commands
@@ -56,6 +78,8 @@ OPTS = {
 
             -- rest of the opts are forwarded to telescope
         },
+        -- on_initialized = ra_callback,
+        reload_workspace_from_cargo_toml = true,
 
         debuggables = {
             -- whether to use telescope for selection menu or not
@@ -78,10 +102,10 @@ OPTS = {
             only_current_line_autocmd = "CursorHold",
 
             -- wheter to show parameter hints with the inlay hints or not
-            show_parameter_hints = true,
+            show_parameter_hints = false,
 
             -- prefix for parameter hints
-            parameter_hints_prefix = "<- ",
+            parameter_hints_prefix = "", -- <- ",
 
             -- prefix for all the other hints (type, chaining)
             other_hints_prefix = "=> ",
@@ -90,16 +114,16 @@ OPTS = {
             max_len_align = true,
 
             -- padding from the left if max_len_align is true
-            max_len_align_padding = 8,
+            max_len_align_padding = 4,
 
             -- whether to align to the extreme right or not
-            right_align = true,
+            right_align = false,
 
             -- padding from the right if right_align is true
             right_align_padding = 8,
 
             -- The color of the hints
-            highlight = "Comment",
+            highlight = "SpecialComment",
         },
 
         hover_actions = {
@@ -133,20 +157,14 @@ OPTS = {
             full = true,
         }
     },
-
-    -- all the opts to send to nvim-lspconfig
-    -- these override the defaults set by rust-tools.nvim
-    -- see https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#rust_analyzer
 	server = {
-    commands = ra.commands,
-    settings = ra.settings,
-		-- standalone file support
-		-- setting it to false may improve startup time
-		standalone = false,
-    capabilities = generic_opts.capabilities,
-    config = generic_opts.config,
-    on_attach = generic_opts.on_attach,
-	}, -- rust-analyer options
+        commands = ra_commands,
+        settings = ra_settings,
+	    standalone = false,
+        capabilities = generic_opts.capabilities,
+        config = generic_opts.config,
+        on_attach = generic_opts.on_attach,
+	},
 
     -- debugging stuff
     dap = {
@@ -157,4 +175,15 @@ OPTS = {
         }
     }
 }
+
+local _ = require('null-ls')
+
+require('crates').setup {
+    date_format = "%d-%m-%Y",
+    null_ls = {
+        enabled = true,
+        name = "crates.nvim",
+    },
+}
+
 return OPTS

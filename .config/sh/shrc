@@ -49,7 +49,6 @@ bindkey -s 'C-c' 'kill -9 !%' #ruthless version of standard ctrl-c => should alw
 #type fzf >> /dev/null && type fd >> /dev/null 
 alias cat='bat'
 alias crontab='VISUAL=vim && crontab'
-alias dfn='df -h | egrep "Filesystem|nvme|sd"'
 alias myip='curl ipinfo.io/ip'
 alias zshrc="vim ~/.zshrc && source ~/.zshrc"
 alias bashrc="vim ~/.bashrc && source ~/.bashrc"
@@ -93,7 +92,6 @@ alias tsm='transmission-remote --torrent-done-script ~/bin/torrdone'
 alias tsmr='transmission-remote -l | grep -v 'Queued''
 alias tsmd="transmission-remote -l | grep 100%"
 alias mpvr="find . -maxdepth 1 | shuf | grep -x . -v | xargs mpv"
-
 alias mkdir="mkdir -pv"
 alias lss='ls'
 type exa >/dev/null && alias ls="exa --color=auto -hal --group-directories-first"
@@ -107,7 +105,7 @@ alias mv="mv -v"
 alias cp="cp -v"
 alias pacs="pacman -Slq | fzf -m --preview 'pacman -Si {1}' | xargs -ro sudo pacman -S"
 alias alp="vim $dotfiles/archlinux_x86_64_packages"
-alias dfn='df -h | egrep "Filesystem|nvme|sd"'
+alias dfn='df -h | grep -E "Filesystem|nvme|sd"'
 alias untar='tar -zxvf'
 alias screensave="xclip -selection clipboard -target image/png -out > out.png"
 

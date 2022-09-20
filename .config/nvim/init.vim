@@ -78,7 +78,7 @@ let &packpath=&runtimepath
     Plug 'rust-lang/rust.vim'
     Plug 'arzg/vim-rust-syntax-ext'
     Plug 'saecki/crates.nvim'
-    Plug 'simrat39/rust-tools.nvim', {'do': function('RustToolsCustomInstall') }
+    Plug 'simrat39/rust-tools.nvim'
     " =================
     " LSP / cmp / LuaSnip
     " =================
@@ -121,6 +121,7 @@ let &packpath=&runtimepath
     Plug 'machakann/vim-highlightedyank' "highlight on yank
     Plug 'vim-airline/vim-airline'
     Plug 'vim-airline/vim-airline-themes'
+    Plug 'Yggdroot/indentLine'
     " ===============
     " Color Schemes 
     " ===============
@@ -128,10 +129,12 @@ let &packpath=&runtimepath
     Plug 'tomasr/molokai'
     Plug 'morhetz/gruvbox'
     Plug 'ghifarit53/tokyonight-vim' 
+    Plug 'savq/melange'
     Plug 'ajmwagar/vim-deus' 
     Plug 'sainnhe/edge'
     Plug 'jnurmine/Zenburn'
     Plug 'arzg/vim-colors-xcode'
+    Plug 'ChristianChiarulli/nvcode-color-schemes.vim'
     "Plug 'pineapplegiant/spaceduck'
     " ===============
     " NoteTaking & Vim Wiki
@@ -166,13 +169,13 @@ let &packpath=&runtimepath
     au Syntax * RainbowParenthesesLoadBraces
 
 " Colorscheme
-    let g:gruvbox_italic=1
-    let g:gruvbox_bold=1
-    let g:gruvbox_underline=1
-    let g:gruvbox_termcolors=256
-    let g:gruvbox_contrast_dark='medium'
-    let g:gruvbox_contrast_light='hard'
-    colorscheme gruvbox
+     let g:gruvbox_italic=1
+     let g:gruvbox_bold=1
+     let g:gruvbox_underline=1
+     let g:gruvbox_termcolors=256
+     let g:gruvbox_contrast_dark='medium'
+     let g:gruvbox_contrast_light='hard'
+    " colorscheme gruvbox
 
 " Statusline
     "" TODO
@@ -293,6 +296,7 @@ let &packpath=&runtimepath
     autocmd Filetype lua set softtabstop=2
     autocmd Filetype lua set tabstop=2
     autocmd Filetype lua set shiftwidth=2
+    lua require("user.utils")
 " Python Options
     autocmd Filetype python set tabstop=4 
     autocmd Filetype python set softtabstop=4
@@ -314,13 +318,28 @@ let &packpath=&runtimepath
     "unmap <leader>wd
     "unmap <leader>wr
     nnoremap <leader>wo <Plug>VimwikiIndex
-" LSP / cmp / luasnip
+" Theming
+    " configure nvcode-color-schemes
+    let g:nvcode_termcolors=256
+    
+    syntax on
+    colorscheme gruvbox " Or whatever colorscheme you make
+    
+    
+    " checks if your terminal has 24-bit color support
+    if (has("termguicolors"))
+        set termguicolors
+        "hi LineNr ctermbg=NONE guibg=NONE
+    endif
+
+
+" LSP / cmp / luasnip/null-ls
   set completeopt=menu,menuone,noselect,preview
   lua require("user.mason")
   lua require("user.lsp")
   nnoremap <leader><C-m> :Mason<CR>
   lua require('user.cmp').setup()
-
+  lua require('user.null-ls').setup()
 " Rust Options
     function! GetSrcDir(...) abort
         if a:0 == 0
@@ -358,16 +377,19 @@ let &packpath=&runtimepath
       endif
     endfunctio
     
-    autocmd BufWritePre *.rs lua vim.lsp.buf.format({timeout_ms = 1000 })
+    autocmd BufWritePre *.rs lua vim.lsp.buf.formatting_sync(nil, 2000) 
+    "lua vim.lsp.buf.format({ timeout_ms = 2000 } change to this in neovim 0.8
     autocmd Filetype rust nnoremap <leader>ds :call CdSrcDir()<CR>
     autocmd Filetype rust nnoremap <leader>dS :call CdParent()<CR>
     autocmd Filetype rust nnoremap <silent><leader>M :lua require'rust-tools.expand_macro'.expand_macro()<CR>
     autocmd Filetype rust nnoremap <silent>gk :lua require'rust-tools.parent_module'.parent_module()<CR>
-    autocmd Filetype rust nnoremap <silent>gb :RustOpenDocs<CR>
-    lua require('crates').setup()
+    autocmd Filetype rust nnoremap <silent><leader>gt :RustOpenCargo<CR>
+    "autocmd Filetype rust nnoremap <silent><leader>gi lua require('rust-tools.inlay_hints').toggle_inlay_hints()
+   "" autocmd Filetype rust nnoremap <silent><leader>gi lua require('user.lsp.settings.rust').Toggle_inlay_hints()
+    autocmd Filetype rust nnoremap <silent>gb :RustOpenExternalDocs<CR>
 " Navigation & Splits
     nnoremap <silent><leader>dr :Gcd<CR>:echo "Changed to git root dir"<CR>
-    nnoremap <silent><leader>dh :cd<CR>:echo "Changed to home dir"<CR>
+    nnoremap <silent_leader>dh :cd<CR>:echo "Changed to home dir"<CR>
     nnoremap <silent><leader>bn :bn<CR>
     nnoremap <silent><leader>bp :bp<CR>
     nnoremap <silent><leader>bl :bl<CR>
@@ -389,7 +411,6 @@ let &packpath=&runtimepath
     "TODO add buffer hotkeys with leader i.e. <leader>
 " Font
   lua require("user.font")
-
 " Neovide
 "
    set mouse=nv
@@ -402,7 +423,12 @@ let &packpath=&runtimepath
     if exists("g:neovide")
         set titlestring="%F Neovide"
     endif
-"end
+" indentLine
+    let g:indentLine_enabled = 0
+    let g:indentLine_char_list = ['|', '¦', '┆', '┊']
+    let g:indentLine_defaultGroup = 'SpecialKey'
+    let g:indentLine_color_gui = '#e91e63'
+    autocmd Filetype rust let g:indentLine_enabled = 1
 "autocmd Filetype rust map <silent><leader><leader> :w<CR>:!rustfmt %<CR>:!cargo check<CR>
 "nnoremap ,latex :-1read $dotfiles/snippets/assignment.tex<CR>72jo "use <leader>,<CMD> 
 "nnoremap ,texfig :-1read $dotfiles/snippets/figure.tex<CR><CR>$i

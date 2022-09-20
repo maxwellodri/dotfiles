@@ -1,4 +1,4 @@
-local handlers = require("user.lsp.handlers")
+require("user.lsp.handlers").setup()
 local opts = {
   on_attach = require("user.lsp.handlers").on_attach,
   capabilities = require("user.lsp.handlers").capabilities,
@@ -6,7 +6,7 @@ local opts = {
 }
 
 local lspconfig = require'lspconfig'
-handlers.setup()
+local rust_opts = require("user.lsp.settings.rust")
 
 require("mason-lspconfig").setup_handlers({
   function (server_name)
@@ -17,8 +17,7 @@ require("mason-lspconfig").setup_handlers({
           }
       end,
       ["rust_analyzer"] = function ()
-  	  	local rust_opts = require("user.lsp.settings.rust")
-        require'rust_tools'.setup({rust_opts})
+        require('rust-tools').setup(rust_opts)
       end,
       ["sumneko_lua"] = function ()
           lspconfig.sumneko_lua.setup {

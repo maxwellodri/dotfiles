@@ -128,14 +128,14 @@ cmp.setup {
     end
   },
   sources = {
-    { name = "nvim_lsp" },
-    { name = "nvim_lua" },
-    { name = "buffer" },
-    { name = "path" },
-    { name = "crates" },
-    { name = "nvim_lsp_document_symbol" },
-    { name = "luasnip" },
-    { name = "rg" },
+     { name = "nvim_lsp" },
+     { name = "nvim_lua" },
+     { name = "buffer" },
+     { name = "path" },
+     { name = "crates" },
+     { name = "nvim_lsp_document_symbol" },
+     { name = "luasnip" },
+     { name = "rg" },
   },
   confirm_opts = {
     behavior = cmp.ConfirmBehavior.Replace,
