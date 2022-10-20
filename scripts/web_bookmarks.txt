@@ -69,5 +69,7 @@ web_bookmarks = {
 'cal': 'https://nextcloud.odri.net.au/apps/calendar/dayGridMonth/now',
 'skyrimmodmapper': 'https://modmapper.com/',
 'bevydocs': 'https://docs.rs/bevy/latest',
+'1337': 'https://1337x.unblockninja.com/',
+'mm': 'https://mm.odri.net.au',
 }
 

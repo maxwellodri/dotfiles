@@ -50,13 +50,6 @@ local generic_opts = {
   config = require("user.lsp.handlers").config,
 }
 
-local function ra_callback (status)
-    if status == "ok" then
-        vim.cmd('echo "RustAnalyzer fully loaded 😌!"')
-    else
-        vim.cmd("echo RustAnalyzer is 🤮!")
-    end
-end
 
 local extension_path = vim.env.HOME .. '/.vscode/extensions/vadimcn.vscode-lldb-1.6.7/'
 local codelldb_path = extension_path .. 'adapter/codelldb'

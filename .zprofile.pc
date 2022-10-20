@@ -20,7 +20,7 @@ export dotfile_tag="pc"
 #command transmission-daemon
 command ssh-agent
 #command xfce-polkit
-[ ! -s ~/.config/mpd/pid ] && mpd
+[ ! -s ~/.config/mpd/pid ] && [ -f "$(which mpd)" ] && mpd
 
 if [ -z "$WM" ] ; then
     case $XDG_VTNR in
