@@ -43,6 +43,7 @@ pavucontrol
 github-cli
 libvterm
 xcape
+pacman-contrib
 #AUR -> install rust via rustup before AUR
 #pass-update
 #task-spooler

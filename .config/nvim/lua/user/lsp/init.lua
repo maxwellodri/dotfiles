@@ -78,7 +78,7 @@ require("mason-lspconfig").setup_handlers({
 -- 	 end
 -- 
 --   if server.name == "tsserver" then
---     client.resolved_capabilities.document_formatting = false
+--     client.server_capabilities.documentFormatting = false
 --   end
 -- 
 -- 	-- This setup() function is exactly the same as lspconfig's setup function.

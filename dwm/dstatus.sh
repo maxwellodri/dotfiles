@@ -9,14 +9,14 @@ poll_battery() {
     battery="🔋: $(echo $(acpi | awk '{print $4}' | tr -d , | awk -v RS=  '{$1=$1}1' | awk '{print $1 "+" $2 }' | tr -d % | bc | tr -d '\n'; echo "/2") | bc)%"
     echo "$battery"
 }
-#
-#poll_packages() {
-#    command -v yay &>/dev/null && package="📦: $(pacman -Qu | wc -l)/$(yay -Qmu | wc -l)" #every hour on the hour poll for number of official and aur packages via yay
-#    echo "$package"
-#}
+
+poll_packages() {
+    echo $(checkupdates | wc -l)
+}
 
 battery="$(poll_battery)"
 network="$(poll_network)"
+packages="$(poll_packages)"
 #packages="$(poll_packages)"
 
 while true; do
@@ -33,11 +33,15 @@ while true; do
                     OPT="NO TAG"
                     ;;
     esac
-    xsetroot -name "🕒 $(date +%a-%d-%b-%R) $(sh $dotfile/scripts/memory_checker)% Mem$OPT"
+    xsetroot -name "🕒 $(date +%a-%d-%b-%R) 🧠: $(sh $dotfile/scripts/memory_checker)% 🚚: $packages$OPT"
 	sleep 1
-    if [ "$(echo "$(date +%s)%1" | bc)" -eq "0" ]; then #every five seconds poll these:
+    if [ "$(echo "$(date +%s)%2" | bc)" -eq "0" ]; then #every 2 seconds poll these:
         battery="$(poll_battery)"
         network="$(poll_network)"
+        continue 
+    fi
+    if [ "$(echo "$(date +%s)%300" | bc)" -eq "0" ]; then #every 300 seconds poll these:
+        packages="$(poll_packages)"
         continue 
     fi
 done

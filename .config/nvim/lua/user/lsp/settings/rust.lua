@@ -27,21 +27,22 @@ local ra_commands = {
 
 local ra_settings = {
       ["rust-analyzer"] = {
-				procMacro = {
-					enable = true,
-				attributes = {
-					enable = true,
-				}
-			},
-			checkOnSave = {
-				command = "clippy",
-			},
-			cargo = {
-				loadOutDirsFromCheck = true,
-			},
-            imports = { prefix = "crate" },
-            inlay_hints = { lifetimeElisionHints = { enable = "skip_trivial" }, },
-    }
+        diagnostics = { disabled = {"inactive-code"} },
+			  procMacro = {
+			  		enable = true,
+			  	attributes = {
+			  		enable = true,
+			  	}
+			  },
+			  checkOnSave = {
+			  	command = "clippy",
+			  },
+			  cargo = {
+			  	loadOutDirsFromCheck = true,
+			  },
+        imports = { prefix = "crate" },
+        inlay_hints = { lifetimeElisionHints = { enable = "skip_trivial" }, },
+      }
 }
 
 local generic_opts = {

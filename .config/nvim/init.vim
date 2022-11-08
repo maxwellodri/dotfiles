@@ -415,7 +415,7 @@ let &packpath=&runtimepath
   lua require("user.font")
 " Neovide
 "
-   set mouse=nv
+   set mouse=
    let g:neovide_cursor_vfx_mode = "wireframe"
    let g:neovide_cursor_animation_length=0.035
    let g:neovide_cursor_trail_length=0.01

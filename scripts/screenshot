@@ -3,12 +3,6 @@
 #maim
 #slop
 #imagemagick
-#DIM=$(slop)
-#maim > "$img" && mogrify -crop "$DIM" "$img" && xclip -verbose -se c -t image/png "$img" 
-#slop=$(slop -f "%g") || exit 1
-#read -r G <<< $slop
-#import -window root -crop $G ~/myimage.png
 img=~/.cache/dotfiles/screen.png 
 maim -s | xclip -sel clip -t image/png > $img
-#convert xwd:- | convert -crop "$DIM" png:- | xclip -verbose -se c -t image/png  #:( not working, just use main instead of xwd
 
