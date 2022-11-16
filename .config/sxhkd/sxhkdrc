@@ -21,7 +21,7 @@ super + shift + d
 super + ctrl + c
     xdotool windowclose $(click_window)
 super + d
-	dmenu_run
+	dmenu_run 
 super + e
 	emojis
 super + shift + Tab

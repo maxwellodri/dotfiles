@@ -17,6 +17,7 @@ poll_packages() {
 battery="$(poll_battery)"
 network="$(poll_network)"
 packages="$(poll_packages)"
+cpu
 #packages="$(poll_packages)"
 
 while true; do
@@ -33,14 +34,16 @@ while true; do
                     OPT="NO TAG"
                     ;;
     esac
-    xsetroot -name "🕒 $(date +%a-%d-%b-%R) 🧠: $(sh $dotfile/scripts/memory_checker)% 🚚: $packages$OPT"
+    cpu_usage=$(echo "100-$(mpstat --dec=0 | grep all | awk '{print $12}')" | bc)
+    rounded=$(( $cpu_usage <  99 ? $cpu_usage : 99 ))
+    xsetroot -name "🕒 $(date +%a-%d-%b-%R) 🧠: $(sh $dotfile/scripts/memory_checker)% 🤔:$(printf "%2d" "$rounded")% 🚚: $packages$OPT"
 	sleep 1
     if [ "$(echo "$(date +%s)%2" | bc)" -eq "0" ]; then #every 2 seconds poll these:
         battery="$(poll_battery)"
         network="$(poll_network)"
         continue 
     fi
-    if [ "$(echo "$(date +%s)%300" | bc)" -eq "0" ]; then #every 300 seconds poll these:
+    if [ "$(echo "$(date +%s)%60" | bc)" -eq "0" ]; then #every 60 seconds poll these:
         packages="$(poll_packages)"
         continue 
     fi
