@@ -1,4 +1,6 @@
 #run arch_package_install.sh
+bat
+pcp
 mold
 man
 xdotool
@@ -9,6 +11,7 @@ slop
 maim
 imagemagick
 xclip
+gnome-keyring
 figlet
 neomutt
 fzf
