@@ -60,6 +60,8 @@ let &packpath=&runtimepath
     Plug 'leafgarland/typescript-vim'
     Plug 'raimon49/requirements.txt.vim' "requirement.txt support
     Plug 'DingDean/wgsl.vim' 
+    Plug 'chrisbra/csv.vim'
+    Plug 'mechatroner/rainbow_csv'
     " ============ "
     " Rust Support "
     " ============ "
@@ -299,6 +301,8 @@ let &packpath=&runtimepath
     autocmd Filetype lua set tabstop=2
     autocmd Filetype lua set shiftwidth=2
     lua require("user.utils")
+" CSV Options
+    autocmd BufWritePre *.csv RainbowAlign
 " Python Options
     autocmd Filetype python set tabstop=4 
     autocmd Filetype python set softtabstop=4
