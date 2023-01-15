@@ -36,6 +36,7 @@ local ra_settings = {
 			  },
 			  checkOnSave = {
 			  	command = "clippy",
+          extraArgs={"--target-dir", "/var/tmp/rust-analyzer-check"}
 			  },
 			  cargo = {
 			  	loadOutDirsFromCheck = true,

@@ -1,83 +1,127 @@
-#! /usr/bin/env python3
-#Searches websites by parsing command line arguments - useful when being called via dmenu
-import subprocess 
+#!/usr/bin/env python3
+
 import sys
-import re
-import json
-import os
+import subprocess
 
-def websearch(args):
-    #assume args is list of strings 
-    args_str = '?q='+re.sub(' ','+',''.join(args))
-    #
-    #
-    # see https://duckduckgo.com/params for customising the search params:
-    #lol this shit makes ddg take forever if you enable everything
-    params = {}
-    #params['lang'] = 'kl=au-en'
-    #params['safe_search'] = 'kp=-1'
-    #params['open_instant_answers'] = 'kz=1'
-    #params['autload_images'] = 'kc=1'
-    #params['autoload_results'] = 'kav=1'
-    #params['https'] = 'kh=1'
-    #params['video_playbacl'] = 'k5=2'
-    #params['color_header'] = 'kj=d' #green
-    #params['color_URL'] = 'kx=g' #green
-    #params['color_background'] = 'k7=p' #purple
-    #params['color_text'] = 'k8=g' #default, dark grey
-    #params['color_links'] = 'k9=b'#blue 
-    #params['color_visited_links'] = 'kaa=p' #
-    params['color_theme'] = 'kae=d' #t for terminal, r for retro, d for dark
-    #params['size'] = 'ks=n' #large textsize
-    #params['width'] = 'kw=n' #normal
-    #params['placement'] = 'km=m' #middle
-    #params['link_font'] = 'ka=comic-sans' #meme
-    #params['underline'] = 'ku=1' #on
-    #params['text_font'] = 'kt=comic-sans'
-    #params['instant_answers'] = 'ko=1' #on & floating
-    #params['advertisments'] = 'k1=-1'  #off 
-    #params['page#'] = 'kv=1' #page_nums on
-    #params['units_of_measure'] = 'kaj=m' #metric
-    #params['source'] = 't=trisquel' #$$$$ for GNU
-    #
-    #
-    params_str = '' 
-    if len(params) != 0:
-        for i in params:
-            params_str = params_str+'&'+params[i]
-    firefox_URL = 'https://duckduckgo.com/'+args_str+params_str   #get rid of param_str to use default search params 
-    return firefox_URL
-    
-def is_json(myjson):
+def search_duckduckgo(args):
+    query = "+".join(args)
+    return f"https://duckduckgo.com/?q={query}"
+
+def open_bookmarks(bookmarks_file, args):
     try:
-        json.loads(myjson)
-        return True
-    except:
-        return False
+        with open(bookmarks_file, "r") as f:
+            bookmarks_str = f.read()
+        bookmarks = eval(bookmarks_str)
+    except Exception:
+        # bookmarks.py couldn't be parsed
+        subprocess.run(["notify-send", "Error", "bookmarks.py couldn't be parsed"])
+        # abort the script
+        sys.exit(1)
+    if args[0] in bookmarks:
+        return bookmarks[args[0]]
+    else:
+        return None
 
-
-#Main Script:
-web_bookmarks_path = "/home/maxwell/bin/web_bookmarks.txt" #path to bookmarks file 
-if len(sys.argv) == 1:
-    subprocess.call(['firefox','-new-tab'])
-    exit()
-args = ' '.join(sys.argv[1:])
-# ! is a duckduckgo bang, # is for for searching the web, override bookmarks.
-if '!' == args[0]:
-    firefox_URL = websearch(args)
-else:
-    with open(web_bookmarks_path) as file:
-        json_str = file.read()
-        if not is_json(json_str):
-            print("Invalid json")
-            os.system('notify-send "Invalid Json"')
-            sys.exit()
-        web_bookmarks = json.loads(json_str)
-        if args in web_bookmarks:
-            firefox_URL = web_bookmarks[args]
-            subprocess.call(['firefox','-new-tab', firefox_URL])
-        elif len(args) > 0:
-            firefox_URL = websearch(args)
-            subprocess.call(['firefox','-new-tab', firefox_URL])
+def main():
+    web_bookmarks_path = "/home/maxwell/bin/web_bookmarks.txt" #path to bookmarks file 
+    if len(sys.argv) == 1:
+        # no arguments, open a new tab in Firefox
+        subprocess.run(["firefox", "-new-tab"])
+    else:
+        # check if the first character of the first argument is "!"
+        if sys.argv[1][0] == "!":
+            url = search_duckduckgo(sys.argv[1:])
         else:
-            subprocess.call(['firefox','-new-tab'])
+            url = open_bookmarks(web_bookmarks_path, sys.argv[1:])
+        if url is None:
+            # bookmark not found, search DuckDuckGo instead
+            url = search_duckduckgo(sys.argv[1:])
+        # open the URL in Firefox, with a new tab
+        subprocess.run(["firefox", "-new-tab", url])
+
+if __name__ == "__main__":
+    main()
+
+# #! /usr/bin/env python3
+# #Searches websites by parsing command line arguments - useful when being called via dmenu
+# import subprocess 
+# import sys
+# import re
+# import json
+# import os
+# 
+# def websearch(args):
+#     #assume args is list of strings 
+#     args_str = '?q='+re.sub(' ','+',''.join(args))
+#     #
+#     #
+#     # see https://duckduckgo.com/params for customising the search params:
+#     #lol this shit makes ddg take forever if you enable everything
+#     params = {}
+#     #params['lang'] = 'kl=au-en'
+#     #params['safe_search'] = 'kp=-1'
+#     #params['open_instant_answers'] = 'kz=1'
+#     #params['autload_images'] = 'kc=1'
+#     #params['autoload_results'] = 'kav=1'
+#     #params['https'] = 'kh=1'
+#     #params['video_playbacl'] = 'k5=2'
+#     #params['color_header'] = 'kj=d' #green
+#     #params['color_URL'] = 'kx=g' #green
+#     #params['color_background'] = 'k7=p' #purple
+#     #params['color_text'] = 'k8=g' #default, dark grey
+#     #params['color_links'] = 'k9=b'#blue 
+#     #params['color_visited_links'] = 'kaa=p' #
+#     params['color_theme'] = 'kae=d' #t for terminal, r for retro, d for dark
+#     #params['size'] = 'ks=n' #large textsize
+#     #params['width'] = 'kw=n' #normal
+#     #params['placement'] = 'km=m' #middle
+#     #params['link_font'] = 'ka=comic-sans' #meme
+#     #params['underline'] = 'ku=1' #on
+#     #params['text_font'] = 'kt=comic-sans'
+#     #params['instant_answers'] = 'ko=1' #on & floating
+#     #params['advertisments'] = 'k1=-1'  #off 
+#     #params['page#'] = 'kv=1' #page_nums on
+#     #params['units_of_measure'] = 'kaj=m' #metric
+#     #params['source'] = 't=trisquel' #$$$$ for GNU
+#     #
+#     #
+#     params_str = '' 
+#     if len(params) != 0:
+#         for i in params:
+#             params_str = params_str+'&'+params[i]
+#     firefox_URL = 'https://duckduckgo.com/'+args_str+params_str   #get rid of param_str to use default search params 
+#     return firefox_URL
+#     
+# def is_json(myjson):
+#     try:
+#         json.loads(myjson)
+#         return True
+#     except:
+#         return False
+# 
+# 
+# #Main Script:
+# web_bookmarks_path = "/home/maxwell/bin/web_bookmarks.txt" #path to bookmarks file 
+# if len(sys.argv) == 1:
+#     subprocess.call(['firefox','-new-tab'])
+#     exit()
+# args = ' '.join(sys.argv[1:])
+# # ! is a duckduckgo bang, # is for for searching the web, override bookmarks.
+# if '!' == args[0]:
+#     firefox_URL = websearch(args)
+# else:
+#     with open(web_bookmarks_path) as file:
+#         json_str = file.read()
+#         if not is_json(json_str):
+#             print("Invalid json")
+#             os.system('notify-send "Invalid Json"')
+#             sys.exit()
+#         web_bookmarks = json.loads(json_str)
+#         if args in web_bookmarks:
+#             firefox_URL = web_bookmarks[args]
+#             subprocess.call(['firefox','-new-tab', firefox_URL])
+#         elif len(args) > 0:
+#             firefox_URL = websearch(args)
+#             subprocess.call(['firefox','-new-tab', firefox_URL])
+#         else:
+#             subprocess.call(['firefox','-new-tab'])

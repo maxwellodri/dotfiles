@@ -1,0 +1,9 @@
+[Unit]
+Description=Run Check for Docker Updates service once per day
+
+[Timer]
+OnCalendar=*-*-* 12:00:00
+Unit=check_for_docker_updates.service
+
+[Install]
+WantedBy=timers.target

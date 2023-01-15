@@ -1,0 +1,9 @@
+[Unit]
+Description=Check for Docker Updates
+
+[Service]
+Type=simple
+ExecStart=/home/maxwell/bin/check_for_docker_updates.sh
+
+[Install]
+WantedBy=multi-user.target
