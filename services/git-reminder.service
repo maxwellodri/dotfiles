@@ -1,0 +1,9 @@
+[Unit]
+Description=Git Reminder
+
+[Service]
+User=maxwell
+ExecStart=/usr/bin/git remind status
+
+[Install]
+WantedBy=default.target

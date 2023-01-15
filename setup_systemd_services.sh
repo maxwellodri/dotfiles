@@ -1,4 +1,9 @@
 #!/bin/bash
+if [ -z "$dotfiles" ] || [ "$EUID" -ne 0 ]; then
+    echo "Error: Please run the script as root and pass in the \$dotfiles environment variable using the following command:"
+    echo "sudo -E dotfiles=\$dotfiles $0"
+    exit 1
+fi
 
 # Set the source and destination directories
 src_dir=$dotfiles/services
@@ -24,19 +29,15 @@ for file in "$src_dir"/*; do
 
   # Check if the file already exists in the destination directory
   if [ -e "$dst" ]; then
-    # Check if the file is a symlink to the source file
-    if [ "$(readlink "$dst")" = "$src" ]; then
-      # The file is already a symlink to the correct source file, so do nothing
-      continue
+    if cmp -s "$src" "$dst"; then
+        continue
     else
-      # The file already exists and is not a symlink to the correct source file, so exit with an error message
-      echo "Error: File already exists and is not a symlink to the correct source file: $dst"
+      echo "Error: File already exists and differs from the file: $dst"
       exit 1
     fi
   fi
-
   # The file does not exist or is a symlink to a different file, so create a symlink to the correct source file
-  ln -s "$src" "$dst"
+  cp "$src" "$dst"
 done
 
 # Reload the system manager configuration
@@ -45,7 +46,7 @@ systemctl daemon-reload
 # Start and enable the services
 for file in "$src_dir"/*; do
   filename=$(basename "$file")
-  service_name="${filename%.*}"
-  systemctl start "$service_name"
-  systemctl enable "$service_name"
+  echo "Start/Enabling: $filename"
+  systemctl start "$filename"
+  systemctl enable "$filename"
 done
