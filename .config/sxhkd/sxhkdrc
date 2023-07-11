@@ -58,8 +58,8 @@ super + shift + s
 #super + shift + c
 	#cd ~/source/dwm && sudo make clean install && pkill dwm && notify-send "😈 recompiled dwm 😈 "
 	#[ "$(basename "$WM")"=="dwm" ] && pkill dwm
-super + shift + g
-	gpumine
+#super + shift + g 
+#	gpumine
 super + shift + m
     ~/bin/monitor.sh && feh --bg-scale "$dotfiles/images/low_poly_red.jpg"
 #	pgrep ncmpcpp && pkill ncmpcpp || st -e ncmpcpp #toggle ncmpcpp

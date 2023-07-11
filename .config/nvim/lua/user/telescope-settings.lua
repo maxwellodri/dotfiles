@@ -1,8 +1,16 @@
 require "telescope".setup {
   defaults = {
-
     preview = {
+      hide_on_startup = false,
       treesitter = true
+    }
+  },
+  pickers = {
+    find_files = {
+      preview = {
+        hide_on_startup = true,
+        treesitter = false,
+      }
     }
   },
   extensions = {

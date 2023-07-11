@@ -4,6 +4,7 @@ if [ -z "$1" ]; then
     [ "$WMNAME" = "dwm" ] && pkill -9 -t "tty$XDG_VTNR"
     [ "$WMNAME" = "penrose" ] && pkill -9 -t "tty$XDG_VTNR"
     [ "$WMNAME" = "i3" ] && i3-msg exit && sleep 1 && exit
+    [ "$WMNAME" = "hyprland" ] && hyprctl exit
 else 
     NUMBER=$(echo "$1" | tr -dc '0-9')
     [ -n "$NUMBER" ] && pkill -9 -t "tty$NUMBER"

@@ -65,6 +65,6 @@ local settings = {
 
 require("mason").setup(settings)
 require("mason-lspconfig").setup({
-    ensure_installed = { "sumneko_lua", "rust_analyzer", "vimls", "pyright"} -- "wgsl-analyzer" }
+    ensure_installed = { "rust_analyzer", "vimls", "pyright" } -- "wgsl-analyzer" }
 })
 

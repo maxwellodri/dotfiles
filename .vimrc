@@ -27,6 +27,10 @@ if exists('$SHELL') "probably unnecesary
     set tabstop=4
     set shiftwidth=4
     set expandtab
+    augroup lua_settings
+      autocmd!
+      autocmd FileType lua set tabstop=2 shiftwidth=2 expandtab
+    augroup END
     set smarttab
     set autoindent
     set path+=** ""recursive subdirectory search

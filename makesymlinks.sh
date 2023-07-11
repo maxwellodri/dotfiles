@@ -27,6 +27,7 @@ bsp=".config/bspwm/bspwmrc .config/bspwm/terminals .config/bspwm/swallow .config
 sxhkdconfig=.config/sxhkd/sxhkdrc
 rofi=.config/rofi/config.rasi
 gitconfig=.gitconfig
+eww=.config/eww/
 
 ########### Meta Variables
 i3=" $i3config $i3statusconfig" #i3wm
@@ -35,7 +36,7 @@ bash=" .bashrc .bashrc_extra .bash_profile $sh $pam"
 zsh=" .zshrc .zshrc_extra .zprofile $sh $pam" 
 files=" .vimrc .config/nvim $mutt $ytdl $newsboat $tmux $gpg $emacs $gitconfig"
 ########### Variables
-pcfiles=" $xfiles $zsh $bsp" #platform specific dotfiles
+pcfiles=" $xfiles $zsh $bsp $eww" #platform specific dotfiles
 laptopfiles=" $xfiles $pactl $i3 $zsh $terminator"
 thinkpadfiles=" $xfiles $zsh $bsp" 
 chromebookfiles=" "

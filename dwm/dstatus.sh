@@ -25,11 +25,22 @@ poll_packages() {
     echo $(checkupdates | wc -l)
 }
 
+poll_timew() {
+    if timew > /dev/null; then
+      duration=$(timew | grep Total | awk '{print $2}')
+      formatted_duration=$(echo $duration | cut -d: -f1,2)
+      echo "🧐 $formatted_duration"
+    else
+      echo "🙅"
+    fi
+}
+
 #battery="$(poll_battery)"
 battery=""
 #network="$(poll_network)"
 network=""
 packages="$(poll_packages)"
+timew_timer="$(poll_timew)"
 #cpu
 #packages="$(poll_packages)"
 
@@ -50,9 +61,11 @@ while true; do
     #cpu_usage=$(echo "100-$(mpstat --dec=0 | grep all | awk '{print $12}')" | bc)
     cpu_usage=$(top -b -n 2 | grep Cpu | sed 's/:/ /g' | awk '{printf "CPU Load:%7.0f\n", $(NF-13) + $(NF-15)}' | sed -n '2 p' | awk '{print $3}')
     rounded=$(( $cpu_usage <  99 ? $cpu_usage : 99 ))
-    xsetroot -name "🕒 $(date +%a-%d-%b-%R) 🧠: $(sh memory_checker)% 🤔:$(printf "%2d" "$rounded")% 🚚: $packages$OPT"
-	sleep 1
-    if [ "$(echo "$(date +%s)%2" | bc)" -eq "0" ]; then #every 2 seconds poll these:
+    xsetroot -name "$timew_timer 🕒 $(date +%a-%d-%b-%R) 🧠: $(sh memory_checker)% 🤔:$(printf "%2d" "$rounded")% 🚚: $packages$OPT"
+	sleep 0.25s
+    timew_timer="$(poll_timew)"
+    if [ "$(echo "$(date +%s)%1" | bc)" -eq "0" ]; then #every 2 seconds poll these:
+        timew_timer="$(poll_timew)"
         #battery="$(poll_battery)"
         #network="$(poll_network)"
         continue 

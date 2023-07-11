@@ -36,11 +36,11 @@ local ra_settings = {
 			  },
 			  checkOnSave = {
 			  	command = "clippy",
-          extraArgs={"--target-dir", "/var/tmp/rust-analyzer-check"}
+           extraArgs={"--target-dir", "/var/tmp/rust-analyzer-check"}
 			  },
-			  cargo = {
-			  	loadOutDirsFromCheck = true,
-			  },
+			  -- cargo = {
+			  -- 	loadOutDirsFromCheck = true,
+			  -- },
         imports = { prefix = "crate" },
         inlay_hints = { lifetimeElisionHints = { enable = "skip_trivial" }, },
       }

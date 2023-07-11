@@ -25,6 +25,7 @@ export dl="$HOME/Downloads"
 export game="$HOME/source/game"
 export torr="$HOME/media/xd/torrents"
 export CARGO_ASC=true
+export GDUSER="~/.local/share/godot/app_userdata/Mykaelium/"
 
 
 ################
@@ -56,6 +57,7 @@ alias bashrc="vim ~/.bashrc && source ~/.bashrc"
 alias shrc="vim ~/.config/sh/shrc && source ~/.config/sh/shrc"
 alias sxhkdrc="vim ~/.config/sxhkd/sxhkdrc && pkill -USR1 -x sxhkd"
 alias bspwmrc="vim ~/.config/bspwm/bspwmrc && pkill -USR1 -x sxhkd"
+#alias lastupdated = "awk 'END{sub(/\[/,""); print $1}' /var/log/pacman.log"
 alias bashrctag="vim ~/.bashrc_extra && source ~/.bashrc"
 alias zshrctag="vim ~/.zshrc_extra && source ~/.zshrc_extra"
 alias bashprofile="vim ~/.bash_profile"
@@ -106,7 +108,8 @@ alias mv="mv -v"
 alias cp="cp -v"
 alias pacs="pacman -Slq | fzf -m --preview 'pacman -Si {1}' | xargs -ro sudo pacman -S"
 alias alp="vim $dotfiles/archlinux_x86_64_packages"
-alias dfn='df -h | grep -E "Filesystem|nvme|sd"'
+alias dfn="df -h | grep -vE 'run|tmpfs' | awk '!/dev[[:space:]]/' | tail -n +1" #tail to remove whitespace above header
+
 alias untar='tar -zxvf'
 alias screensave="xclip -selection clipboard -target image/png -out > out.png"
 

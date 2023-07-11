@@ -12,13 +12,50 @@ HISTFILE=~/.cache/histfile
 HISTSIZE=1000
 SAVEHIST=1000
 
+declare -A venvs=(
+    #["tortoise"]="~/source/tortoise/"
+    # add more directories and virtual environment paths here
+)
+
+function chpwd() {
+    emulate -L zsh
+    for dir venv in ${(kv)venvs}; do
+        if [[ "$PWD" == "$dir"* ]]; then
+            source "$venv/$dir/bin/activate"
+            break
+        else
+            deactivate 2>/dev/null
+        fi
+    done
+}
+
 #(cat ~/.cache/wal/sequences &) #pywal
 [ -e ~/.cache/wal/colors-tty.sh ] && source ~/.cache/wal/colors-tty.sh
+[ -e ~/.apikeys ] && source ~/.apikeys
 [ -e /etc/profile.d/google-cloud-sdk.sh ] && source /etc/profile.d/google-cloud-sdk.sh
 [ -e ~/.local/share/mdbook_completions.zsh ] && source  ~/.local/share/mdbook_completions.zsh 
 setopt autocd #type name of dir to cd
 unsetopt beep #no beep
 bindkey -v #vim keys
+
+#ignore completions for cargo clean
+_my_cargo_completion () {
+  # Get the current word being completed
+  local word="${COMP_WORDS[COMP_CWORD]}"
+
+  # If the current word is "clean", don't suggest it
+  if [[ "$word" == "clean" ]]; then
+    return
+  fi
+
+  # Otherwise, use the default completion for `cargo`
+  _arguments '*: :_cargo'
+}
+
+# Define the new completion function for `cargo`
+autoload -Uz compinit && compinit
+compdef _my_cargo_completion cargo
+
 #set yanking to yank to system clipboard
 function vi-yank-xclip {
     zle vi-yank
@@ -31,13 +68,9 @@ source /usr/share/fzf/key-bindings.zsh
 source /usr/share/fzf/completion.zsh
 
 function _fuzzy_vim {
-    #zle push-input
     zle clear-input
     BUFFER=" source $bin/fuzzy_vim"
     zle accept-line
-    #zle clear-input
-    #BUFFER="clear"
-    #zle accept-line
 
 }
 
@@ -70,54 +103,6 @@ zle -N _sterm
 bindkey -M vicmd '^T' _sterm
 bindkey -M viins '^T' _sterm #overrides default fzf/key-bindings.zsh
 
-_fvim() {
-  return "abc"
-  #local cmd="${FZF_CTRL_T_COMMAND:-"command find -L . -mindepth 1 \\( -path '*/\\.*' -o -fstype 'sysfs' -o -fstype 'devfs' -o -fstype 'devtmpfs' -o -fstype 'proc' \\) -prune \
-  #  -o -type f -print \
-  #  -o -type d -print \
-  #  -o -type l -print 2> /dev/null | cut -b3-"}"
-  #setopt localoptions pipefail no_aliases 2> /dev/null
-  #local item
-  #eval "$cmd" | FZF_DEFAULT_OPTS="--height ${FZF_TMUX_HEIGHT:-40%} --reverse --bind=ctrl-z:ignore $FZF_DEFAULT_OPTS $FZF_CTRL_T_OPTS" $(__fzfcmd) -m "$@" | while read item; do
-  #  echo -n "${(q)item} "
-  #done
-  #local ret=$?
-  #echo
-  #return $ret
-}
-
-#zle -C _fvim
-#bindkey -M vicmd '^O' _fvim 
-#bindkey -M viins '^O' _fvim
-#bindkey -M emacs '^O' _fvim
-
-
-#export RPROMPT="%{$fg[blue]%}[INSERT]%{$reset_color%}"
-## Callback for vim mode change
-#function zle-keymap-select () {
-#    # Only supported in these terminals
-#    if [ "$TERM" = "xterm-256color" ] || [ "$TERM" = "st" ] || [ "$TERM" = "screen-256color" ]; then
-#        if [ $KEYMAP = vicmd ]; then
-#            # Command mode
-#            export RPROMPT="%{$fg[green]%}[NORMAL]%{$reset_color%}"
-#
-#            # Set block cursor
-#            echo -ne '\e[1 q'
-#        else
-#            # Insert mode
-#            export RPROMPT="%{$fg[blue]%}[INSERT]%{$reset_color%}"
-#
-#            # Set beam cursor
-#            echo -ne '\e[5 q'
-#        fi
-#    fi
-#
-#    if typeset -f prompt_pure_update_vim_prompt_widget > /dev/null; then
-#        # Refresh prompt and call Pure super function
-#        prompt_pure_update_vim_prompt_widget
-#    fi
-#}
-#
 ## Bind the callback
 zle -N zle-keymap-select
 

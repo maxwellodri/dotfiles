@@ -7,7 +7,7 @@ case "$PROGRAM" in
                 ;;
 
     "Krita")    echo "Starting $PROGRAM"
-                Huion610ProTablet.sh "$PROGRAM" && krita 
+                Huion610ProTablet.sh "$PROGRAM" && krita  --nosplash
 
                 ;;
     "Inkscape") echo "Starting $PROGRAM"

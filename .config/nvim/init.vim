@@ -33,6 +33,7 @@ let &packpath=&runtimepath
     Plug 'farmergreg/vim-lastplace' "Keep cursor on quit
     Plug 'Raimondi/delimitMate' "auto create quotes, bracket pairs 
     Plug 'nvim-lua/plenary.nvim' "library of functions, used by other modules
+    Plug 'MunifTanjim/nui.nvim' "ui component library
     Plug 'kyazdani42/nvim-web-devicons' "library of icons
     " =================
     " Language Support
@@ -62,6 +63,8 @@ let &packpath=&runtimepath
     Plug 'DingDean/wgsl.vim' 
     Plug 'chrisbra/csv.vim'
     Plug 'mechatroner/rainbow_csv'
+    Plug 'elkowar/yuck.vim'
+    Plug 'habamax/vim-godot'
     " ============ "
     " Rust Support "
     " ============ "
@@ -99,7 +102,11 @@ let &packpath=&runtimepath
     Plug 'L3MON4D3/LuaSnip' "snippet engine
     Plug 'rafamadriz/friendly-snippets' "a bunch of snippets to use
     Plug 'mfussenegger/nvim-dap'
+    Plug 'rcarriga/nvim-dap-ui'
+    Plug 'theHamsta/nvim-dap-virtual-text'
+
     Plug 'onsails/lspkind.nvim'
+    Plug 'dpayne/CodeGPT.nvim' "chat gpt :D
     "" ====
     "" Git
     "" ====
@@ -109,9 +116,9 @@ let &packpath=&runtimepath
     " Search / File Finding / Navigation
     " ======
     Plug 'PeterRincker/vim-searchlight'
-    Plug 'preservim/nerdtree'
-    Plug 'pseewald/vim-anyfold'
-    Plug 'arecarn/vim-fold-cycle'
+    "Plug 'preservim/nerdtree'
+    " Plug 'pseewald/vim-anyfold'
+    " Plug 'arecarn/vim-fold-cycle'
     Plug 'nvim-telescope/telescope.nvim'
     Plug 'nvim-telescope/telescope-ui-select.nvim'
     Plug 'kyazdani42/nvim-tree.lua' "library of functions, used by other modules
@@ -121,8 +128,7 @@ let &packpath=&runtimepath
     " ==============
     Plug 'kien/rainbow_parentheses.vim' 
     Plug 'machakann/vim-highlightedyank' "highlight on yank
-    Plug 'vim-airline/vim-airline'
-    Plug 'vim-airline/vim-airline-themes'
+    Plug 'feline-nvim/feline.nvim' "status bar - airline replacement
     Plug 'Yggdroot/indentLine'
     " ===============
     " Color Schemes 
@@ -130,6 +136,8 @@ let &packpath=&runtimepath
     Plug 'tomasiser/vim-code-dark'
     Plug 'tomasr/molokai'
     Plug 'morhetz/gruvbox'
+    "Plug 'ellisonleao/gruvbox.nvim'
+    Plug 'RRethy/nvim-base16'
     Plug 'ghifarit53/tokyonight-vim' 
     Plug 'savq/melange'
     Plug 'ajmwagar/vim-deus' 
@@ -142,10 +150,19 @@ let &packpath=&runtimepath
     " NoteTaking & Vim Wiki
     " ===============
     Plug 'vimwiki/vimwiki'
+    " ===============
+    " Perf
+    " ===============
+    Plug 'lewis6991/impatient.nvim'
+    "Plug 'nathom/filetype.nvim'
+    Plug 'tweekmonster/startuptime.vim'
     "
     call plug#end()
     source ~/.vimrc "vimrc is effectively a plugin lmao
     nnoremap <silent><leader>V :w<CR>:so $MYVIMRC<CR>:PlugInstall<CR>
+" To try out:
+" https://github.com/folke/trouble.nvim
+"https://github.com/Lommix/godot.nvim -> nvr
 " Rainbow Parentheses
    let g:rbpt_colorpairs = [
     \ ['brown',       'RoyalBlue3'],
@@ -170,59 +187,37 @@ let &packpath=&runtimepath
     au Syntax * RainbowParenthesesLoadSquare
     au Syntax * RainbowParenthesesLoadBraces
 
+    let g:did_load_filetypes = 0
+    let g:do_filetype_lua = 0
+
 " Colorscheme
-     let g:gruvbox_italic=1
-     let g:gruvbox_bold=1
-     let g:gruvbox_underline=1
-     let g:gruvbox_termcolors=256
-     let g:gruvbox_contrast_dark='medium'
-     let g:gruvbox_contrast_light='hard'
-    " colorscheme gruvbox
+    nnoremap <leader>hi :echo synIDattr(synIDtrans(synID(line("."), col("."), 1)), "fg")<CR>
+    "":echo synIDattr(synID(line("."), col("."), 1), "name")<CR>
+    lua require('user.colorscheme')
+    " Rust syntax highlighting
+" "    augroup rust_syntax
+" "      autocmd!
+" "      autocmd FileType rust syntax match rustTrait "\<trait\>"
+" "      autocmd FileType rust syntax keyword rustStructure contained struct enum union
+" "    augroup END
+" "" Define colors for Rust syntax groups
+" "if has("syntax")
+" "  syntax reset
+" "
+" "  " Rust traits
+" "  highlight rustTrait ctermfg=yellow guifg=yellow
+" "
+" "  " Rust structures, enums, and unions
+" "  highlight rustStructure ctermfg=red guifg=red
+" "endif
 
 " Statusline
-    "" TODO
-    set statusline=
-    set cmdheight=2 " space below the statusline
+    "set statusline=
+    "set cmdheight=2 " space below the statusline
+    "set statusline=%F%m%r%h%w%=(%{&ff}/%Y)\ (line\ %l\/%L,\ col\ %c)\ 
     "set statusline+=%{FugitiveStatusline()}
-    ""set laststatus=2
-    "set statusline+=%#function#\ %l "color theming
-    "set statusline+=%f "add file name to statusline %t
-    ""set laststatus=2
-    ""set statusline=
-    "set statusline+=%1*\ %f\ %*
-    "set statusline+=%= "LHS/RHS  divider
-    "set statusline+=%2*\ %{FugitiveStatusline()}
-    "set statusline+=%2*\ %l/%L "Line current/Linemax
-    "set statusline+=%2*\ %m "is modified
-    "set statusline+=%2*\ %r "is readonly
-    "set statusline+=%3*\ ‹‹
-    "set statusline+=%3*\ %{strftime('%R',getftime(expand('%')))}
-    "set statusline+=%3*\ ::
-    "set statusline+=%3*\ %n
-    "set statusline+=%3*\ ››\ %*
-    set statusline=%F%m%r%h%w%=(%{&ff}/%Y)\ (line\ %l\/%L,\ col\ %c)\ 
-    set statusline+=%{FugitiveStatusline()}
-" Airline 
-    let g:airline#extensions#tabline#enabled = 1
-    let g:airline#extensions#tabline#left_sep = ''
-    let g:airline#extensions#tabline#left_alt_sep = ''
-    let g:airline#extensions#tabline#right_sep = ''
-    let g:airline#extensions#tabline#right_alt_sep = ''
-    
-    " enable powerline fonts
-    let g:airline_powerline_fonts = 1
-    let g:airline_left_sep = ''
-    let g:airline_right_sep = ''
-    
-    " Switch to your current theme
-    let g:airline_theme = 'gruvbox'
-    let g:airline#extensions#tabline#formatter = 'unique_tail_improved'
-    let g:airline#extensions#tabline#fnamemod = '%F'
-    
-    
-    " show tabs when there are at least 2
-    set showtabline=1
-        
+    "set showtabline=1
+    lua require('user.feline-settings')
 " Treeitter
     lua require('user.treesitter-settings')
 " Treeitter Context
@@ -241,54 +236,60 @@ let &packpath=&runtimepath
 
 " AnyFold + Fold Cylce
   autocmd Filetype Telescope* call AnyFoldTelescope 
-  augroup vim_anyfold
-    autocmd!
-    autocmd Filetype vim AnyFoldActivate
-    autocmd Filetype vim set foldnestmax=0
-    autocmd Filetype vim set foldminlines=0
-    autocmd Filetype vim set foldlevelstart=1
-  augroup END
-  hi Folded term=underline
-  autocmd User anyfoldLoaded normal zv
-  "let g:anyfold_identify_comments=2
+  " augroup vim_anyfold
+  "   autocmd!
+  "   autocmd Filetype vim AnyFoldActivate
+  "   autocmd Filetype vim set foldnestmax=0
+  "   autocmd Filetype vim set foldminlines=0
+  "   autocmd Filetype vim set foldlevelstart=1
+  " augroup END
+  " hi Folded term=underline
+  " autocmd User anyfoldLoaded normal zv
+  " "let g:anyfold_identify_comments=2
 
-  let g:fold_cycle_default_mapping = 0 "disable default mappings
-  " Won't close when max fold is opened
-  let g:fold_cycle_toggle_max_open  = 1
-  " Won't open when max fold is closed
-  let g:fold_cycle_toggle_max_close = 1
-  augroup rust_fold 
-      autocmd!
-      autocmd Filetype rust set foldminlines=20
-      autocmd Filetype rust set foldnestmax=1
-      autocmd Filetype rust set foldlevel=0
-      autocmd Filetype rust set foldmethod=expr
-      autocmd Filetype rust set foldexpr=nvim_treesitter#foldexpr()
-  augroup END
-  autocmd Filetype cpp setlocal foldignore=#/
+  " let g:fold_cycle_default_mapping = 0 "disable default mappings
+  " " Won't close when max fold is opened
+  " let g:fold_cycle_toggle_max_open  = 1
+  " " Won't open when max fold is closed
+  " let g:fold_cycle_toggle_max_close = 1
+  " augroup rust_fold 
+  "     autocmd!
+  "     autocmd Filetype rust set foldminlines=20
+  "     autocmd Filetype rust set foldnestmax=1
+  "     autocmd Filetype rust set foldlevel=0
+  "     autocmd Filetype rust set foldmethod=expr
+  "     autocmd Filetype rust set foldexpr=nvim_treesitter#foldexpr()
+  " augroup END
+  " autocmd Filetype cpp setlocal foldignore=#/
 
 " Nerdtree
-  map <silent><leader>bb :NERDTreeToggle<CR>
-  let g:NERDTreeWinSize=70
-  let g:NERDTreeChDirMode=2
-  let g:NERDTreeIgnore=['\.rbc$', '\~$', '\.pyc$', '\.db$', '\.sqlite$', '__pycache__']
-  let g:NERDTreeSortOrder=['^__\.py$', '\/$', '*', '\.swp$', '\.bak$', '\~$']
-  let g:NERDTreeShowBookmarks=1
-  let g:nerdtree_tabs_focus_on_files=1
-  let g:NERDTreeMapOpenInTabSilent = '<RightMouse>'
-  let g:NERDTreeWinPos = "right"
-  "autocmd VimEnter * NERDTree | wincmd p
-  autocmd BufEnter * if tabpagenr('$') == 1 && winnr('$') == 1 && exists('b:NERDTree') && b:NERDTree.isTabTree() | quit | endif "Exit Vim if NERDTree is the only window remaining in the only tab.
-  autocmd BufWritePost * silent! NERDTreeRefreshRoot 
-" lazygit
+  "map <silent><leader>bb :NERDTreeToggle<CR>
+  "let g:NERDTreeWinSize=70
+  "let g:NERDTreeChDirMode=2
+  "let g:NERDTreeIgnore=['\.rbc$', '\~$', '\.pyc$', '\.db$', '\.sqlite$', '__pycache__']
+  "let g:NERDTreeSortOrder=['^__\.py$', '\/$', '*', '\.swp$', '\.bak$', '\~$']
+  "let g:NERDTreeShowBookmarks=1
+  "let g:nerdtree_tabs_focus_on_files=1
+  "let g:NERDTreeMapOpenInTabSilent = '<RightMouse>'
+  "let g:NERDTreeWinPos = "right"
+  ""autocmd VimEnter * NERDTree | wincmd p
+  "autocmd BufEnter * if tabpagenr('$') == 1 && winnr('$') == 1 && exists('b:NERDTree') && b:NERDTree.isTabTree() | quit | endif "Exit Vim if NERDTree is the only window remaining in the only tab.
+  "autocmd BufWritePost * silent! NERDTreeRefreshRoot 
+" Git
    let g:lazygit_floating_window_winblend = 0 " transparency of floating window
    let g:lazygit_floating_window_scaling_factor = 0.9 " scaling factor for floating window
-   let g:lazygit_floating_window_corner_chars = ['╭', '╮', '╰', '╯'] " customize lazygit popup window corner characters
+   let g:lazygit_floating_window_border_chars = ['╭', '╮', '╰', '╯'] " customize lazygit popup window corner characters
    let g:lazygit_floating_window_use_plenary = 0 " use plenary.nvim to manage floating window if available
    let g:lazygit_use_neovim_remote = 1 " fallback to 0 if neovim-remote is not installed
    nnoremap <silent> <leader>gg :LazyGit<CR>
    lua require("telescope").load_extension("lazygit")
+   lua require('user.git')
 
+" 
+" 
+" 
+" impatient
+    lua require('impatient')
 " Yank Highlighting
   let g:highlightedyank_highlight_duration = 650
 " Lastplace
@@ -324,21 +325,6 @@ let &packpath=&runtimepath
     "unmap <leader>wd
     "unmap <leader>wr
     nnoremap <leader>wo <Plug>VimwikiIndex
-" Theming
-    " configure nvcode-color-schemes
-    let g:nvcode_termcolors=256
-    
-    syntax on
-    colorscheme gruvbox " Or whatever colorscheme you make
-    
-    
-    " checks if your terminal has 24-bit color support
-    if (has("termguicolors"))
-        set termguicolors
-        "hi LineNr ctermbg=NONE guibg=NONE
-    endif
-
-
 " LSP / cmp / luasnip/null-ls
   set completeopt=menu,menuone,noselect,preview
   lua require("user.mason")
@@ -346,6 +332,14 @@ let &packpath=&runtimepath
   nnoremap <leader><C-m> :Mason<CR>
   lua require('user.cmp').setup()
   lua require('user.null-ls').setup()
+" Godo Options
+    "autocmd FileType gdscript nnoremap <F5> <Esc>:w<CR>:GodotRun<CR>
+    autocmd FileType gdscript set expandtab
+    autocmd Filetype gdscript set tabstop=3 
+    autocmd Filetype gdscript set shiftwidth=3 
+    autocmd BufWritePre gdscript :%s/\s\+$//e
+
+    autocmd Filetype gdscript nnoremap <leader>fo <cmd>Telescope find_files find_command=rg,--ignore,--files prompt_prefix=🔍🥺<CR>
 " Rust Options
     function! GetSrcDir(...) abort
         if a:0 == 0
@@ -381,7 +375,7 @@ let &packpath=&runtimepath
         execute 'cd' fnameescape(g:parent_dir)
         echo 'Changed to parent'
       endif
-    endfunctio
+    endfunction
     
     autocmd BufWritePre *.rs lua vim.lsp.buf.formatting_sync(nil, 2000) 
     "lua vim.lsp.buf.format({ timeout_ms = 2000 } change to this in neovim 0.8
@@ -435,6 +429,9 @@ let &packpath=&runtimepath
     let g:indentLine_defaultGroup = 'SpecialKey'
     let g:indentLine_color_gui = '#e91e63'
     autocmd Filetype rust let g:indentLine_enabled = 1
+" keybinds & utils
+    lua require("user.utils")
+    lua require("user.keybinds")
 "autocmd Filetype rust map <silent><leader><leader> :w<CR>:!rustfmt %<CR>:!cargo check<CR>
 "nnoremap ,latex :-1read $dotfiles/snippets/assignment.tex<CR>72jo "use <leader>,<CMD> 
 "nnoremap ,texfig :-1read $dotfiles/snippets/figure.tex<CR><CR>$i

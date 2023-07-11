@@ -29,3 +29,4 @@ function _G.put(...)
   print(table.concat(objects, '\n'))
   return ...
 end
+

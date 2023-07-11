@@ -142,6 +142,7 @@ cmp.setup {
   sources = {
      { name = "nvim_lsp" },
      { name = "nvim_lua" },
+     { name = "quickgd", priority = 750 },
      { name = "buffer" },
      { name = "path" },
      { name = "crates" },
