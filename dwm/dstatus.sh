@@ -1,6 +1,17 @@
 #!/bin/bash
 xsetroot -name "🥹"
 
+
+
+cleanup() {
+  # Insert your cleanup code here
+  echo "Program was killed. Cleaning up..."
+  xsetroot -name "😠"
+  # Additional commands as needed
+}
+
+trap cleanup EXIT
+
 script_directory=$(dirname "$0")
 package_file="$script_directory/package_file.txt"
 
@@ -25,7 +36,7 @@ poll_battery() {
 #    echo "$battery"
 #}
 
-poll_packages() {
+async_poll_packages() {
     echo $(checkupdates | wc -l) > "$package_file"
 }
 
@@ -47,7 +58,7 @@ long_notify_duration=60  # Duration in minutes
 
 try_notify() {
     echo "$timew_timer, $prev_notify"
-    if [[ "$timew_timer" != "0:00" ]] && [[ "$timew_timer" != "$prev_notify" ]]; then
+    if [[ "$timew_timer" != "0:00" ]] && [[ "$timew_timer" != "#" ]]&& [[ "$timew_timer" != "$prev_notify" ]]; then
         #Parse the current time elapsed and the prev notify time into minutes:
 
         # Split hours and minutes based on the delimiter ":"
@@ -90,16 +101,30 @@ try_notify() {
     fi
 }
 
+network_touch="$script_directory/network_touch.txt"
+try_internet_connection() {
+    ping -c 1 google.com >/dev/null 2>&1
+    
+    if [ $? -eq 0 ]; then
+        echo "yes" > $network_touch
+    else
+        echo "no" > $network_touch
+    fi
+}
+
 #battery="$(poll_battery)"
 battery=""
 #network="$(poll_network)"
 network=""
 packages=""
+async_poll_packages &
+try_internet_connection &
 timedata=""
-#packages="$(poll_packages)"
+#packages="$(async_poll_packages)"
 timew_timer="$(poll_timew)"
+internet="?"
 #cpu
-#packages="$(poll_packages)"
+#packages="$(async_poll_packages)"
 #
 counter=0
 while true; do
@@ -114,37 +139,48 @@ while true; do
                     OPT="NO TAG"
                     ;;
     esac
-    xsetroot -name "$timedata 🕒 $(date +%a-%d-%b-%R) 🧠: $(sh memory_checker)% 🤔:$(printf "%2d" "$rounded")% 🚚: $packages$OPT"
     #cpu_usage=$(echo "100-$(mpstat --dec=0 | grep all | awk '{print $12}')" | bc)
     timew_timer="$(poll_timew)"
     if [ "$(echo "$(date +%s)%1" | bc)" -eq "0" ]; then #every 2 seconds poll these:
         timew_timer="$(poll_timew)"
-        if [[ "$timew_timer" == "#" ]]; then
-          timedata="🙅"
-        else
-          timedata="🧐 $timew_timer"
-        fi
-        echo "polling time: $timew_timer"
-        #battery="$(poll_battery)"
-        #network="$(poll_network)"
     fi
+
+    if [[ "$timew_timer" == "#" ]]; then
+        timedata="🙅"
+    else
+        timedata="🧐 $timew_timer"
+    fi
+
+
 	if (( counter % 4 == 0 )); then
 		try_notify
+        try_internet_connection &
 	fi
     counter=$((counter+1))
-    echo $counter
 
-    if [ "$(echo "$(date +%s)%60" | bc)" -eq "0" ]; then #every 60 seconds poll these:
-        packages="$(poll_packages)"
+    [ $(date +%M) -eq "0" ] && async_poll_packages &
+
+
+    if [ -f "$network_touch" ]; then
+        content=$(<"$network_touch")  # Read the file contents
+        if [[ "$content" == "yes" ]]; then
+            internet="👍"
+        elif [[ "$content" == "no" ]]; then
+            internet="⚠"
+        else
+            internet="?"
+        fi
+        rm "$network_touch"
     fi
-
-    [ $(date +%M) -eq "0" ] && poll_packages &
 
     if [ -f "$package_file" ]; then
         packages=$(cat "$package_file")
         echo "Updated packages"
         rm "$package_file"  # Clean up the shared data file
     fi
+
+    xsetroot -name "$timedata 🕒 $(date +%a-%d-%b-%R) 🧠: $(sh memory_checker)% 🤔:$(printf "%2d" "$rounded")% 🌏: $internet 🚚: $packages$OPT"
+
     cpu_usage=$(top -b -n 2 | grep Cpu | sed 's/:/ /g' | awk '{printf "CPU Load:%7.0f\n", $(NF-13) + $(NF-15)}' | sed -n '2 p' | awk '{print $3}')
     rounded=$(( $cpu_usage <  99 ? $cpu_usage : 99 ))
 
