@@ -1,0 +1,2 @@
+#!/bin/sh
+godot-mono -e --path ~/source/gd-mykaelium
