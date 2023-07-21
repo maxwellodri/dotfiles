@@ -1,8 +1,9 @@
 #!/bin/sh
-xrdb ~/.Xresources &
+server_path="$HOME/.cache/nvim/godot-server.pipe"
+[ -f "$server_path" ] && rm server_path
 dunst &
-picom -b --config ~/.config/picom/picom.conf &
-polkit-dumb-agent
+#picom -b --config ~/.config/picom/picom.conf &
+polkit-dumb-agent &
 #/usr/lib/xfce-polkit/xfce-polkit &
 [ $dotfiles_tag = "pc" ] && steam -silent &
 $bin/monitor.sh && feh --bg-scale "$dotfiles/images/treesketch.jpg"

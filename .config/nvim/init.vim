@@ -160,6 +160,7 @@ let &packpath=&runtimepath
     call plug#end()
     source ~/.vimrc "vimrc is effectively a plugin lmao
     nnoremap <silent><leader>V :w<CR>:so $MYVIMRC<CR>:PlugInstall<CR>
+
 " To try out:
 " https://github.com/folke/trouble.nvim
 "https://github.com/Lommix/godot.nvim -> nvr
@@ -218,6 +219,7 @@ let &packpath=&runtimepath
     "set statusline+=%{FugitiveStatusline()}
     "set showtabline=1
     lua require('user.feline-settings')
+    lua require('user.dap')
 " Treeitter
     lua require('user.treesitter-settings')
 " Treeitter Context
@@ -338,6 +340,7 @@ let &packpath=&runtimepath
     autocmd Filetype gdscript set tabstop=3 
     autocmd Filetype gdscript set shiftwidth=3 
     autocmd BufWritePre gdscript :%s/\s\+$//e
+    lua vim.g.godot_executable = '/bin/godot-mono'
 
     autocmd Filetype gdscript nnoremap <leader>fo <cmd>Telescope find_files find_command=rg,--ignore,--files prompt_prefix=🔍🥺<CR>
 " Rust Options
@@ -387,6 +390,9 @@ let &packpath=&runtimepath
     "autocmd Filetype rust nnoremap <silent><leader>gi lua require('rust-tools.inlay_hints').toggle_inlay_hints()
    "" autocmd Filetype rust nnoremap <silent><leader>gi lua require('user.lsp.settings.rust').Toggle_inlay_hints()
     autocmd Filetype rust nnoremap <silent>gb :RustOpenExternalDocs<CR>
+" terminal:
+   command! Sterm silent execute '!nohup st -d' expand('%:p:h') '> /dev/null 2>&1 &'
+   nnoremap <S-CR> :Sterm<CR>
 " Navigation & Splits
     nnoremap <silent><leader>dr :Gcd<CR>:echo "Changed to git root dir"<CR>
     nnoremap <silent_leader>dh :cd<CR>:echo "Changed to home dir"<CR>

@@ -6,7 +6,7 @@
 # ___) |  _  | |___| |___| |___   / ___ \ |_| | |\  | |_| |___) || |  | | |___ 
 #|____/|_| |_|_____|_____|_____| /_/   \_\____|_| \_|\___/|____/ |_| |___\____|
 #
-command -v todobin > /dev/null && todobin
+#command -v todobin > /dev/null && todobin #no
 ################
 #exports:
 ###############
@@ -22,17 +22,17 @@ export PATH=$PATH:$BIN #add /home/$USER/bin to path
 export PATH=$PATH:"$BIN/steam_scripts" #and subfolder for steam scripts
 export PATH=$HOME/bin:$PATH:$HOME/.local/bin
 export dl="$HOME/Downloads"
-export game="$HOME/source/game"
-export torr="$HOME/media/xd/torrents"
 export CARGO_ASC=true
 export GDUSER="~/.local/share/godot/app_userdata/Mykaelium/"
+export GTK_THEME=Arc-Dark
+export XCURSOR_THEME=Arc-Dark
 
 
 ################
 #Extras
 ################
 [ -e ~/.cargo/env ] && . ~/.cargo/env 
-export WORKON_HOME="/home/maxwell/pyvenv" #cant nest variables this is a hack to let emacs load successfully
+#export WORKON_HOME="/home/maxwell/pyvenv" #cant nest variables this is a hack to let emacs load successfully
 export JUPYTERLAB_DIR=$HOME/.local/share/jupyter/lab
 
 ################
@@ -86,6 +86,7 @@ alias mwrc='sudo vim /usr/share/mutt-wizard'
 alias newsboatrc="vim ~/.config/newsboat/config"
 alias url="vim ~/.config/newsboat/urls"
 alias dragon="dragon-drag-and-drop"
+alias rmdir='rmdir -p'
 
 alias mpdrc="vim ~/.config/mpd/mpd.conf"
 alias ncmpcpprc="vim ~/.config/ncmpcpp/config"

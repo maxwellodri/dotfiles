@@ -44,8 +44,6 @@ super + ctrl + shift + s
     wholescreensave && sleep 0.2 && notify-send -t 1000 "Screenshot Taken"
 super + shift + o
     xdotool mousemove 2200 1000 && sleep 0.1 && xdotool mousemove 2250 1050 && sleep 0.1 && xdotool mousemove 2300 && 1000
-super + shift + s
-    screensave
 
 
 #  _                    _      
@@ -76,10 +74,13 @@ super + Escape
 #	pgrep transmission-da && pkill transmission-da && notify-send "Killing transmission" || notify-send "Starting transmission" && transmission-daemon 
 #Config Files:
 super + shift + v
-	togglerc ~/.vimrc
+	togglerc ~/.config/nvim/init.vim
 super + shift + Escape
 	togglerc ~/.config/sxhkd/sxhkdrc
-	#st -e vim ~/.config/sxhkd/sxhkdrc
+
+super + q
+    [ timew ] && timew stop | timew start 
+#st -e vim ~/.config/sxhkd/sxhkdrc
 #Media:
 XF86AudioPlay
 	mpc toggle

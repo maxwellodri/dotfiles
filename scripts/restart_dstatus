@@ -1,0 +1,4 @@
+#!/bin/sh
+pkill -f 'dstatus.sh'
+sleep 0.25
+nohup $dotfiles/dwm/dstatus.sh >/dev/null 2>&1 &

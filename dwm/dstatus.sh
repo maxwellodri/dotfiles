@@ -50,34 +50,38 @@ poll_timew() {
     fi
 }
 
-
+idle_threshold_minutes=10
 prev_notify="0:00"
 prev_notify_long="0:00"
-notify_duration=1  # Duration in minutes
-long_notify_duration=60  # Duration in minutes
+notify_duration=30  # Duration in minutes
+long_notify_duration=120  # Duration in minutes
+first_try_notify="yes"
 
 try_notify() {
     echo "$timew_timer, $prev_notify"
-    if [[ "$timew_timer" != "0:00" ]] && [[ "$timew_timer" != "#" ]]&& [[ "$timew_timer" != "$prev_notify" ]]; then
+    if [[ "$timew_timer" != "0:00" ]] && [[ "$timew_timer" != "#" ]]&& [[ "$timew_timer" != "$prev_notify" ]] ; then
         #Parse the current time elapsed and the prev notify time into minutes:
 
         # Split hours and minutes based on the delimiter ":"
-        hours=${timew_timer%%:*}
-        minutes=${timew_timer#*:}
+        IFS=":" read -r -a time_parts <<< "$timew_timer"
+        hours=$((10#${time_parts[0]}))
+        minutes=$((10#${time_parts[1]}))
         
         # Convert hours to minutes and add the remaining minutes
         current_total_minutes=$(($hours*60 + $minutes))
 
         # Split hours and minutes based on the delimiter ":"
-        hours=${prev_notify%%:*}
-        minutes=${prev_notify#*:}
-        
+        IFS=":" read -r -a prev_time_parts <<< "$prev_notify"
+        prev_hours=$((10#${prev_time_parts[0]}))
+        prev_minutes=$((10#${prev_time_parts[1]}))
+        if [ "$(($(xprintidle) / 60000 ))" -ge "$idle_threshold_minutes" ]; then
+            [ timew ] && timew stop 
+        fi
         # Convert hours to minutes and add the remaining minutes
-        prev_total_minutes=$(($hours*60 + $minutes))
-
+        prev_total_minutes=$(($prev_hours*60 + $prev_minutes))
         difference=$(( current_total_minutes - prev_total_minutes ))
         if [ "$difference" -ge "$long_notify_duration" ]; then
-            notify-send -u critical -t 60000 "Long Break - elapsed: $elapsed_time " -a "BreakReminder"
+            [ -z "$first_try_notify" ] && notify-send -u critical -t 60000 -a "Long Break Reminder" "Long Break"
             sleep 0.1
             # Obtain the window ID of the notify-send window
             notify_send_window_id=$(xdotool search --class "Dunst")
@@ -94,8 +98,11 @@ try_notify() {
 
             prev_notify_long="$timew_timer"
             prev_notify="$timew_timer"
-        elif [ "$difference" -ge "$notify_duration" ]; then
-            notify-send "You've been working for $elapsed_time seconds. Take a short break!"
+            first_try_notify=""
+        elif [ "$difference" -ge "$notify_duration" ] && [[ "$current_total_minutes" -ge "15" ]]; then
+             
+            [ -z "$first_try_notify" ] && notify-send -a "Short Break Reminder" "Short Break" #make so the notify doesnt fire as soon as dstatus is started - wait at least $notify_duration mins
+            first_try_notify=""
             prev_notify="$timew_timer"
         fi
     fi
@@ -103,7 +110,7 @@ try_notify() {
 
 network_touch="$script_directory/network_touch.txt"
 try_internet_connection() {
-    ping -c 1 google.com >/dev/null 2>&1
+    ping -c 1 cia.gov >/dev/null 2>&1
     
     if [ $? -eq 0 ]; then
         echo "yes" > $network_touch
@@ -112,11 +119,14 @@ try_internet_connection() {
     fi
 }
 
+[ -f "$package_file" ] && rm "$package_file"  # Clean up the shared data file
+[ -f "$network_touch" ] && rm "$network_touch"
+
 #battery="$(poll_battery)"
 battery=""
 #network="$(poll_network)"
 network=""
-packages=""
+packages="?"
 async_poll_packages &
 try_internet_connection &
 timedata=""
@@ -127,6 +137,7 @@ internet="?"
 #packages="$(async_poll_packages)"
 #
 counter=0
+
 while true; do
     case $dotfiles_tag in 
         thinkpad)
@@ -148,7 +159,7 @@ while true; do
     if [[ "$timew_timer" == "#" ]]; then
         timedata="🙅"
     else
-        timedata="🧐 $timew_timer"
+        timedata="🧐: $timew_timer"
     fi
 
 
@@ -164,7 +175,7 @@ while true; do
     if [ -f "$network_touch" ]; then
         content=$(<"$network_touch")  # Read the file contents
         if [[ "$content" == "yes" ]]; then
-            internet="👍"
+            internet="🥹"
         elif [[ "$content" == "no" ]]; then
             internet="⚠"
         else
@@ -179,10 +190,10 @@ while true; do
         rm "$package_file"  # Clean up the shared data file
     fi
 
-    xsetroot -name "$timedata 🕒 $(date +%a-%d-%b-%R) 🧠: $(sh memory_checker)% 🤔:$(printf "%2d" "$rounded")% 🌏: $internet 🚚: $packages$OPT"
+    xsetroot -name "$timedata 🕒: $(date +%a-%d-%b-%R) 🧠: $(sh memory_checker)% 🤔:$(printf "%2d" "$rounded_cpu")% 🌏: $internet 🚚: $packages$OPT"
 
     cpu_usage=$(top -b -n 2 | grep Cpu | sed 's/:/ /g' | awk '{printf "CPU Load:%7.0f\n", $(NF-13) + $(NF-15)}' | sed -n '2 p' | awk '{print $3}')
-    rounded=$(( $cpu_usage <  99 ? $cpu_usage : 99 ))
+    rounded_cpu=$(( $cpu_usage <  99 ? $cpu_usage : 99 ))
 
 	sleep 0.25s
 done
