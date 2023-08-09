@@ -26,6 +26,7 @@ export CARGO_ASC=true
 export GDUSER="~/.local/share/godot/app_userdata/Mykaelium/"
 export GTK_THEME=Arc-Dark
 export XCURSOR_THEME=Arc-Dark
+export GODOT4_BIN=mykaelium
 
 
 ################

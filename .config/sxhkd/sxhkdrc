@@ -29,7 +29,7 @@ super + shift + Tab
 super + shift + a
 	art.sh
 super + Insert
-	passmenu
+	bash -e passmenu
 super + shift + b
 	bookmarks
 super + shift + q

@@ -108,6 +108,10 @@ let &packpath=&runtimepath
     Plug 'onsails/lspkind.nvim'
     Plug 'dpayne/CodeGPT.nvim' "chat gpt :D
     "" ====
+    "" C#
+    "" ====
+    Plug 'Hoffs/omnisharp-extended-lsp.nvim'
+    "" ====
     "" Git
     "" ====
     Plug 'tpope/vim-fugitive'
@@ -316,7 +320,9 @@ let &packpath=&runtimepath
     autocmd Filetype python set fileformat=unix 
     "add #type: ignore to EOL to ignore type warnings for pyright:
     autocmd Filetype python map <silent>,ignore $a #type: ignore<Esc> 
-    autocmd BufWritePre *.py lua vim.lsp.buf.formatting_sync(nil, 1000)
+    autocmd BufWritePre *.py lua vim.lsp.buf.format()
+"C#
+    autocmd BufWritePre *.cs lua vim.lsp.buf.format()
 
 " Mutt Options
     au BufRead /tmp/mutt-* set tw=72
@@ -380,7 +386,7 @@ let &packpath=&runtimepath
       endif
     endfunction
     
-    autocmd BufWritePre *.rs lua vim.lsp.buf.formatting_sync(nil, 2000) 
+    autocmd BufWritePre *.rs lua vim.lsp.buf.format()
     "lua vim.lsp.buf.format({ timeout_ms = 2000 } change to this in neovim 0.8
     autocmd Filetype rust nnoremap <leader>ds :call CdSrcDir()<CR>
     autocmd Filetype rust nnoremap <leader>dS :call CdParent()<CR>

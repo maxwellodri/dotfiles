@@ -1,2 +1,13 @@
 #!/bin/sh
-godot-mono -e --path ~/source/gd-mykaelium
+nohup godot-mono -e --path ~/source/gd-mykaelium &> /dev/null &
+rm ~/.cache/nvim/godot-server.pipe
+declare -a repos=("outobugi/Terrain3D") #space separated
+
+for repo in "${repos[@]}"; do
+    output=$(gh release list -R "$repo")
+    latest_tag=$(echo "$output" | awk 'NR==2 {print $4}')
+    published_time=$(echo "$output" | awk 'NR==2 {print $6, $7, $8}')
+    notify-send "$repo: $latest_tag: $published_time"
+done
+
+

@@ -58,7 +58,7 @@ local codelldb_path = extension_path .. 'adapter/codelldb'
 local liblldb_path = extension_path .. 'lldb/lib/liblldb.so'
 
 OPTS = {
-    tools = { -- rust-tools options
+  tools = { -- rust-tools options
         -- Automatically set inlay hints (type hints)
         autoSetHints = false,
         -- Whether to show hover actions inside the hover window
@@ -151,11 +151,11 @@ OPTS = {
             -- default: true
             full = true,
         }
-    },
+  },
 	server = {
         commands = ra_commands,
         settings = ra_settings,
-	    standalone = false,
+	      standalone = false,
         capabilities = generic_opts.capabilities,
         config = generic_opts.config,
         on_attach = generic_opts.on_attach,
