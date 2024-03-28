@@ -26,7 +26,7 @@ export CARGO_ASC=true
 export GDUSER="~/.local/share/godot/app_userdata/Mykaelium/"
 export GTK_THEME=Arc-Dark
 export XCURSOR_THEME=Arc-Dark
-export GODOT4_BIN=mykaelium
+export GODOT4_BIN=/bin/godot-mono
 
 
 ################
@@ -96,14 +96,23 @@ alias ytdl="youtube-dl --abort-on-unavailable-fragment"
 alias tsm='transmission-remote --torrent-done-script ~/bin/torrdone'
 alias tsmr='transmission-remote -l | grep -v 'Queued''
 alias tsmd="transmission-remote -l | grep 100%"
-alias mpvr="find . -maxdepth 1 | shuf | grep -x . -v | xargs mpv"
+#alias mpvr="find . -maxdepth 1 | shuf | grep -x . -v | xargs mpv"
+##Better handles irregular file names e.g. spaces/hyphens/other special characters
+mpvr() {
+  while IFS= read -r -d '' file; do
+    files+=("$file")
+  done < <(find . -maxdepth 1 -print0 | shuf -z)
+
+  mpv "${files[@]}"
+}
 alias mkdir="mkdir -pv"
-alias lss='ls'
-type exa >/dev/null && alias ls="exa --color=auto -hal --group-directories-first"
-type exa >/dev/null && alias lt="exa --color=auto -hal --group-directories-first"
-type exa >/dev/null && alias ls="exa --color=auto -h --group-directories-first"
-type exa >/dev/null && alias l="exa --color=auto -h --group-directories-first"
-type exa >/dev/null && alias lsa="exa --color=auto -ha --group-directories-first"
+#alias lss='ls'
+#type exa >/dev/null && alias ls="exa --color=auto -hal --group-directories-first"
+#type exa >/dev/null && alias lt="exa --color=auto -hal --group-directories-first"
+#type exa >/dev/null && alias ls="exa --color=auto -h --group-directories-first"
+#type exa >/dev/null && alias l="exa --color=auto -h --group-directories-first"
+#type exa >/dev/null && alias lsa="exa --color=auto -ha --group-directories-first"
+alias ls="/bin/ls -ha --color=auto --group-directories-first"
 alias lls="/bin/ls"
 alias grep="grep --color=auto"
 alias mv="mv -v"

@@ -111,20 +111,20 @@ local function lsp_keymaps(bufnr)
   vim.cmd [[ command! Format execute 'lua vim.lsp.buf.formatting()' ]]
 end
 M.on_attach = function(client, bufnr)
-  if client.server_capabilities.documentHighlight then
-      vim.cmd [[
-        hi LspReferenceRead cterm=bold ctermbg=red guibg=LightYellow
-        hi LspReferenceText cterm=bold ctermbg=red guibg=LightYellow
-        hi LspReferenceWrite cterm=bold ctermbg=red guibg=LightYellow
-        augroup lsp_document_highlight
-          autocmd! * <buffer>
-          autocmd CursorHold <buffer> lua vim.lsp.buf.document_highlight()
-          autocmd CursorMoved <buffer> lua vim.lsp.buf.clear_references()
-        augroup END
-      ]]
-  end
+  -- if client.server_capabilities.documentHighlight then
+  --     vim.cmd [[
+  --       hi LspReferenceRead cterm=bold ctermbg=red guibg=LightYellow
+  --       hi LspReferenceText cterm=bold ctermbg=red guibg=LightYellow
+  --       hi LspReferenceWrite cterm=bold ctermbg=red guibg=LightYellow
+  --       augroup lsp_document_highlight
+  --         autocmd! * <buffer>
+  --         autocmd CursorHold <buffer> lua vim.lsp.buf.document_highlight()
+  --         autocmd CursorMoved <buffer> lua vim.lsp.buf.clear_references()
+  --       augroup END
+  --     ]]
+  -- end
   lsp_keymaps(bufnr)
-  lsp_highlight_document(client)
+  -- lsp_highlight_document(client)
 end
 
 local status_ok, cmp_nvim_lsp = pcall(require, "cmp_nvim_lsp")

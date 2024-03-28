@@ -35,4 +35,4 @@ case "$1" in
                 ;;
 esac
 
-
+echo "\nRemember to use run_root.sh to install udev rules and systemd system services as necessary"

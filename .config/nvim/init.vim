@@ -81,7 +81,7 @@ let &packpath=&runtimepath
         endif
     endfunction
     Plug 'rust-lang/rust.vim'
-    Plug 'arzg/vim-rust-syntax-ext'
+    "Plug 'arzg/vim-rust-syntax-ext'
     Plug 'saecki/crates.nvim'
     Plug 'simrat39/rust-tools.nvim'
     " =================
@@ -107,6 +107,7 @@ let &packpath=&runtimepath
 
     Plug 'onsails/lspkind.nvim'
     Plug 'dpayne/CodeGPT.nvim' "chat gpt :D
+    Plug 'Exafunction/codeium.nvim' 
     "" ====
     "" C#
     "" ====
@@ -232,6 +233,7 @@ let &packpath=&runtimepath
     lua require('user.telescope-settings')
     lua require("telescope").load_extension("ui-select")
     nnoremap <leader>fo <cmd>Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
+    nnoremap <leader>fh <cmd>Telescope find_files find_command=rg,--hidden=true,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>ff :tabnew<CR>:Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>fv :vsplit<CR>:Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>fs <cmd>Telescope lsp_document_symbols find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
@@ -340,15 +342,28 @@ let &packpath=&runtimepath
   nnoremap <leader><C-m> :Mason<CR>
   lua require('user.cmp').setup()
   lua require('user.null-ls').setup()
-" Godo Options
+
+" Godot Options
     "autocmd FileType gdscript nnoremap <F5> <Esc>:w<CR>:GodotRun<CR>
-    autocmd FileType gdscript set expandtab
-    autocmd Filetype gdscript set tabstop=3 
-    autocmd Filetype gdscript set shiftwidth=3 
-    autocmd BufWritePre gdscript :%s/\s\+$//e
+    "autocmd BufWritePre gdscript :%s/\s\+$//e
     lua vim.g.godot_executable = '/bin/godot-mono'
 
     autocmd Filetype gdscript nnoremap <leader>fo <cmd>Telescope find_files find_command=rg,--ignore,--files prompt_prefix=🔍🥺<CR>
+    function! RebuildAndRestart()
+       let l:current_dir = getcwd()
+       execute 'cd' fnameescape(system('git rev-parse --show-toplevel'))
+       if system('cargo build --manifest-path ./rust/Cargo.toml') != 0
+          echo "Build failed. Exiting."
+          execute 'cd' fnameescape(l:current_dir)
+          return
+       endif
+       !pkill -f godot-mono
+       !mykaelium &
+       windo if &filetype == 'gdscript' | execute 'LspRestart' | endif
+       execute 'cd' fnameescape(l:current_dir)
+    endfunction
+    autocmd FileType rust,gdscript command! RebuildAndRestart :call RebuildAndRestart()
+    nnoremap <leader>bb :RebuildAndRestart<CR>
 " Rust Options
     function! GetSrcDir(...) abort
         if a:0 == 0
@@ -386,8 +401,8 @@ let &packpath=&runtimepath
       endif
     endfunction
     
-    autocmd BufWritePre *.rs lua vim.lsp.buf.format()
-    "lua vim.lsp.buf.format({ timeout_ms = 2000 } change to this in neovim 0.8
+    "autocmd filetype rust BufWritePre lua vim.lsp.buf.format() "change to this in neovim 0.8
+    "lua vim.lsp.buf.format()
     autocmd Filetype rust nnoremap <leader>ds :call CdSrcDir()<CR>
     autocmd Filetype rust nnoremap <leader>dS :call CdParent()<CR>
     autocmd Filetype rust nnoremap <silent><leader>M :lua require'rust-tools.expand_macro'.expand_macro()<CR>
@@ -397,8 +412,10 @@ let &packpath=&runtimepath
    "" autocmd Filetype rust nnoremap <silent><leader>gi lua require('user.lsp.settings.rust').Toggle_inlay_hints()
     autocmd Filetype rust nnoremap <silent>gb :RustOpenExternalDocs<CR>
 " terminal:
-   command! Sterm silent execute '!nohup st -d' expand('%:p:h') '> /dev/null 2>&1 &'
-   nnoremap <S-CR> :Sterm<CR>
+    command! Sterm silent execute '!nohup st -d' expand('%:p:h') '> /dev/null 2>&1 &'
+    nnoremap <S-CR> :Sterm<CR>
+" Codeium
+    lua require("codeium").setup({})
 " Navigation & Splits
     nnoremap <silent><leader>dr :Gcd<CR>:echo "Changed to git root dir"<CR>
     nnoremap <silent_leader>dh :cd<CR>:echo "Changed to home dir"<CR>

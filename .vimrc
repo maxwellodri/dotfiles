@@ -153,10 +153,8 @@ function! s:get_visual_selection()
 
 " Make Options
     autocmd Filetype make set noexpandtab "force tabs for make
-
-    inoremap <left> <nop>
 " Vimscript Options
-    autocmd Filetype vim set softtabstop=2
-    autocmd Filetype vim set tabstop=2
-    autocmd Filetype vim set shiftwidth=2
+    "autocmd Filetype vim set softtabstop=2
+    "autocmd Filetype vim set tabstop=2
+    "autocmd Filetype vim set shiftwidth=2
     

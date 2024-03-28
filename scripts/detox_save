@@ -1,0 +1,10 @@
+#!/bin/sh
+cd $PWD
+
+# Check if the first argument is empty
+if [ -z "$1" ]; then
+    detox -h
+    exit 1
+fi
+
+detox -v "$1" | grep '\->' >> detox_save.txt

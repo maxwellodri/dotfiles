@@ -2,11 +2,12 @@
 server_path="$HOME/.cache/nvim/godot-server.pipe"
 [ -f "$server_path" ] && rm server_path
 dunst &
-#picom -b --config ~/.config/picom/picom.conf &
+picom -b --config ~/.config/picom/picom.conf &
 polkit-dumb-agent &
 #/usr/lib/xfce-polkit/xfce-polkit &
 [ $dotfiles_tag = "pc" ] && steam -silent &
 $bin/monitor.sh && feh --bg-scale "$dotfiles/images/treesketch.jpg"
+$bin/loop_set_kb_map.sh
 #wallpaper-show
 #notify-send "$dotfiles/images/low-poly_red.jpg"
 #wal -R &

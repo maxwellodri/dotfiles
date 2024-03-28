@@ -3,6 +3,6 @@
 #maim
 #slop
 #imagemagick
+mkdir -p ~/.cache/dotfiles
 img=~/.cache/dotfiles/screen.png 
-maim -s | xclip -sel clip -t image/png > $img
-
+maim -s $img && xclip -selection clipboard -t image/png -i $img

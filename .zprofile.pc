@@ -16,8 +16,8 @@ export dotfile="$HOME/source/dotfiles"
 export dotfiles_tag="pc"
 export dotfile_tag="pc"
 
-#[ -f "$(which transmission-daemon)" ] && transmission-daemon
-#command transmission-daemon
+[ -f "$(which transmission-daemon)" ] && transmission-daemon --no-auth
+#command transmission-daemon --no-auth
 command ssh-agent
 #command xfce-polkit
 [ ! -s ~/.config/mpd/pid ] && [ -f "$(which mpd)" ] && mpd

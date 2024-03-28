@@ -1,3 +1,4 @@
 #!/bin/sh
-
-transmission-remote -a "$(xclip -o)" --torrent-done-script ~/bin/torrdone
+pgrep -f transmission-daemon > /dev/null || (transmission-daemon --no-auth && notify-send "Starting transmission daemon...")
+transmission-remote -a "$(xclip -o)" --torrent-done-script ~/bin/torrdone && notify-send -t 750 "Torrent Added 🏴‍☠️"
+#echo "$@" >> /home/maxwell/media/ctdrive/magnet_links.txt

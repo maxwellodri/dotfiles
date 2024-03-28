@@ -10,24 +10,10 @@ function Toggle_inlay_hints()
     _G.RUSTTOOLSINLAY = not _G.RUSTTOOLSINLAY
 end
 
-local ra_commands = {
-	-- RustOpenDocs = {
-	--       function()
-	--         vim.lsp.buf_request(vim.api.nvim_get_current_buf(), 'experimental/externalDocs', vim.lsp.util.make_position_params(), function(err, url)
-	--           if err then
-	--             error(tostring(err))
-	--           else
-	--             vim.fn['netrw#BrowseX'](url, 0)
-	--           end
-	--         end)
-	--       end,
-	--       description = 'Open documentation for the symbol under the cursor in default browser',
-	--     },
-}
 
 local ra_settings = {
       ["rust-analyzer"] = {
-        diagnostics = { disabled = {"inactive-code"} },
+        diagnostics = { enabled = true, disabled = {"inactive-code"} },
 			  procMacro = {
 			  		enable = true,
 			  	attributes = {
@@ -70,22 +56,18 @@ OPTS = {
         runnables = {
             -- whether to use telescope for selection menu or not
             use_telescope = true
-
             -- rest of the opts are forwarded to telescope
         },
         -- on_initialized = ra_callback,
         reload_workspace_from_cargo_toml = true,
-
         debuggables = {
             -- whether to use telescope for selection menu or not
             use_telescope = true
-
             -- rest of the opts are forwarded to telescope
         },
 
         -- These apply to the default RustSetInlayHints command
         inlay_hints = {
-
             -- Only show inlay hints for the current line
             only_current_line = false,
 
@@ -171,7 +153,7 @@ OPTS = {
     }
 }
 
-local _ = require('null-ls')
+-- local _ = require('null-ls')
 
 require('crates').setup {
     date_format = "%d-%m-%Y",
@@ -180,5 +162,6 @@ require('crates').setup {
         name = "crates.nvim",
     },
 }
+
 
 return OPTS

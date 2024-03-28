@@ -1,6 +1,7 @@
 { 
     "AIBlog": "http://bootstrappingartificialintelligence.fr/WordPress3/",
     "RustShell": "https://www.joshmcguigan.com/blog/build-your-own-shell-rust/",
+    "gd": "https://godot-rust.github.io/docs/gdext/master/godot/",
     "qut": "https://qutvirtual4.qut.edu.au/group/student/home",
     "bb": "https://qutvirtual4.qut.edu.au/group/student/home",
     "tpb": "https://piratebay-proxylist.com/",
@@ -69,6 +70,7 @@
     "bevydocs": "https://docs.rs/bevy/latest",
     "mm": "https://mm.odri.net.au",
     "1337": "https://1337x.unblockninja.com/",
-    "skyrimmodmapper": "https://modmapper.com"
+    "skyrimmodmapper": "https://modmapper.com",
+    "godot": "https://docs.godotengine.org/en/stable/classes/index.html"
 }
 

@@ -1,0 +1,2 @@
+#!/bin/sh
+tsm -l | grep 100% | awk '{print $1}' | grep -v '^$' | grep -o '[0-9]*' | tr '\n' ',' | sed 's/,$/\n/' | xargs -I {} transmission-remote -t {} -r

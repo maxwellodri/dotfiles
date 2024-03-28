@@ -1,5 +1,6 @@
 #!/bin/sh
 
-pgrep -x transmission-daemon > /dev/null || (trans mission-daemon && notify-send "Starting transmission daemon..." && sleep 3
+pgrep -x transmission-daemon > /dev/null || (transmission-daemon --no-auth && notify-send "Starting transmission daemon..." && sleep 3
 
+echo "$@" >> /home/maxwell/media/ctdrive/magnet_links.txt
 transmission-remote -a "$@" notify-send "⬇ Transmission Daemon" "Torrent Added" 

@@ -34,7 +34,8 @@ i3=" $i3config $i3statusconfig" #i3wm
 xfiles=" .xinitrc $zathura $picom $dunst $ncmpcpp .Xresources $sxhkdconfig $rofi"
 bash=" .bashrc .bashrc_extra .bash_profile $sh $pam"
 zsh=" .zshrc .zshrc_extra .zprofile $sh $pam" 
-files=" .vimrc .config/nvim $mutt $ytdl $newsboat $tmux $gpg $emacs $gitconfig"
+files=" .vimrc .config/nvim $mutt $ytdl $newsboat $tmux $gpg $emacs $gitconfig .config/systemd"
+
 ########### Variables
 pcfiles=" $xfiles $zsh $bsp $eww" #platform specific dotfiles
 laptopfiles=" $xfiles $pactl $i3 $zsh $terminator"
@@ -86,6 +87,19 @@ case $1 in
                     ;;
 
 esac
+
+# Iterate through files and remove trailing slash if it's a directory
+for file in $files; do
+    if [ -d "$file" ] && [[ "$file" == */ ]]; then
+        # Remove trailing slash
+        file="${file%/}"
+    fi
+    # Rebuild files string
+    new_files="$new_files $file"
+done
+# Redefine files without trailing slashes
+files="$new_files"
+
 # create dotfiles_old in homedir
 echo "Creating $olddir for backup of any existing dotfiles in ~"
 mkdir -pv $olddir

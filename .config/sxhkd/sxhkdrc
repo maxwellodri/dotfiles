@@ -39,7 +39,7 @@ super + shift + w
 super + w
     wallpaper-shader
 super + shift + t
-	torr && notify-send -t 750 "Torrent Added 🏴‍☠️"
+	torr
 super + ctrl + shift + s
     wholescreensave && sleep 0.2 && notify-send -t 1000 "Screenshot Taken"
 super + shift + o
