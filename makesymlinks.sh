@@ -32,9 +32,9 @@ eww=.config/eww/
 ########### Meta Variables
 i3=" $i3config $i3statusconfig" #i3wm
 xfiles=" .xinitrc $zathura $picom $dunst $ncmpcpp .Xresources $sxhkdconfig $rofi"
-bash=" .bashrc .bashrc_extra .bash_profile $sh $pam"
+bash=" .bashrc .bashrc_extra .bash_profile $sh $pam $xdg"
 zsh=" .zshrc .zshrc_extra .zprofile $sh $pam" 
-files=" .vimrc .config/nvim $mutt $ytdl $newsboat $tmux $gpg $emacs $gitconfig .config/systemd"
+files=" .vimrc .config/nvim $mutt $ytdl $newsboat $tmux $gpg $emacs $gitconfig .config/systemd $xdg"
 
 ########### Variables
 pcfiles=" $xfiles $zsh $bsp $eww" #platform specific dotfiles

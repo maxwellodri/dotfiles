@@ -1,15 +1,41 @@
 #!/bin/sh
+
 interact ()
 {
     file=$1
-    [ -f $file ] && vim $file #TODO cd to git root as well
-    [ -d $file ] && cd $file 
-    clear
+    echo $file
+    [ -z "$file" ] && return
 
+    if [ -f "$file" ]; then
+        # Check MIME type for text and open in Vim if it's a text file
+        if file --mime-type "$file" | grep -q 'text/'; then
+            if git -C "$(dirname "$file")" status > /dev/null 2>&1; then
+                # Get the Git root directory and change to it
+                git_root=$(git -C "$(dirname "$file")" rev-parse --show-toplevel)
+                cd_path="$git_root"
+                echo $git_root >> $HOME/git_ok
+            fi
+            echo $file >> $HOME/git_ok
+            vim "$file"
+        else
+            # Otherwise use the default application
+            (nohup xdg-open "$file" >/dev/null 2>&1 &)
+        fi
+    fi
 }
-cd ~/
-file=$(fd -E Games | fzf) #exclude Games
-#realpath $file &>/dev/null || exit
-#[ -f $file ] && vim $file || [ -d $file ] && cd $file || exit
+prev_dir=$(pwd)
+#cd_path=""
+cd $HOME
+#
+#echo $file
+##file=$(fd -E Games | fzf) #exclude Games
+file=$(fd . $prev_dir | fd -E Games -E $prev_dir | fzf)
+[ -f "$file" ] && file=$(realpath "$file")
+#echo $file
+#
 interact $file
-
+#
+#if [ -n "$cd_path" ]; then
+#    echo "$cd_path" #handle result in zshrc
+#fi
+#clear

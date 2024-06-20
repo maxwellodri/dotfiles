@@ -28,10 +28,15 @@ super + shift + Tab
 	lockme
 super + shift + a
 	art.sh
+super + End
+	bash -e passmenu
 super + Insert
 	bash -e passmenu
 super + shift + b
 	bookmarks
+
+super + shift + s 
+	screendump
 super + shift + q
 	set_kb_map && notify-send -t 1000 "Correctly Set Capslock => Escape 😍"
 super + shift + w

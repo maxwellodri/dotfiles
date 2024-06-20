@@ -8,9 +8,21 @@
 # 
 #[ $(( ( RANDOM % 2 )  + 1 )) = 1 ] && echo "i <3 hannah" | figlet || echo "hannah is qt" | figlet
 # History:
+HISTSIZE=5000
 HISTFILE=~/.cache/histfile
-HISTSIZE=1000
-SAVEHIST=1000
+SAVEHIST=$HISTSIZE
+HISTDUP=erase
+setopt appendhistory
+setopt sharehistory
+setopt hist_ignore_space
+setopt hist_ignore_all_dups
+setopt hist_save_no_dups
+setopt hist_ignore_dups
+setopt hist_find_no_dups
+
+#ignore case for completions:
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
+
 
 declare -A venvs=(
     #["tortoise"]="~/source/tortoise/"
@@ -51,6 +63,13 @@ _my_cargo_completion () {
   # Otherwise, use the default completion for `cargo`
   _arguments '*: :_cargo'
 }
+detoxx() {
+    detox * 2>&1 | awk '{print $(NF-3)}' | awk '{sub(/:$/,"")}1' | xargs -r rm -rf
+}
+
+fdt() {
+    fd "$1" -0 | xargs -0 touch
+}
 
 # Define the new completion function for `cargo`
 autoload -Uz compinit && compinit
@@ -64,14 +83,58 @@ function vi-yank-xclip {
 zle -N vi-yank-xclip
 bindkey -M vicmd 'y' vi-yank-xclip
 
+bindkey '^n' history-search-forward
+
 source /usr/share/fzf/key-bindings.zsh
 source /usr/share/fzf/completion.zsh
 
+#function _fuzzy_vim {
+#
+#    # Execute the script and capture the output
+#    local dir_path="$($HOME/bin/fuzzy_vim | sed 's/\x1b\[[0-9;]*m//g' | sed 's/\x1b\[[0-9;]*H\[[0-9;]*J//g')"
+#    #echo $dir_path
+#    # Clear any previous input in the shell
+#    zle clear-input
+#
+#
+#    # Check if the output is a valid directory and change to it silently
+#    if [[ -d "$dir_path" ]]; then
+#        cd "$dir_path"
+#    fi
+#
+#    # Set the shell BUFFER to empty and accept the line to refresh the prompt
+#    BUFFER="$dir_path"
+#    zle accept-line
+#}
 function _fuzzy_vim {
-    zle clear-input
-    BUFFER=" source $bin/fuzzy_vim"
-    zle accept-line
+    # Execute the script and capture the output
+    local dir_path="$($HOME/bin/fuzzy_vim)"
 
+    #echo "Output from fuzzy_vim: '$dir_path'"
+    zle clear_input
+
+    # Convert to absolute path if not already and ensure dir_path is not empty
+    if [[ -n "$dir_path" && "$dir_path" != /* ]]; then
+        dir_path="$HOME/$dir_path"
+    fi
+    
+    # Check if the output is a valid directory and change to it
+    if [[ -d "$dir_path" && -n "$dir_path" ]]; then
+        cd "$dir_path"
+    fi
+    
+    #echo "$dir_path"
+
+    # Clear the BUFFER and accept the line to refresh the prompt
+    BUFFER=""
+    zle accept-line
+}
+
+function _vim_in_dir {
+    zle clear_input
+    vim .
+    BUFFER=""
+    zle accept-line
 }
 
 function _sterm {
@@ -92,8 +155,12 @@ function _git_root {
 }
 
 zle -N _fuzzy_vim
-bindkey -M vicmd '^X' _fuzzy_vim
-bindkey -M viins '^X' _fuzzy_vim
+bindkey -M vicmd '^F' _fuzzy_vim
+bindkey -M viins '^F' _fuzzy_vim
+
+zle -N _vim_in_dir
+bindkey -M viins '^X' _vim_in_dir
+bindkey -M vicmd '^X' _vim_in_dir
 
 zle -N _git_root
 bindkey -M viins '^G' _git_root

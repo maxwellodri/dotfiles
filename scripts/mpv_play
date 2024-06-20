@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+import os
+import random
+import subprocess
+import argparse
+import sys
+
+def get_files(root_directory):
+    files_to_play = []
+    # Walk through the directory structure starting at root_directory
+    for root, dirs, files in os.walk(root_directory):
+        for file in files:
+            # Join the directory and file name to get the full path
+            filepath = os.path.join(root, file)
+            files_to_play.append(filepath)
+    return files_to_play
+
+def play_files(file_paths):
+    # Play files using MPV
+    subprocess.run(["mpv"] + file_paths)
+
+def get_mtime(path):
+    stat = os.stat(path)
+    return stat.st_mtime
+
+def main():
+    parser = argparse.ArgumentParser(description="Play files in a directory using MPV.")
+    parser.add_argument("-m", "--mode", choices=['r', 'o', 'i'], required=True,
+                        help="Mode to play files: r (random), o (order), i (inverse)")
+    parser.add_argument("directory", nargs='?', default=os.getcwd(), 
+                        help="Directory to play files from (defaults to current directory)")
+
+    args = parser.parse_args()
+
+    if args.directory and not os.path.isdir(args.directory):
+        print("Error: The specified path is not a directory.")
+        sys.exit(1)
+
+    #files_to_play = get_files(args.directory)
+    files_to_play = [f for f in get_files(args.directory) if not f.endswith('.part')]
+
+    # Handle different modes
+    if args.mode == 'r':
+        random.shuffle(files_to_play)
+    if args.mode == 'i':
+        files_to_play.sort(key=get_mtime)
+    elif args.mode == 'o':
+        files_to_play.sort(key=get_mtime, reverse=True)
+
+    play_files(files_to_play)
+    #print(files_to_play)
+
+if __name__ == "__main__":
+    main()

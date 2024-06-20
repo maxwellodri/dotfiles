@@ -14,7 +14,7 @@ def open_bookmarks(bookmarks_file, args):
         bookmarks = eval(bookmarks_str)
     except Exception:
         # bookmarks.py couldn't be parsed
-        subprocess.run(["notify-send", "Error", "bookmarks.py couldn't be parsed"])
+        subprocess.run(["notify-send", "Error", "bookmarks.py couldn't be parsed (missing comma ?)"])
         # abort the script
         sys.exit(1)
     if args[0] in bookmarks:

@@ -4,6 +4,8 @@ server_path="$HOME/.cache/nvim/godot-server.pipe"
 dunst &
 picom -b --config ~/.config/picom/picom.conf &
 polkit-dumb-agent &
+systemctl --user import-environment DISPLAY XAUTHORITY #non-xorg vars defined in shrc 
+
 #/usr/lib/xfce-polkit/xfce-polkit &
 [ $dotfiles_tag = "pc" ] && steam -silent &
 $bin/monitor.sh && feh --bg-scale "$dotfiles/images/treesketch.jpg"

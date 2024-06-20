@@ -27,7 +27,9 @@ export GDUSER="~/.local/share/godot/app_userdata/Mykaelium/"
 export GTK_THEME=Arc-Dark
 export XCURSOR_THEME=Arc-Dark
 export GODOT4_BIN=/bin/godot-mono
-
+export SOURCE="$HOME/source"
+export QMK="$SOURCE/qmk_firmware"
+systemctl --user import-environment PATH HOME USER #DISPLAY defined in $dotifles/dwm/startup.sh
 
 ################
 #Extras
@@ -92,34 +94,42 @@ alias rmdir='rmdir -p'
 alias mpdrc="vim ~/.config/mpd/mpd.conf"
 alias ncmpcpprc="vim ~/.config/ncmpcpp/config"
 alias ncm="ncmpcpp"
-alias ytdl="youtube-dl --abort-on-unavailable-fragment"
+#alias ytdl="yt-dlp --abort-on-unavailable-fragment"
+alias ytdl='yt-dlp --restrict-filenames --abort-on-unavailable-fragment --trim-filenames 100 -o "~/Downloads/ytdlp/%(title)s.%(ext)s"'
 alias tsm='transmission-remote --torrent-done-script ~/bin/torrdone'
 alias tsmr='transmission-remote -l | grep -v 'Queued''
-alias tsmd="transmission-remote -l | grep 100%"
+alias tsmd="transmission-remote -l | grep 100% | awk '{print $1}' | tr -d '\*' | tr '\n' ', ' | sed 's/,\ $/\n/' | sed 's/,$/\n/' | xargs -I {} transmission-remote -t '{}' -r"
+alias ex='exit'
 #alias mpvr="find . -maxdepth 1 | shuf | grep -x . -v | xargs mpv"
 ##Better handles irregular file names e.g. spaces/hyphens/other special characters
-mpvr() {
-  while IFS= read -r -d '' file; do
-    files+=("$file")
-  done < <(find . -maxdepth 1 -print0 | shuf -z)
-
-  mpv "${files[@]}"
-}
+#mpvr() {
+# # Read filenames into an array, shuffle them with shuf, and store in 'files'
+#  mapfile -t -d $'\0' files < <(find . -maxdepth 1 -print0 | shuf -z)
+#
+#  # Play shuffled files with mpv
+#  mpv "${files[@]}"
+#}
+#alias mpvr='find . -maxdepth 1 -print0 | shuf -z | xargs -0 mpv'
+alias mpvr='fd . --print0 | shuf --zero-terminated | xargs -0 mpv'
+alias mpvo='fd . --print0 | xargs -0 mpv'
 alias mkdir="mkdir -pv"
+alias mpvr='$bin/mpv_play -m r'
+alias mpvo='$bin/mpv_play -m o'
+alias mpvi='$bin/mpv_play -m i'
 #alias lss='ls'
 #type exa >/dev/null && alias ls="exa --color=auto -hal --group-directories-first"
 #type exa >/dev/null && alias lt="exa --color=auto -hal --group-directories-first"
 #type exa >/dev/null && alias ls="exa --color=auto -h --group-directories-first"
 #type exa >/dev/null && alias l="exa --color=auto -h --group-directories-first"
 #type exa >/dev/null && alias lsa="exa --color=auto -ha --group-directories-first"
-alias ls="/bin/ls -ha --color=auto --group-directories-first"
+alias ls="/bin/ls -h --color=auto --group-directories-first"
 alias lls="/bin/ls"
 alias grep="grep --color=auto"
 alias mv="mv -v"
 alias cp="cp -v"
 alias pacs="pacman -Slq | fzf -m --preview 'pacman -Si {1}' | xargs -ro sudo pacman -S"
 alias alp="vim $dotfiles/archlinux_x86_64_packages"
-alias dfn="df -h | grep -vE 'run|tmpfs' | awk '!/dev[[:space:]]/' | tail -n +1" #tail to remove whitespace above header
+alias dfn="df -h | grep -vE 'run|tmpfs|efivars|efi' | awk '!/dev[[:space:]]/' | tail -n +1" #tail to remove whitespace above header
 
 alias untar='tar -zxvf'
 alias screensave="xclip -selection clipboard -target image/png -out > out.png"

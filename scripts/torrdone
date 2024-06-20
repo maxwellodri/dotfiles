@@ -1,2 +1,4 @@
 #!/bin/sh
-notify-send -t 750 "Torrent Completed 😠"
+TORRENT_NAME=$(transmission-remote -t "$TR_TORRENT_ID" -i | grep "Name" | cut -d : -f 2- | tr -d ' ')
+CLEAN_TORRENT_NAME=$(echo "$TORRENT_NAME" | tr '[:punct:]' '_')
+notify-send -t 5000 "Torrent Completed 😠" #\n$CLEAN_TORRENT_NAME, $TR_TORRENT_ID"

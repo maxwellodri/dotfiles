@@ -1,0 +1,12 @@
+#!/bin/sh
+SRC_DIRS=("$HOME/.password-store" "$HOME/source/gd-mykaelium/" "$HOME/maFiles/")
+DEST_PREFIX="odri8m@gmail.com-GDrive:/rclone/"
+LOG_FILE="$HOME/.cache/rclone.log"
+
+for SRC in "${SRC_DIRS[@]}"; do
+  BASE_NAME=$(basename "$SRC")
+  DEST="${DEST_PREFIX}${BASE_NAME}/"
+  MSG="rclone sync 📲: $SRC to $DEST"
+  notify-send "$MSG"
+  /bin/rclone sync "$SRC" "$DEST" --progress --exclude="/rust/target/" --exclude="/export/" >> "$LOG_FILE" 2>&1 && notify-send -u low "Success 🥰: $MSG (Check log for details)" || notify-send -u critical "Failure 💣: $MSG (Check log for details)"
+done

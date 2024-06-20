@@ -128,6 +128,7 @@ let &packpath=&runtimepath
     Plug 'nvim-telescope/telescope-ui-select.nvim'
     Plug 'kyazdani42/nvim-tree.lua' "library of functions, used by other modules
     Plug 'stsewd/gx-extended.vim' "requires gx from vim-markdown (contained in vim-polyglot) to be disabled
+    Plug 'stevearc/oil.nvim'
     " ==============
     " Visual / Appearance
     " ==============
@@ -241,6 +242,9 @@ let &packpath=&runtimepath
     nnoremap <leader>rs <cmd>Telescope lsp_workspace_symbols prompt_prefix=🔍👹<CR>
     nnoremap gr <cmd>Telescope lsp_references prompt_prefix=😠<CR>
     nnoremap <leader>rv :vsplit<CR>:<cmd>Telescope live_grep prompt_prefix=🔍🤔<CR>
+
+    lua require("user.oil")
+
 
 " AnyFold + Fold Cylce
   autocmd Filetype Telescope* call AnyFoldTelescope 
@@ -413,6 +417,8 @@ let &packpath=&runtimepath
     autocmd Filetype rust nnoremap <silent>gb :RustOpenExternalDocs<CR>
 " terminal:
     command! Sterm silent execute '!nohup st -d' expand('%:p:h') '> /dev/null 2>&1 &'
+    "command! Gterm silent execute '!nohup st -d !echo $(git rev-parse --show-toplevel) > /dev/null 2>&1 &'
+    "command! Gterm silent execute '!nohup st -d' sh -c 'cd $(git rev-parse --show-toplevel) && exec st' '> /dev/null 2>&1 &'
     nnoremap <S-CR> :Sterm<CR>
 " Codeium
     lua require("codeium").setup({})

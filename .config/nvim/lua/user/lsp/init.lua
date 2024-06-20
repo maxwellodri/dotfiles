@@ -9,17 +9,8 @@ local opts = {
 local lspconfig = require'lspconfig'
 local rust_opts = require("user.lsp.settings.rust")
 
- -- require'lspconfig'.gdscript.setup({
- --   on_attach = opts.on_attach,
- --   capabilities = opts.capabilities,
- --   settings = opts.settings,
- --   cmd = {"websocat", "ws://127.0.0.1:6005", "--jsonrpc"},
- -- })
---
-local godot_cmd = vim.lsp.rpc.connect('127.0.0.1', '6011')
--- local godot_server_pipe = os.getenv("HOME") .. "/.cache/nvim/godot-server.pipe"
+local godot_cmd = vim.lsp.rpc.connect('127.0.0.1', '6012')
 require('lspconfig').gdscript.setup{ cmd = godot_cmd, on_attach = opts.on_attach, flags = { debounce_text_changes = 150, } }
--- -- on_attach = opts.on_attach, 
 
 
 
