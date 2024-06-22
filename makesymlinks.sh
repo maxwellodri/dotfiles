@@ -40,10 +40,11 @@ files=" .vimrc .config/nvim $mutt $ytdl $newsboat $tmux $gpg $emacs $gitconfig .
 pcfiles=" $xfiles $zsh $bsp $eww" #platform specific dotfiles
 laptopfiles=" $xfiles $pactl $i3 $zsh $terminator"
 thinkpadfiles=" $xfiles $zsh $bsp" 
+hackermanfiles=" $xfiles $zsh"
 chromebookfiles=" "
 rpifiles=" "
 noxfiles="$zsh"
-all="$files$zsh$bash$xfiles$i3$pactl$sh$terminator$zathura" #all files
+all="$files$zsh$bash$xfiles$pactl$sh$zathura" #all files
 
 ##########
 
@@ -72,6 +73,10 @@ case $1 in
                     ;;
     "nox")          tag="$1"
                     files=$noxfiles$files
+		    ;;
+
+    "hackerman")    tag="$1"
+                    files=$hackermanfiles$files
 		    ;;
 
     "clean")        echo "Removing all symlinks..." 
