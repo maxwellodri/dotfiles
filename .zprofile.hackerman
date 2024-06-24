@@ -1,0 +1,38 @@
+#!/bin/sh
+export PATH=$HOME/bin:/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl
+export PATH="$HOME/.cargo/bin:$PATH"
+export LIBRARY_PATH=$LIBRARY_PATH:$HOME/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib
+export LUTRIS_SKIP_INIT=1
+
+export GTK_THEME=Arc-Dark
+export XCURSOR_THEME=Arc-Dark
+
+unset beep 
+[ -f /usr/share/vulkan/icd.d/nvidia_icd.json ] && export VK_ICO_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json 
+
+WM=''  #override for cases below
+export dotfiles="$HOME/source/dotfiles"
+export dotfile="$HOME/source/dotfiles"
+export dotfiles_tag="pc"
+export dotfile_tag="pc"
+
+[ -f "$(which transmission-daemon)" ] && transmission-daemon --no-auth
+#command transmission-daemon --no-auth
+command ssh-agent
+#command xfce-polkit
+[ ! -s ~/.config/mpd/pid ] && [ -f "$(which mpd)" ] && mpd
+
+if [ -z "$WM" ] ; then
+    case $XDG_VTNR in
+            1)      WM='/usr/local/bin/dwm'
+                    ;;
+            *)      echo "Not starting X in this TTY, $XDG_VTNR"
+                    WM=''
+                    ;;
+    esac
+fi
+export WM
+export WMNAME="$(basename "$WM")"
+[ ! "$DISPLAY" ] && [ -n "$WM" ] && startx || echo "$WM failed?"
+
+

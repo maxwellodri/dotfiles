@@ -5,6 +5,9 @@ mold
 man
 xdotool
 ctags
+npm
+xorg
+xorg-xinit
 nodejs
 neovim
 slop

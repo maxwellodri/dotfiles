@@ -421,7 +421,7 @@ let &packpath=&runtimepath
     "command! Gterm silent execute '!nohup st -d' sh -c 'cd $(git rev-parse --show-toplevel) && exec st' '> /dev/null 2>&1 &'
     nnoremap <S-CR> :Sterm<CR>
 " Codeium
-    lua require("codeium").setup({})
+    "lua require("codeium").setup({})
 " Navigation & Splits
     nnoremap <silent><leader>dr :Gcd<CR>:echo "Changed to git root dir"<CR>
     nnoremap <silent_leader>dh :cd<CR>:echo "Changed to home dir"<CR>
