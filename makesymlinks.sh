@@ -28,6 +28,7 @@ sxhkdconfig=.config/sxhkd/sxhkdrc
 rofi=.config/rofi/config.rasi
 gitconfig=.gitconfig
 eww=.config/eww/
+mpv=.config/mpv
 
 ########### Meta Variables
 i3=" $i3config $i3statusconfig" #i3wm
@@ -37,13 +38,10 @@ zsh=" .zshrc .zshrc_extra .zprofile $sh $pam"
 files=" .vimrc .config/nvim $mutt $ytdl $newsboat $tmux $gpg $emacs $gitconfig .config/systemd $xdg"
 
 ########### Variables
-pcfiles=" $xfiles $zsh $bsp $eww" #platform specific dotfiles
-laptopfiles=" $xfiles $pactl $i3 $zsh $terminator"
-thinkpadfiles=" $xfiles $zsh $bsp" 
-hackermanfiles=" $xfiles $zsh"
-chromebookfiles=" "
+pcfiles=" $xfiles $zsh $bsp $eww $mpv" #platform specific dotfiles
+hackermanfiles=" $xfiles $zsh $mpv"
 rpifiles=" "
-noxfiles="$zsh"
+noxfiles=" "
 all="$files$zsh$bash$xfiles$pactl$sh$zathura" #all files
 
 ##########
@@ -52,32 +50,19 @@ echo "Beginning script..."
 #figure out which system we are on by first variable i.e. $1:
 
 case $1 in
-    "chromebook")   tag="$1"
-                    files=$chromebookfiles$files
-                    ;;
-
-    "laptop")       tag="$1"
-                    files=$laptopfiles$files
-                    ;;
-
     "pc")           tag="$1"
                     files=$pcfiles$files
                     ;;
-
-    "thinkpad")     tag="$1"
-                    files=$thinkpadfiles$files
-                    ;;
-
     "rpi")          tag="$1"
                     files=$rpifiles$files
                     ;;
     "nox")          tag="$1"
                     files=$noxfiles$files
-		    ;;
+		            ;;
 
     "hackerman")    tag="$1"
                     files=$hackermanfiles$files
-		    ;;
+		            ;;
 
     "clean")        echo "Removing all symlinks..." 
                     for file in $all; do
