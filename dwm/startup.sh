@@ -5,10 +5,13 @@ dunst &
 picom -b --config ~/.config/picom/picom.conf &
 polkit-dumb-agent &
 systemctl --user import-environment DISPLAY XAUTHORITY #non-xorg vars defined in shrc 
+transmission-daemon
+$bin/set_kb_map
 
 #/usr/lib/xfce-polkit/xfce-polkit &
 [ $dotfiles_tag = "pc" ] && steam -silent &
-$bin/monitor.sh && feh --bg-scale "$dotfiles/images/treesketch.jpg"
+$bin/monitor.sh
+feh --bg-scale "$dotfiles/images/treesketch.jpg"
 $bin/loop_set_kb_map.sh
 #wallpaper-show
 #notify-send "$dotfiles/images/low-poly_red.jpg"

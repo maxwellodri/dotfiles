@@ -140,8 +140,8 @@ counter=0
 
 while true; do
     case $dotfiles_tag in 
-        thinkpad)
-                    OPT=" $battery, $network"
+        hackerman)
+                    OPT=" 🔋: $poll_battery"
                     ;;
         pc) 
                     OPT="" #" $packages, $network"
