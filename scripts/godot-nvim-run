@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+#/home/maxwell/bin/godot-nvim-run - Exec Path
+#{file} {line},{col} = Exec Flags
+#
+#
+# CHANGE IF NEEDED: 
+# - replace with your Terminal Emulator executable
+term_exec="st"
+# - replace with your Neovim executable
+nvide_exec="NEOVIDE_MULTIGRID=1 /usr/bin/neovide"
+# - replace with other path for the Neovim server pipe
+server_path="$HOME/.cache/nvim/godot-server.pipe"
+GODOT4_BIN=/bin/godot-mono
+
+clean_up() {
+    rm -f "$server_path"
+    exit 0
+}
+
+trap clean_up SIGINT SIGTERM
+
+start_server() {
+    echo "Server"
+    #"$term_exec" -e 
+    var=""$nvide_exec" -- --listen "$server_path" $@"
+    #notify-send "$var"
+    #echo "$var" > ~/temp.txt
+    #notify-send "server"
+    eval "$var"
+    #sleep 0.1
+    #dwmc move_current_window_to_tag_1
+}
+
+open_file_in_server() {
+    echo "Client"
+    #notify-send "Client"
+   # var=""$nvim_exec" -- --server "$server_path" $1" #--remote-send "<C-\><C-n>:n $1<CR>:call cursor($2)<CR>""
+    #--remote-send "<C-\><C-n>:tabnew $1<CR>:call cursor($2)<CR>"
+
+    #notify-send "$var"
+    #echo "$var" > ~/temp.txt
+    #eval "$var"
+    var='--server "$server_path" --remote-send "<C-\><C-n>:vs $1<CR>:silent! call cursor($2)<CR>"'
+    #notify-send "$var"
+    #echo $var
+    eval "nvim $var"
+
+}
+
+#open_file_in_server() {
+#    echo "Client"
+#    notify-send "Client"
+#    server_command="--server $server_path --remote-send \"<C-\\\\><C-n>:vs $1<CR>:silent! call cursor($2)<CR>\""
+#    notify-send "Server command: $server_command"
+#    eval "nvim $server_command"
+#}
+
+
+if ! [ -e "$server_path" ]; then
+    start_server "$1"
+else 
+    open_file_in_server "$1" "$2"
+fi
