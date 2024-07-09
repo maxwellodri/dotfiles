@@ -71,7 +71,7 @@ fdt() {
     fd "$1" -0 | xargs -0 touch
 }
 
-# Define the new completion function for `cargo`
+#fpath=(~/.zsh/completion /usr/local/share/zsh/site-functions /usr/share/zsh/site-functions /usr/share/zsh/5.9/functions)
 autoload -Uz compinit && compinit
 compdef _my_cargo_completion cargo
 

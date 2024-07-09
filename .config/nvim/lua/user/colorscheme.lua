@@ -24,7 +24,7 @@ vim.o.background = "dark" -- or "light" for light mode
 -- local gruvbox_yellow = vim.api.nvim_get_hl_by_name('GruvboxYellow', 0).foreground
 --vim.api.nvim_set_hl(0, '@type.qualifier.rust', {fg = gruvbox_red })
 
--- Grab the colors
+-- -- Grab the colors
 local purple = vim.api.nvim_get_hl_by_name('GruvboxPurple', 0).foreground
 local purple_bold = vim.api.nvim_get_hl_by_name('GruvboxPurpleBold', 0).foreground
 local yellow = vim.api.nvim_get_hl_by_name('GruvboxYellow', 0).foreground
@@ -33,12 +33,14 @@ local blue = vim.api.nvim_get_hl_by_name('GruvboxBlue', 0).foreground
 local white = vim.api.nvim_get_hl_by_name('Normal', 0).foreground
 local aqua = vim.api.nvim_get_hl_by_name('GruvboxAqua', 0).foreground
 local custom_purple = '#bb8ffc'
+local custom_white = '#000000'
 -- local custom_green = '#92ef45'
 local custom_green = '#9ed841'
+local background = vim.api.nvim_get_hl_by_name('GruvboxBg2', 0).foreground
 
 vim.api.nvim_set_hl(0, '@keyword.rust', {fg = red})
 vim.api.nvim_set_hl(0, '@lsp.type.interface.rust', {fg = custom_purple})
-vim.api.nvim_set_hl(0, '@lsp.type.selfKeyword.rust', {fg = white})
+-- vim.api.nvim_set_hl(0, '@lsp.type.selfKeyword.rust', {fg = custom_white})
 vim.api.nvim_set_hl(0, '@lsp.type.enum.rust', {fg = yellow })
 vim.api.nvim_set_hl(0, '@lsp.type.struct.rust', {fg = yellow })
 vim.api.nvim_set_hl(0, '@lsp.type.union.rust', {fg = red })
@@ -46,10 +48,16 @@ vim.api.nvim_set_hl(0, '@type.qualifier.rust', {fg = red })
 vim.api.nvim_set_hl(0, '@lsp.type.decorator.rust', {fg = aqua })
 vim.api.nvim_set_hl(0, '@lsp.type.namespace.rust', {fg = blue })
 vim.api.nvim_set_hl(0, '@lsp.type.derive.rust', {fg = custom_green })
-
+-- 
 -- Set structs and enums to GruvboxYellow
 vim.api.nvim_set_hl(0, '@struct.rust', {fg = yellow})
 vim.api.nvim_set_hl(0, '@enum.rust', {fg = yellow})
+
+vim.api.nvim_set_hl(0, '@variable', {fg = white})
+vim.api.nvim_set_hl(0, '@delimter', {fg = blue})
+vim.api.nvim_set_hl(0, '@delimter', {fg = blue})
+vim.api.nvim_set_hl(0, 'WinSeparator', {fg = background})
+
 
 -- vim.cmd([[colorscheme gruvbox]])
 -- vim.cmd('colorscheme base16-gruvbox-dark-hard')
