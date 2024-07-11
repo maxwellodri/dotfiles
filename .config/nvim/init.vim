@@ -198,25 +198,9 @@ let &packpath=&runtimepath
     let g:do_filetype_lua = 0
 
 " Colorscheme
-    nnoremap <leader>hi :echo synIDattr(synIDtrans(synID(line("."), col("."), 1)), "fg")<CR>
+    "nnoremap <leader>hi :echo synIDattr(synIDtrans(synID(line("."), col("."), 1)), "fg")<CR>
     "":echo synIDattr(synID(line("."), col("."), 1), "name")<CR>
     lua require('user.colorscheme')
-    " Rust syntax highlighting
-" "    augroup rust_syntax
-" "      autocmd!
-" "      autocmd FileType rust syntax match rustTrait "\<trait\>"
-" "      autocmd FileType rust syntax keyword rustStructure contained struct enum union
-" "    augroup END
-" "" Define colors for Rust syntax groups
-" "if has("syntax")
-" "  syntax reset
-" "
-" "  " Rust traits
-" "  highlight rustTrait ctermfg=yellow guifg=yellow
-" "
-" "  " Rust structures, enums, and unions
-" "  highlight rustStructure ctermfg=red guifg=red
-" "endif
 
 " Statusline
     "set statusline=
@@ -247,7 +231,7 @@ let &packpath=&runtimepath
 
 
 " AnyFold + Fold Cylce
-  autocmd Filetype Telescope* call AnyFoldTelescope 
+  "autocmd Filetype Telescope* call AnyFoldTelescope 
   " augroup vim_anyfold
   "   autocmd!
   "   autocmd Filetype vim AnyFoldActivate
