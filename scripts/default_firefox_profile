@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Path to the profiles.ini file
+profiles_ini="$HOME/.mozilla/firefox/profiles.ini"
+
+# Extract the profile path associated with Default=1
+default_profile=$(awk -F= '
+  BEGIN {profile=""; default_found=0}
+  /^Default=1$/ {default_found=1}
+  /^Path=/ && default_found {profile=$2; default_found=0}
+  END {print profile}
+' "$profiles_ini")
+
+# Check if we found a default profile
+if [ -n "$default_profile" ]; then
+    echo "Default profile path: $HOME/.mozilla/firefox/$default_profile"
+else
+    echo "No default profile found."
+fi

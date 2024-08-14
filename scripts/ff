@@ -8,21 +8,6 @@ def search_duckduckgo(args):
     query = "+".join(args)
     return f"https://duckduckgo.com/?q={query}"
 
-#Old
-def open_bookmarks(bookmarks_file, args):  
-    try:
-        with open(bookmarks_file, "r") as f:
-            bookmarks_str = f.read()
-        bookmarks = eval(bookmarks_str)
-    except Exception:
-        # bookmarks.py couldn't be parsed
-        subprocess.run(["notify-send", "Error", "bookmarks.py couldn't be parsed (missing comma ?)"])
-        # abort the script
-        sys.exit(1)
-    if args[0] in bookmarks:
-        return bookmarks[args[0]]
-    else:
-        return None
 def open_bookmarks_as_json(bookmarks_file, args):
     try:
         with open(bookmarks_file, "r") as f:
@@ -47,7 +32,7 @@ def open_bookmarks_as_json(bookmarks_file, args):
     else:
         return None
 
-web_bookmarks_path = "/home/maxwell/bin/web_bookmarks.txt" #path to bookmarks file 
+web_bookmarks_path = "/home/maxwell/bin/web_bookmarks.json" #path to bookmarks file 
 def main():
     if len(sys.argv) == 1:
         # no arguments, open a new tab in Firefox

@@ -1,6 +1,9 @@
+---@diagnostic disable-next-line: undefined-global
+local mp = mp
+
 local delete_pending = false
 
-function confirm_delete()
+local function confirm_delete()
     if delete_pending then
         local path = mp.get_property("path")
         if path then

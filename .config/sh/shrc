@@ -72,7 +72,7 @@ alias vw='PREV_DIR=$(pwd) && cd ~/vimwiki && vim index.wiki && cd $PREV_DIR'
 alias tmuxrc="vim ~/.tmux.conf"
 alias emacsrc="vim ~/.emacs.d/init.el"
 alias i3rc="vim $dotfiles/.config/i3/config.base && $dotfiles/makesymlinks.sh $dotfiles_tag >> /dev/null && i3-msg reload"
-alias bm="vim $dotfiles/scripts/web_bookmarks.txt"
+alias bm="vim $dotfiles/scripts/web_bookmarks.json"
 alias dunstrc="vim ~/.config/dunst/dunstrc"
 alias i3tag="vim $dotfiles/.config/i3/config.extra && $dotfiles/makesymlinks.sh $dotfiles_tag >> /dev/null && i3-msg reload"
 alias termrc="vim ~/.config/terminator/config"
