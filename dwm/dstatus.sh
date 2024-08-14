@@ -23,24 +23,17 @@ poll_battery() {
     #battery="🔋: $(acpi | awk '{print $4}' | head -n1 | sed s/,//)"
     battery_icon="🔋"
     [ -n $(acpi | awk '{print $3}' | grep -i charging) ] && battery_icon="⚡"
-    battery="$battery_icon: $(echo $(acpi | awk '{print $4}' | tr -d , | tr -d %))" #| awk -v RS=  '{$1=$1}1' | awk '{print $1 "+" $2 }' | tr -d % | bc | tr -d '\n'; echo "/2") | bc)%"
+    battery="$battery_icon: $(acpi | grep 'Battery 1' | awk '{for(i=1;i<=NF;i++) if ($i ~ /%/) print $i}' | sed 's/,$//')"
     echo "$battery"
+    #echo "hi"
 }
-#poll_network() {
-#    command -v nmcli &>/dev/null && network="🌐: $(nmcli device | awk '!/disconnected/&&/connected/ {print $4}') $(nmcli device wifi | awk '/\*/ {print $9}')" && [ $network = "🌐:" ] && network="🌐: NONE"
-#    echo "$network"
-#}
-#poll_battery() { 
-#    #battery="🔋: $(acpi | awk '{print $4}' | head -n1 | sed s/,//)"
-#    battery="🔋: $(echo $(acpi | awk '{print $4}' | tr -d , | awk -v RS=  '{$1=$1}1' | awk '{print $1 "+" $2 }' | tr -d % | bc | tr -d '\n'; echo "/2") | bc)%"
-#    echo "$battery"
-#}
 
 async_poll_packages() {
     echo $(checkupdates | wc -l) > "$package_file"
 }
 
 poll_timew() {
+    command -v timew > /dev/null || { echo "#"; return; }
     if timew > /dev/null; then
       duration=$(timew | grep Total | awk '{print $2}')
       formatted_duration=$(echo $duration | cut -d: -f1,2)
@@ -49,6 +42,7 @@ poll_timew() {
       echo "#"
     fi
 }
+echo $poll_battery
 
 idle_threshold_minutes=10
 prev_notify="0:00"
@@ -141,13 +135,13 @@ counter=0
 while true; do
     case $dotfiles_tag in 
         hackerman)
-                    OPT=" 🔋: $poll_battery"
+                    OPT=" $(poll_battery)"
                     ;;
         pc) 
                     OPT="" #" $packages, $network"
                     ;;
         *)  
-                    OPT="NO TAG"
+                    OPT=" NO TAG"
                     ;;
     esac
     #cpu_usage=$(echo "100-$(mpstat --dec=0 | grep all | awk '{print $12}')" | bc)

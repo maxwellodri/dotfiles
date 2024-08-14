@@ -13,8 +13,7 @@ unset beep
 WM=''  #override for cases below
 export dotfiles="$HOME/source/dotfiles"
 export dotfile="$HOME/source/dotfiles"
-export dotfiles_tag="pc"
-export dotfile_tag="pc"
+export dotfile_tag="hackerman"
 
 [ -f "$(which transmission-daemon)" ] && transmission-daemon --no-auth
 #command transmission-daemon --no-auth
