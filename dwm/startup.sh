@@ -10,7 +10,7 @@ $bin/set_kb_map
 
 #/usr/lib/xfce-polkit/xfce-polkit &
 [ $dotfiles_tag = "pc" ] && steam -silent &
-$bin/monitor.sh
+[ -f "$bin/monitor.sh" ] && $bin/monitor.sh
 feh --bg-scale "$dotfiles/images/treesketch.jpg"
 $bin/loop_set_kb_map.sh
 #wallpaper-show

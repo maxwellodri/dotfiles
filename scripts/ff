@@ -2,28 +2,38 @@
 
 import sys
 import subprocess
+import json
 
 def search_duckduckgo(args):
     query = "+".join(args)
     return f"https://duckduckgo.com/?q={query}"
 
-def open_bookmarks(bookmarks_file, args):
+def open_bookmarks_as_json(bookmarks_file, args):
     try:
         with open(bookmarks_file, "r") as f:
             bookmarks_str = f.read()
-        bookmarks = eval(bookmarks_str)
-    except Exception:
-        # bookmarks.py couldn't be parsed
-        subprocess.run(["notify-send", "Error", "bookmarks.py couldn't be parsed (missing comma ?)"])
+        bookmarks = json.loads(bookmarks_str)
+    except json.JSONDecodeError:
+        # bookmarks.json couldn't be parsed
+        subprocess.run(["notify-send", "Error", f"{bookmarks_file} couldn't be parsed (missing comma ?)"])
         # abort the script
         sys.exit(1)
+    except FileNotFoundError:
+        # bookmarks.json file not found
+        subprocess.run(["notify-send", "Error", f"{bookmarks_file} file not found"])
+        sys.exit(1)
+    except Exception as e:
+        # other exceptions
+        subprocess.run(["notify-send", "Error", f"An error occurred: {e}"])
+        sys.exit(1)
+    
     if args[0] in bookmarks:
         return bookmarks[args[0]]
     else:
         return None
 
+web_bookmarks_path = "/home/maxwell/bin/web_bookmarks.json" #path to bookmarks file 
 def main():
-    web_bookmarks_path = "/home/maxwell/bin/web_bookmarks.txt" #path to bookmarks file 
     if len(sys.argv) == 1:
         # no arguments, open a new tab in Firefox
         subprocess.run(["firefox", "-new-tab"])
@@ -32,7 +42,7 @@ def main():
         if sys.argv[1][0] == "!":
             url = search_duckduckgo(sys.argv[1:])
         else:
-            url = open_bookmarks(web_bookmarks_path, sys.argv[1:])
+            url = open_bookmarks_as_json(web_bookmarks_path, sys.argv[1:])
         if url is None:
             # bookmark not found, search DuckDuckGo instead
             url = search_duckduckgo(sys.argv[1:])

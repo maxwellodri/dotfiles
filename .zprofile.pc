@@ -10,10 +10,6 @@ export XCURSOR_THEME=Arc-Dark
 unset beep 
 [ -f /usr/share/vulkan/icd.d/nvidia_icd.json ] && export VK_ICO_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json 
 
-#if [[ -f "$HOME/.bashrc" ]] ; then
-#    source "$HOME/.bashrc" 
-#fi
-
 WM=''  #override for cases below
 export dotfiles="$HOME/source/dotfiles"
 export dotfile="$HOME/source/dotfiles"
@@ -28,9 +24,7 @@ command ssh-agent
 
 if [ -z "$WM" ] ; then
     case $XDG_VTNR in
-            1)      WM='penrose'
-                    ;;
-            2)      WM='/usr/local/bin/dwm'
+            1)      WM='/usr/local/bin/dwm'
                     ;;
             *)      echo "Not starting X in this TTY, $XDG_VTNR"
                     WM=''
