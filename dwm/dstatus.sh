@@ -131,6 +131,7 @@ internet="?"
 #packages="$(async_poll_packages)"
 #
 counter=0
+source ~/.zshrc_extra
 
 while true; do
     case $dotfiles_tag in 
