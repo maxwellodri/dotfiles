@@ -4,8 +4,7 @@
 ############################
 
 ########### Fixed Variables (dont change) 
-dotfiles="$(dirname "$(readlink -f "$0")")" #foldername 
-dir=$dotfiles                   # dotfiles directory
+dir="$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel)" #dotfiles git root directory
 olddir=~/.dotfiles_old             # old dotfiles backup directory
 i3config=.config/i3/config #combines with below to make i3 
 i3statusconfig=.config/i3status/config
@@ -43,6 +42,7 @@ hackermanfiles=" $xfiles $zsh $mpv"
 rpifiles=" "
 noxfiles=" "
 all="$files$zsh$bash$xfiles$pactl$sh$zathura" #all files
+
 
 ##########
 
