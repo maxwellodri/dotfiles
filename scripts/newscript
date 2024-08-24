@@ -1,5 +1,5 @@
 #!/bin/sh
 [ -z "$1" ] && echo 'Usage: newscript "script_name"' && exit
-[ ! -f "$dotfiles/scripts/$1" ] && echo "#!/bin/sh"  > "$dotfiles/scripts/$1" && chmod +x "$dotfiles/scripts/$1" && vim "$dotfiles/scripts/$1" && $dotfiles/custom_bin_scripts.sh || vim "$dotfiles/scripts/$1"
+[ ! -f "$dotfiles/scripts/$1" ] && echo "#!/bin/sh"  > "$dotfiles/scripts/$1" && chmod +x "$dotfiles/scripts/$1" && vim "$dotfiles/scripts/$1" && $dotfiles/helper_scripts/custom_bin_scripts.sh || vim "$dotfiles/scripts/$1"
 
 

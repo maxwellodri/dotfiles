@@ -5,15 +5,31 @@ import subprocess
 import argparse
 import sys
 
-def get_files(root_directory):
+def get_files(root_directory, depth=0):
     files_to_play = []
     # Walk through the directory structure starting at root_directory
     for root, dirs, files in os.walk(root_directory):
+        current_depth = root[len(root_directory):].count(os.sep)
+        if current_depth > depth:
+            # Skip if we exceed the desired depth
+            del dirs[:]
+            continue
         for file in files:
             # Join the directory and file name to get the full path
             filepath = os.path.join(root, file)
             files_to_play.append(filepath)
+        if current_depth == depth:
+            # Don't descend further if we're at the max depth
+            del dirs[:]
     return files_to_play
+
+def get_top_level_entries(root_directory):
+    entries = []
+    for entry in os.listdir(root_directory):
+        full_path = os.path.join(root_directory, entry)
+        if os.path.isfile(full_path) or os.path.isdir(full_path):
+            entries.append(full_path)
+    return entries
 
 def play_files(file_paths):
     # Play files using MPV
@@ -25,8 +41,8 @@ def get_mtime(path):
 
 def main():
     parser = argparse.ArgumentParser(description="Play files in a directory using MPV.")
-    parser.add_argument("-m", "--mode", choices=['r', 'o', 'i'], required=True,
-                        help="Mode to play files: r (random), o (order), i (inverse)")
+    parser.add_argument("-m", "--mode", choices=['r', 'o', 'i', 's'], required=True,
+                        help="Mode to play files: r (random), o (order), i (inverse), s (shuffled_list)")
     parser.add_argument("directory", nargs='?', default=os.getcwd(), 
                         help="Directory to play files from (defaults to current directory)")
 
@@ -36,19 +52,23 @@ def main():
         print("Error: The specified path is not a directory.")
         sys.exit(1)
 
-    #files_to_play = get_files(args.directory)
-    files_to_play = [f for f in get_files(args.directory) if not f.endswith('.part')]
-
-    # Handle different modes
-    if args.mode == 'r':
+    if args.mode == 's':
+        # Get top-level files and directories only
+        files_to_play = get_top_level_entries(args.directory)
         random.shuffle(files_to_play)
-    if args.mode == 'i':
-        files_to_play.sort(key=get_mtime)
-    elif args.mode == 'o':
-        files_to_play.sort(key=get_mtime, reverse=True)
+    else:
+        # Get files, excluding those ending with .part
+        files_to_play = [f for f in get_files(args.directory, depth=0) if not f.endswith('.part')]
+
+        # Handle different modes
+        if args.mode == 'r':
+            random.shuffle(files_to_play)
+        elif args.mode == 'i':
+            files_to_play.sort(key=get_mtime)
+        elif args.mode == 'o':
+            files_to_play.sort(key=get_mtime, reverse=True)
 
     play_files(files_to_play)
-    #print(files_to_play)
 
 if __name__ == "__main__":
     main()

@@ -13,4 +13,4 @@ configs.setup {
      },
      indent = { enable = true, disable = { "yaml" } },
 }
--- vim.api.nvim_set_hl(0, "@method.rust", { link = "underline" })
+-- vim.api.nvim_set_hl(0, "@method.rust", { link = "underline" }))

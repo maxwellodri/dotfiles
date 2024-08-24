@@ -1,11 +1,14 @@
 #!/bin/sh
-server_path="$HOME/.cache/nvim/godot-server.pipe"
-[ -f "$server_path" ] && rm server_path
 dunst &
 picom -b --config ~/.config/picom/picom.conf &
 polkit-dumb-agent &
 systemctl --user import-environment DISPLAY XAUTHORITY #non-xorg vars defined in shrc 
 transmission-daemon
+
+server_path="$HOME/.cache/nvim/godot-server.pipe"
+[ -f "$server_path" ] && rm server_path
+nohup $dotfiles/dwm/godot-neovim-runner.py --daemon & disown
+
 $bin/set_kb_map
 
 #/usr/lib/xfce-polkit/xfce-polkit &

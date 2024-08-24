@@ -1,0 +1,2 @@
+#!/bin/sh
+$dotfiles/dwm/neovim-server-runner.py $1 $2 $3

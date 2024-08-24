@@ -3,33 +3,32 @@ local M = {}
 -- TODO: backfill this to template
 M.setup = function()
   local function goto_definition(split_cmd)
-    local util = vim.lsp.util
-    local log = require("vim.lsp.log")
-    local api = vim.api
-    -- note, this handler style is for neovim 0.5.1/0.6, if on 0.5, call with function(_, method, result)
-    local handler = function(_, result, ctx)
-      if result == nil or vim.tbl_isempty(result) then
-        local _ = log.info() and log.info(ctx.method, "No location found")
-        return nil
+      local util = vim.lsp.util
+      local log = require("vim.lsp.log")
+      local api = vim.api
+      local handler = function(_, result, ctx)
+          if result == nil or vim.tbl_isempty(result) then
+              local _ = log.info() and log.info(ctx.method, "No location found")
+              return nil
+          end
+          local client_id = ctx.client_id
+          local client = vim.lsp.get_client_by_id(client_id)
+          local offset_encoding = client and client.offset_encoding or "utf-8"  -- Fallback to 'utf-8' if not available
+          if split_cmd then
+              vim.cmd(split_cmd)
+          end
+          if vim.tbl_islist(result) then
+              util.jump_to_location(result[1], offset_encoding)
+              if #result > 1 then
+                  util.setqflist(util.locations_to_items(result, offset_encoding))
+                  api.nvim_command("copen")
+                  api.nvim_command("wincmd p")
+              end
+          else
+              util.jump_to_location(result, offset_encoding)
+          end
       end
-
-      if split_cmd then
-         vim.cmd(split_cmd)
-      end
-      if vim.tbl_islist(result) then
-        util.jump_to_location(result[1])
-
-        if #result > 1 then
-          -- util.set_qflist(util.locations_to_items(result))
-          util.setqflist(util.locations_to_items(result))
-          api.nvim_command("copen")
-          api.nvim_command("wincmd p")
-        end
-      else
-        util.jump_to_location(result)
-      end
-    end
-    return handler
+      return handler
   end
   local signs = {
     { name = "DiagnosticSignError", text = "" },
@@ -95,12 +94,12 @@ local function lsp_keymaps(bufnr)
   local opts = { noremap = true, silent = true }
   vim.api.nvim_buf_set_keymap(bufnr, "n", "gD", "<cmd>lua vim.lsp.buf.declaration()<CR>", opts)
   vim.api.nvim_buf_set_keymap(bufnr, "n", "gd", ":w<CR>:exec 'vsplit +lua\\ vim.lsp.buf.definition()'<CR>", opts)
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "gi", ":w<CR><cmd>lua vim.lsp.buf.definition()<CR>", opts)
+  vim.api.nvim_buf_set_keymap(bufnr, "n", "gi", ":w<CR><cmd>lua vim.lsp.buf.definition({})<CR>", opts)
   vim.api.nvim_buf_set_keymap(bufnr, "n", "<leader>K", "<cmd>lua vim.lsp.buf.hover()<CR>", opts)
   vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>rn', '<cmd>lua vim.lsp.buf.rename()<CR>', opts)
   -- vim.api.nvim_buf_set_keymap(bufnr, "n", "<C-k>", "<cmd>lua vim.lsp.buf.signature_help()<CR>", opts)
   vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>gc', '<cmd>lua vim.lsp.buf.code_action()<CR>', opts)
-  vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>gr', '<cmd>RustRunnables<CR>', opts)
+  -- vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>gr', '<cmd>RustRunnables<CR>', opts)
   -- vim.api.nvim_buf_set_keymap(bufnr, "n", "gr", "<cmd>lua vim.lsp.buf.references()<CR>", opts)
   vim.api.nvim_buf_set_keymap(bufnr, "n", "[d", '<cmd>lua vim.diagnostic.goto_prev({ border = "rounded" })<CR>', opts)
   vim.api.nvim_buf_set_keymap(bufnr, "n", "]d", '<cmd>lua vim.diagnostic.goto_next({ border = "rounded" })<CR>', opts)
@@ -111,6 +110,7 @@ local function lsp_keymaps(bufnr)
   vim.cmd [[ command! Format execute 'lua vim.lsp.buf.formatting()' ]]
 end
 M.on_attach = function(client, bufnr)
+  --client.offset_encoding =  utf8
   -- if client.server_capabilities.documentHighlight then
   --     vim.cmd [[
   --       hi LspReferenceRead cterm=bold ctermbg=red guibg=LightYellow

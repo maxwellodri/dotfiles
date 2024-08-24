@@ -6,6 +6,7 @@
 *.log
 *.AppImage
 org/*.el$
+dwm/nohup.out
 !org/$
 !org/*.org$
 !.emacs.d/init.el$

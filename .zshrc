@@ -23,6 +23,18 @@ setopt hist_find_no_dups
 #ignore case for completions:
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
 
+# fg-bg toggle via c-z
+function fg-bg { 
+    if [[ $#BUFFER -eq 0 ]]; then 
+        BUFFER="fg"
+        zle accept-line
+    else
+        zle push-input
+    fi
+}
+
+zle -N fg-bg
+bindkey '^z' fg-bg
 
 declare -A venvs=(
     #["tortoise"]="~/source/tortoise/"

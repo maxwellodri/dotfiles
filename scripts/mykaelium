@@ -1,10 +1,10 @@
 #!/bin/sh
 cleanup() {
-    rm ~/.cache/nvim/godot-server.pipe
+    rm ~/.cache/nvim/godot-server.pipe &> /dev/null
 }
 
 trap 'cleanup; exit' INT TERM EXIT
 
 cleanup
-nohup godot-mono -e --path ~/source/gd-mykaelium &> /dev/null &
+nohup godot-mono-bin -e --path ~/source/gd-mykaelium &> /dev/null &
 cleanup

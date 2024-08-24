@@ -68,22 +68,11 @@ let &packpath=&runtimepath
     " ============ "
     " Rust Support "
     " ============ "
-    function! RustToolsCustomInstall(info) 
-        " info is a dictionary with 3 fields
-        " - name:   name of the plugin
-        " - status: 'installed', 'updated', or 'unchanged'
-        " - force:  set on PlugInstall! or PlugUpdate!
-        if a:info.status == 'installed'
-            echo "Ensure the LLDB VSCode Extension is installed; see https://github.com/simrat39/rust-tools.nvim/wiki/Debugging"
-        endif
-        if a:info.status == 'updated'
-            echo "Check the LLDB VSCode Extension for updates!"
-        endif
-    endfunction
-    Plug 'rust-lang/rust.vim'
+    "Plug 'rust-lang/rust.vim'
     "Plug 'arzg/vim-rust-syntax-ext'
     Plug 'saecki/crates.nvim'
-    Plug 'simrat39/rust-tools.nvim'
+    "Plug 'simrat39/rust-tools.nvim'
+    Plug 'mrcjkb/rustaceanvim', { 'tag': '^5'}
     " =================
     " LSP / cmp / LuaSnip
     " =================
@@ -226,51 +215,10 @@ let &packpath=&runtimepath
     nnoremap <leader>rs <cmd>Telescope lsp_workspace_symbols prompt_prefix=🔍👹<CR>
     nnoremap gr <cmd>Telescope lsp_references prompt_prefix=😠<CR>
     nnoremap <leader>rv :vsplit<CR>:<cmd>Telescope live_grep prompt_prefix=🔍🤔<CR>
-
+ " Oil
     lua require("user.oil")
 
 
-" AnyFold + Fold Cylce
-  "autocmd Filetype Telescope* call AnyFoldTelescope 
-  " augroup vim_anyfold
-  "   autocmd!
-  "   autocmd Filetype vim AnyFoldActivate
-  "   autocmd Filetype vim set foldnestmax=0
-  "   autocmd Filetype vim set foldminlines=0
-  "   autocmd Filetype vim set foldlevelstart=1
-  " augroup END
-  " hi Folded term=underline
-  " autocmd User anyfoldLoaded normal zv
-  " "let g:anyfold_identify_comments=2
-
-  " let g:fold_cycle_default_mapping = 0 "disable default mappings
-  " " Won't close when max fold is opened
-  " let g:fold_cycle_toggle_max_open  = 1
-  " " Won't open when max fold is closed
-  " let g:fold_cycle_toggle_max_close = 1
-  " augroup rust_fold 
-  "     autocmd!
-  "     autocmd Filetype rust set foldminlines=20
-  "     autocmd Filetype rust set foldnestmax=1
-  "     autocmd Filetype rust set foldlevel=0
-  "     autocmd Filetype rust set foldmethod=expr
-  "     autocmd Filetype rust set foldexpr=nvim_treesitter#foldexpr()
-  " augroup END
-  " autocmd Filetype cpp setlocal foldignore=#/
-
-" Nerdtree
-  "map <silent><leader>bb :NERDTreeToggle<CR>
-  "let g:NERDTreeWinSize=70
-  "let g:NERDTreeChDirMode=2
-  "let g:NERDTreeIgnore=['\.rbc$', '\~$', '\.pyc$', '\.db$', '\.sqlite$', '__pycache__']
-  "let g:NERDTreeSortOrder=['^__\.py$', '\/$', '*', '\.swp$', '\.bak$', '\~$']
-  "let g:NERDTreeShowBookmarks=1
-  "let g:nerdtree_tabs_focus_on_files=1
-  "let g:NERDTreeMapOpenInTabSilent = '<RightMouse>'
-  "let g:NERDTreeWinPos = "right"
-  ""autocmd VimEnter * NERDTree | wincmd p
-  "autocmd BufEnter * if tabpagenr('$') == 1 && winnr('$') == 1 && exists('b:NERDTree') && b:NERDTree.isTabTree() | quit | endif "Exit Vim if NERDTree is the only window remaining in the only tab.
-  "autocmd BufWritePost * silent! NERDTreeRefreshRoot 
 " Git
    let g:lazygit_floating_window_winblend = 0 " transparency of floating window
    let g:lazygit_floating_window_scaling_factor = 0.9 " scaling factor for floating window
@@ -280,10 +228,6 @@ let &packpath=&runtimepath
    nnoremap <silent> <leader>gg :LazyGit<CR>
    lua require("telescope").load_extension("lazygit")
    lua require('user.git')
-
-" 
-" 
-" 
 " impatient
     lua require('impatient')
 " Yank Highlighting
@@ -300,7 +244,8 @@ let &packpath=&runtimepath
     lua require("user.utils")
 " CSV Options
     autocmd BufWritePre *.csv RainbowAlign
-" Python Options
+
+ " Python Options
     autocmd Filetype python set tabstop=4 
     autocmd Filetype python set softtabstop=4
     autocmd Filetype python set shiftwidth=4
@@ -334,7 +279,7 @@ let &packpath=&runtimepath
 " Godot Options
     "autocmd FileType gdscript nnoremap <F5> <Esc>:w<CR>:GodotRun<CR>
     "autocmd BufWritePre gdscript :%s/\s\+$//e
-    lua vim.g.godot_executable = '/bin/godot-mono'
+    lua vim.g.godot_executable = '/bin/godot-mono-bin'
 
     autocmd Filetype gdscript nnoremap <leader>fo <cmd>Telescope find_files find_command=rg,--ignore,--files prompt_prefix=🔍🥺<CR>
     function! RebuildAndRestart()
@@ -389,20 +334,11 @@ let &packpath=&runtimepath
       endif
     endfunction
     
-    "autocmd filetype rust BufWritePre lua vim.lsp.buf.format() "change to this in neovim 0.8
-    "lua vim.lsp.buf.format()
     autocmd Filetype rust nnoremap <leader>ds :call CdSrcDir()<CR>
     autocmd Filetype rust nnoremap <leader>dS :call CdParent()<CR>
-    autocmd Filetype rust nnoremap <silent><leader>M :lua require'rust-tools.expand_macro'.expand_macro()<CR>
-    autocmd Filetype rust nnoremap <silent>gk :lua require'rust-tools.parent_module'.parent_module()<CR>
-    autocmd Filetype rust nnoremap <silent><leader>gt :RustOpenCargo<CR>
-    "autocmd Filetype rust nnoremap <silent><leader>gi lua require('rust-tools.inlay_hints').toggle_inlay_hints()
-   "" autocmd Filetype rust nnoremap <silent><leader>gi lua require('user.lsp.settings.rust').Toggle_inlay_hints()
-    autocmd Filetype rust nnoremap <silent>gb :RustOpenExternalDocs<CR>
+    lua require('user.rustaceanvim')
 " terminal:
     command! Sterm silent execute '!nohup st -d' expand('%:p:h') '> /dev/null 2>&1 &'
-    "command! Gterm silent execute '!nohup st -d !echo $(git rev-parse --show-toplevel) > /dev/null 2>&1 &'
-    "command! Gterm silent execute '!nohup st -d' sh -c 'cd $(git rev-parse --show-toplevel) && exec st' '> /dev/null 2>&1 &'
     nnoremap <S-CR> :Sterm<CR>
 " Codeium
     "lua require("codeium").setup({})
@@ -466,3 +402,6 @@ let &packpath=&runtimepath
 "
 
 "TODO unset shift L and shift H
+"
+nnoremap <C-z> :stop<CR>
+inoremap <C-z> <Esc>:stop<CR>
