@@ -1,5 +1,6 @@
 #run arch_package_install.sh
-extra/kwindowsystem #needed for pinentry-qt
+#extra/kwindowsystem #needed for pinentry-qt
+extra/kguiaddons
 bat
 pcp
 mold
