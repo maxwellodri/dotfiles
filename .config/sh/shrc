@@ -28,6 +28,7 @@ export GTK_THEME=Arc-Dark
 export XCURSOR_THEME=Arc-Dark
 export GODOT4_BIN=/bin/godot-mono
 export SOURCE="$HOME/source"
+export PASSWORD_STORE_GENERATED_LENGTH=30
 export QMK="$SOURCE/qmk_firmware"
 systemctl --user import-environment PATH HOME USER #DISPLAY defined in $dotifles/dwm/startup.sh
 
