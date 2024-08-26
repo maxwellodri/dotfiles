@@ -9,8 +9,8 @@ fi
 cd "$(dirname "$0")"
 
 # Check if the required directories exist
-if [ ! -d "udev-rules" ] || [ ! -d "systemd-services" ]; then
-    echo "Error: Required directories 'udev-rules' and 'systemd-services' do not exist."
+if [ ! -d "udev-rules" ] || [ ! -d "systemd-services" ] || [ ! -d "system_configs" ]; then
+    echo "Error: Required directories 'udev-rules', 'systemd-services', and 'system_configs' do not exist."
     exit 1
 fi
 
@@ -60,6 +60,7 @@ copy_files() {
 # Copy udev rules and systemd services
 copy_files "udev-rules" "/etc/udev/rules.d"
 copy_files "systemd-services" "/etc/systemd/system"
+copy_files "system_configs/etc" "/etc"
 
 # Reload the system manager configuration
 systemctl daemon-reload
