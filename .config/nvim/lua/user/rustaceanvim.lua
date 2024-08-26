@@ -39,7 +39,26 @@ vim.g.rustaceanvim = {
  			  -- 	loadOutDirsFromCheck = true,
  			  -- },
         imports = { prefix = "crate" },
-        inlay_hints = { lifetimeElisionHints = { enable = "skip_trivial" }, },
+        inlay_hints = {
+          lifetimeElisionHints = { enable = "skip_trivial" },
+          only_current_line_autocmd = "CursorHold",
+          show_parameter_hints = true,
+          -- prefix for parameter hints
+          parameter_hints_prefix = "", -- <- ",
+          -- prefix for all the other hints (type, chaining)
+          other_hints_prefix = "=> ",
+          -- whether to align to the length of the longest line in the file
+          max_len_align = true,
+          -- padding from the left if max_len_align is true
+          max_len_align_padding = 4,
+          -- whether to align to the extreme right or not
+          right_align = false,
+          -- padding from the right if right_align is true
+          right_align_padding = 8,
+          -- The color of the hints
+          highlight = "SpecialComment",
+        },
+
       }
     },
   },
