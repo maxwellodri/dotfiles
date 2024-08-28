@@ -101,6 +101,7 @@ alias tsm='transmission-remote --torrent-done-script ~/bin/torrdone'
 alias tsmr='transmission-remote -l | grep -v 'Queued''
 alias tsmd="transmission-remote -l | grep 100% | awk '{print $1}' | tr -d '\*' | tr '\n' ', ' | sed 's/,\ $/\n/' | sed 's/,$/\n/' | xargs -I {} transmission-remote -t '{}' -r"
 alias ex='exit'
+alias sshez='ORIGINAL_HOME=$HOME && sshfs maxwell@donpablito:/ ~/media/donpablito && HOME=~/media/donpablito/home/maxwell zsh -c '\''cd $HOME; exec zsh'\'' && umount ~/media/donpablito && HOME=$ORIGINAL_HOME'
 #alias mpvr="find . -maxdepth 1 | shuf | grep -x . -v | xargs mpv"
 ##Better handles irregular file names e.g. spaces/hyphens/other special characters
 #mpvr() {
