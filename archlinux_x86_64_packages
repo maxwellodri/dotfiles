@@ -8,6 +8,9 @@ man
 xdotool
 ctags
 npm
+zip
+p7zip
+unzip
 xorg
 xorg-xinit
 nodejs
@@ -63,7 +66,8 @@ pacman-contrib
 #dragon-drag-and-drop
 #mutt-wziard
 #xsendkeys
-#nerd-fonts-fira-code
+#nerd-fonts-fira-codettf-firacode-nerd
+ttf-firacode-nerd
 #ytop
 #steamguard-cli-git
 #show-git
