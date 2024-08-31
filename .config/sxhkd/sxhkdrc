@@ -28,12 +28,12 @@ super + shift + Tab
 	lockme
 super + shift + a
 	art.sh
-super + End
-	bash -e passmenu
 super + Insert
 	bash -e passmenu
 super + shift + b
 	bookmarks
+super + End
+    /home/maxwell/bin/cultures_hack.sh
 
 super + shift + s 
 	screendump

@@ -5,7 +5,7 @@ import subprocess
 import argparse
 import sys
 
-def get_files(root_directory, depth=0):
+def get_files(root_directory, depth=0, folders=False):
     files_to_play = []
     # Walk through the directory structure starting at root_directory
     for root, dirs, files in os.walk(root_directory):
@@ -18,6 +18,10 @@ def get_files(root_directory, depth=0):
             # Join the directory and file name to get the full path
             filepath = os.path.join(root, file)
             files_to_play.append(filepath)
+        if folders:
+            for dir in dirs:
+                dirpath = os.path.join(root, dir)
+                files_to_play.append(dirpath)
         if current_depth == depth:
             # Don't descend further if we're at the max depth
             del dirs[:]
@@ -58,17 +62,19 @@ def main():
         random.shuffle(files_to_play)
     else:
         # Get files, excluding those ending with .part
-        files_to_play = [f for f in get_files(args.directory, depth=0) if not f.endswith('.part')]
-
         # Handle different modes
         if args.mode == 'r':
+            files_to_play = [f for f in get_files(args.directory, depth=0, folders=True) if not f.endswith('.part')]
             random.shuffle(files_to_play)
+            play_files(files_to_play)
         elif args.mode == 'i':
+            files_to_play = [f for f in get_files(args.directory, depth=0) if not f.endswith('.part')]
             files_to_play.sort(key=get_mtime)
+            play_files(files_to_play)
         elif args.mode == 'o':
+            files_to_play = [f for f in get_files(args.directory, depth=0, folders=True) if not f.endswith('.part')]
             files_to_play.sort(key=get_mtime, reverse=True)
-
-    play_files(files_to_play)
+            play_files(files_to_play)
 
 if __name__ == "__main__":
     main()

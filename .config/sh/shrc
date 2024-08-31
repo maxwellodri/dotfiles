@@ -118,7 +118,6 @@ alias mkdir="mkdir -pv"
 alias mpvr='$bin/mpv_play -m r'
 alias mpvs='$bin/mpv_play -m s'
 alias mpvo='$bin/mpv_play -m o'
-alias mpvi='$bin/mpv_play -m i'
 #alias lss='ls'
 #type exa >/dev/null && alias ls="exa --color=auto -hal --group-directories-first"
 #type exa >/dev/null && alias lt="exa --color=auto -hal --group-directories-first"
