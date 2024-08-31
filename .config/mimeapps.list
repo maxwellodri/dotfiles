@@ -50,6 +50,7 @@ text/x-tcl=neovide.desktop
 text/x-tex=neovide.desktop
 text/x-c=neovide.desktop
 text/x-c++=neovide.desktop
+text/rust=neovide.desktop
 application/pdf=firefox.desktop
 appliaction/json=neovide.desktop
 video/mp4=mpv.desktop

@@ -1,6 +1,7 @@
 #run arch_package_install.sh
 #extra/kwindowsystem #needed for pinentry-qt
 extra/kguiaddons
+perl-file-mimeinfo
 bat
 pcp
 mold
