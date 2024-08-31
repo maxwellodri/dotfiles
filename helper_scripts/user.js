@@ -307,7 +307,7 @@ user_pref("services.sync.prefs.sync-seen.signon.management.page.breach-alerts.en
 user_pref("services.sync.prefs.sync-seen.signon.rememberSignons", true);
 user_pref("services.sync.prefs.sync.browser.tabs.tabmanager.enabled", true);
 user_pref("services.sync.prefs.syncID", "EeAVufP2RR8R");
-user_pref("services.sync.syncInterval", 600000);
+user_pref("services.sync.syncInterval", 120000);
 user_pref("services.sync.syncThreshold", 300);
 user_pref("sidebar.position_start", false);
 user_pref("signon.autofillForms", false);
