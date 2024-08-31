@@ -72,6 +72,6 @@ end
 
 vim.api.nvim_set_keymap('n', '<leader>ge', '<cmd>lua GoNextIssue()<CR>', { noremap = true, silent = true })
 
-local godot_cmd = vim.lsp.rpc.connect('127.0.0.1', '6012')
+local godot_cmd = vim.lsp.rpc.connect('127.0.0.1', '6013')
 require('lspconfig').gdscript.setup{ cmd = godot_cmd, on_attach = Opts.on_attach, flags = { debounce_text_changes = 150, } }
 return Opts

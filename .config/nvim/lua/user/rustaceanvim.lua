@@ -24,7 +24,7 @@ vim.g.rustaceanvim = {
     capabilities = default_opts.capabilities,
     default_settings = {
       ["rust-analyzer"] = {
-        diagnostics = { enabled = true, disabled = {"inactive-code"} },
+        diagnostics = { enabled = true, disabled = {"inactive-code", "unlinked-file"} },
  			  procMacro = {
  			    enable = true,
  			    attributes = {
