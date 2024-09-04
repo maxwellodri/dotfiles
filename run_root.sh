@@ -16,14 +16,14 @@ fi
 
 # Function to handle copying of files
 copy_files() {
-    local src_dir="$1"
+    local src="$1"
     local dst_dir="$2"
 
     # Ensure the destination directory exists
     mkdir -p "$dst_dir"
 
-    # Iterate through the files in the source directory
-    for src in "$src_dir"/*; do
+    # Check if the source is a file
+    if [ -f "$src" ]; then
         local filename=$(basename "$src")
         local dst="$dst_dir/$filename"
 
@@ -32,7 +32,7 @@ copy_files() {
             # If contents are the same, continue
             if cmp -s "$src" "$dst"; then
                 echo "Skipping $src: File is identical."
-                continue
+                return 0
             fi
 
             # If source is newer, copy it over
@@ -41,7 +41,6 @@ copy_files() {
                 chmod 644 "$dst"
                 echo "Updated: $dst"
             else
-
                 dst_date_modified=$(date -r "$dst" +"%Y-%m-%d %H:%M:%S")
                 src_date_modified=$(date -r "$src" +"%Y-%m-%d %H:%M:%S")
                 echo "Error: Destination file $dst is newer than the source file."
@@ -54,13 +53,24 @@ copy_files() {
             chmod 644 "$dst"
             echo "Copied $src to $dst"
         fi
-    done
+        return 0
+    fi
+
+    # If the source is a directory, iterate through the files
+    if [ -d "$src" ]; then
+        for file in "$src"/*; do
+            copy_files "$file" "$dst_dir"
+        done
+    fi
 }
 
 # Copy udev rules and systemd services
 copy_files "udev-rules" "/etc/udev/rules.d"
 copy_files "systemd-services" "/etc/systemd/system"
-copy_files "system_configs/etc" "/etc"
+
+# Handle individual files in system_configs/etc
+copy_files "system_configs/etc/tlp.conf" "/etc"
+copy_files "system_configs/etc/pacman.d/hooks" "/etc/pacman.d/hooks"
 
 # Reload the system manager configuration
 systemctl daemon-reload

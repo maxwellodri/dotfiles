@@ -1,0 +1,17 @@
+import subprocess
+
+def get_acpi_columns():
+    # Run the acpi command and capture the output
+    result = subprocess.run(['acpi'], stdout=subprocess.PIPE)
+    output = result.stdout.decode('utf-8')
+    
+    # Split output into lines
+    lines = output.strip().split('\n')
+    
+    # Extract the first two columns from each line
+    for line in lines:
+        columns = line.split(',')[:2]  # Only take the first 2 columns
+        print(','.join(columns).strip())
+
+if __name__ == "__main__":
+    get_acpi_columns()

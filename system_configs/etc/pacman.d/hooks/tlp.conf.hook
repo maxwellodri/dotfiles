@@ -1,0 +1,10 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = tlp
+
+[Action]
+Description = Copy $dotfile/tlp.conf if it exists
+When = PostTransaction
+Exec = /bin/bash -c '[[ -f /home/maxwell/source/dotfiles/system_configs/etc/tlp.conf ]] && cp /home/maxwell/source/dotfiles/system_configs/etc/tlp.conf /etc/tlp.conf'

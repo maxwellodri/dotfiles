@@ -1,0 +1,9 @@
+[Trigger]
+Operation = Upgrade
+Type = Package
+Target = *
+
+[Action]
+Description = Echoing "0" to package_file.txt after a full system upgrade
+When = PostTransaction
+Exec = /bin/su - maxwell -c "echo '0' > $dotfiles/dwm/package_file.txt"
