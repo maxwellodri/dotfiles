@@ -14,7 +14,7 @@ case "$1" in
                         unlink "$file"
                     fi
                 done
-                echo "Done"
+                echo ""
                 ;;
 
         *)  
@@ -31,8 +31,8 @@ case "$1" in
                     fi
                 done < tmpfile
                 rm tmpfile
-                echo "Done"
+                echo ""
                 ;;
 esac
 
-echo "\nRemember to use run_root.sh to install udev rules and systemd system services as necessary"
+echo "Remember to use run_root.sh to install udev rules and systemd system services as necessary"
