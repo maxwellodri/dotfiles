@@ -20,12 +20,7 @@ poll_network() {
     echo "Current network: $network"
 }
 poll_battery() { 
-    #battery="🔋: $(acpi | awk '{print $4}' | head -n1 | sed s/,//)"
-    battery_icon="🔋"
-    [ -n $(acpi | awk '{print $3}' | grep -i charging) ] && battery_icon="⚡"
-    battery="$battery_icon: $(acpi | grep 'Battery 1' | awk '{for(i=1;i<=NF;i++) if ($i ~ /%/) print $i}' | sed 's/,$//')"
-    echo "$battery"
-    #echo "hi"
+    python $dotfiles/dwm/poll_battery.py
 }
 
 async_poll_packages() {
