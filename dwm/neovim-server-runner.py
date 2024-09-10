@@ -9,6 +9,7 @@ import socket
 import argparse
 from collections import deque
 import psutil
+import signal
 
 # Configuration
 cache_dir_path = os.path.expanduser("~/.cache/nvim/")
@@ -18,6 +19,33 @@ socket_path = os.path.expanduser("~/.cache/nvim/nvim-server-daemon.sock")
 
 # Queue to store client requests
 request_queue = deque()
+
+def cleanup(script_name, daemon_arg):
+    """Kill the daemon if running, then clean up the server pipe, log file, and Unix socket."""
+    # Kill the daemon first
+    kill_daemon(script_name, daemon_arg)
+
+    # Clean up by removing the server pipe, log file, and Unix socket
+    clean_up_server_pipe()
+    clean_up_socket()
+    cleanup_log_file()
+
+def cleanup_log_file():
+    # Remove the log file if it exists
+    if os.path.exists(log_file_path):
+        os.remove(log_file_path)
+        return True
+    return False
+
+
+def kill_daemon(script_name, daemon_arg):
+    """Kill the daemon if it is running."""
+    pid = get_daemon_pid(script_name, daemon_arg)
+    if pid:
+        print(f"Killing daemon with PID: {pid}")
+        os.kill(pid, signal.SIGTERM)
+    else:
+        print("Daemon not running.")
 
 # Ensure the ~/.cache/nvim/ directory exists
 if not os.path.exists(cache_dir_path):
@@ -37,13 +65,24 @@ def clean_up_socket():
     print("Cleaned up Unix socket.")
 
 def get_daemon_pid(script_name, daemon_arg):
-    """Get the PID of the running daemon based on script name and daemon argument."""
+    """Get the PID of the running daemon based on script name and daemon argument, excluding the current process."""
+    current_pid = os.getpid()  # Get the PID of the current process
+    print(f"Current PID: {current_pid}")  # Log current process PID
     try:
         for proc in psutil.process_iter(['pid', 'cmdline']):
-            # Filter for processes that match the script name and daemon argument
-            if proc.info['cmdline'] and script_name in proc.info['cmdline']:
-                if daemon_arg in proc.info['cmdline']:
-                    return proc.info['pid']
+            cmdline = proc.info['cmdline']
+            pid = proc.info['pid']
+
+            # Only log processes that have the script path in their cmdline
+            if cmdline and script_name in ' '.join(cmdline):
+                print(f"Checking process PID: {pid}, cmdline: {cmdline}")
+
+            if cmdline and pid != current_pid:  # Exclude the current process
+                # Check if the process is running the script with `python3` or directly
+                if ('python3' in cmdline[0] and script_name in cmdline[1]) or os.path.basename(cmdline[0]) == script_name:
+                    if daemon_arg in cmdline:  # Check if --daemon is in the cmdline
+                        print(f"Daemon process found: {pid}, cmdline: {cmdline}")  # Log when daemon process is found
+                        return pid
     except Exception as e:
         print(f"Error finding daemon PID: {e}")
     return None
@@ -75,7 +114,7 @@ def signal_handler(sig, frame):
     if neovide_process and neovide_process.poll() is None:
         neovide_process.terminate()
         neovide_process.wait()
-
+    cleanup()
     sys.exit(0)
 
 def open_server(filepath=None, line_number=0, column_number=0):
@@ -100,25 +139,25 @@ def open_server(filepath=None, line_number=0, column_number=0):
         print(f"Changed directory to home: {home_dir}")
     
     with open(log_file_path, "a") as log_file:
+        env = os.environ.copy()
+        env["NEOVIDE_MULTIGRID"] = "1"
+        env["NEOVIDE_WM_CLASS"] = "nvide_daemon"  # WM rules from dwm/config.h
+    
         if filepath:
             process = subprocess.Popen([
-                "env",
-                "NEOVIDE_MULTIGRID=1",
                 "/usr/bin/neovide",
                 "--",
                 "--listen",
                 server_pipe_path,
                 filepath
-            ], stdout=log_file, stderr=log_file)
+            ], stdout=log_file, stderr=log_file, env=env)
         else:
             process = subprocess.Popen([
-                "env",
-                "NEOVIDE_MULTIGRID=1",
                 "/usr/bin/neovide",
                 "--",
                 "--listen",
-                server_pipe_path,
-            ], stdout=log_file, stderr=log_file)
+                server_pipe_path
+            ], stdout=log_file, stderr=log_file, env=env)
 
     return process
 
@@ -163,13 +202,18 @@ async def daemon():
     global neovide_process
     neovide_process = None  # Initialize here
 
-    if os.path.exists(socket_path):
-        if is_socket_in_use():
-            print(f"Daemon already running. Exiting.")
-            sys.exit(1)
-        else:
-            print(f"Socket exists but no running daemon found. Cleaning up and starting a new daemon.")
-            clean_up_socket()
+    if os.path.exists(socket_path) and is_socket_in_use():
+        print(f"Daemon already running. Exiting.")
+        sys.exit(0)
+    cleaned_log = cleanup_log_file()
+    log_file = open(log_file_path, "a")
+    sys.stdout = log_file
+    sys.stderr = log_file
+    if cleaned_log: print(f"Cleaned up log_file @ {log_file_path}")
+    if os.path.exists(socket_path) and not is_socket_in_use():
+        print(f"Socket exists but no running daemon found. Cleaning up and starting a new daemon.")
+        clean_up_socket()
+
 
     # Register the cleanup function to be called on SIGINT and SIGTERM
     signal.signal(signal.SIGINT, signal_handler)
@@ -180,7 +224,8 @@ async def daemon():
         server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         server.bind(socket_path)
         server.listen(1)
-        print("Daemon is running, waiting for client connections...")
+        print("Daemon is now running, waiting for client connections...")
+        log_file.flush()  # Ensure the message is written immediately
 
         while True:
             conn, _ = server.accept()
@@ -188,6 +233,7 @@ async def daemon():
                 data = conn.recv(1024).decode().strip()
                 if data:
                     print(f"Received event: {data}")
+                    log_file.flush()  # Ensure the message is written immediately
                     parts = data.split()
                     
                     # Ensure we have three parts: filepath, line_number, and column_number
@@ -209,8 +255,10 @@ async def daemon():
 
     except socket.error as e:
         print(f"Daemon encountered an error: {e}")
+        log_file.flush()  # Ensure the error message is written immediately
     finally:
         clean_up_socket()
+        log_file.close()  # Ensure the file is closed
 
 def client(filepath=None, line_number=0, column_number=0):
     """Client to send events to the daemon."""
@@ -227,23 +275,60 @@ def client(filepath=None, line_number=0, column_number=0):
 
 def main():
     parser = argparse.ArgumentParser(description="Neovim/Neovide Server Runner Daemon and Client")
-    daemon_arg_name = '--daemon'
-    parser.add_argument(daemon_arg_name, action='store_true', help="Run as daemon")
-    parser.add_argument('filepath', nargs='?', help="File path to open (client mode)", default=None)
+    
+    # Create a mutually exclusive group for --daemon and --client
+    mode_group = parser.add_mutually_exclusive_group(required=False)
+    mode_group.add_argument('--daemon', action='store_true', help="Run as daemon")
+    mode_group.add_argument('--client', action='store_true', help="Run in client mode (default mode unless --daemon is specified)", default=True)
+
+    # Arguments for killing the daemon
+    kill_arg_names = ['-k', '--kill']
+    parser.add_argument(*kill_arg_names, action='store_true', help="Kill the daemon if running")
+    
+    # Argument for cleaning up (implies --kill)
+    parser.add_argument('--cleanup', action='store_true', help="Kill the daemon and clean up the server pipe, socket, and log file")
+
+    # Positional arguments for client mode
+    parser.add_argument(
+        'filepath', 
+        nargs='?', 
+        help="File path to open (client mode, default=empty buffer)", 
+        default=None
+    )
     parser.add_argument('line_number', nargs='?', default=0, type=int, help="Line number (client mode, default=0)")
     parser.add_argument('column_number', nargs='?', default=0, type=int, help="Column number (client mode, default=0)")
+    
     args = parser.parse_args()
 
-    if args.daemon:
-        # Use the parsed arguments to check if daemon mode is enabled
-        script_name = os.path.basename(__file__)
-        pid = get_daemon_pid(script_name, daemon_arg_name)
-        if pid:
-            print(f"Daemon already running with PID: {pid}. Exiting.")
-            sys.exit(1)
-        asyncio.run(daemon())
-    else:
-        client(args.filepath, args.line_number, args.column_number)
+    script_name = os.path.basename(__file__)
+
+    if args.cleanup:
+        # Cleanup implies --kill, so we kill the daemon and then clean up
+        cleanup(script_name, '--daemon')
+        sys.exit(0)
+
+    match (args.daemon, args.kill, args.client):
+        case (True, True, _):
+            # Kill the daemon and restart it
+            kill_daemon(script_name, '--daemon')
+            print("Restarting daemon...")
+            asyncio.run(daemon())
+
+        case (False, True, _):
+            # Just kill the daemon, ignore other arguments
+            kill_daemon(script_name, '--daemon')
+
+        case (True, False, _):
+            # Only start the daemon if it's not already running
+            pid = get_daemon_pid(script_name, '--daemon')
+            if pid:
+                print(f"Daemon already running with PID: {pid}. Exiting.")
+                sys.exit(1)
+            asyncio.run(daemon())
+
+        case (False, False, True):
+            # Run in client mode
+            client(args.filepath, args.line_number, args.column_number)
 
 if __name__ == "__main__":
     main()
