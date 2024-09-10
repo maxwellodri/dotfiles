@@ -95,8 +95,6 @@ let &packpath=&runtimepath
     Plug 'theHamsta/nvim-dap-virtual-text'
 
     Plug 'onsails/lspkind.nvim'
-    Plug 'dpayne/CodeGPT.nvim' "chat gpt :D
-    Plug 'Exafunction/codeium.nvim' 
     "" ====
     "" C#
     "" ====
@@ -189,7 +187,6 @@ let &packpath=&runtimepath
 " Colorscheme
     "nnoremap <leader>hi :echo synIDattr(synIDtrans(synID(line("."), col("."), 1)), "fg")<CR>
     "":echo synIDattr(synID(line("."), col("."), 1), "name")<CR>
-    lua require('user.colorscheme')
 
 " Statusline
     "set statusline=
@@ -197,15 +194,9 @@ let &packpath=&runtimepath
     "set statusline=%F%m%r%h%w%=(%{&ff}/%Y)\ (line\ %l\/%L,\ col\ %c)\ 
     "set statusline+=%{FugitiveStatusline()}
     "set showtabline=1
-    lua require('user.feline-settings')
-    lua require('user.dap')
 " Treeitter
-    lua require('user.treesitter-settings')
 " Treeitter Context
-    lua require('user.treesitter-context')
 " Telescope
-    lua require('user.telescope-settings')
-    lua require("telescope").load_extension("ui-select")
     nnoremap <leader>fo <cmd>Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>fh <cmd>Telescope find_files find_command=rg,--hidden=true,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>ff :tabnew<CR>:Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
@@ -216,7 +207,6 @@ let &packpath=&runtimepath
     nnoremap gr <cmd>Telescope lsp_references prompt_prefix=😠<CR>
     nnoremap <leader>rv :vsplit<CR>:<cmd>Telescope live_grep prompt_prefix=🔍🤔<CR>
  " Oil
-    lua require("user.oil")
 
 
 " Git
@@ -226,10 +216,7 @@ let &packpath=&runtimepath
    let g:lazygit_floating_window_use_plenary = 0 " use plenary.nvim to manage floating window if available
    let g:lazygit_use_neovim_remote = 1 " fallback to 0 if neovim-remote is not installed
    nnoremap <silent> <leader>gg :LazyGit<CR>
-   lua require("telescope").load_extension("lazygit")
-   lua require('user.git')
 " impatient
-    lua require('impatient')
 " Yank Highlighting
   let g:highlightedyank_highlight_duration = 650
 " Lastplace
@@ -241,7 +228,6 @@ let &packpath=&runtimepath
     autocmd Filetype lua set softtabstop=2
     autocmd Filetype lua set tabstop=2
     autocmd Filetype lua set shiftwidth=2
-    lua require("user.utils")
 " CSV Options
     autocmd BufWritePre *.csv RainbowAlign
 
@@ -270,11 +256,7 @@ let &packpath=&runtimepath
     nnoremap <leader>wo <Plug>VimwikiIndex
 " LSP / cmp / luasnip/null-ls
   set completeopt=menu,menuone,noselect,preview
-  lua require("user.mason")
-  lua require("user.lsp")
   nnoremap <leader><C-m> :Mason<CR>
-  lua require('user.cmp').setup()
-  lua require('user.null-ls').setup()
 
 " Godot Options
     "autocmd FileType gdscript nnoremap <F5> <Esc>:w<CR>:GodotRun<CR>
@@ -336,12 +318,11 @@ let &packpath=&runtimepath
     
     autocmd Filetype rust nnoremap <leader>ds :call CdSrcDir()<CR>
     autocmd Filetype rust nnoremap <leader>dS :call CdParent()<CR>
-    lua require('user.rustaceanvim')
 " terminal:
     command! Sterm silent execute '!nohup st -d' expand('%:p:h') '> /dev/null 2>&1 &'
     nnoremap <S-CR> :Sterm<CR>
-" Codeium
-    "lua require("codeium").setup({})
+" vim
+    command! Vimrc silent lcd ~/.config/nvim/ | edit init.vim
 " Navigation & Splits
     nnoremap <silent><leader>dr :Gcd<CR>:echo "Changed to git root dir"<CR>
     nnoremap <silent_leader>dh :cd<CR>:echo "Changed to home dir"<CR>
@@ -365,7 +346,6 @@ let &packpath=&runtimepath
     nnoremap <silent><C-Up> <C-w>10+
     "TODO add buffer hotkeys with leader i.e. <leader>
 " Font
-  lua require("user.font")
 " Neovide
 "
    set mouse=
@@ -385,8 +365,6 @@ let &packpath=&runtimepath
     let g:indentLine_color_gui = '#e91e63'
     autocmd Filetype rust let g:indentLine_enabled = 1
 " keybinds & utils
-    lua require("user.utils")
-    lua require("user.keybinds")
 "autocmd Filetype rust map <silent><leader><leader> :w<CR>:!rustfmt %<CR>:!cargo check<CR>
 "nnoremap ,latex :-1read $dotfiles/snippets/assignment.tex<CR>72jo "use <leader>,<CMD> 
 "nnoremap ,texfig :-1read $dotfiles/snippets/figure.tex<CR><CR>$i
@@ -405,3 +383,18 @@ let &packpath=&runtimepath
 "
 nnoremap <C-z> :stop<CR>
 inoremap <C-z> <Esc>:stop<CR>
+lua << EOF
+function _G.ReloadVimConfig()
+    vim.cmd('source $MYVIMRC')
+    -- Clear the Lua module cache
+    for name, _ in pairs(package.loaded) do
+        if name:match('^user') then
+            package.loaded[name] = nil
+        end
+    end
+    print("Reloaded vimrc and Lua configuration")
+end
+EOF
+
+nnoremap <silent><leader>v :w<CR>:lua ReloadVimConfig()<CR>
+lua require('user.init')
