@@ -4,134 +4,86 @@ import sys
 import subprocess
 import json
 
-def search_duckduckgo(args):
-    query = "+".join(args)
+local_bangs = {
+    "!oni": "https://oxygennotincluded.wiki.gg/index.php?search=",
+}
+
+class ParsedArgs:
+    def __init__(self, bang, search):
+        self.bang = bang
+        self.search = search
+
+def parse_arguments(args):
+    bang = None
+    search = []
+    for arg in args:
+        if arg.startswith("!") and bang is None:
+            bang = arg
+        else:
+            search.append(arg)
+    return ParsedArgs(bang, search)
+
+def search_local_bangs(parsed_args):
+    if parsed_args.bang in local_bangs:
+        base_url = local_bangs[parsed_args.bang]
+        query = "+".join(parsed_args.search)
+        return f"{base_url}{query}"
+    return None
+
+def search_duckduckgo(parsed_args):
+    query = parsed_args.bang + " " + " ".join(parsed_args.search) if parsed_args.bang else " ".join(parsed_args.search)
+    query = query.replace(" ", "+")
     return f"https://duckduckgo.com/?q={query}"
 
-def open_bookmarks_as_json(bookmarks_file, args):
+def open_bookmarks_as_json(bookmarks_file, parsed_args):
     try:
         with open(bookmarks_file, "r") as f:
             bookmarks_str = f.read()
         bookmarks = json.loads(bookmarks_str)
     except json.JSONDecodeError:
-        # bookmarks.json couldn't be parsed
         subprocess.run(["notify-send", "Error", f"{bookmarks_file} couldn't be parsed (missing comma ?)"])
-        # abort the script
         sys.exit(1)
     except FileNotFoundError:
-        # bookmarks.json file not found
         subprocess.run(["notify-send", "Error", f"{bookmarks_file} file not found"])
         sys.exit(1)
     except Exception as e:
-        # other exceptions
         subprocess.run(["notify-send", "Error", f"An error occurred: {e}"])
         sys.exit(1)
     
-    if args[0] in bookmarks:
-        return bookmarks[args[0]]
+    if parsed_args.search[0] in bookmarks:
+        return bookmarks[parsed_args.search[0]]
     else:
         return None
 
-web_bookmarks_path = "/home/maxwell/bin/web_bookmarks.json" #path to bookmarks file 
+web_bookmarks_path = "/home/maxwell/bin/web_bookmarks.json" # Path to bookmarks file 
+
 def main():
     if len(sys.argv) == 1:
-        # no arguments, open a new tab in Firefox
         subprocess.run(["firefox", "-new-tab"])
-    else:
-        # check if the first character of the first argument is "!"
-        if sys.argv[1][0] == "!":
-            url = search_duckduckgo(sys.argv[1:])
+        return
+    
+    parsed_args = parse_arguments(sys.argv[1:])
+    
+    # Check for single bang "!" to open Firefox in a new window
+    if parsed_args.bang == "!":
+        subprocess.run(["firefox"])
+        return
+    
+    url = None
+    if parsed_args.bang is not None:
+        url = search_local_bangs(parsed_args)
+    
+    # If no local bang is found, proceed to search DuckDuckGo
+    if url is None:
+        if parsed_args.bang:
+            url = search_duckduckgo(parsed_args)
         else:
-            url = open_bookmarks_as_json(web_bookmarks_path, sys.argv[1:])
-        if url is None:
-            # bookmark not found, search DuckDuckGo instead
-            url = search_duckduckgo(sys.argv[1:])
-        # open the URL in Firefox, with a new tab
-        subprocess.run(["firefox", "-new-tab", url])
+            url = open_bookmarks_as_json(web_bookmarks_path, parsed_args)
+    
+    if url is None:
+        url = search_duckduckgo(parsed_args)
+    
+    subprocess.run(["firefox", "-new-tab", url])
 
 if __name__ == "__main__":
     main()
-
-# #! /usr/bin/env python3
-# #Searches websites by parsing command line arguments - useful when being called via dmenu
-# import subprocess 
-# import sys
-# import re
-# import json
-# import os
-# 
-# def websearch(args):
-#     #assume args is list of strings 
-#     args_str = '?q='+re.sub(' ','+',''.join(args))
-#     #
-#     #
-#     # see https://duckduckgo.com/params for customising the search params:
-#     #lol this shit makes ddg take forever if you enable everything
-#     params = {}
-#     #params['lang'] = 'kl=au-en'
-#     #params['safe_search'] = 'kp=-1'
-#     #params['open_instant_answers'] = 'kz=1'
-#     #params['autload_images'] = 'kc=1'
-#     #params['autoload_results'] = 'kav=1'
-#     #params['https'] = 'kh=1'
-#     #params['video_playbacl'] = 'k5=2'
-#     #params['color_header'] = 'kj=d' #green
-#     #params['color_URL'] = 'kx=g' #green
-#     #params['color_background'] = 'k7=p' #purple
-#     #params['color_text'] = 'k8=g' #default, dark grey
-#     #params['color_links'] = 'k9=b'#blue 
-#     #params['color_visited_links'] = 'kaa=p' #
-#     params['color_theme'] = 'kae=d' #t for terminal, r for retro, d for dark
-#     #params['size'] = 'ks=n' #large textsize
-#     #params['width'] = 'kw=n' #normal
-#     #params['placement'] = 'km=m' #middle
-#     #params['link_font'] = 'ka=comic-sans' #meme
-#     #params['underline'] = 'ku=1' #on
-#     #params['text_font'] = 'kt=comic-sans'
-#     #params['instant_answers'] = 'ko=1' #on & floating
-#     #params['advertisments'] = 'k1=-1'  #off 
-#     #params['page#'] = 'kv=1' #page_nums on
-#     #params['units_of_measure'] = 'kaj=m' #metric
-#     #params['source'] = 't=trisquel' #$$$$ for GNU
-#     #
-#     #
-#     params_str = '' 
-#     if len(params) != 0:
-#         for i in params:
-#             params_str = params_str+'&'+params[i]
-#     firefox_URL = 'https://duckduckgo.com/'+args_str+params_str   #get rid of param_str to use default search params 
-#     return firefox_URL
-#     
-# def is_json(myjson):
-#     try:
-#         json.loads(myjson)
-#         return True
-#     except:
-#         return False
-# 
-# 
-# #Main Script:
-# web_bookmarks_path = "/home/maxwell/bin/web_bookmarks.txt" #path to bookmarks file 
-# if len(sys.argv) == 1:
-#     subprocess.call(['firefox','-new-tab'])
-#     exit()
-# args = ' '.join(sys.argv[1:])
-# # ! is a duckduckgo bang, # is for for searching the web, override bookmarks.
-# if '!' == args[0]:
-#     firefox_URL = websearch(args)
-# else:
-#     with open(web_bookmarks_path) as file:
-#         json_str = file.read()
-#         if not is_json(json_str):
-#             print("Invalid json")
-#             os.system('notify-send "Invalid Json"')
-#             sys.exit()
-#         web_bookmarks = json.loads(json_str)
-#         if args in web_bookmarks:
-#             firefox_URL = web_bookmarks[args]
-#             subprocess.call(['firefox','-new-tab', firefox_URL])
-#         elif len(args) > 0:
-#             firefox_URL = websearch(args)
-#             subprocess.call(['firefox','-new-tab', firefox_URL])
-#         else:
-#             subprocess.call(['firefox','-new-tab'])

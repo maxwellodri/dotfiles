@@ -5,15 +5,14 @@ polkit-dumb-agent &
 systemctl --user import-environment DISPLAY XAUTHORITY #non-xorg vars defined in shrc 
 transmission-daemon
 
-server_path="$HOME/.cache/nvim/godot-server.pipe"
-[ -f "$server_path" ] && rm server_path
-nohup $dotfiles/dwm/godot-neovim-runner.py --daemon & disown
+$dotfiles/dwm/neovim-server-runner.py --cleanup
 
 $bin/set_kb_map
 
 #/usr/lib/xfce-polkit/xfce-polkit &
 [ $dotfiles_tag = "pc" ] && steam -silent &
 [ -f "$bin/monitor.sh" ] && $bin/monitor.sh
+sleep 0.5
 feh --bg-scale "$dotfiles/images/treesketch.jpg"
 $bin/loop_set_kb_map.sh
 #wallpaper-show
