@@ -121,6 +121,7 @@ source /usr/share/fzf/completion.zsh
 function _fuzzy_vim {
     # Execute the script and capture the output
     local dir_path="$($HOME/bin/fuzzy_vim)"
+    local current_path=$PWD
 
     # Clear the zsh input line
     zle clear_input
@@ -145,7 +146,7 @@ function _fuzzy_vim {
     if [[ -d "$dir_path" && -n "$dir_path" ]]; then
         cd "$dir_path"
     fi
-
+    cd $current_path
     # Clear the BUFFER and accept the line to refresh the prompt
     BUFFER=""
     zle accept-line

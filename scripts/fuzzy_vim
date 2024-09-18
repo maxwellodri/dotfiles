@@ -43,10 +43,15 @@ else
 fi
 
 # Get file using fzf and fd, excluding "Games" directory
-file=$(fd . $prev_dir | fd -E Games -E $prev_dir | fzf)
+files=$(fd . $prev_dir | fd -E Games -E $prev_dir | fzf -m)
 
-# If file exists, get its real path
-[ -f "$file" ] && file=$(realpath "$file")
+#TODO: if selecting multiple files of the same type, we end up opening the same program multiple times instead of combining them
 
-# Interact with the file
-interact "$file"
+# Loop over each selected file
+echo "$files" | while IFS= read -r file; do
+    # If file exists, get its real path
+    [ -f "$file" ] && file=$(realpath "$file")
+    
+    # Interact with the file
+    interact "$file"
+done
