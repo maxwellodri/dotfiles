@@ -15,6 +15,7 @@ $bin/set_kb_map
 sleep 0.5
 feh --bg-scale "$dotfiles/images/treesketch.jpg"
 $bin/loop_set_kb_map.sh
+which slock && xautolock -time 10 -locker slock
 #wallpaper-show
 #notify-send "$dotfiles/images/low-poly_red.jpg"
 #wal -R &
