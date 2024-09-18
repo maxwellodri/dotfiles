@@ -33,7 +33,7 @@ super + Insert
 super + shift + b
 	bookmarks
 super + End
-    /home/maxwell/bin/cultures_hack.sh
+    /home/maxwell/bin/interactive_bookmarks.sh
 
 super + shift + s 
 	screendump
