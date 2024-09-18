@@ -8,11 +8,16 @@ elif [ "$1" = ".." ]; then
 else
     file_path="$1"
 fi
-# Check if $1 is a file
+
+# Default $2 and $3 to 0 if they are not set
+line_number="${2:-0}"
+column_number="${3:-0}"
+
+# Check if $file_path is a file
 if [ -f "$file_path" ]; then
-    # If $1 is a file, pass $2 and $3 as well
-    $dotfiles/dwm/neovim-server-runner.py "$file_path" "$2" "$3"
+    # If $file_path is a file, pass $file_path, $line_number, and $column_number
+    $dotfiles/dwm/neovim-server-runner.py --client "$file_path" "$line_number" "$column_number"
 else
-    # If $1 is not a file, only pass $1 (resolved path)
-    $dotfiles/dwm/neovim-server-runner.py "$file_path"
+    # If $file_path is not a file, only pass $file_path
+    $dotfiles/dwm/neovim-server-runner.py --client "$file_path"
 fi

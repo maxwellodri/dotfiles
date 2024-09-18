@@ -263,12 +263,19 @@ async def daemon():
 def client(filepath=None, line_number=0, column_number=0):
     """Client to send events to the daemon."""
     try:
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-            client.connect(socket_path)
+        if filepath:
+            # Remove any surrounding quotes
+            filepath = filepath.strip('"').strip("'")
+            # Expand ~ to home directory
+            filepath = os.path.expanduser(filepath)
+            # Convert to absolute path
+            filepath = os.path.abspath(filepath)
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client_socket:
+            client_socket.connect(socket_path)
             # Use a marker for no filename
             filepath = filepath or "<NO_FILE>"
             message = f"{filepath} {line_number} {column_number}"
-            client.sendall(message.encode())
+            client_socket.sendall(message.encode())
             print(f"Sent event to daemon: {message}")
     except Exception as e:
         print(f"Failed to send event to daemon: {e}")

@@ -122,20 +122,29 @@ function _fuzzy_vim {
     # Execute the script and capture the output
     local dir_path="$($HOME/bin/fuzzy_vim)"
 
-    #echo "Output from fuzzy_vim: '$dir_path'"
+    # Clear the zsh input line
     zle clear_input
+
+    # If the output is empty, check if we're in a Git repo
+    if [[ -z "$dir_path" ]]; then
+        if git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+            # We're inside a Git repo, cd to the Git root
+            dir_path=$(git rev-parse --show-toplevel)
+        else
+            # Not in a Git repo, cd to home
+            dir_path="$HOME"
+        fi
+    fi
 
     # Convert to absolute path if not already and ensure dir_path is not empty
     if [[ -n "$dir_path" && "$dir_path" != /* ]]; then
         dir_path="$HOME/$dir_path"
     fi
-    
+
     # Check if the output is a valid directory and change to it
     if [[ -d "$dir_path" && -n "$dir_path" ]]; then
         cd "$dir_path"
     fi
-    
-    #echo "$dir_path"
 
     # Clear the BUFFER and accept the line to refresh the prompt
     BUFFER=""
