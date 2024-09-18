@@ -42,6 +42,9 @@ macro w set browser "setsid -f firefox" ; open-in-browser-and-mark-read
 macro p set browser "handler" ; open-in-browser-and-mark-read 
 macro c set browser "xsel -b <<<" ; open-in-browser-and-mark-read #; set browser linkhandler
 
+highlight feedlist "\"---.*---\"" magenta default bold
+highlight feedlist ".*0/0.." default default invis
+
 #highlight all "- - - - - .* - - - - -" yellow
 #highlight feedlist ".*(0/0))" black
 #highlight article "(^Feed:.*|^Title:.*|^Author:.*)" cyan default bold
