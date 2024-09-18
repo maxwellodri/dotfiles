@@ -65,6 +65,7 @@ let &packpath=&runtimepath
     Plug 'mechatroner/rainbow_csv'
     Plug 'elkowar/yuck.vim'
     Plug 'habamax/vim-godot'
+  
     " ============ "
     " Rust Support "
     " ============ "
