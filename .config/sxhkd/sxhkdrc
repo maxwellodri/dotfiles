@@ -44,7 +44,7 @@ super + w
 super + shift + t
 	torr
 super + ctrl + shift + s
-    wholescreensave && sleep 0.2 && notify-send -t 1000 "Screenshot Taken"
+    setsid ffplay -nodisp -autoexit $dotfiles/media/camera.ogg & wholescreensave && sleep 0.2 && notify-send -t 1000 "Screenshot Taken 📸"
 super + shift + o
     xdotool mousemove 2200 1000 && sleep 0.1 && xdotool mousemove 2250 1050 && sleep 0.1 && xdotool mousemove 2300 && 1000
 
