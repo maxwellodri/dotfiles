@@ -1,5 +1,4 @@
 #ArchLinux
-0 4  * * * pacman -Qg > /home/maxwell/packages.txt 
+0 4  * * * pacman -Qg > /home/maxwell/.backup_packages.txt 
 0 * * * * newsboat -x  reload
-* * * * * sh /usr/bin/nextcloud-sync-cron.sh /home/maxwell/nextcloud.conf -l /home/maxwell/.cache/nextcloud
 #DebianLinux

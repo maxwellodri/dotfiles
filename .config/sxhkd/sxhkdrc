@@ -12,10 +12,6 @@
 #                  |___/                         
 super + Return
 	st 
-super + Home
-	todo
-super + shift + d
-	togglerc ~/todo/todo.txt
 super + d
 	dmenu_run 
 super + e
