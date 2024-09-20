@@ -16,8 +16,6 @@ super + Home
 	todo
 super + shift + d
 	togglerc ~/todo/todo.txt
-super + ctrl + c
-    xdotool windowclose $(click_window)
 super + d
 	dmenu_run 
 super + e
@@ -33,8 +31,6 @@ super + shift + b
 super + End
     /home/maxwell/bin/interactive_bookmarks.sh
 
-super + shift + s 
-	screendump
 super + shift + q
 	set_kb_map && notify-send -t 1000 "Correctly Set Capslock => Escape 😍"
 super + shift + w
@@ -43,8 +39,8 @@ super + w
     wallpaper-shader
 super + shift + t
 	torr
-super + ctrl + shift + s
-    setsid ffplay -nodisp -autoexit $dotfiles/media/camera.ogg & wholescreensave && sleep 0.2 && notify-send -t 1000 "Screenshot Taken 📸"
+super + shift + s
+    setsid ffplay -nodisp -autoexit $dotfiles/media/camera.ogg && screendump && sleep 0.2 && notify-send -t 1000 "Screenshot Taken 📸"
 super + shift + o
     xdotool mousemove 2200 1000 && sleep 0.1 && xdotool mousemove 2250 1050 && sleep 0.1 && xdotool mousemove 2300 && 1000
 
@@ -56,6 +52,8 @@ super + shift + o
 #  \__\___/ \__, |\__, |_|\___|
 #           |___/ |___/        
 #Programs:
+super + F13
+	pkill -USR1 -x sxhkd && notify-send "🤔 sxhkd reloaded 🤔"
 super + Escape
 	pkill -USR1 -x sxhkd && notify-send "🤔 sxhkd reloaded 🤔"
 super + q
