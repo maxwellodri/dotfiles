@@ -1,6 +1,6 @@
 #!/bin/sh
 dunst &
-picom -b --config ~/.config/picom/picom.conf &
+which picom && picom -b --config ~/.config/picom/picom.conf &
 polkit-dumb-agent &
 systemctl --user import-environment DISPLAY XAUTHORITY #non-xorg vars defined in shrc 
 transmission-daemon
