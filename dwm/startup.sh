@@ -13,7 +13,7 @@ $bin/set_kb_map
 [ $dotfiles_tag = "pc" ] && steam -silent &
 [ -f "$bin/monitor.sh" ] && $bin/monitor.sh
 sleep 0.5
-feh --bg-scale "$dotfiles/images/treesketch.jpg"
+feh --bg-fill "$dotfiles/images/mountains.jpg" "$dotfile/images/lake.jpg"
 $bin/loop_set_kb_map.sh
 which slock && xautolock -time 10 -locker slock
 #wallpaper-show
