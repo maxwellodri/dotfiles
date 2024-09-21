@@ -31,13 +31,12 @@ if [ -d /etc/X11/xinit/xinitrc.d ] ; then
  unset f
 fi
 
-
 [ "$(basename "$WM")" = "dwm" ] && [ -f "$dotfiles/dwm/dwmshell" ] && "$dotfiles/dwm/dwmshell"  #shell script to start for dwm, for starting other programs
 if [ "$(basename "$WM")" = "dwm" ]; then
         sxhkd &
         numlockx on
         [[ -f ~/.Xmodmap ]] && xmodmap ~/.Xmodmap
-        $dotfiles/dwm/startup.sh
+        $dotfiles/dwm/startup.sh &
         while [ "$KILLDWM" != "true" ]; do
             ssh-agent dwm
         done
