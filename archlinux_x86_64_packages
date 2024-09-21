@@ -17,10 +17,10 @@ xorg
 xorg-xinit
 nodejs
 neovim
-slop
-maim
 imagemagick
 xclip
+shotgun
+hacksaw
 gnome-keyring
 figlet
 neomutt

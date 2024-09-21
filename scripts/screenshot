@@ -1,8 +1,24 @@
-#!/bin/bash
-#required programs (on arch)
-#maim
-#slop
-#imagemagick
-mkdir -p ~/.cache/dotfiles
-img=~/.cache/dotfiles/screen.png 
-maim -s $img && xclip -selection clipboard -t image/png -i $img
+#!/bin/sh
+
+if [ "$1" != "selfexec" ]; then
+    exec setsid "$0" selfexec "$@"
+fi
+
+LOCKFILE="/tmp/screenshot.lock"
+
+if [ -f "$LOCKFILE" ]; then
+    old_pid=$(cat "$LOCKFILE")
+    kill -TERM -"$old_pid" 2>/dev/null
+    rm -f "$LOCKFILE"
+    setsid ffplay -nodisp -autoexit $dotfiles/media/camera.ogg
+    shotgun - | xclip -t 'image/png' -selection clipboard
+    sleep 0.2; notify-send -t 1000 "Screenshot Taken 📸"
+    exit 0
+else
+    echo $$ > "$LOCKFILE"
+    trap 'rm -f "$LOCKFILE"' EXIT
+    selection=$(hacksaw -f "-i %i -g %g")
+    shotgun $selection - | xclip -t 'image/png' -selection clipboard
+    rm -f "$LOCKFILE"
+    exit 0
+fi

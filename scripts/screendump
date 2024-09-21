@@ -1,8 +1,0 @@
-#!/bin/bash
-#required programs (on arch)
-#maim
-#slop
-#imagemagick
-mkdir -p ~/.cache/dotfiles
-img=~/.cache/dotfiles/screen.png 
-maim $img && xclip -selection clipboard -t image/png -i $img
