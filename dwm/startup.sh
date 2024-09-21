@@ -1,4 +1,5 @@
 #!/bin/sh
+sleep 1
 dunst &
 which picom && picom -b --config ~/.config/picom/picom.conf &
 polkit-dumb-agent &
@@ -10,12 +11,11 @@ $dotfiles/dwm/neovim-server-runner.py --cleanup
 $bin/set_kb_map
 
 #/usr/lib/xfce-polkit/xfce-polkit &
-[ $dotfiles_tag = "pc" ] && steam -silent &
-[ -f "$bin/monitor.sh" ] && $bin/monitor.sh
-sleep 0.5
-feh --bg-fill "$dotfiles/images/mountains.jpg" "$dotfile/images/lake.jpg"
 $bin/loop_set_kb_map.sh
 which slock && xautolock -time 10 -locker slock
+[ ! -f "$bin/monitor.sh" ] && feh --bg-fill "$dotfiles/images/mountains.jpg" "$dotfiles/images/lake.jpg"
+[ -f "$bin/monitor.sh" ] && $bin/monitor.sh && feh --bg-fill "$dotfiles/images/mountains.jpg" "$dotfiles/images/lake.jpg"
+[ $dotfiles_tag = "pc" ] && steam -silent &
 #wallpaper-show
 #notify-send "$dotfiles/images/low-poly_red.jpg"
 #wal -R &
