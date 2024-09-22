@@ -1,0 +1,2 @@
+#!/bin/sh
+/usr/bin/nvim "$@"; printf '\033]0;st\007'

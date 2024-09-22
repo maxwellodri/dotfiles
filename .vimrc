@@ -20,8 +20,7 @@ if exists('$SHELL') "probably unnecesary
     set nowrap
     set termguicolors
     set title
-    "set titlestring=%F "necessary to be able to 'toggle' configs in sxhkd
-    set titlestring=nvim
+    set titlestring=%F
     set sessionoptions-=options
     set softtabstop=4
     set tabstop=4
