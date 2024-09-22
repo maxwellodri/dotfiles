@@ -31,7 +31,7 @@ gtk=".config/gtk-2.0 .config/gtk-3.0 .config/gtk-4.0 .config/gtkrc .config/gtkrc
 
 ########### Meta Variables
 i3=" $i3config $i3statusconfig" #i3wm
-xfiles=" .xinitrc $zathura $picom $dunst $ncmpcpp .Xresources $sxhkdconfig $rofi $gtk"
+xfiles=" .xinitrc .config/neovide $zathura $picom $dunst $ncmpcpp .Xresources $sxhkdconfig $rofi $gtk"
 bash=" .bashrc .bashrc_extra .bash_profile $sh $pam $xdg"
 zsh=" .zshrc .zshrc_extra .zprofile $sh $pam" 
 files=" .vimrc .config/nvim $ytdl $newsboat $tmux $gpg $emacs $gitconfig .config/systemd $xdg"
