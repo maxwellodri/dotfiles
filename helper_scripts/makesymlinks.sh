@@ -13,7 +13,6 @@ terminator=.config/terminator/config
 sh=.config/sh/shrc
 pam=.pam_environment
 picom=.config/picom/picom.conf
-mutt=.config/mutt/muttrc
 dunst=.config/dunst/dunstrc
 pactl=.config/pulseaudio-ctl/config
 newsboat=".config/newsboat/urls .config/newsboat/config"
@@ -35,7 +34,7 @@ i3=" $i3config $i3statusconfig" #i3wm
 xfiles=" .xinitrc $zathura $picom $dunst $ncmpcpp .Xresources $sxhkdconfig $rofi $gtk"
 bash=" .bashrc .bashrc_extra .bash_profile $sh $pam $xdg"
 zsh=" .zshrc .zshrc_extra .zprofile $sh $pam" 
-files=" .vimrc .config/nvim $mutt $ytdl $newsboat $tmux $gpg $emacs $gitconfig .config/systemd $xdg"
+files=" .vimrc .config/nvim $ytdl $newsboat $tmux $gpg $emacs $gitconfig .config/systemd $xdg"
 
 ########### Variables
 pcfiles=" $xfiles $zsh $bsp $eww $mpv" #platform specific dotfiles
@@ -160,10 +159,6 @@ for file in $files; do
                                 ;;
 
         "$zathura")             src="$dir/.config/zathura/zathurarc"
-                                ;;
-
-        "$mutt")                src="$dir/.config/zathura/zathurarc"
-                                mkdir -p "$HOME/attach"
                                 ;;
 
         .vimrc)                 src="$dir/$file"
