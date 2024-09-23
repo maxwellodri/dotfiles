@@ -23,18 +23,19 @@ ncmpcpp=".config/mpd/mpd.conf .config/ncmpcpp/config"
 bsp=".config/bspwm/bspwmrc .config/bspwm/terminals .config/bspwm/swallow .config/bspwm/noswallow"
 sxhkdconfig=.config/sxhkd/sxhkdrc
 rofi=.config/rofi/config.rasi
-gitconfig=.gitconfig
+gitconfig=.config/git/
 eww=.config/eww/
 mpv=.config/mpv/
 gtk=".config/gtk-2.0 .config/gtk-3.0 .config/gtk-4.0 .config/gtkrc .config/gtkrc-2.0"
 qt=".config/Trolltech.conf"
+npm=".config/npm/"
 
 ########### Meta Variables
 i3=" $i3config $i3statusconfig" #i3wm
 xfiles=" .config/X11/.xinitrc .Xresources .config/neovide $zathura $picom $dunst $ncmpcpp $sxhkdconfig $rofi $gtk $qt"
-bash=" .bashrc .bashrc_extra .bash_profile $sh $pam $xdg"
-zsh=" .zshrc .zshrc_extra .zprofile $sh $pam" 
-files=" .config/vim/ .config/nvim $ytdl $newsboat $tmux $gpg $emacs $gitconfig .config/systemd $xdg"
+bash=" .bashrc .bashrc_extra .bash_profile $sh $pam"
+zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam" 
+files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $gitconfig $npm .config/systemd/"
 
 ########### Variables
 pcfiles=" $xfiles $zsh $mpv" #platform specific dotfiles
@@ -112,8 +113,7 @@ echo ""
 
 # move any existing dotfiles in homedir to dotfiles_old directory, then create symlinks 
 for file in $files; do
-    echo "Moving any existing $file from ~/ to $olddir"
-    mv "$HOME/$file" "$olddir"
+    [ -e "$HOME/$file" ] && echo "Moving existing $file from ~/ to $olddir" && mv "$HOME/$file" "$olddir"
     case "$file" in
         ".bashrc_extra")        src="$dir/.bashrc_extra.$tag"
             ;;

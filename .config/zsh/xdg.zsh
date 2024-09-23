@@ -1,0 +1,8 @@
+export XINITRC="$XDG_CONFIG_HOME"/X11/xinitrc
+export XSERVERRC="$XDG_CONFIG_HOME"/X11/xserverrc
+export OMNISHARPHOME="$XDG_CONFIG_HOME/omnisharp"
+export NPM_CONFIG_USERCONFIG=$XDG_CONFIG_HOME/npm/npmrc
+export NVM_DIR="$XDG_DATA_HOME"/nvm 
+export PYENV_ROOT=$XDG_DATA_HOME/pyenv 
+export PYTHON_HISTORY=$XDG_STATE_HOME/python/history
+export FFMPEG_DATADIR="$XDG_CONFIG_HOME"/ffmpeg 

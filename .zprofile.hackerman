@@ -1,4 +1,8 @@
 #!/bin/sh
+export XDG_CONFIG_HOME="$HOME/.config"
+export XDG_DATA_HOME="$HOME/.local/share"
+source "$XDG_CONFIG_HOME/xdg.zsh"
+
 export PATH=$HOME/bin:/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl
 export PATH="$HOME/.cargo/bin:$PATH"
 export LIBRARY_PATH=$LIBRARY_PATH:$HOME/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib
