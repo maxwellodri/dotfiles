@@ -152,7 +152,7 @@ let &packpath=&runtimepath
     Plug 'tweekmonster/startuptime.vim'
     "
     call plug#end()
-    source ~/.vimrc "vimrc is effectively a plugin lmao
+    source ~/.config/vim/vimrc "vimrc is effectively a plugin lmao
     nnoremap <silent><leader>V :w<CR>:so $MYVIMRC<CR>:PlugInstall<CR>
 
 " To try out:

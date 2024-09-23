@@ -66,7 +66,7 @@ alias bashrctag="vim ~/.bashrc_extra && source ~/.bashrc"
 alias zshrctag="vim ~/.zshrc_extra && source ~/.zshrc_extra"
 alias bashprofile="vim ~/.bash_profile"
 alias zprofile="vim ~/.zprofile"
-alias xrc="vim ~/.xinitrc"
+alias xrc="vim ~/.config/X11/.xinitrc"
 alias xres="vim ~/.Xresources && xrdb ~/.Xresources"
 type nvim  >>/dev/null && alias vimrc='PREV_DIR=$(pwd) && cd ~/.config/nvim/ && vim init.vim && cd $PREV_DIR' || alias vimrc='vim ~/.vimrc'
 alias vw='PREV_DIR=$(pwd) && cd ~/vimwiki && vim index.wiki && cd $PREV_DIR'

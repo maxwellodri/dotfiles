@@ -5,7 +5,6 @@
 
 ########### Fixed Variables (dont change) 
 dir="$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel)" #dotfiles git root directory
-olddir=~/.dotfiles_old             # old dotfiles backup directory
 i3config=.config/i3/config #combines with below to make i3 
 i3statusconfig=.config/i3status/config
 zathura=.config/zathura/zathurarc
@@ -26,18 +25,19 @@ sxhkdconfig=.config/sxhkd/sxhkdrc
 rofi=.config/rofi/config.rasi
 gitconfig=.gitconfig
 eww=.config/eww/
-mpv=.config/mpv
+mpv=.config/mpv/
 gtk=".config/gtk-2.0 .config/gtk-3.0 .config/gtk-4.0 .config/gtkrc .config/gtkrc-2.0"
+qt=".config/Trolltech.conf"
 
 ########### Meta Variables
 i3=" $i3config $i3statusconfig" #i3wm
-xfiles=" .xinitrc .config/neovide $zathura $picom $dunst $ncmpcpp .Xresources $sxhkdconfig $rofi $gtk"
+xfiles=" .config/X11/.xinitrc .Xresources .config/neovide $zathura $picom $dunst $ncmpcpp $sxhkdconfig $rofi $gtk $qt"
 bash=" .bashrc .bashrc_extra .bash_profile $sh $pam $xdg"
 zsh=" .zshrc .zshrc_extra .zprofile $sh $pam" 
-files=" .vimrc .config/nvim $ytdl $newsboat $tmux $gpg $emacs $gitconfig .config/systemd $xdg"
+files=" .config/vim/ .config/nvim $ytdl $newsboat $tmux $gpg $emacs $gitconfig .config/systemd $xdg"
 
 ########### Variables
-pcfiles=" $xfiles $zsh $bsp $eww $mpv" #platform specific dotfiles
+pcfiles=" $xfiles $zsh $mpv" #platform specific dotfiles
 hackermanfiles=" $xfiles $zsh $mpv"
 rpifiles=" "
 noxfiles=" "
@@ -91,9 +91,8 @@ done
 files="$new_files"
 
 # create dotfiles_old in homedir
+olddir=$(mktemp -d)
 echo "Creating $olddir for backup of any existing dotfiles in ~"
-mkdir -pv $olddir
-echo "...done"
 echo ""
 echo "Making needed parent directories..."
 for file in $files; do
@@ -116,45 +115,16 @@ for file in $files; do
     echo "Moving any existing $file from ~/ to $olddir"
     mv "$HOME/$file" "$olddir"
     case "$file" in
-
-        "$i3config")            echo "Making backup of old i3-config."
-                                mv "$dir/$file" "$olddir/$file.bak"
-                                #now cat from source files:
-                                echo "#Dont edit this file directly, instead edit the src files and rebuild" > "$dir/$file" #a comment
-                                echo " " >> "$dir/$file"
-                                #.config/i3/config.base and .config/i3/config/$tag where $tag can be pc/empty/chromebook etc
-                                if [ ! -f "$dir/$file.$tag" ]; then 
-                                    echo "Custom config for $tag not found, ignoring..."
-                                    echo " "
-                                    cat "$dir/$file.base" >> "$dir/$file"
-                                else
-                                    echo "Using $tag as extra"
-                                    ln -sf "$dir/$file.$tag" "$dir/$file.extra"
-                                    echo "Using cat to create i3config, $dir/$file"
-                                    cat "$dir/$file.base" "$dir/$file.$tag" >> "$dir/$file"
-                                    echo "from $file.base and $file.$tag"
-                                    echo "Done"
-                                fi
-                                src="$dir/$file"
-                                ;;
-
         ".bashrc_extra")        src="$dir/.bashrc_extra.$tag"
-                                ;;
+            ;;
 
         ".zshrc_extra")         src="$dir/.zshrc_extra.$tag"
-                                ;;
-
+            ;;
+        ".zprofile")            src="$dir/$file.$tag"
+            ;;
         "$i3statusconfig")      src="$dir/$file.$tag"
                                 ;;
         
-        ".xinitrc")             src="$dir/$file"
-                                ;;
-
-        ".bash_profile")        src="$dir/$file.$tag"
-                                ;;
-
-        ".zprofile")            src="$dir/$file.$tag"
-                                ;;
         "$sh")                  src="$dir/.config/sh/shrc"
                                 ;;
 

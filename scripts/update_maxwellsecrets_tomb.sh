@@ -1,5 +1,7 @@
 #!/bin/bash
 
+cd ~/Documents/backup/
+
 if [ ! -f "maxwellsecrets.tomb" ]; then
   echo "Error: maxwellsecrets.tomb not found."
   exit 1
