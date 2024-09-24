@@ -12,7 +12,9 @@ https://www.youtube.com/feeds/videos.xml?channel_id=UClt01z1wHHT7c5lKcU8pxRQ "YT
 https://www.youtube.com/feeds/videos.xml?channel_id=UCy0tKL1T7wFoYcxCe0xjN6Q "YT" "Food" "~TechnologyConnections"
 https://www.youtube.com/feeds/videos.xml?channel_id=UCOcphUKAnUaair1uZ7SlqiA "YT" "Food" "~Internet Shaquille"
 https://www.youtube.com/feeds/videos.xml?channel_id=UCSuT9FSddzI6W5Bij9XwtmA "YT" "Food" "~Extranet Shaquille"
-http://newalbumreleases.net/feed/ "Music" ~New Album Releases
+http://newalbumreleases.net/feed/ "Music" "~New Album Releases"
+https://old.reddit.com/r/BuyItForLife/ "Reddit" "~Buy it for Life"
+https://gamefromscratch.com/feed/ "Programming" ~GamesFromScratch"
 " "
 "---Rust---"
 https://blog.rust-lang.org/feed.xml "Rust" "~Core Language"
