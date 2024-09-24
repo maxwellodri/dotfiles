@@ -100,24 +100,6 @@ bindkey '^n' history-search-forward
 source /usr/share/fzf/key-bindings.zsh
 source /usr/share/fzf/completion.zsh
 
-#function _fuzzy_vim {
-#
-#    # Execute the script and capture the output
-#    local dir_path="$($HOME/bin/fuzzy_vim | sed 's/\x1b\[[0-9;]*m//g' | sed 's/\x1b\[[0-9;]*H\[[0-9;]*J//g')"
-#    #echo $dir_path
-#    # Clear any previous input in the shell
-#    zle clear-input
-#
-#
-#    # Check if the output is a valid directory and change to it silently
-#    if [[ -d "$dir_path" ]]; then
-#        cd "$dir_path"
-#    fi
-#
-#    # Set the shell BUFFER to empty and accept the line to refresh the prompt
-#    BUFFER="$dir_path"
-#    zle accept-line
-#}
 function _fuzzy_vim {
     # Execute the script and capture the output
     local dir_path="$($HOME/bin/fuzzy_vim)"
@@ -141,12 +123,8 @@ function _fuzzy_vim {
     if [[ -n "$dir_path" && "$dir_path" != /* ]]; then
         dir_path="$HOME/$dir_path"
     fi
-
     # Check if the output is a valid directory and change to it
-    if [[ -d "$dir_path" && -n "$dir_path" ]]; then
-        cd "$dir_path"
-    fi
-    cd $current_path
+    [ -d "$dir_path" ] && cd "$dir_path"
     # Clear the BUFFER and accept the line to refresh the prompt
     BUFFER=""
     zle accept-line
