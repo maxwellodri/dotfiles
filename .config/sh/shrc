@@ -30,14 +30,14 @@ export GODOT4_BIN=/bin/godot-mono-bin
 export SOURCE="$HOME/source"
 export PASSWORD_STORE_GENERATED_LENGTH=30
 export QMK="$SOURCE/qmk_firmware"
-systemctl --user import-environment PATH HOME USER #DISPLAY defined in $dotifles/dwm/startup.sh
+export JUPYTERLAB_DIR=$HOME/.local/share/jupyter/lab
+which systemctl 1,2>/dev/null && systemctl --user import-environment PATH HOME USER #DISPLAY defined in $dotifles/dwm/startup.sh
 
 ################
 #Extras
 ################
 [ -e ~/.cargo/env ] && . ~/.cargo/env 
 #export WORKON_HOME="/home/maxwell/pyvenv" #cant nest variables this is a hack to let emacs load successfully
-export JUPYTERLAB_DIR=$HOME/.local/share/jupyter/lab
 
 ################
 #Functions:
