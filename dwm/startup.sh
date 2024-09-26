@@ -14,6 +14,9 @@ $bin/set_kb_map
 $bin/loop_set_kb_map.sh
 which slock && xautolock -time 10 -locker slock
 $bin/background_set.sh
-[ $dotfiles_tag = "pc" ] && steam -silent &
+[ $dotfiles_tag = "pc" ] && steam &
+[ $dotfiles_tag = "pc" ] && signal-desktop &
+[ $dotfiles_tag = "pc" ] && spotify-launcher &
+[ $dotfiles_tag = "pc" ] && thunderbird &
 
 echo "Done startup"
