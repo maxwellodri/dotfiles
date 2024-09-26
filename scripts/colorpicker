@@ -1,2 +1,2 @@
-#!/bin/sh
+#!/bin/bash
 xcolor | tee >(notify-send -a "XColor" -u low "Color value: $(cat)") | xclip -selection clipboard
