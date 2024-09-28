@@ -11,7 +11,7 @@ song=$(echo "$mpc_output" | head -n 1)
 
 # Send the notification
 if [[ $status == "[playing]" ]]; then
-    notify-send "▶ mpd Playing ▶" "$song" -h string:x-canonical-private-synchronous:mpd-toggle
+    notify-send -t 2000 "▶ mpd Playing ▶" "$song" -h string:x-canonical-private-synchronous:mpd-toggle
 elif [[ $status == "[paused]" ]]; then
-    notify-send "⏸ mpd Paused ⏸" -h string:x-canonical-private-synchronous:mpd-toggle
+    notify-send -t 1200 "⏸ mpd Paused ⏸" -h string:x-canonical-private-synchronous:mpd-toggle
 fi
