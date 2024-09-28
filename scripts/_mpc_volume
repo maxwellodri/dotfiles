@@ -1,0 +1,7 @@
+#!/bin/bash
+volume=$(mpc volume "$1" | grep -oP 'volume:\s*\K\d+')
+if [ "$1" -gt 0 ]; then
+    notify-send "mpd volume 🔊 $volume%" -h string:x-canonical-private-synchronous:mpd-volume
+else
+    notify-send "mpd volume 🔈 $volume%" -h string:x-canonical-private-synchronous:mpd-volume
+fi

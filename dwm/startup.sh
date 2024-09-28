@@ -18,6 +18,6 @@ $bin/background_set.sh
 [ $dotfiles_tag = "pc" ] && signal-desktop &
 [ $dotfiles_tag = "pc" ] && spotify-launcher &
 [ $dotfiles_tag = "pc" ] && thunderbird &
-[ $dotfiles_tag = "pc" ] && thunderbird &
+[ $dotfiles_tag = "pc" ] && mpd
 
 echo "Done startup"

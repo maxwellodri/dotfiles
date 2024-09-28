@@ -50,8 +50,12 @@ super + shift + o
 #Programs:
 super + F13
 	pkill -USR1 -x sxhkd && notify-send "🤔 sxhkd reloaded 🤔"
-super + Escape
-	pkill -USR1 -x sxhkd && notify-send "🤔 sxhkd reloaded 🤔"
+super + F1
+    _mpc_toggle
+super + F2
+	_mpc_volume +5
+super + F3
+	_mpc_volume -5
 super + q
     [ timew ] && timew stop | timew start 
 #Media:

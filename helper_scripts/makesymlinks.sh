@@ -19,7 +19,8 @@ ytdl=.config/youtube-dl/config
 tmux=.tmux.conf
 gpg=.gnupg/gpg-agent.conf
 emacs=".emacs.d/init.el"
-ncmpcpp=".config/mpd/mpd.conf .config/ncmpcpp/config"
+mpd=" .config/mpd/mpd.conf"
+vimpc=" .config/vimpc/vimpcrc"
 bsp=".config/bspwm/bspwmrc .config/bspwm/terminals .config/bspwm/swallow .config/bspwm/noswallow"
 sxhkdconfig=.config/sxhkd/sxhkdrc
 rofi=.config/rofi/config.rasi
@@ -38,7 +39,7 @@ zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam"
 files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $gitconfig $npm .config/systemd/"
 
 ########### Variables
-pcfiles=" $xfiles $zsh $mpv" #platform specific dotfiles
+pcfiles=" $xfiles $zsh $mpv $mpd $vimpc" #platform specific dotfiles
 hackermanfiles=" $xfiles $zsh $mpv"
 rpifiles=" "
 noxfiles=" "

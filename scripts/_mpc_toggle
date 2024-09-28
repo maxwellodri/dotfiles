@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Get the output of `mpc` command
+mpc_output=$(mpc toggle)
+
+# Capture the status (paused or playing)
+status=$(echo "$mpc_output" | grep -Eo '\[paused\]|\[playing\]')
+
+# Capture the first line (song information)
+song=$(echo "$mpc_output" | head -n 1)
+
+# Send the notification
+if [[ $status == "[playing]" ]]; then
+    notify-send "▶ mpd Playing ▶" "$song" -h string:x-canonical-private-synchronous:mpd-toggle
+elif [[ $status == "[paused]" ]]; then
+    notify-send "⏸ mpd Paused ⏸" -h string:x-canonical-private-synchronous:mpd-toggle
+fi
