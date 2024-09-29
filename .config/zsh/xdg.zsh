@@ -13,7 +13,6 @@ export _JAVA_OPTIONS=-Djava.util.prefs.userRoot="$XDG_CONFIG_HOME"/java
 export JUPYTER_CONFIG_DIR="$XDG_CONFIG_HOME"/jupyter 
 export KDEHOME="$XDG_CONFIG_HOME"/kde 
 export WINEPREFIX="$XDG_DATA_HOME"/wine
-alias wget=wget --hsts-file="$XDG_DATA_HOME/wget-hsts"
 export W3M_DIR="$XDG_DATA_HOME"/w3m
 export VAGRANT_HOME="$XDG_DATA_HOME"/vagrant
 export TEXMFVAR="$XDG_CACHE_HOME"/texlive/texmf-var
@@ -25,6 +24,7 @@ export CUDA_CACHE_PATH="$XDG_CACHE_HOME"/nv
 
 export AWS_SHARED_CREDENTIALS_FILE="$XDG_CONFIG_HOME"/aws/credentials
 export AWS_CONFIG_FILE="$XDG_CONFIG_HOME"/aws/config
-
 export ANDROID_USER_HOME="$XDG_DATA_HOME"/android
+
+alias wget=wget --hsts-file="$XDG_DATA_HOME/wget-hsts"
 alias adb='HOME="$XDG_DATA_HOME"/android adb'
