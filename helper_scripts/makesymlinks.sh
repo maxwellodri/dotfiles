@@ -33,7 +33,7 @@ npm=".config/npm/"
 
 ########### Meta Variables
 i3=" $i3config $i3statusconfig" #i3wm
-xfiles=" .config/X11/xinitrc .Xresources .config/neovide $zathura $picom $dunst $ncmpcpp $sxhkdconfig $rofi $gtk $qt"
+xfiles=" .config/X11/xinitrc .config/X11/.Xresources .config/X11/.Xmodmap .config/neovide $zathura $picom $dunst $ncmpcpp $sxhkdconfig $rofi $gtk $qt"
 bash=" .bashrc .bashrc_extra .bash_profile $sh $pam"
 zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam" 
 files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $gitconfig $npm .config/systemd/"

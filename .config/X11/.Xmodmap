@@ -1,0 +1,3 @@
+clear lock
+keycode 66 = Escape
+keycode 9 = F13 Escape Caps_Lock Caps_Lock
