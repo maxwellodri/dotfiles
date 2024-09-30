@@ -24,19 +24,14 @@ elif [ "$#" -eq 1 ]; then
 fi
 
 # Get active reminders
-active=$(remind -t5 ~/.config/remind/reminders.rem | tail -n +2 | grep -v '^$')
+active=$(remind ~/.config/remind/reminders.rem | tail -n +2 | grep -v '^$')
 
 if [ "$action" = "count" ]; then
-    # Output the count of active reminders
     echo "$active" | wc -l
 elif [ "$action" = "list" ]; then
-    # Create a temporary file
     tmp="/tmp/remind/active_reminders"
-    # Send a notification (optional)
-    notify-send "hello there! $tmp"
     mkdir /tmp/remind/
     echo "$active" > "$tmp"
-    # Open the file with neovide
     neovide "$tmp"
     rm "$tmp"
 fi

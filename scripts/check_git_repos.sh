@@ -5,7 +5,7 @@ SOURCE_DIR=~/source
 highlight_color="\033[1;32m" # Bright green
 reset_color="\033[0m"        # Reset to default
 
-highlighted_repos=("dwm" "slock" "st" "dotfiles" "dmenu")
+highlighted_repos=("dwm" "slock" "st" "dotfiles" "dmenu" "private")
 
 is_highlighted_repo() {
     for repo in "${highlighted_repos[@]}"; do
