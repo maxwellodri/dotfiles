@@ -45,7 +45,6 @@ rpifiles=" "
 noxfiles=" "
 all="$files$zsh$bash$xfiles$pactl$sh$zathura" #all files
 
-
 ##########
 
 echo "Beginning script..."
@@ -54,6 +53,8 @@ echo "Beginning script..."
 case $1 in
     "pc")           tag="$1"
                     files=$pcfiles$files
+                    mkdir ~/.local/share/dwm/ -p
+                    ln -sf $PWD/dwm/startup.sh ~/.local/share/dwm/autostart.sh
                     ;;
     "rpi")          tag="$1"
                     files=$rpifiles$files
@@ -64,6 +65,8 @@ case $1 in
 
     "hackerman")    tag="$1"
                     files=$hackermanfiles$files
+                    mkdir ~/.local/share/dwm/ -p
+                    ln -sf $PWD/dwm/startup.sh ~/.local/share/dwm/autostart.sh
 		            ;;
 
     "clean")        echo "Removing all symlinks..." 
@@ -114,7 +117,8 @@ echo ""
 
 # move any existing dotfiles in homedir to dotfiles_old directory, then create symlinks 
 for file in $files; do
-    [ -e "$HOME/$file" ] && echo "Moving existing $file from ~/ to $olddir" && mv "$HOME/$file" "$olddir"
+    dest="$HOME/$file"
+    [ -e "$dest" ] && echo "Moving existing $file from $dest to $olddir" && mv "$dest" "$olddir"
     case "$file" in
         ".bashrc_extra")        src="$dir/.bashrc_extra.$tag"
             ;;

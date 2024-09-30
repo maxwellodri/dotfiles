@@ -1,5 +1,4 @@
 #!/bin/sh
-sleep 1
 dunst &
 which picom && picom -b --config ~/.config/picom/picom.conf &
 polkit-dumb-agent &
@@ -9,15 +8,14 @@ transmission-daemon
 $dotfiles/dwm/neovim-server-runner.py --cleanup
 
 $bin/set_kb_map
+#$bin/loop_set_kb_map.sh
 
-#/usr/lib/xfce-polkit/xfce-polkit &
-$bin/loop_set_kb_map.sh
 which slock && xautolock -time 10 -locker slock
-$bin/background_set.sh
 [ $dotfiles_tag = "pc" ] && steam &
 [ $dotfiles_tag = "pc" ] && signal-desktop &
 [ $dotfiles_tag = "pc" ] && spotify-launcher &
 [ $dotfiles_tag = "pc" ] && thunderbird &
-[ $dotfiles_tag = "pc" ] && mpd
+[ $dotfiles_tag = "pc" ] && pgrep -x mpd || mpd
+background_set.sh
 
 echo "Done startup"
