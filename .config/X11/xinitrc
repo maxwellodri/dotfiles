@@ -32,8 +32,10 @@ if [ -d /etc/X11/xinit/xinitrc.d ] ; then
 fi
 
 if [ "$(basename "$WM")" = "dwm" ]; then
-    [ "$(basename "$WM")" = "dwm" ] && [ -f "$dotfiles/dwm/dwmshell" ] && "$dotfiles/dwm/dwmshell"  #shell script to start for dwm, for starting other programs
+    #[ "$(basename "$WM")" = "dwm" ] && [ -f "$dotfiles/dwm/dwmshell" ] && "$dotfiles/dwm/dwmshell"  #shell script to start for dwm, for starting other programs
     sxhkd &
+    $dotfiles/dwm/startup.sh &
+    [ "$(basename "$WM")" = "dwm" ] && [ -f "$dotfiles/dwm/dstatus.sh" ] && "$dotfiles/dwm/dstatus.sh" 1,2>/dev/null &
     numlockx on
     eval $(ssh-agent)
     ( while [ "$KILLDWM" != "true" ]; do
@@ -41,6 +43,5 @@ if [ "$(basename "$WM")" = "dwm" ]; then
     done )
 elif [ "$(basename "$WM")" = "penrose" ]; then
     $dotfiles/penrose/startup.sh
-    #xautolock -time 20 -locker "lockme" -detectsleep &
     ssh-agent penrose
 fi

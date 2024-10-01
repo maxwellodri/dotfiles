@@ -14,6 +14,7 @@ trap cleanup EXIT
 
 script_directory=$(dirname "$0")
 package_file="$script_directory/package_file.txt"
+network_touch="$script_directory/network_touch.txt"
 
 poll_network() {
     command -v nmcli &>/dev/null && network="🌐: $(nmcli device | awk '!/disconnected/&&/connected/ {print $4}') $(nmcli device wifi | awk '/\*/ {print $9}')" && [ $network = "🌐:" ] && network="🌐: NONE"
@@ -24,7 +25,7 @@ poll_battery() {
 }
 
 async_poll_packages() {
-    echo $(checkupdates | wc -l) > "$package_file"
+    checkupdates | wc -l > "$package_file"
 }
 
 poll_timew() {
@@ -97,7 +98,6 @@ try_notify() {
     fi
 }
 
-network_touch="$script_directory/network_touch.txt"
 try_internet_connection() {
     ping -c 1 cia.gov >/dev/null 2>&1
     
@@ -119,12 +119,9 @@ packages="?"
 async_poll_packages &
 try_internet_connection &
 timedata=""
-#packages="$(async_poll_packages)"
 timew_timer="$(poll_timew)"
 internet="?"
-#cpu
-#packages="$(async_poll_packages)"
-#
+
 counter=0
 source ~/.zshrc_extra
 
@@ -134,7 +131,7 @@ while true; do
                     OPT=" $(poll_battery)"
                     ;;
         pc) 
-                    OPT="" #" $packages, $network"
+                    OPT=""
                     ;;
         *)  
                     OPT=" NO TAG"
@@ -175,9 +172,11 @@ while true; do
     fi
 
     if [ -f "$package_file" ]; then
-        packages=$(cat "$package_file")
-        echo "Updated packages"
-        rm "$package_file"  # Clean up the shared data file
+        package_file_contents="$(<"$package_file")"
+        if [ ! -z "$package_file_contents" ]; then
+            packages=$package_file_contents
+            rm "$package_file"  # Clean up the shared data file
+        fi
     fi
 
     xsetroot -name "$timedata 🕒: $(date +%a-%d-%b-%R) 🧠: $(sh memory_checker)% 🤔:$(printf "%2d" "$rounded_cpu")% 🌏: $internet 🚚: $packages$OPT"
