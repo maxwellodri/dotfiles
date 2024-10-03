@@ -55,6 +55,7 @@ xdo
 python
 python-qtconsole
 python-pynvim
+python-xlib
 pavucontrol
 github-cli
 libvterm
