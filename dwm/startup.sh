@@ -7,7 +7,6 @@ pgrep -xf "transmission-daemon --no-auth" || ( echo "Starting transmission-daemo
 
 
 $dotfiles/dwm/neovim-server-runner.py --cleanup
-$dotfiles/dwm/neovim-server-runner.py --daemon &
 
 $bin/set_kb_map
 #$bin/loop_set_kb_map.sh

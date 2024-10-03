@@ -1,5 +1,15 @@
 #!/bin/sh
 
+daemon_pid=$($dotfiles/dwm/neovim-server-runner.py --query | tail -n 1)
+
+# Check if the PID is 0, indicating the daemon is not running
+if [ "$daemon_pid" -eq 0 ]; then
+    # Start the daemon in a new session and redirect output to /dev/null
+    setsid $dotfiles/dwm/neovim-server-runner.py --daemon > /dev/null 2>&1 &
+    # Sleep for 0.2 seconds to allow the daemon to initialize
+    sleep 0.2
+fi
+
 # Resolve the path for $1
 if [ "$1" = "." ]; then
     file_path="$PWD"

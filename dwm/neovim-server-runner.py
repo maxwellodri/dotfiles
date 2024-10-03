@@ -125,7 +125,11 @@ def open_server(filepath=None, line_number=0, column_number=0):
         # If a file is provided, check if it's inside a git repository
         file_dir = os.path.dirname(filepath)
         try:
-            git_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], cwd=file_dir).decode().strip()
+            git_root = subprocess.check_output(
+                ['git', 'rev-parse', '--show-toplevel'],
+                cwd=file_dir,
+                stderr=subprocess.DEVNULL  # Redirect stderr to /dev/null
+            ).decode().strip()
             os.chdir(git_root)
             print(f"Changed directory to git root: {git_root}")
         except subprocess.CalledProcessError:
@@ -287,6 +291,7 @@ def main():
     mode_group = parser.add_mutually_exclusive_group(required=False)
     mode_group.add_argument('--daemon', action='store_true', help="Run as daemon")
     mode_group.add_argument('--client', action='store_true', help="Run in client mode (default mode unless --daemon is specified)", default=True)
+    mode_group.add_argument('--query', action='store_true', help="Query status of daemon.", default=False)
 
     # Arguments for killing the daemon
     kill_arg_names = ['-k', '--kill']
@@ -308,6 +313,13 @@ def main():
     args = parser.parse_args()
 
     script_name = os.path.basename(__file__)
+    if args.query:
+        pid = get_daemon_pid(script_name, '--daemon')
+        if pid:
+            print(f"{pid}")
+        else:
+            print(f"0")
+        sys.exit(0)
 
     if args.cleanup:
         # Cleanup implies --kill, so we kill the daemon and then clean up
