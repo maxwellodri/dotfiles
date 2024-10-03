@@ -32,16 +32,22 @@ if [ -d /etc/X11/xinit/xinitrc.d ] ; then
 fi
 
 if [ "$(basename "$WM")" = "dwm" ]; then
-    #[ "$(basename "$WM")" = "dwm" ] && [ -f "$dotfiles/dwm/dwmshell" ] && "$dotfiles/dwm/dwmshell"  #shell script to start for dwm, for starting other programs
+    ( while [ "$KILLDWM" != "true" ]; do
+            dwm
+    done ) &
+    #xrandr --output DisplayPort-0 --off --output DisplayPort-1 --off --output DisplayPort-2 --primary --mode 2560x1440 --pos 1200x240 --rotate normal --output HDMI-A-0 --mode 1920x1200 --pos 0x0 --rotate left
+    #$HOME/.screenlayout/layout.sh
+    #background_set.sh
+    startdwm_pid=$!
     sxhkd &
-    $dotfiles/dwm/startup.sh &
-    [ "$(basename "$WM")" = "dwm" ] && [ -f "$dotfiles/dwm/dstatus.sh" ] && "$dotfiles/dwm/dstatus.sh" 1,2>/dev/null &
     numlockx on
     eval $(ssh-agent)
-    ( while [ "$KILLDWM" != "true" ]; do
-        dwm
-    done )
-elif [ "$(basename "$WM")" = "penrose" ]; then
-    $dotfiles/penrose/startup.sh
-    ssh-agent penrose
-fi
+    #sleep 1
+    [ "$(basename "$WM")" = "dwm" ] && [ -f "$dotfiles/dwm/dstatus.sh" ] && "$dotfiles/dwm/dstatus.sh" 1,2>/dev/null &
+    $dotfiles/dwm/startup.sh &
+    wait $startdwm_pid
+    #sleep 10000
+    #while [[ true ]]; do
+    #    sleep 1 
+    #done
+fi 
