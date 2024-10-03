@@ -32,22 +32,18 @@ qt=".config/Trolltech.conf"
 npm=".config/npm/"
 
 ########### Meta Variables
-i3=" $i3config $i3statusconfig" #i3wm
+i3=" $i3config $i3statusconfig"
 xfiles=" .config/X11/xinitrc .config/X11/.Xresources .config/X11/.Xmodmap .config/neovide $zathura $picom $dunst $ncmpcpp $sxhkdconfig $rofi $gtk $qt"
 bash=" .bashrc .bashrc_extra .bash_profile $sh $pam"
 zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam" 
 files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $gitconfig $npm .config/systemd/"
 
-########### Variables
+########### 
 pcfiles=" $xfiles $zsh $mpv $mpd $vimpc" #platform specific dotfiles
 hackermanfiles=" $xfiles $zsh $mpv"
-rpifiles=" "
-noxfiles=" "
-all="$files$zsh$bash$xfiles$pactl$sh$zathura" #all files
 
 ##########
 
-echo "Beginning script..."
 #figure out which system we are on by first variable i.e. $1:
 
 case $1 in
@@ -56,13 +52,6 @@ case $1 in
                     mkdir ~/.local/share/dwm/ -p
                     ln -sf $PWD/dwm/startup.sh ~/.local/share/dwm/autostart.sh
                     ;;
-    "rpi")          tag="$1"
-                    files=$rpifiles$files
-                    ;;
-    "nox")          tag="$1"
-                    files=$noxfiles$files
-		            ;;
-
     "hackerman")    tag="$1"
                     files=$hackermanfiles$files
                     mkdir ~/.local/share/dwm/ -p
@@ -73,7 +62,8 @@ case $1 in
                     for file in $all; do
                         [ -L "$HOME/$file" ] && unlink "$HOME/$file" && echo "Unlinked $file"
                     done
-                    echo "Finished unlinkng" && exit
+                    echo "Finished unlinkng"
+                    exit
                     ;;
 
     *)              
@@ -149,7 +139,6 @@ for file in $files; do
     ln -s "$src" "$HOME/$file"
 done
 
-echo "Done."
 echo "tag variable used = $tag"
 echo "Script is finished."
 
