@@ -3,8 +3,8 @@
 interact ()
 {
     file=$1
-    echo $(realpath $file)
     [ -z "$file" ] && return
+    echo $(realpath $file)
 
     if [ -f "$file" ]; then
         # Check MIME type for text and open in Vim if it's a text file
