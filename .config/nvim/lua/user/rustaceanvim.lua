@@ -1,6 +1,6 @@
 local rust_opts = require("user.lsp.settings.rust")
 local default_opts = require('user.lsp')
-
+vim.g.rustfmt_autosave = 1
 vim.g.rustaceanvim = {
   -- Plugin configuration
   tools = {
