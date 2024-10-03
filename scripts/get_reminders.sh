@@ -1,5 +1,4 @@
 #!/bin/sh
-
 # Default action is 'list'
 action="list"
 
