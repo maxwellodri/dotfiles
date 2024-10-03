@@ -3,7 +3,7 @@
 interact ()
 {
     file=$1
-    echo $file
+    echo $(realpath $file)
     [ -z "$file" ] && return
 
     if [ -f "$file" ]; then
@@ -43,7 +43,7 @@ else
 fi
 
 # Get file using fzf and fd, excluding "Games" directory
-files=$(fd . $prev_dir | fd -E Games -E $prev_dir | fzf -m)
+files=$(fd . $prev_dir | fd -E $prev_dir | fzf -m)
 
 #TODO: if selecting multiple files of the same type, we end up opening the same program multiple times instead of combining them
 
