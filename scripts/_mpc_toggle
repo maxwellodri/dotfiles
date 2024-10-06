@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Get the output of `mpc` command
-mpc_output=$(mpc toggle)
+mpc_output=$(mpc --host="$HOME/.config/mpd/socket" toggle)
+
 
 # Capture the status (paused or playing)
 status=$(echo "$mpc_output" | grep -Eo '\[paused\]|\[playing\]')
