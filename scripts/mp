@@ -1,2 +1,3 @@
 #!/bin/sh
+mpc --host="$HOME/.config/mpd/socket" consume on 1>/dev/null 2>/dev/null
 mpc --host="$HOME/.config/mpd/socket" "$@"

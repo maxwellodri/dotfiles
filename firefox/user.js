@@ -75,6 +75,7 @@ user_pref("browser.tabs.firefox-view.ui-state.tab-pickup.open", true);
 user_pref("browser.tabs.insertRelatedAfterCurrent", false);
 user_pref("browser.tabs.searchclipboardfor.middleclick", false);
 user_pref("browser.tabs.tabmanager.enabled", false);
+user_pref("browser.tabs.hoverPreview.enabled", false);
 user_pref("browser.tabs.warnOnOpen", false);
 user_pref("browser.theme.content-theme", 0);
 user_pref("browser.theme.toolbar-theme", 0);
@@ -270,6 +271,7 @@ user_pref("services.sync.prefs.sync-seen.browser.safebrowsing.phishing.enabled",
 user_pref("services.sync.prefs.sync-seen.browser.search.update", true);
 user_pref("services.sync.prefs.sync-seen.browser.startup.page", true);
 user_pref("services.sync.prefs.sync-seen.browser.tabs.tabmanager.enabled", true);
+user_pref("services.sync.prefs.sync-seen.browser.tabs.hoverPreview.enabled", true);
 user_pref("services.sync.prefs.sync-seen.browser.tabs.warnOnClose", true);
 user_pref("services.sync.prefs.sync-seen.browser.tabs.warnOnOpen", true);
 user_pref("services.sync.prefs.sync-seen.browser.urlbar.showSearchSuggestionsFirst", true);
