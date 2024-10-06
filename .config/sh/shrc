@@ -93,9 +93,7 @@ alias dragon="dragon-drag-and-drop"
 alias rmdir='rmdir -p'
 
 alias mpdrc="vim ~/.config/mpd/mpd.conf"
-alias ncmpcpprc="vim ~/.config/ncmpcpp/config"
-alias ncm="ncmpcpp"
-#alias ytdl="yt-dlp --abort-on-unavailable-fragment"
+alias vimpcrc="vim ~/.config/vimpc/vimpcrc"
 alias ytdl='yt-dlp --restrict-filenames --abort-on-unavailable-fragment --trim-filenames 225 -o "~/Downloads/ytdlp/%(title)s.%(ext)s"'
 alias tsm='transmission-remote --torrent-done-script ~/bin/torrdone'
 alias tsmr='transmission-remote -l | grep -v 'Queued''
