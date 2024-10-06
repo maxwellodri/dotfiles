@@ -7,6 +7,9 @@ fi
 
 # Change to the directory where the script is located
 cd "$(dirname "$0")"
+[ -f "$PWD/.dotfile_tag" ] || (echo "No $PWD/.dotfile_tag found. Make sure to run ./installer_main.sh -> helper_scripts/makesymlinks.sh before this!" && exit)
+echo "Copying $PWD/.dotfile_tag to /etc/dotfile_tag"
+cp "$PWD/.dotfile_tag" "/etc/dotfile_tag"
 
 # Check if the required directories exist
 if [ ! -d "udev-rules" ] || [ ! -d "systemd-services" ] || [ ! -d "system_configs" ]; then

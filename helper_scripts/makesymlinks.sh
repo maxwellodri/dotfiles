@@ -73,6 +73,8 @@ case $1 in
 
 esac
 
+echo "$tag" > "$PWD/.dotfile_tag"
+
 # Iterate through files and remove trailing slash if it's a directory
 for file in $files; do
     if [ -d "$file" ] && [[ "$file" == */ ]]; then
