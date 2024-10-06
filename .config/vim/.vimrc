@@ -151,7 +151,7 @@ function! s:get_visual_selection()
 
 
 " Make Options
-    autocmd Filetype make set noexpandtab "force tabs for make
+    autocmd Filetype make set expandtab "force tabs for make
 " Vimscript Options
     "autocmd Filetype vim set softtabstop=2
     "autocmd Filetype vim set tabstop=2
