@@ -1,0 +1,2 @@
+#!/bin/sh
+xdotool windowkill $(sleep 0.1 && xdotool getactivewindow)
