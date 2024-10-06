@@ -1,7 +1,10 @@
 #!/bin/sh
+
 export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_DATA_HOME="$HOME/.local/share"
-source "$XDG_CONFIG_HOME/xdg.zsh"
+export XDG_CACHE_HOME="$HOME/.cache"
+export XDG_STATE_HOME="$HOME/.local/state"
+source "$XDG_CONFIG_HOME/zsh/xdg.zsh"
 
 export PATH=$HOME/bin:/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -17,6 +20,7 @@ unset beep
 WM=''  #override for cases below
 export dotfiles="$HOME/source/dotfiles"
 export dotfile="$HOME/source/dotfiles"
+export dotfiles_tag="hackerman"
 export dotfile_tag="hackerman"
 
 [ -f "$(which transmission-daemon)" ] && transmission-daemon --no-auth
