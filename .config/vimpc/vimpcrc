@@ -2,3 +2,11 @@ set window library
 set groupignorethe
 set listallmeta
 crossfade 2
+set ignorecase
+set sortignorethe
+set sortignorecase
+set incsearch
+set mouse
+set scrollonadd
+set scrollondelete
+connect /home/maxwell/.config/mpd/socket

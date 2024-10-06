@@ -16,7 +16,7 @@ $bin/set_kb_map
 [ $dotfiles_tag = "pc" ] && signal-desktop &
 [ $dotfiles_tag = "pc" ] && spotify-launcher &
 [ $dotfiles_tag = "pc" ] && thunderbird &
-[ $dotfiles_tag = "pc" ] && pgrep -x mpd || mpd
+#[ $dotfiles_tag = "pc" ] && pgrep -x mpd || mpd
 background_set.sh &
 
 echo "Done startup"
