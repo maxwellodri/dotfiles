@@ -1,0 +1,81 @@
+#!/bin/bash
+
+# Path to the profiles.ini file
+profiles_ini="$HOME/.mozilla/firefox/profiles.ini"
+
+# Path to the user.js and userChrome.css files
+user_js_path="$PWD/firefox/user.js"
+user_chrome_css_path="$PWD/firefox/userChrome.css"
+
+# Directory for backups
+backup_dir=$(mktemp -d)
+
+# Check if user.js file exists
+if [ ! -f "$user_js_path" ]; then
+    echo "Error: $user_js_path does not exist."
+    exit 1
+fi
+
+# Check if userChrome.css file exists
+if [ ! -f "$user_chrome_css_path" ]; then
+    echo "Error: $user_chrome_css_path does not exist."
+    exit 1
+fi
+
+# Extract the profile path associated with Default=1
+default_profile=$(awk -F= '
+  BEGIN {profile=""; default_found=0}
+  /^Default=1$/ {default_found=1}
+  /^Path=/ && default_found {profile=$2; default_found=0}
+  END {print profile}
+' "$profiles_ini")
+
+# Check if we found a default profile
+if [ -n "$default_profile" ]; then
+    profile_path="$HOME/.mozilla/firefox/$default_profile"
+    profile_user_js="$profile_path/user.js"
+    profile_chrome_dir="$profile_path/chrome"
+    profile_user_chrome_css="$profile_chrome_dir/userChrome.css"
+    echo "Default profile path: $profile_path"
+    
+    # Handle existing user.js
+    if [ -L "$profile_user_js" ]; then
+        if [ "$(readlink -- "$profile_user_js")" == "$user_js_path" ]; then
+            echo "user.js is already linked correctly."
+        else
+            echo "user.js is a symlink, but not pointing to $user_js_path. Replacing it."
+            rm "$profile_user_js"
+        fi
+    elif [ -f "$profile_user_js" ]; then
+        echo "user.js exists and is not a symlink. Backing it up to $backup_dir."
+        mkdir -p "$backup_dir"
+        mv "$profile_user_js" "$backup_dir/user.js"
+        echo "Backup created at $backup_dir/user.js"
+    fi
+    
+    # Link the user.js file to the profile directory
+    ln -s "$user_js_path" "$profile_user_js"
+    echo "user.js linked to $profile_user_js"
+    
+    # Handle existing userChrome.css
+    mkdir -p "$profile_chrome_dir"  # Ensure chrome directory exists
+    if [ -L "$profile_user_chrome_css" ]; then
+        if [ "$(readlink -- "$profile_user_chrome_css")" == "$user_chrome_css_path" ]; then
+            echo "userChrome.css is already linked correctly."
+        else
+            echo "userChrome.css is a symlink, but not pointing to $user_chrome_css_path. Replacing it."
+            rm "$profile_user_chrome_css"
+        fi
+    elif [ -f "$profile_user_chrome_css" ]; then
+        echo "userChrome.css exists and is not a symlink. Backing it up to $backup_dir."
+        mv "$profile_user_chrome_css" "$backup_dir/userChrome.css"
+        echo "Backup created at $backup_dir/userChrome.css"
+    fi
+    
+    # Link the userChrome.css file to the profile directory
+    ln -s "$user_chrome_css_path" "$profile_user_chrome_css"
+    echo "userChrome.css linked to $profile_user_chrome_css"
+else
+    echo "No default profile found."
+    exit 1
+fi
