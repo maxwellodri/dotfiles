@@ -1,5 +1,5 @@
 #!/bin/sh
-st -g 100x20+2000+720 -c "stfuzzy" -e sh -c 'fd --full-path "$HOME/Music/" -E '*.jpg' -E '*.jpg' --type file | shuf | fzf -m | xargs realpath | mpc --host="$HOME/.config/mpd/socket" insert'
+st -g 100x20+2000+720 -c "stfuzzy" -e sh -c 'fd --full-path "$HOME/Music/" -E '*.jpg' -E '*.jpg' --type file --type symlink | shuf | fzf -m | xargs realpath | mpc --host="$HOME/.config/mpd/socket" insert'
 mpc --host="$HOME/.config/mpd/socket" play
 mpc --host="$HOME/.config/mpd/socket" on
 
