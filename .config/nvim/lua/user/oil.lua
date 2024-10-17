@@ -7,18 +7,18 @@ local function open_file()
     local select = require('oil.actions').select.callback
     local file_path = current_dir .. entry.parsed_name
 
+    -- local vimrc_mimetype = vim.fn.system('xdg-mime query filetype ~/.config/nvim/init.vim')
     local file_mimetype = vim.fn.system('xdg-mime query filetype "' .. file_path .. '"')
-    local vimrc_mimetype = vim.fn.system('xdg-mime query filetype ~/.vimrc')
-    local folder_mimetype = vim.fn.system('xdg-mime query filetype ~/')
-    -- local file_application = vim.fn.system("xdg-mime query default " .. vim.fn.shellescape(file_mimetype))
+    local folder_mimetype = vim.fn.system('xdg-mime query filetype /') -- should be 'inode/directory'
     local file_application = vim.fn.system("xdg-mime query default " .. file_mimetype)
-    local vim_application = vim.fn.system("xdg-mime query default " .. vimrc_mimetype)
+    file_application = vim.trim(file_application)
+    -- local file_application = vim.fn.system("xdg-mime query default " .. file_mimetype)
+    -- local vim_application = vim.fn.system("xdg-mime query default " .. vimrc_mimetype)
 
-    if file_application == vim_application or file_mimetype == folder_mimetype then
-            select()
-        else
-            vim.fn.system(string.format("nohup xdg-open %s > /dev/null 2>&1 &", vim.fn.shellescape(file_path)))
-
+    if string.match(file_mimetype, "text/") or file_application == "neovide.desktop" or file_mimetype == folder_mimetype then
+        select()
+    else
+        vim.fn.system(string.format("nohup xdg-open %s > /dev/null 2>&1 &", vim.fn.shellescape(file_path)))
     end
 end
 
