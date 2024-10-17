@@ -1,1 +1,2 @@
 https://opengameart.org/content/camera -> camera.ogg
+https://opengameart.org/content/win-jingle -> end_jingle.ogg
