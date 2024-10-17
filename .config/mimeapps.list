@@ -1,5 +1,5 @@
 [Added Associations]
-inode/directory=thunar.desktop;
+inode/directory=pcmanfm.desktop;
 x-scheme-handler/http=firefox.desktop;
 x-scheme-handler/https=firefox.desktop;
 x-scheme-handler/mailto=thunderbird.desktop;userapp-Thunderbird-W7SJA2.desktop;
@@ -56,7 +56,7 @@ text/x-c=neovide.desktop
 text/x-c++=neovide.desktop
 text/rust=neovide.desktop
 text/css=neovide.desktop
-appliaction/json=neovide.desktop
+application/json=neovide.desktop
 video/mp4=mpv.desktop
 application/ogg=mpv.desktop
 application/x-ogg=mpv.desktop
@@ -183,6 +183,12 @@ video/vnd.avi=mpv.desktop
 model/vnd.flatbuffers=blender.desktop
 application/octet-stream=blender.desktop
 application/pdf=org.pwmt.zathura-pdf-mupdf.desktop
+application/toml=neovide.desktop
+application/json=neovide.desktop
+application/x-godot-resource=neovide.desktop
+application/x-godot-scene=neovide.desktop
+application/x-godot-shader=neovide.desktop;
+application/x-godot-project=neovide.desktop;
 
 [Removed Associations]
 text/plain=wine.desktop;
@@ -191,7 +197,7 @@ application/pdf=firefox.desktop
 application/pdf=brave-browser.desktop
 text/x-script.python=firefox.desktop;
 text/x-shellscript=firefox.desktop
-appliaction/json=firefox.desktop
+application/json=firefox.desktop
 application/x-ms-dos-executable=wine.desktop;
 application/x-msi=wine.desktop;
 application/x-ms-shortcut=wine.desktop;
