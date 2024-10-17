@@ -1,2 +1,2 @@
 #!/bin/sh
-godot-mono-bin -e --path ~/source/gd-mykaelium > ~/.cache/godot_log.pipe 2>&1 &
+/bin/godot-mono-bin -e --path ~/source/gd-mykaelium > ~/.cache/godot_log.pipe 2>&1 &

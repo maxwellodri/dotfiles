@@ -112,7 +112,7 @@ alias sshez='ORIGINAL_HOME=$HOME && sshfs maxwell@donpablito:/ ~/media/donpablit
 #alias mpvr='find . -maxdepth 1 -print0 | shuf -z | xargs -0 mpv'
 alias mpvr='fd . --print0 | shuf --zero-terminated | xargs -0 mpv'
 alias mpvo='fd . --print0 | xargs -0 mpv'
-alias mkdir="mkdir -pv"
+alias mkdir="mkdir -v"
 alias mpvr='$bin/mpv_play -m r'
 alias mpvs='$bin/mpv_play -m s'
 alias mpvo='$bin/mpv_play -m o'
