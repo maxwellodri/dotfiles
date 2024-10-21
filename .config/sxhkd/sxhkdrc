@@ -34,7 +34,7 @@ super + shift + w
 super + w
     wallpaper-shader
 super + shift + t
-	torr
+	text_handler.sh
 super + shift + s
     screenshot
 super + shift + o
