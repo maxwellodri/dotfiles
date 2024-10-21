@@ -94,10 +94,45 @@ alias rmdir='rmdir -p'
 
 alias mpdrc="vim ~/.config/mpd/mpd.conf"
 alias vimpcrc="vim ~/.config/vimpc/vimpcrc"
-alias ytdl='yt-dlp --restrict-filenames --abort-on-unavailable-fragment --trim-filenames 225 -o "~/Downloads/ytdlp/%(title)s.%(ext)s"'
+ytdl() {
+    local dir="~/Downloads/ytdlp"
+    local url=""
+
+    while [[ "$#" -gt 0 ]]; do
+        case "$1" in
+            --dir)
+                dir="$2"
+                if [[ ! -d "$dir" ]]; then
+                    echo "Error: Directory '$dir' does not exist."
+                    return 1
+                fi
+                dir=$(realpath "$dir")
+                shift 2
+                ;;
+            *)
+                if [[ -n "$url" ]]; then
+                    echo "Error: Only one URL can be supplied."
+                    return 1
+                fi
+                url="$1"
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$url" ]]; then
+        echo "Error: No URL supplied."
+        return 1
+    fi
+
+    yt-dlp --restrict-filenames --abort-on-unavailable-fragment --trim-filenames 225 -o "$dir/%(title)s.%(ext)s" "$url"
+}
 alias tsm='transmission-remote --torrent-done-script ~/bin/torrdone'
 alias tsmr='transmission-remote -l | grep -v 'Queued''
-alias tsmd="transmission-remote -l | grep 100% | awk '{print $1}' | tr -d '\*' | tr '\n' ', ' | sed 's/,\ $/\n/' | sed 's/,$/\n/' | xargs -I {} transmission-remote -t '{}' -r"
+#alias tsmd='transmission-remote -l | grep 100% | awk "{print $1}" | tr -d '\*' | tr '\n' ', ' | sed 's/,\ $/\n/' | sed 's/,$/\n/' | xargs -I {} transmission-remote -t '{}' -r'
+tsmd() {
+    transmission-remote -l | grep 100% | awk '{print $1}' | tr -d '\*' | tr '\n' ', ' | sed 's/,\ $/\n/' | sed 's/,$/\n/' | xargs -I {} transmission-remote -t '{}' -r
+}
 alias ex='exit'
 alias sshez='ORIGINAL_HOME=$HOME && sshfs maxwell@donpablito:/ ~/media/donpablito && HOME=~/media/donpablito/home/maxwell zsh -c '\''cd $HOME; exec zsh'\'' && umount ~/media/donpablito && HOME=$ORIGINAL_HOME'
 #alias mpvr="find . -maxdepth 1 | shuf | grep -x . -v | xargs mpv"

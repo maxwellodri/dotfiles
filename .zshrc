@@ -76,7 +76,22 @@ _my_cargo_completion () {
   _arguments '*: :_cargo'
 }
 detoxx() {
-    detox * 2>&1 | awk '{print $(NF-3)}' | awk '{sub(/:$/,"")}1' | xargs -r rm -rf
+    new_files=$(detox -n * 2>&1 | grep "Cannot rename.*\sto\s" | awk -F'Cannot rename | to ' '{print $2}' | awk '{sub(/:$/, ""); print}')
+    detox -n * 2>&1 | grep  "Cannot rename.*\sto\s" | awk '{print $(NF-3)}' | awk '{sub(/:$/,"")}1' | xargs -r rm -rf
+    [ ! -z "$new_files" ] && detox "$new_files" || echo "Nothing to detox"
+}
+debug_detoxx() {
+
+    # Run detox in dry-run mode and capture the old and new filenames
+    new_files=$(detox -n * 2>&1 | grep "Cannot rename.*\sto\s" | awk -F'Cannot rename | to ' '{print $2}' | awk '{sub(/:$/, ""); print}')
+    old_files=$(detox -n * 2>&1 | grep  "Cannot rename.*\sto\s" | awk '{print $(NF-3)}' | awk '{sub(/:$/,"")}1')
+
+    # Print old and new file paths instead of deleting
+    echo "Old files:"
+    echo "$old_files"
+
+    echo "New files:"
+    echo "$new_files"
 }
 
 fdt() {
