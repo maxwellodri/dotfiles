@@ -4,8 +4,15 @@ import sys
 import subprocess
 import json
 
+
+def rust_docs(query):
+    if len(query) > 0:
+        return f"https://docs.rs/{query[0]}/latest"
+    else:
+        return "https://docs.rs/"
 local_bangs = {
     "!oni": "https://oxygennotincluded.wiki.gg/index.php?search=",
+    "!docs": rust_docs,
 }
 
 class ParsedArgs:
@@ -25,9 +32,18 @@ def parse_arguments(args):
 
 def search_local_bangs(parsed_args):
     if parsed_args.bang in local_bangs:
-        base_url = local_bangs[parsed_args.bang]
-        query = "+".join(parsed_args.search)
-        return f"{base_url}{query}"
+        data = local_bangs[parsed_args.bang]
+        print(type(data))
+        if isinstance(data, str):
+            base_url = data
+            query = "+".join(parsed_args.search)
+            final_url = f"{base_url}{query}"
+            print(final_url)
+        else:
+            print(parsed_args.search, data)
+            final_url = data(parsed_args.search)
+        print(final_url)
+        return final_url
     return None
 
 def search_duckduckgo(parsed_args):

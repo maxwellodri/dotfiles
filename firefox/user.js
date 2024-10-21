@@ -8,7 +8,7 @@
 // To change a preference value, you can either:
 // - modify it via the UI (e.g. via about:config in the browser); or
 // - set it within a user.js file in your profile.
-
+user_pref("accessibility.force_disabled", true);
 user_pref("accessibility.browsewithcaret_shortcut.enabled", false);
 user_pref("accessibility.typeaheadfind.flashBar", 0);
 user_pref("app.normandy.first_run", false);
