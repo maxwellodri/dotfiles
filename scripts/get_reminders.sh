@@ -29,7 +29,7 @@ if [ "$action" = "count" ]; then
     echo "$active" | wc -l
 elif [ "$action" = "list" ]; then
     tmp="/tmp/remind/active_reminders"
-    mkdir /tmp/remind/
+    mkdir /tmp/remind/ 2>/dev/null
     echo "$active" > "$tmp"
     neovide "$tmp"
     rm "$tmp"

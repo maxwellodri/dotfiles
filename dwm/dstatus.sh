@@ -179,10 +179,11 @@ while true; do
         fi
     fi
 
-    xsetroot -name "$timedata 🕒: $(date +%a-%d-%b-%R) 🧠: $(sh memory_checker)% 🤔:$(printf "%2d" "$rounded_cpu")% 🌏: $internet 🚚: $packages$OPT"
 
     cpu_usage=$(top -b -n 2 | grep Cpu | sed 's/:/ /g' | awk '{printf "CPU Load:%7.0f\n", $(NF-13) + $(NF-15)}' | sed -n '2 p' | awk '{print $3}')
     rounded_cpu=$(( $cpu_usage <  99 ? $cpu_usage : 99 ))
+    command -v get_reminders.sh > /dev/null && reminders="🧐: $(get_reminders.sh --count)" || reminders="😠: 0"
+    xsetroot -name "$timedata $reminders 🕒: $(date +%a-%d-%b-%R) 🧠: $(sh memory_checker)% 🤔:$(printf "%2d" "$rounded_cpu")% 🌏: $internet 🚚: $packages$OPT"
 
 	sleep 0.25s
 done
