@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Check for required commands
+for cmd in pass qrencode feh xclip dmenu; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        echo "Error: $cmd is not installed"
+        exit 1
+    fi
+done
+
+# Configuration
+PASS_STORE="${PASSWORD_STORE_DIR:-$HOME/.password-store}"
+
+# Get all password entries, excluding .git and otp directories
+# Remove .gpg extension and the password store path prefix
+entry_name=$(find "$PASS_STORE" -type f -name '*.gpg' \
+    ! -path "$PASS_STORE/.git/*" \
+    ! -path "$PASS_STORE/otp/*" \
+    -print0 | \
+    xargs -0 realpath --relative-to="$PASS_STORE" | \
+    sed 's/\.gpg$//' | \
+    dmenu -l 30 -c --class qrpass -p "QR:")
+# Exit if no selection made
+[ -z "$entry_name" ] && exit 1
+
+# Try to get password from pass
+password=$(pass "$entry_name" 2>/dev/null)
+if [ $? -ne 0 ]; then
+    notify-send "Error" "Could not retrieve password for $entry_name"
+    exit 1
+fi
+
+# Extract first line as password
+password=$(echo "$password" | head -n1)
+
+qrencode -o /tmp/qr.png -l H -s 10 "$password"
+
+# Display QR code
+feh --title "qrpass - ${entry_name}" /tmp/qr.png
+
+# Clean up
+rm /tmp/qr.png

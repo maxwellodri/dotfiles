@@ -22,6 +22,8 @@ super + shift + a
 	art.sh
 super + Insert
 	bash -e passmenu
+super + shift + Insert
+	bash -e qrpass
 super + shift + b
 	bookmarks
 super + End
