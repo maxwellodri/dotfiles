@@ -187,8 +187,9 @@ application/toml=neovide.desktop
 application/json=neovide.desktop
 application/x-godot-resource=neovide.desktop
 application/x-godot-scene=neovide.desktop
-application/x-godot-shader=neovide.desktop;
-application/x-godot-project=neovide.desktop;
+application/x-godot-shader=neovide.desktop
+application/x-godot-project=neovide.desktop
+x-scheme-handler/nxm=modorganizer2-nxm-handler.desktop
 
 [Removed Associations]
 text/plain=wine.desktop;
