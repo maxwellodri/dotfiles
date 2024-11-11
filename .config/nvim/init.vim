@@ -370,7 +370,7 @@ let &packpath=&runtimepath
 "nnoremap ,latex :-1read $dotfiles/snippets/assignment.tex<CR>72jo "use <leader>,<CMD> 
 "nnoremap ,texfig :-1read $dotfiles/snippets/figure.tex<CR><CR>$i
 "" ========================
-"" Tagba
+"" Tagbar
 "" ========================
 "nmap <C-s> :TagbarToggle<CR>
 "let g:tagbar_autoclose = 1
