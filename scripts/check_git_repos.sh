@@ -27,6 +27,7 @@ for dir in "$SOURCE_DIR"/*; do
         if is_highlighted_repo "$repo_name"; then
             prefix="${highlight_color}"
             suffix="${reset_color}"
+            git fetch
         else
             prefix=""
             suffix=""
