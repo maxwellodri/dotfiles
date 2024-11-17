@@ -24,6 +24,10 @@ poll_battery() {
     python $dotfiles/dwm/poll_battery.py
 }
 
+wireguard_poll() {
+    wireguard_runner --query >/dev/null && echo " 🔒✅" || echo " 🔒❎"
+}
+
 async_poll_packages() {
     checkupdates | wc -l > "$package_file"
 }
@@ -131,7 +135,7 @@ while true; do
                     OPT=" $(poll_battery)"
                     ;;
         pc) 
-                    OPT=""
+                    OPT="$(wireguard_poll)"
                     ;;
         *)  
                     OPT=" NO TAG"
