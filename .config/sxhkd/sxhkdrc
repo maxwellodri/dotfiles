@@ -32,7 +32,7 @@ super + End
 super + shift + q
 	set_kb_map && notify-send -t 1000 "Correctly Set Capslock => Escape 😍"
 super + shift + w
-	togglerc ~/vimwiki/index.wiki
+    $bin/wireguard_runner
 super + w
     wallpaper-shader
 super + shift + t
