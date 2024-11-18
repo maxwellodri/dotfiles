@@ -1,6 +1,6 @@
 #!/bin/sh
 prev_song="$(mpc --host="$HOME/.config/mpd/socket" queued | head -n1)"
-st -g 100x20+2000+720 -c "stfuzzy" -e sh -c 'fd --full-path "$HOME/Music/" -E '*.jpg' -E '*.jpg' -E '*.nfo' -E '*.png' --type file --type symlink | shuf | fzf -m | xargs realpath | mpc --host="$HOME/.config/mpd/socket" insert'
+st -g 100x20+2000+720 -c "stfuzzy" -e sh -c 'cd $HOME/Music/; fd --full-path "." -E '*.jpg' -E '*.jpg' -E '*.nfo' -E '*.png' --type file --type symlink | shuf | fzf -m | xargs realpath | mpc --host="$HOME/.config/mpd/socket" insert'
 current_song="$(mpc --host="$HOME/.config/mpd/socket" queued | head -n1)"
 #notify-send "Current song: $current_song, prev: $prev_song"
 if [ "$prev_song" != "$current_song" ]; then #|| ! -z "$current_song"  ]; then
