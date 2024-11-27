@@ -1,5 +1,4 @@
 #!/bin/bash
-xsetroot -name "🥹"
 
 
 
@@ -42,7 +41,8 @@ poll_timew() {
       echo "#"
     fi
 }
-echo $poll_battery
+
+xsetroot -name "🥹"
 
 idle_threshold_minutes=10
 prev_notify="0:00"
