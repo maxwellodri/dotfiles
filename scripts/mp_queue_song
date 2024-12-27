@@ -1,9 +1,37 @@
 #!/bin/sh
-prev_song="$(mpc --host="$HOME/.config/mpd/socket" queued | head -n1)"
-st -g 100x20+2000+720 -c "stfuzzy" -e sh -c 'cd $HOME/Music/; fd --full-path "." -E '*.jpg' -E '*.jpg' -E '*.nfo' -E '*.png' --type file --type symlink | shuf | fzf -m | xargs realpath | mpc --host="$HOME/.config/mpd/socket" insert'
-current_song="$(mpc --host="$HOME/.config/mpd/socket" queued | head -n1)"
-#notify-send "Current song: $current_song, prev: $prev_song"
-if [ "$prev_song" != "$current_song" ]; then #|| ! -z "$current_song"  ]; then
+
+# Get the initially queued song (if any)
+prev_song="$(mpc --host="$HOME/.config/mpd/socket" current)"
+
+# Open fzf selection window for new songs
+st -g 100x20+2000+720 -c "stfuzzy" -e sh -c 'cd $HOME/Music/; fd --full-path "." -E "*.jpg" -E "*.nfo" -E "*.png" --type file --type symlink | shuf | fzf -m | xargs realpath | mpc --host="$HOME/.config/mpd/socket" insert'
+
+# Get the newly queued song (if any)
+current_song="$(mpc --host="$HOME/.config/mpd/socket" current)"
+
+# If current is empty, try getting the first song in playlist
+if [ -z "$current_song" ]; then
+    current_song="$(mpc --host="$HOME/.config/mpd/socket" playlist | head -n1)"
+fi
+
+# Send notification about the songs
+notify-send "Current song: ${current_song:-None}, prev: ${prev_song:-None}"
+
+# Start playback if:
+# 1. Queue was empty and we added a song (prev empty, current exists)
+# 2. Queue had a song and we added a different song (prev exists, current different)
+if { [ -z "$prev_song" ] && [ -n "$current_song" ]; } || \
+   { [ -n "$prev_song" ] && [ "$prev_song" != "$current_song" ]; }; then
     mpc --host="$HOME/.config/mpd/socket" play
     mpc --host="$HOME/.config/mpd/socket" consume on
 fi
+
+##!/bin/sh
+#prev_song="$(mpc --host="$HOME/.config/mpd/socket" queued | head -n1)"
+#st -g 100x20+2000+720 -c "stfuzzy" -e sh -c 'cd $HOME/Music/; fd --full-path "." -E '*.jpg' -E '*.jpg' -E '*.nfo' -E '*.png' --type file --type symlink | shuf | fzf -m | xargs realpath | mpc --host="$HOME/.config/mpd/socket" insert'
+#current_song="$(mpc --host="$HOME/.config/mpd/socket" queued | head -n1)"
+#notify-send "Current song: $current_song, prev: $prev_song"
+#if [ -z "$prev_song" ] && [ ! -z "$current_song" ] || [ ! -z "$prev_song" ] && [ "$prev_song" != "$current_song" ]; then
+#    mpc --host="$HOME/.config/mpd/socket" play
+#    mpc --host="$HOME/.config/mpd/socket" consume on
+#fi

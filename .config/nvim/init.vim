@@ -361,7 +361,7 @@ let &packpath=&runtimepath
     if exists("g:neovide")
         set titlestring="%F Neovide"
     endif
-" indentLine
+" IndentLine
     let g:indentLine_enabled = 0
     let g:indentLine_char_list = ['|', '¦', '┆', '┊']
     let g:indentLine_defaultGroup = 'SpecialKey'
