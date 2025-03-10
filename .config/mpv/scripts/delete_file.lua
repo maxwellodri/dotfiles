@@ -14,7 +14,7 @@ local function confirm_delete()
         end
         delete_pending = false
     else
-        mp.osd_message("Press Ctrl+D again to confirm deletion")
+        mp.osd_message("Press Ctrl+d again to confirm deletion")
         delete_pending = true
         mp.add_timeout(5, function() delete_pending = false end) -- Reset after 5 seconds
     end
