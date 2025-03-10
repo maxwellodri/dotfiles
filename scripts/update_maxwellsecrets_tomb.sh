@@ -47,7 +47,7 @@ update() {
         fi
         tomb close maxwellsecrets
         echo "Tomb has been updated"
-    }
+}
 
 
     backup() {

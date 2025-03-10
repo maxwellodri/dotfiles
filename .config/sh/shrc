@@ -94,38 +94,57 @@ alias rmdir='rmdir -p'
 
 alias mpdrc="vim ~/.config/mpd/mpd.conf"
 alias vimpcrc="vim ~/.config/vimpc/vimpcrc"
-ytdl() {
-    local dir="~/Downloads/ytdlp"
-    local url=""
+ytdl () {
+    local dir=""
+    local urls=()
+    local pwd_flag=false
+    local dir_flag=false
 
-    while [[ "$#" -gt 0 ]]; do
+    while [[ "$#" -gt 0 ]]
+    do
         case "$1" in
-            --dir)
+            (--dir) 
+                if [[ "$pwd_flag" = true ]]
+                then
+                    echo "Error: Cannot use both --pwd and --dir options."
+                    return 1
+                fi
+                dir_flag=true
                 dir="$2"
-                if [[ ! -d "$dir" ]]; then
+                if [[ ! -d "$dir" ]]
+                then
                     echo "Error: Directory '$dir' does not exist."
                     return 1
                 fi
                 dir=$(realpath "$dir")
-                shift 2
-                ;;
-            *)
-                if [[ -n "$url" ]]; then
-                    echo "Error: Only one URL can be supplied."
+                shift 2 ;;
+            (--pwd)
+                if [[ "$dir_flag" = true ]]
+                then
+                    echo "Error: Cannot use both --pwd and --dir options."
                     return 1
                 fi
-                url="$1"
-                shift
-                ;;
+                pwd_flag=true
+                dir="$PWD"
+                shift ;;
+            (*) 
+                urls+=("$1")
+                shift ;;
         esac
     done
 
-    if [[ -z "$url" ]]; then
-        echo "Error: No URL supplied."
+    if [[ ${#urls[@]} -eq 0 ]]
+    then
+        echo "Error: No URLs supplied."
         return 1
     fi
 
-    yt-dlp --restrict-filenames --abort-on-unavailable-fragment --trim-filenames 225 -o "$dir/%(title)s.%(ext)s" "$url"
+    [[ -z "$dir" ]] && dir="$HOME/Downloads/ytdlp"
+
+    for url in "${urls[@]}"
+    do
+        yt-dlp --restrict-filenames --abort-on-unavailable-fragment --trim-filenames 225 -o "$dir/%(title)s.%(ext)s" "$url"
+    done
 }
 alias tsm='transmission-remote --torrent-done-script ~/bin/torrdone'
 alias tsmr='transmission-remote -l | grep -v 'Queued''
