@@ -1,5 +1,4 @@
 #!/bin/bash
-xsetroot -name "🥹"
 
 
 
@@ -24,6 +23,10 @@ poll_battery() {
     python $dotfiles/dwm/poll_battery.py
 }
 
+wireguard_poll() {
+    wireguard_runner --query >/dev/null && echo " 🔒✅" || echo " 🔒❎"
+}
+
 async_poll_packages() {
     checkupdates | wc -l > "$package_file"
 }
@@ -38,7 +41,8 @@ poll_timew() {
       echo "#"
     fi
 }
-echo $poll_battery
+
+xsetroot -name "🥹"
 
 idle_threshold_minutes=10
 prev_notify="0:00"
@@ -131,7 +135,7 @@ while true; do
                     OPT=" $(poll_battery)"
                     ;;
         pc) 
-                    OPT=""
+                    OPT="$(wireguard_poll)"
                     ;;
         *)  
                     OPT=" NO TAG"

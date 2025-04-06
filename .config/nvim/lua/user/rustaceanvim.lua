@@ -1,17 +1,38 @@
 local rust_opts = require("user.lsp.settings.rust")
 local default_opts = require('user.lsp')
-vim.g.rustfmt_autosave = 1
+
+for _, method in ipairs({ 'textDocument/diagnostic', 'workspace/diagnostic' }) do
+  local default_diagnostic_handler = vim.lsp.handlers[method]
+  vim.lsp.handlers[method] = function(err, result, context, config)
+    -- Ignore ServerCancelled error globally
+    if err and err.code == -32802 then
+      return
+    end
+    return default_diagnostic_handler(err, result, context, config)
+  end
+end
+
+vim.g.rustfmt_autosave = 0 --use LSP instead
 vim.g.rustaceanvim = {
   -- Plugin configuration
   tools = {
-    on_initialized = function() vim.print("Rust Lsp ready to go...") end,
+    on_initialized = function()
+      vim.print("Rust LSP ready to go...")
+    end,
     reload_workspace_from_cargo_toml = true
   },
   -- LSP configuration
   server = {
     on_attach = function(client, bufnr)
+      -- vim.diagnostic.disable(bufnr)
       default_opts.on_attach(client, bufnr)
-      --client.offset_encoding = "utf-8"
+      -- vim.api.nvim_create_autocmd("BufWritePre", {
+      --   buffer = bufnr,
+      --   callback = function()
+      --     vim.lsp.buf.format({ async = false })
+      --   end,
+      -- })
+
       vim.keymap.set("n","<leader>gc", function() vim.cmd.RustLsp('codeAction') end, { silent = true, buffer = bufnr })
       vim.keymap.set("n","<leader>gk", function() vim.cmd.RustLsp('parentModule') end, { silent = true })
       vim.keymap.set("n","<leader>gd", function() vim.cmd.RustLsp('debuggables') end, { silent = true})
@@ -25,19 +46,24 @@ vim.g.rustaceanvim = {
     default_settings = {
       ["rust-analyzer"] = {
         diagnostics = { enabled = true, disabled = {"inactive-code", "unlinked-file"} },
- 			  procMacro = {
- 			    enable = true,
- 			    attributes = {
- 			      enable = true,
- 			    }
- 			  },
- 			  checkOnSave = {
- 			  	command = "clippy",
-          extraArgs={"--target-dir", "/var/tmp/rust-analyzer-check"}
- 			  },
- 			  -- cargo = {
- 			  -- 	loadOutDirsFromCheck = true,
- 			  -- },
+        semanticHighlighting = {
+          enabled = true,
+        },
+        procMacro = {
+          enable = true,
+          attributes = {
+            enable = true,
+          }
+        },
+        checkOnSave = {
+          command = "clippy",
+          extraArgs={"--target-dir", "/var/tmp/rust-analyzer-check"},
+          allTargets = false,
+          runBuildScripts = false,
+        },
+        cargo = {
+          loadOutDirsFromCheck = true,
+        },
         imports = { prefix = "crate" },
         inlay_hints = {
           lifetimeElisionHints = { enable = "skip_trivial" },

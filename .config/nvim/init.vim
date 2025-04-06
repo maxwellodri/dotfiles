@@ -1,5 +1,7 @@
 set runtimepath^=~/.vim runtimepath+=~/.vim/after
 runtime! expand('$HOME') + '/.config/nvim/plugin'
+let g:polyglot_disabled = ['rust']
+"vim.g.rust_rustfmt_options = ''
 let &packpath=&runtimepath
 " Autoinstall VimPlug
     let data_dir = has('nvim') ? stdpath('data') . '/site' : '~/.vim'
@@ -129,8 +131,8 @@ let &packpath=&runtimepath
     " ===============
     Plug 'tomasiser/vim-code-dark'
     Plug 'tomasr/molokai'
-    Plug 'morhetz/gruvbox'
-    "Plug 'ellisonleao/gruvbox.nvim'
+    "Plug 'morhetz/gruvbox'
+    Plug 'ellisonleao/gruvbox.nvim'
     Plug 'RRethy/nvim-base16'
     Plug 'ghifarit53/tokyonight-vim' 
     Plug 'savq/melange'
@@ -204,7 +206,7 @@ let &packpath=&runtimepath
     nnoremap <leader>fv :vsplit<CR>:Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>fs <cmd>Telescope lsp_document_symbols find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>rg <cmd>Telescope live_grep prompt_prefix=🔍🤔<CR>
-    nnoremap <leader>rs <cmd>Telescope lsp_workspace_symbols prompt_prefix=🔍👹<CR>
+    nnoremap <leader>ry <cmd>Telescope lsp_workspace_symbols prompt_prefix=🔍👹<CR>
     nnoremap gr <cmd>Telescope lsp_references prompt_prefix=😠<CR>
     nnoremap <leader>rv :vsplit<CR>:<cmd>Telescope live_grep prompt_prefix=🔍🤔<CR>
  " Oil
@@ -359,7 +361,7 @@ let &packpath=&runtimepath
     if exists("g:neovide")
         set titlestring="%F Neovide"
     endif
-" indentLine
+" IndentLine
     let g:indentLine_enabled = 0
     let g:indentLine_char_list = ['|', '¦', '┆', '┊']
     let g:indentLine_defaultGroup = 'SpecialKey'

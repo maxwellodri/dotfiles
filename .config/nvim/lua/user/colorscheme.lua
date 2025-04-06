@@ -1,24 +1,49 @@
--- require("gruvbox").setup({
---   undercurl = true,
---   underline = true,
---   bold = false,
---   italic = false,
---   strikethrough = false,
---   invert_selection = false,
---   invert_signs = false,
---   invert_tabline = false,
---   invert_intend_guides = false,
---   inverse = true, -- invert background for search, diffs, statuslines and errors
---   contrast = "", -- can be "hard", "soft" or empty string
---   palette_overrides = {},
---   dim_inactive = false,
---   transparent_mode = false,
---   overrides = {
---     Identifier = {fg = "#ffffff"}
---   }
--- })
+-- Terminal true color support configuration
+-- Simplified for modern terminals and tmux v3+
+local function set_terminal_colors()
+  -- Skip Apple Terminal as it doesn't support true colors
+  if vim.env.TERM_PROGRAM == 'Apple_Terminal' then
+    return
+  end
+
+  -- Enable true colors for Neovim
+  if vim.fn.has('nvim') == 1 then
+    vim.env.NVIM_TUI_ENABLE_TRUE_COLOR = 1
+  end
+
+  -- Enable termguicolors if supported
+  if vim.fn.has('termguicolors') == 1 then
+    vim.opt.termguicolors = true
+  end
+end
+
+set_terminal_colors()
+
+require("gruvbox").setup({
+  terminal_colors = true, -- add neovim terminal colors
+  undercurl = true,
+  underline = true,
+  bold = true,
+  italic = {
+    strings = true,
+    emphasis = true,
+    comments = true,
+    operators = false,
+    folds = true,
+  },
+  strikethrough = true,
+  invert_selection = false,
+  invert_signs = false,
+  invert_tabline = false,
+  invert_intend_guides = false,
+  inverse = true, -- invert background for search, diffs, statuslines and errors
+  contrast = "", -- can be "hard", "soft" or empty string
+  palette_overrides = {},
+  overrides = {},
+  dim_inactive = false,
+  transparent_mode = false,
+})
 vim.cmd("colorscheme gruvbox")
-vim.o.background = "dark" -- or "light" for light mode
 
 -- Set 'mut' keyword to gruvbox red
 -- local gruvbox_yellow = vim.api.nvim_get_hl_by_name('GruvboxYellow', 0).foreground
@@ -32,31 +57,54 @@ local red = vim.api.nvim_get_hl_by_name('GruvboxRed', 0).foreground
 local blue = vim.api.nvim_get_hl_by_name('GruvboxBlue', 0).foreground
 local white = vim.api.nvim_get_hl_by_name('Normal', 0).foreground
 local aqua = vim.api.nvim_get_hl_by_name('GruvboxAqua', 0).foreground
+local orange = vim.api.nvim_get_hl_by_name('GruvboxOrange', 0).foreground
 local custom_purple = '#bb8ffc'
 local custom_white = '#000000'
 -- local custom_green = '#92ef45'
 local custom_green = '#9ed841'
 local background = vim.api.nvim_get_hl_by_name('GruvboxBg2', 0).foreground
+local custom_pink = '#f7029d'
+
 
 vim.api.nvim_set_hl(0, '@keyword.rust', {fg = red})
-vim.api.nvim_set_hl(0, '@lsp.type.interface.rust', {fg = custom_purple})
--- vim.api.nvim_set_hl(0, '@lsp.type.selfKeyword.rust', {fg = custom_white})
-vim.api.nvim_set_hl(0, '@lsp.type.enum.rust', {fg = yellow })
-vim.api.nvim_set_hl(0, '@lsp.type.struct.rust', {fg = yellow })
-vim.api.nvim_set_hl(0, '@lsp.type.union.rust', {fg = red })
-vim.api.nvim_set_hl(0, '@type.qualifier.rust', {fg = red })
-vim.api.nvim_set_hl(0, '@lsp.type.decorator.rust', {fg = aqua })
-vim.api.nvim_set_hl(0, '@lsp.type.namespace.rust', {fg = blue })
-vim.api.nvim_set_hl(0, '@lsp.type.derive.rust', {fg = custom_green })
--- 
--- Set structs and enums to GruvboxYellow
-vim.api.nvim_set_hl(0, '@struct.rust', {fg = yellow})
-vim.api.nvim_set_hl(0, '@enum.rust', {fg = yellow})
+vim.api.nvim_set_hl(0, '@keyword.type.rust', { fg = red })
+vim.api.nvim_set_hl(0, '@keyword.modifier.rust', { fg = red })
+vim.api.nvim_set_hl(0, '@keyword.function.rust', { fg = custom_purple })
+vim.api.nvim_set_hl(0, '@module.rust', { fg = white })
+vim.api.nvim_set_hl(0, '@variable.rust', { fg = white })
+vim.api.nvim_set_hl(0, '@type.rust', { fg = yellow })
+vim.api.nvim_set_hl(0, '@operator.rust', { fg = white })
+vim.api.nvim_set_hl(0, '@type.builtin.rust', { fg = orange })
+vim.api.nvim_set_hl(0, '@variable.parameter', { fg = white })
+vim.api.nvim_set_hl(0, '@function.macro.rust', { fg = purple })
+vim.api.nvim_set_hl(0, '@punctuation.bracket.rust', {})
+vim.api.nvim_set_hl(0, '@punctuation.delimiter.rust', { fg = white })
 
-vim.api.nvim_set_hl(0, '@variable', {fg = white})
-vim.api.nvim_set_hl(0, '@delimter', {fg = blue})
-vim.api.nvim_set_hl(0, '@delimter', {fg = blue})
-vim.api.nvim_set_hl(0, 'WinSeparator', {fg = background})
+-- These only work with LSP semantic Highlighting
+vim.api.nvim_set_hl(0, '@lsp.type.interface.rust', {fg = custom_purple})
+vim.api.nvim_set_hl(0, '@lsp.type.macro.rust', { fg = purple })
+vim.api.nvim_set_hl(0, '@lsp.type.typeAlias.rust', { fg = custom_pink })
+vim.api.nvim_set_hl(0, '@lsp.type.enum.rust', { fg = custom_green })
+vim.api.nvim_set_hl(0, '@lsp.type.decorator.rust', { fg = purple })
+vim.api.nvim_set_hl(0, '@lsp.type.parameter.rust', { fg = white })
+--vim.api.nvim_set_hl(0, '@lsp.mod.defaultLibrary.rust', { fg = custom_purple })
+-- -- vim.api.nvim_set_hl(0, '@lsp.type.selfKeyword.rust', {fg = custom_white})
+-- vim.api.nvim_set_hl(0, '@lsp.type.enum.rust', {fg = yellow })
+-- vim.api.nvim_set_hl(0, '@lsp.type.struct.rust', {fg = yellow })
+-- vim.api.nvim_set_hl(0, '@lsp.type.union.rust', {fg = red })
+-- vim.api.nvim_set_hl(0, '@type.qualifier.rust', {fg = red })
+-- vim.api.nvim_set_hl(0, '@lsp.type.decorator.rust', {fg = aqua })
+-- vim.api.nvim_set_hl(0, '@lsp.type.namespace.rust', {fg = blue })
+-- vim.api.nvim_set_hl(0, '@lsp.type.derive.rust', {fg = custom_green })
+-- -- 
+-- -- Set structs and enums to GruvboxYellow
+-- vim.api.nvim_set_hl(0, '@struct.rust', {fg = yellow})
+-- vim.api.nvim_set_hl(0, '@enum.rust', {fg = yellow})
+-- 
+-- vim.api.nvim_set_hl(0, '@variable', {fg = white})
+-- vim.api.nvim_set_hl(0, '@delimter', {fg = blue})
+-- vim.api.nvim_set_hl(0, '@delimter', {fg = blue})
+-- vim.api.nvim_set_hl(0, 'WinSeparator', {fg = background})
 
 
 -- vim.cmd([[colorscheme gruvbox]])

@@ -3,7 +3,7 @@ dunst &
 which picom && picom -b --config ~/.config/picom/picom.conf &
 polkit-dumb-agent &
 systemctl --user import-environment DISPLAY XAUTHORITY #non-xorg vars defined in shrc 
-pgrep -xf "transmission-daemon --no-auth" || ( echo "Starting transmission-daemon" && transmission-daemon --no-auth )
+#pgrep -xf "transmission-daemon --no-auth" || ( echo "Starting transmission-daemon" && transmission-daemon --no-auth )
 
 
 $dotfiles/dwm/neovim-server-runner.py --cleanup
