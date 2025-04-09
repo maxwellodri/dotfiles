@@ -9,7 +9,7 @@ systemctl --user import-environment DISPLAY XAUTHORITY #non-xorg vars defined in
 $dotfiles/dwm/neovim-server-runner.py --cleanup
 
 ( which slock && xautolock -time 10 -locker slock) &
-[ $dotfiles_tag = "pc" ] && steam &
+[ $dotfiles_tag = "pc" ] && $bin/steam &
 [ $dotfiles_tag = "pc" ] && signal-desktop &
 [ $dotfiles_tag = "pc" ] && spotify-launcher &
 [ $dotfiles_tag = "pc" ] && thunderbird &
