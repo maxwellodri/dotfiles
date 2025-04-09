@@ -20,5 +20,3 @@ require('user.colorscheme')
 require('user.feline-settings')
 require('user.dap')
 require('user.gigatextstreaming')
-
-
