@@ -150,17 +150,13 @@ function _vim_in_dir {
 function _sterm {
     #zle push-input
     zle clear-input
-    BUFFER=" setsid -f st -d . 1&>/dev/null" #space before setsid so it doesnt show up in history
-
+    BUFFER="setsid -f st -d . 1&>/dev/null" #space before setsid so it doesnt show up in history
     zle accept-line
-    #zle clear-input
-    #BUFFER="clear"
-    #zle accept-line
-
 }
+
 function _git_root {
     zle clear-input
-    BUFFER=" cd $(git rev-parse --show-toplevel)"
+    BUFFER="cd $(git rev-parse --show-toplevel)"
     zle accept-line
 }
 
