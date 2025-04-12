@@ -1,162 +1,178 @@
--- function Toggle_inlay_hints()
---     local hints = _G.RUSTTOOLSINLAY or OPTS.inlay_hints
---     if hints == true then
---         -- require('rust-tools').inlay_hints.disable()
---         vim.cmd("RustDisableInlayHints")
---     else
---         vim.cmd("RustEnableInlayHints")
---     -- require('rust-tools').inlay_hints.enable()
---     end
---     _G.RUSTTOOLSINLAY = not _G.RUSTTOOLSINLAY
--- end
--- 
--- 
--- local ra_settings = {
---       ["rust-analyzer"] = {
--- 			  	}
--- 			  },
--- 			  checkOnSave = {
--- 			  	command = "clippy",
---            extraArgs={"--target-dir", "/var/tmp/rust-analyzer-check"}
--- 			  },
--- 			  -- cargo = {
--- 			  -- 	loadOutDirsFromCheck = true,
--- 			  -- },
---         imports = { prefix = "crate" },
---         inlay_hints = { lifetimeElisionHints = { enable = "skip_trivial" }, },
---       }
--- }
--- 
--- local generic_opts = {
---   on_attach = require("user.lsp.handlers").on_attach,
---   capabilities = require("user.lsp.handlers").capabilities,
---   config = require("user.lsp.handlers").config,
--- }
--- 
--- 
--- local extension_path = vim.env.HOME .. '/.vscode/extensions/vadimcn.vscode-lldb-1.6.7/'
--- local codelldb_path = extension_path .. 'adapter/codelldb'
--- local liblldb_path = extension_path .. 'lldb/lib/liblldb.so'
--- 
--- OPTS = {
---   tools = { -- rust-tools options
---         -- Automatically set inlay hints (type hints)
---         autoSetHints = false,
---         -- Whether to show hover actions inside the hover window
---         -- This overrides the default hover handler
--- 		-- how to execute terminal commands
--- 		-- options right now: termopen / quickfix
--- 		executor = require("rust-tools/executors").termopen,
--- 
---         runnables = {
---             -- whether to use telescope for selection menu or not
---             use_telescope = true
---             -- rest of the opts are forwarded to telescope
---         },
---         -- on_initialized = ra_callback,
---         reload_workspace_from_cargo_toml = true,
---         debuggables = {
---             -- whether to use telescope for selection menu or not
---             use_telescope = true
---             -- rest of the opts are forwarded to telescope
---         },
--- 
---         -- These apply to the default RustSetInlayHints command
---         inlay_hints = {
---             -- Only show inlay hints for the current line
---             only_current_line = false,
--- 
---             -- Event which triggers a refersh of the inlay hints.
---             -- You can make this "CursorMoved" or "CursorMoved,CursorMovedI" but
---             -- not that this may cause  higher CPU usage.
---             -- This option is only respected when only_current_line and
---             -- autoSetHints both are true.
---             only_current_line_autocmd = "CursorHold",
--- 
---             -- wheter to show parameter hints with the inlay hints or not
---             show_parameter_hints = false,
--- 
---             -- prefix for parameter hints
---             parameter_hints_prefix = "", -- <- ",
--- 
---             -- prefix for all the other hints (type, chaining)
---             other_hints_prefix = "=> ",
--- 
---             -- whether to align to the length of the longest line in the file
---             max_len_align = true,
--- 
---             -- padding from the left if max_len_align is true
---             max_len_align_padding = 4,
--- 
---             -- whether to align to the extreme right or not
---             right_align = false,
--- 
---             -- padding from the right if right_align is true
---             right_align_padding = 8,
--- 
---             -- The color of the hints
---             highlight = "SpecialComment",
---         },
--- 
---         hover_actions = {
---             -- the border that is used for the hover window
---             -- see vim.api.nvim_open_win()
---             border = {
---                 {"╭", "FloatBorder"}, {"─", "FloatBorder"},
---                 {"╮", "FloatBorder"}, {"│", "FloatBorder"},
---                 {"╯", "FloatBorder"}, {"─", "FloatBorder"},
---                 {"╰", "FloatBorder"}, {"│", "FloatBorder"}
---             },
--- 
---             -- whether the hover action window gets automatically focused
---             auto_focus = false
---         },
--- 
---         -- settings for showing the crate graph based on graphviz and the dot
---         -- command
---         crate_graph = {
---             -- Backend used for displaying the graph
---             -- see: https://graphviz.org/docs/outputs/
---             -- default: x11
---             backend = "x11",
---             -- where to store the output, nil for no output stored (relative
---             -- path from pwd)
---             -- default: nil
---             output = nil,
---             -- true for all crates.io and external crates, false only the local
---             -- crates
---             -- default: true
---             full = true,
---         }
---   },
--- 	server = {
---         commands = ra_commands,
---         settings = ra_settings,
--- 	      standalone = false,
---         capabilities = generic_opts.capabilities,
---         config = generic_opts.config,
---         on_attach = generic_opts.on_attach,
--- 	},
--- 
---     -- debugging stuff
---     dap = {
---         adapter = {
---             type = 'executable',
---             command = 'lldb-vscode',
---             name = "rt_lldb"
---         }
---     }
--- }
--- 
--- -- local _ = require('null-ls')
--- 
--- require('crates').setup {
---     date_format = "%d-%m-%Y",
---     null_ls = {
---         enabled = true,
---         name = "crates.nvim",
---     },
--- }
--- 
--- 
--- return OPTS
+local M = {}
+local function wait_for_diagnostics_then_init()
+  if M.initialized then return end
+  
+  -- Set up a timer to check for diagnostics
+  local timer_count = 0
+  local check_timer = vim.loop.new_timer()
+  
+  check_timer:start(500, 500, vim.schedule_wrap(function()
+    -- Debug information
+    vim.print("Check #" .. timer_count .. " for diagnostics")
+    
+    -- Check if diagnostics exist for any rust files
+    local has_diagnostics = false
+    local rust_buffers_found = false
+    
+    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.api.nvim_buf_is_valid(bufnr) then
+        local ok, ft = pcall(vim.api.nvim_buf_get_option, bufnr, "filetype")
+        
+        if ok and ft == "rust" then
+          rust_buffers_found = true
+          local diags = vim.diagnostic.get(bufnr)
+          vim.print("Rust buffer " .. bufnr .. " has " .. #diags .. " diagnostics")
+          
+          if #diags > 0 then
+            has_diagnostics = true
+            break
+          end
+        end
+      end
+    end
+    
+    if not rust_buffers_found then
+      vim.print("No Rust buffers found")
+    end
+    
+    -- Check for active rust_analyzer client
+    local has_rust_client = false
+    local clients = vim.lsp.get_active_clients()
+    for _, client in ipairs(clients) do
+      if client.name == "rust_analyzer" then
+        has_rust_client = true
+        vim.print("rust_analyzer client is active")
+        break
+      end
+    end
+    
+    if not has_rust_client then
+      vim.print("No active rust_analyzer client found")
+    end
+    
+    timer_count = timer_count + 1
+    if has_diagnostics then
+      check_timer:stop()
+      M.initialized = true
+      vim.print("Rust LSP ready to go with diagnostics")
+    elseif timer_count > 10 and not M.initialized then
+      check_timer:stop()
+      M.initialized = true
+      vim.print("Warning: Rust LSP taking a long time to initialize. Proceeding anyway...")
+    end
+  end))
+end
+local rust_lsp_debug = function()
+  local clients = vim.lsp.get_active_clients({ bufnr = 0 })
+  local output = {}
+  if #clients > 0 then
+    local rust_client = nil
+    for _, client in ipairs(clients) do
+      if client.name == "rust_analyzer" then
+        rust_client = client
+        break
+      end
+    end
+    if rust_client then
+      table.insert(output, "Rust LSP status:")
+      table.insert(output, "  • Client name: " .. rust_client.name)
+      table.insert(output, "  • Client ID: " .. rust_client.id)
+      table.insert(output, "  • Server capabilities: ")
+      table.insert(output, "    - Diagnostics provider: " .. tostring(rust_client.server_capabilities.diagnosticProvider ~= nil))
+      table.insert(output, "    - Code actions: " .. tostring(rust_client.server_capabilities.codeActionProvider ~= nil))
+      table.insert(output, "  • Diagnostics count: " .. #vim.diagnostic.get(0))
+      table.insert(output, "LSP is properly connected and running!")
+    else
+      table.insert(output, "No rust_analyzer client attached to current buffer")
+    end
+  else
+    table.insert(output, "No LSP clients attached to current buffer")
+  end
+  -- Create a floating window
+  local width = 60
+  local height = #output
+  local buf = vim.api.nvim_create_buf(false, true)
+  -- Calculate position (centered)
+  local ui = vim.api.nvim_list_uis()[1]
+  local win_width = ui.width
+  local win_height = ui.height
+  local row = math.floor((win_height - height) / 2)
+  local col = math.floor((win_width - width) / 2)
+  -- Set buffer contents
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, output)
+  -- Set buffer options
+  vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+  vim.api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
+  -- Create window
+  local win_opts = {
+    relative = 'editor',
+    width = width,
+    height = height,
+    row = row,
+    col = col,
+    style = 'minimal',
+    border = 'rounded',
+    title = "Rust LSP Debug Info",
+    title_pos = "center"
+  }
+  local win = vim.api.nvim_open_win(buf, true, win_opts)
+  -- Add keymapping to close the window with q or ESC
+  vim.api.nvim_buf_set_keymap(buf, 'n', 'q', ':close<CR>', { noremap = true, silent = true })
+  vim.api.nvim_buf_set_keymap(buf, 'n', '<Esc>', ':close<CR>', { noremap = true, silent = true })
+
+  -- Highlight the buffer content
+  vim.api.nvim_win_set_option(win, 'winhl', 'Normal:NormalFloat')
+end
+
+
+function M.setup(opts)
+  return {
+    wait_for_diagnostics_then_init = wait_for_diagnostics_then_init,
+    on_attach = function(client, bufnr)
+      vim.diagnostic.enable(bufnr)
+      opts.on_attach(client, bufnr)
+      vim.keymap.set("n","<leader>H", rust_lsp_debug, { silent = true, desc = "Debug Rust LSP Status" })
+    end,
+    config = opts.config,
+    capabilities = opts.capabilities,
+    settings = {
+      ["rust-analyzer"] = {
+        diagnostics = { enabled = true, disabled = {"inactive-code", "unlinked-file"} },
+        semanticHighlighting = {
+          enabled = true,
+        },
+        procMacro = {
+          enable = true,
+          attributes = {
+            enable = true,
+          }
+        },
+        checkOnSave = {
+          command = "clippy",
+          extraArgs={"--target-dir", "/var/tmp/rust-analyzer-check"},
+          allTargets = false,
+          runBuildScripts = false,
+        },
+        cargo = {
+          loadOutDirsFromCheck = true,
+        },
+        imports = { prefix = "crate" },
+        inlay_hints = {
+          enable = true,
+          lifetimeElisionHints = { enable = "skip_trivial" },
+          only_current_line_autocmd = "CursorHold",
+          show_parameter_hints = true,
+          parameter_hints_prefix = "",
+          other_hints_prefix = "=> ",
+          max_len_align = true,
+          max_len_align_padding = 4,
+          right_align = false,
+          right_align_padding = 8,
+          highlight = "SpecialComment",
+        },
+      }
+    },
+  }
+end
+
+return M

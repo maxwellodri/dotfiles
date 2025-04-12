@@ -75,7 +75,9 @@ let &packpath=&runtimepath
     "Plug 'arzg/vim-rust-syntax-ext'
     Plug 'saecki/crates.nvim'
     "Plug 'simrat39/rust-tools.nvim'
-    Plug 'mrcjkb/rustaceanvim', { 'tag': 'v5.26.0'}
+    "Plug 'mrcjkb/rustaceanvim', { 'tag': 'v5.26.0'}
+    Plug 'vxpm/ferris.nvim'
+
     " =================
     " LSP / cmp / LuaSnip
     " =================
@@ -398,6 +400,7 @@ function _G.ReloadVimConfig()
     print("Reloaded vimrc and Lua configuration")
 end
 EOF
+
 
 nnoremap <silent><leader>v :w<CR>:lua ReloadVimConfig()<CR>
 lua require('user.init')

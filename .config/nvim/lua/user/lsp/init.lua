@@ -16,7 +16,20 @@ require("mason-lspconfig").setup_handlers({
     }
   end,
   ["rust_analyzer"] = function ()
-    --
+    require("ferris").setup()
+    local rust = require("user.lsp.settings.rust").setup(Opts)
+    lspconfig["rust_analyzer"].setup {
+      on_attach = rust.on_attach,
+      capabilities = rust.capabilities,
+      config = rust.config,
+      settings = rust.settings,
+    }
+    vim.api.nvim_create_autocmd("LspAttach", {
+      callback = function(args)
+        local client = vim.lsp.get_client_by_id(args.data.client_id)
+        rust.wait_for_diagnostics_then_init()
+      end
+    })
   end,
 })
 
