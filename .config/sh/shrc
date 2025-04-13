@@ -68,7 +68,7 @@ alias bashprofile="vim ~/.bash_profile"
 alias zprofile="vim ~/.zprofile"
 alias xrc="vim $XDG_CONFIG_HOME/X11/xinitrc"
 alias xres="vim ~/.Xresources && xrdb ~/.Xresources"
-type nvim  >>/dev/null && alias vimrc='PREV_DIR=$(pwd) && cd ~/.config/nvim/ && vim init.vim && cd $PREV_DIR' || alias vimrc='vim ~/.vimrc'
+type nvim  >>/dev/null && alias vimrc='PREV_DIR=$(pwd) && cd ~/.config/nvim/ && nvim init.vim && cd $PREV_DIR' || alias vimrc='vim ~/.vimrc'
 alias vw='PREV_DIR=$(pwd) && cd ~/vimwiki && vim index.wiki && cd $PREV_DIR'
 alias tmuxrc="vim ~/.tmux.conf"
 alias emacsrc="vim ~/.emacs.d/init.el"
@@ -91,6 +91,7 @@ alias newsboatrc="vim ~/.config/newsboat/config"
 alias url="vim ~/.config/newsboat/urls"
 alias dragon="dragon-drag-and-drop"
 alias rmdir='rmdir -p'
+alias clipboard='xclip -sel clipboard'
 
 alias mpdrc="vim ~/.config/mpd/mpd.conf"
 alias vimpcrc="vim ~/.config/vimpc/vimpcrc"

@@ -1,5 +1,5 @@
 #!/bin/sh
-dunst &
+setsid dunst &
 which picom && picom -b --config ~/.config/picom/picom.conf &
 polkit-dumb-agent &
 systemctl --user import-environment DISPLAY XAUTHORITY #non-xorg vars defined in shrc 

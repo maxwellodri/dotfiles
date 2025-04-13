@@ -10,12 +10,12 @@ st -g 100x20+2000+720 -c "stfuzzy" -e sh -c 'cd $HOME/Music/; fd --full-path "."
 current_song="$(mpc --host="$HOME/.config/mpd/socket" current)"
 
 # If current is empty, try getting the first song in playlist
-if [ -z "$current_song" ]; then
-    current_song="$(mpc --host="$HOME/.config/mpd/socket" playlist | head -n1)"
-fi
+#if [ -z "$current_song" ]; then
+#    current_song="$(mpc --host="$HOME/.config/mpd/socket" playlist | head -n1)"
+#fi
 
 # Send notification about the songs
-notify-send "Current song: ${current_song:-None}, prev: ${prev_song:-None}"
+#notify-send "Current song: ${current_song:-None}, prev: ${prev_song:-None}"
 
 # Start playback if:
 # 1. Queue was empty and we added a song (prev empty, current exists)

@@ -30,8 +30,7 @@ fi
 active=$(remind ~/.config/remind/reminders.rem | tail -n +2 | grep -v '^$')
 
 if [ "$action" = "count" ]; then
-    #printf '%s' "$active" | grep -c '^'
-    printf '%s' "$active" | wc -l
+    printf '%s' "$active" | grep -c '^'
 elif [ "$action" = "list" ]; then
     tmp="/tmp/remind/active_reminders"
     mkdir /tmp/remind/ 2>/dev/null
