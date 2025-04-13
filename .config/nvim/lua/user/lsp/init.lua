@@ -1,10 +1,11 @@
-require("user.lsp.handlers").setup()
 vim.lsp.set_log_level("ERROR")
+require("user.lsp.handlers").setup()
 Opts = {
   on_attach = require("user.lsp.handlers").on_attach,
   capabilities = require("user.lsp.handlers").capabilities,
   config = require("user.lsp.handlers").config,
 }
+require('user.lsp.settings.rust').setup(Opts)
 local lspconfig = require'lspconfig'
 
 require("mason-lspconfig").setup_handlers({
@@ -16,20 +17,6 @@ require("mason-lspconfig").setup_handlers({
     }
   end,
   ["rust_analyzer"] = function ()
-    require("ferris").setup()
-    local rust = require("user.lsp.settings.rust").setup(Opts)
-    lspconfig["rust_analyzer"].setup {
-      on_attach = rust.on_attach,
-      capabilities = rust.capabilities,
-      config = rust.config,
-      settings = rust.settings,
-    }
-    vim.api.nvim_create_autocmd("LspAttach", {
-      callback = function(args)
-        local client = vim.lsp.get_client_by_id(args.data.client_id)
-        rust.wait_for_diagnostics_then_init()
-      end
-    })
   end,
 })
 
@@ -74,7 +61,7 @@ end
 
 vim.api.nvim_set_keymap('n', '<leader>ge', '<cmd>lua GoNextIssue()<CR>', { noremap = true, silent = true })
 
-local godot_cmd = vim.lsp.rpc.connect('127.0.0.1', '6014')
+local godot_cmd = vim.lsp.rpc.connect('127.0.0.1', 6014)
 require('lspconfig').gdscript.setup{ cmd = godot_cmd, on_attach = Opts.on_attach, flags = { debounce_text_changes = 150, } }
 require("crates").setup {
   lsp = {

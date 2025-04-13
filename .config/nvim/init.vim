@@ -75,8 +75,7 @@ let &packpath=&runtimepath
     "Plug 'arzg/vim-rust-syntax-ext'
     Plug 'saecki/crates.nvim'
     "Plug 'simrat39/rust-tools.nvim'
-    "Plug 'mrcjkb/rustaceanvim', { 'tag': 'v5.26.0'}
-    Plug 'vxpm/ferris.nvim'
+    Plug 'mrcjkb/rustaceanvim', { 'tag': 'v6.0.2'}
 
     " =================
     " LSP / cmp / LuaSnip
