@@ -1,3 +1,4 @@
+lua vim.deprecate = function() end
 set runtimepath^=~/.vim runtimepath+=~/.vim/after
 runtime! expand('$HOME') + '/.config/nvim/plugin'
 let g:polyglot_disabled = ['rust']
@@ -82,7 +83,8 @@ let &packpath=&runtimepath
     " =================
     Plug 'williamboman/mason.nvim'
     Plug 'williamboman/mason-lspconfig.nvim'
-    Plug 'jose-elias-alvarez/null-ls.nvim'
+    Plug 'nvimtools/none-ls.nvim'
+    Plug 'nvimtools/none-ls-extras.nvim'
     Plug 'neovim/nvim-lspconfig' 
     Plug 'hrsh7th/nvim-cmp'
     Plug 'hrsh7th/cmp-buffer'
@@ -125,8 +127,10 @@ let &packpath=&runtimepath
     " ==============
     Plug 'kien/rainbow_parentheses.vim' 
     Plug 'machakann/vim-highlightedyank' "highlight on yank
-    Plug 'feline-nvim/feline.nvim' "status bar - airline replacement
-    Plug 'Yggdroot/indentLine'
+    Plug 'Yggdroot/indentLine' "depcrecated
+    Plug 'nvim-lualine/lualine.nvim'
+    Plug 'nvim-tree/nvim-web-devicons'
+
     " ===============
     " Color Schemes 
     " ===============
@@ -188,18 +192,6 @@ let &packpath=&runtimepath
     let g:did_load_filetypes = 0
     let g:do_filetype_lua = 0
 
-" Colorscheme
-    "nnoremap <leader>hi :echo synIDattr(synIDtrans(synID(line("."), col("."), 1)), "fg")<CR>
-    "":echo synIDattr(synID(line("."), col("."), 1), "name")<CR>
-
-" Statusline
-    "set statusline=
-    "set cmdheight=2 " space below the statusline
-    "set statusline=%F%m%r%h%w%=(%{&ff}/%Y)\ (line\ %l\/%L,\ col\ %c)\ 
-    "set statusline+=%{FugitiveStatusline()}
-    "set showtabline=1
-" Treeitter
-" Treeitter Context
 " Telescope
     nnoremap <leader>fo <cmd>Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>fh <cmd>Telescope find_files find_command=rg,--hidden=true,--files prompt_prefix=🔍🥺<CR>

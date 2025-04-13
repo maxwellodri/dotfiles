@@ -1,0 +1,134 @@
+#!/user/bin/env bash
+xdg-open "$@"
+##!/usr/bin/env python3
+#import os
+#import subprocess
+#import sys
+#import time
+#import urllib.request
+#import re
+#import json
+#from pathlib import Path
+#from datetime import datetime, timedelta
+#
+## Define logging function
+#def log_debug(message):
+#    with open(os.path.expanduser("~/log"), "a") as logfile:
+#        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+#        logfile.write(f"[{timestamp}] {message}\n")
+#
+## Define XDG_CACHE_HOME or use default ~/.cache
+#xdg_cache_home = os.environ.get('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
+#bevy_cache_dir = os.path.join(xdg_cache_home, 'bevy')
+#bevy_crates_file = os.path.join(bevy_cache_dir, 'bevy_crates')
+#
+## Delete log file if it exists
+#if os.path.exists(os.path.expanduser("~/log")):
+#    os.remove(os.path.expanduser("~/log"))
+#
+## Create cache directory if it doesn't exist
+#os.makedirs(bevy_cache_dir, exist_ok=True)
+#
+## Check if bevy_crates file is older than 1 day or doesn't exist
+#should_update = True
+#if os.path.exists(bevy_crates_file):
+#    file_time = datetime.fromtimestamp(os.path.getmtime(bevy_crates_file))
+#    if datetime.now() - file_time < timedelta(days=1):
+#        should_update = False
+#
+#log_debug(f"Should update bevy_crates: {should_update}")
+#
+## Update the bevy_crates file if needed
+#if should_update:
+#    try:
+#        # Try using GitHub API to get the list of crates directly from the repository
+#        log_debug("Fetching Bevy crates from GitHub API...")
+#        api_url = "https://api.github.com/repos/bevyengine/bevy/contents/crates?ref=main"
+#        
+#        with urllib.request.urlopen(api_url) as response:
+#            data = json.loads(response.read().decode('utf-8'))
+#            bevy_crates = {item['name'] for item in data if item['type'] == 'dir'}
+#            log_debug(f"Successfully fetched {len(bevy_crates)} Bevy crates via GitHub API")
+#            
+#            # Save to file for future use
+#            with open(bevy_crates_file, 'w') as f:
+#                for crate in sorted(bevy_crates):
+#                    f.write(f"{crate}\n")
+#            
+#            log_debug("Successfully updated bevy_crates file from GitHub API")
+#            
+#    except Exception as e:
+#        log_debug(f"Error fetching Bevy crates from GitHub API: {e}")
+#        try:
+#            # Fall back to the original method if API fetch fails
+#            url = "https://raw.githubusercontent.com/bevyengine/bevy-crate-reservations/refs/heads/main/reserved_crates"
+#            log_debug(f"Falling back to original source: {url}")
+#            with urllib.request.urlopen(url) as response, open(bevy_crates_file, 'wb') as out_file:
+#                out_file.write(response.read())
+#            log_debug("Successfully updated bevy_crates file from fallback source")
+#        except Exception as e2:
+#            log_debug(f"Error updating bevy crates from fallback source: {e2}")
+#
+## Load bevy crates into a set for quick lookup
+#bevy_crates = set()
+#if os.path.exists(bevy_crates_file):
+#    with open(bevy_crates_file, 'r') as f:
+#        bevy_crates = {line.strip() for line in f if line.strip()}
+#    log_debug(f"Loaded {len(bevy_crates)} bevy crates")
+#
+## Check if we have a URL argument
+#if len(sys.argv) < 2:
+#    log_debug("Error: No URL provided")
+#    sys.exit(1)
+#
+#url = sys.argv[1]
+#log_debug(f"Processing URL: {url}")
+#
+## If it's a docs.rust-lang.org URL, just open it directly
+#if "docs.rust-lang.org" in url:
+#    log_debug("Detected docs.rust-lang.org URL, opening directly")
+#    subprocess.run(["xdg-open", url])
+#    sys.exit(0)
+#
+## Handle docs.rs URLs
+#if "docs.rs" in url:
+#    log_debug("Detected docs.rs URL")
+#    
+#    # Parse the URL to extract crate name and version
+#    # Example: https://docs.rs/<crate_name>/<version>/<crate_name>/<rest of url>
+#    match = re.match(r'https://docs\.rs/([^/]+)/([^/]+)/([^/]+)', url)
+#    log_debug(f"Regex match result: {match}")
+#    
+#    if match:
+#        crate_name = match.group(1)
+#        version = match.group(2)
+#        path_crate_name = match.group(3)
+#        
+#        log_debug(f"crate_name: {crate_name}")
+#        log_debug(f"version: {version}")
+#        log_debug(f"path_crate_name: {path_crate_name}")
+#        
+#        # Check if crate_name is the same in both positions
+#        if crate_name != path_crate_name:
+#            log_debug(f"Error: Crate name mismatch in URL: {crate_name} vs {path_crate_name}")
+#            sys.exit(1)
+#        
+#        # Check if crate is in bevy_crates
+#        if crate_name in bevy_crates:
+#            # Replace with "bevy" in the URL
+#            new_url = url.replace(f"docs.rs/{crate_name}", "docs.rs/bevy")
+#            new_url = new_url.replace(f"/{crate_name}/", "/bevy/")
+#            log_debug(f"Crate is in bevy_crates, modified URL: {new_url}")
+#            subprocess.run(["xdg-open", new_url])
+#        else:
+#            # Open original URL
+#            log_debug(f"Crate is not in bevy_crates, opening original URL")
+#            subprocess.run(["xdg-open", url])
+#    else:
+#        # If URL doesn't match expected pattern, just open it
+#        log_debug("URL format not recognized, opening as-is")
+#        subprocess.run(["xdg-open", url])
+#else:
+#    # Not a recognized URL format, just open it
+#    log_debug("URL not recognized as docs.rs or docs.rust-lang.org, opening as-is")
+#    subprocess.run(["xdg-open", url])
