@@ -31,11 +31,11 @@ command ssh-agent
 
 if [ -z "$WM" ] ; then
     case $XDG_VTNR in
-            1)      WM='/usr/local/bin/dwm'
-                    ;;
-            *)      echo "Not starting X in this TTY, $XDG_VTNR"
-                    WM=''
-                    ;;
+        1)      WM='/usr/local/bin/dwm'
+            ;;
+        *)      echo "Not starting X in this TTY, $XDG_VTNR"
+            WM=''
+            ;;
     esac
 fi
 export WM
