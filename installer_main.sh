@@ -7,4 +7,3 @@ sh helper_scripts/custom_bin_scripts.sh
 sh helper_scripts/firefox_user.sh
 bash helper_scripts/download_suckless.sh #Should always be last to provide ssh copying msg, e.g. see script
 echo "Now run script 'run_root.sh' as root"
-
