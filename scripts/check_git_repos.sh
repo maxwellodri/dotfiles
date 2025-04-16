@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SOURCE_DIR=~/source
+SOURCE_DIR=$SOURCE
 
 highlight_color="\033[1;32m" # Bright green
 reset_color="\033[0m"        # Reset to default
