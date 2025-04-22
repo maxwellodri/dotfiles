@@ -16,7 +16,7 @@ handle_magnet_link() {
 }
 
 handle_url() {
-    CHOICE=$(echo -e "Open in Firefox (new tab)\nOpen in Firefox (default)\nDownload with yt-dlp" | dmenu -i -p "Choose how to open URL:")
+    CHOICE=$(echo -e "Open in Firefox (new tab)\nOpen in Firefox (default)\nDownload with yt-dlp\nDownload with gallery-dl" | dmenu -i -p "Choose how to open URL:")
 
     case "$CHOICE" in
         "Open in Firefox (default)")
@@ -27,7 +27,10 @@ handle_url() {
             ;;
 
         "Download with yt-dlp")
-            yt-dlp --restrict-filenames --abort-on-unavailable-fragment --trim-filenames 225 -o "~/Downloads/ytdlp/%(title)s.%(ext)s" "$1"
+            stcmd "yt-dlp --restrict-filenames --abort-on-unavailable-fragment --trim-filenames 225 -o '~/Downloads/ytdlp/%(title)s.%(ext)s' \"$1\""
+            ;;
+        "Download with gallery-dl")
+            stcmd 'gallery-dl '$1''
             ;;
         *)
             notify-send "No valid option selected (url)."

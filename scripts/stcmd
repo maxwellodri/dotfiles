@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Get the command from arguments
+CMD="$@"
+
+# Check if a command was provided
+if [ -z "$CMD" ]; then
+  echo "Usage: $(basename "$0") <command>"
+  exit 1
+fi
+
+# Run st with setsid, detached from parent process with all outputs redirected to /dev/null
+(setsid -f st -e zsh -c "source ~/.zshrc >/dev/null 2>&1; cmd=\"$CMD\"; print -P \"\$PS1\$cmd\"; $CMD; exec zsh -i") >/dev/null 2>&1
