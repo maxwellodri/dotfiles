@@ -1,0 +1,87 @@
+#!/bin/bash
+
+# Help function
+show_usage() {
+    echo "Usage: $0 FILE [-b|--num-bytes NUM] [PATTERN...]"
+    echo "Search for hex patterns in a binary file."
+    echo ""
+    echo "  FILE               The file to analyze with xxd"
+    echo "  -b, --num-bytes    Number of bytes per line in the output (default: 15)"
+    echo "  PATTERN            Hex patterns to search for (e.g. '0a 24' or multiple arguments '0a' '24')"
+    echo "                     If no pattern is specified, the formatted output will be displayed without highlighting"
+    echo ""
+    echo "Example: $0 /bin/ls -b 32 0a 24 69"
+    echo "         $0 /bin/ls \"0a 24 69\""
+    echo "         $0 /bin/ls -b 20"
+    exit 1
+}
+
+# Check if we have at least one argument
+if [ $# -lt 1 ]; then
+    show_usage
+fi
+
+# First argument is the file
+file="$1"
+shift
+
+if [ ! -f "$file" ]; then
+    echo "Error: File '$file' does not exist."
+    exit 1
+fi
+
+# Default number of bytes
+num_bytes=15
+
+# Process options
+patterns=()
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -b|--num-bytes)
+            if [ -n "$2" ] && [ "${2:0:1}" != "-" ]; then
+                num_bytes="$2"
+                shift 2
+            else
+                echo "Error: Argument for $1 is missing" >&2
+                exit 1
+            fi
+            ;;
+        -h|--help)
+            show_usage
+            ;;
+        *)
+            # Handle patterns, both space-separated and as separate arguments
+            if [[ "$1" == *" "* ]]; then
+                # If the argument contains spaces, split it
+                for part in $1; do
+                    patterns+=("$part")
+                done
+            else
+                patterns+=("$1")
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Double the number of bytes for fold (since each byte becomes 2 hex chars)
+fold_width=$((num_bytes * 2))
+
+# Build the regex pattern for ripgrep
+regex=""
+if [ ${#patterns[@]} -gt 0 ]; then
+    for ((i=0; i<${#patterns[@]}; i++)); do
+        if [ $i -eq 0 ]; then
+            regex="${patterns[$i]}"
+        else
+            regex+="(?:\n|\s)${patterns[$i]}"
+        fi
+    done
+fi
+
+# Execute the command
+xxd -p "$file" | \
+    tr -d '\n' | \
+    fold -w "$fold_width" | \
+    sed 's/\(..\)/\1 /g; s/ $//' | \
+    rg -U -P --color=always --passthru "$regex"
