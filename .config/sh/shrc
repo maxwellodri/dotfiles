@@ -69,7 +69,7 @@ alias zprofile="vim ~/.zprofile"
 alias xrc="vim $XDG_CONFIG_HOME/X11/xinitrc"
 alias xres="vim ~/.Xresources && xrdb ~/.Xresources"
 type nvim  >>/dev/null && alias vimrc='PREV_DIR=$(pwd) && cd ~/.config/nvim/ && nvim init.vim && cd $PREV_DIR' || alias vimrc='vim ~/.vimrc'
-alias vw='PREV_DIR=$(pwd) && cd ~/vimwiki && vim index.wiki && cd $PREV_DIR'
+alias vw='PREV_DIR=$(pwd) && cd ~/vimwiki && nvim index.wiki && cd $PREV_DIR'
 alias tmuxrc="vim ~/.tmux.conf"
 alias emacsrc="vim ~/.emacs.d/init.el"
 alias i3rc="vim $dotfiles/.config/i3/config.base && $dotfiles/makesymlinks.sh $dotfiles_tag >> /dev/null && i3-msg reload"
