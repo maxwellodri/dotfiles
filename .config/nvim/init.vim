@@ -377,6 +377,9 @@ let &packpath=&runtimepath
 
 "TODO unset shift L and shift H
 "
+"""Newsboat
+autocmd BufRead,BufNewFile */newsboat/urls setlocal commentstring=#%s
+
 nnoremap <C-z> :stop<CR>
 inoremap <C-z> <Esc>:stop<CR>
 lua << EOF
