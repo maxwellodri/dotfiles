@@ -16,7 +16,7 @@ handle_magnet_link() {
 }
 
 handle_url() {
-    CHOICE=$(echo -e "Open in Firefox (new tab)\nOpen in Firefox (default)\nDownload with yt-dlp\nDownload with gallery-dl" | dmenu -i -p "Choose how to open URL:")
+    CHOICE=$(echo -e "Open in Firefox (new tab)\nOpen in Firefox (default)\nDownload with yt-dlp\nDownload with gallery-dl\nAdd as feed" | dmenu -i -p "Choose how to open URL:")
 
     case "$CHOICE" in
         "Open in Firefox (default)")
@@ -32,10 +32,31 @@ handle_url() {
         "Download with gallery-dl")
             stcmd 'gallery-dl '$1''
             ;;
+        "Add as feed")
+            handle_feed "$1"
+            ;;
         *)
             notify-send "No valid option selected (url)."
             ;;
     esac
+}
+
+handle_feed() {
+    local url="$1"
+    local line_num=$(grep -F -n "$url" ~/.config/newsboat/urls | cut -d':' -f1)
+    if [ -n "$line_num" ]; then
+        notify-send "Feed already exists in newsboat: $url" "Found on line $line_num"
+        return 0
+    fi
+    if curl -s "$url" | grep -E "<rss|<feed" > /dev/null; then
+
+        echo "$url" >> ~/.config/newsboat/urls
+        notify-send "Added feed to newsboat: $url"
+        return 0
+    else
+        notify-send "Error URL does not appear to be a valid RSS/Atom feed: $url"
+        return 1
+    fi
 }
 
 handle_directory() {
@@ -82,7 +103,9 @@ else
 fi
 
 parsed_input=$(echo "$input" | grep -oP '<[^>]+src="[^"]+"[^>]*>' | sed -e 's/.*src="//' -e 's/"[^>]*>//')
-if echo "$input" | grep -Eo 'https?://[^ ]+' > /dev/null; then
+if echo "$input" | grep -Eo "https://(www\.reddit\.com/.+\.rss|www\.youtube\.com/feeds/videos\.xml\?channel_id=.+)" > /dev/null; then
+    handle_feed "$input"
+elif echo "$input" | grep -Eo 'https?://[^ ]+' > /dev/null; then
     handle_url "$input"  
 elif echo "$input" | grep -Eo 'magnet:\?[^ ]+' > /dev/null; then
     handle_magnet_link "$input"
