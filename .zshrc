@@ -148,10 +148,8 @@ function _vim_in_dir {
 }
 
 function _sterm {
-    #zle push-input
-    zle clear-input
-    BUFFER="setsid -f st -d . 1&>/dev/null" #space before setsid so it doesnt show up in history
-    zle accept-line
+    # Execute the command in background without affecting current line
+    command setsid -f st -d . 1&>/dev/null
 }
 
 function _git_root {
