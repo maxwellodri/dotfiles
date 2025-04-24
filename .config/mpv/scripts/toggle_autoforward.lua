@@ -19,9 +19,3 @@ end
 
 -- Register key binding (Ctrl+a)
 mp.add_key_binding("Ctrl+a", "toggle_autoplay", toggle_autoplay)
-
--- Print initial state when mpv starts
-mp.register_event("file-loaded", function()
-    local message = autoplay_enabled and "Autoplay: Enabled" or "Autoplay: Disabled"
-    mp.osd_message(message)
-end)
