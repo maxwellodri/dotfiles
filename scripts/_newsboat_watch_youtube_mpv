@@ -1,0 +1,2 @@
+#!/bin/sh
+stcmd "mpv --pause --no-fullscreen \"$@\""
