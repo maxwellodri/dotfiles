@@ -1,0 +1,183 @@
+#!/bin/bash
+
+# YouTube Video Summarization Script
+# This script downloads audio from a YouTube video, transcribes it using whisper-cli,
+# and copies the transcription to clipboard for use with Claude
+
+# Function to find available whisper models
+find_models() {
+    local models=()
+    # Look for model directories in /usr/share/
+    for model_dir in /usr/share/whisper.cpp-model-*; do
+        if [ -d "$model_dir" ]; then
+            # Extract model name from directory name
+            model_name=${model_dir#/usr/share/whisper.cpp-model-}
+            # Check if model file actually exists
+            if [ -f "$model_dir/ggml-${model_name}.bin" ]; then
+                models+=("$model_name")
+            fi
+        fi
+    done
+    echo "${models[@]}"
+}
+
+# Get available models
+AVAILABLE_MODELS=($(find_models))
+
+# Check if any models are installed
+if [ ${#AVAILABLE_MODELS[@]} -eq 0 ]; then
+    notify-send -t 2000 "YouTube Summarizer" "❌ No whisper.cpp models found! Please install a model package." -h string:x-canonical-private-synchronous:yt-summarizer
+    echo "Error: No whisper.cpp models found!"
+    echo "Please install a model package from AUR, e.g.:"
+    echo "  paru -S whisper.cpp-model-base.en"
+    echo "You can find available models with: paru -Ss 'whisper.cpp-model'"
+    exit 1
+fi
+
+# Check if whisper-cli exists
+if ! command -v whisper-cli &> /dev/null; then
+    notify-send -t 2000 "YouTube Summarizer" "❌ whisper-cli not found! Please install whisper.cpp" -h string:x-canonical-private-synchronous:yt-summarizer
+    echo "Error: whisper-cli not found!"
+    echo "Please install whisper.cpp"
+    exit 1
+fi
+
+# Check if inline-detox is available
+if ! command -v inline-detox &> /dev/null; then
+    notify-send -t 2000 "YouTube Summarizer" "⚠️ inline-detox not found, using basic filename cleaning" -h string:x-canonical-private-synchronous:yt-summarizer
+    echo "Warning: inline-detox not found, will use basic filename cleaning"
+    USE_BASIC_CLEAN=true
+else
+    USE_BASIC_CLEAN=false
+fi
+
+# Check if a URL was provided
+if [ $# -eq 0 ]; then
+    notify-send -t 2000 "YouTube Summarizer" "No URL provided!" -h string:x-canonical-private-synchronous:yt-summarizer
+    echo "Usage: $0 <youtube-url> [whisper-model]"
+    echo "Available whisper models: ${AVAILABLE_MODELS[*]}"
+    echo "Default model: base.en (if available)"
+    exit 1
+fi
+
+# YouTube URL
+YOUTUBE_URL="$1"
+
+# Set default Whisper model or use the one provided
+if [ -n "$2" ]; then
+    WHISPER_MODEL="$2"
+else
+    # Default to base.en if available, otherwise use first available model
+    if [[ " ${AVAILABLE_MODELS[*]} " =~ " base.en " ]]; then
+        WHISPER_MODEL="base.en"
+    else
+        WHISPER_MODEL="${AVAILABLE_MODELS[0]}"
+    fi
+fi
+
+# Check if the selected model is available
+if [[ ! " ${AVAILABLE_MODELS[*]} " =~ " ${WHISPER_MODEL} " ]]; then
+    notify-send -t 2000 "YouTube Summarizer" "❌ Model '${WHISPER_MODEL}' not found!" -h string:x-canonical-private-synchronous:yt-summarizer
+    echo "Error: Model '${WHISPER_MODEL}' not found!"
+    echo "Available models: ${AVAILABLE_MODELS[*]}"
+    echo "You can find more models with: paru -Ss 'whisper.cpp-model'"
+    exit 1
+fi
+
+# Model path
+MODEL_PATH="/usr/share/whisper.cpp-model-${WHISPER_MODEL}/ggml-${WHISPER_MODEL}.bin"
+
+# Make sure cache directory exists
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles"
+mkdir -p "$CACHE_DIR"
+
+notify-send -t 2000 "YouTube Summarizer" "🎬 Starting YouTube video summarization process..." -h string:x-canonical-private-synchronous:yt-summarizer
+
+# Create a temporary directory
+TEMP_DIR=$(mktemp -d)
+AUDIO_FILE="$TEMP_DIR/audio.mp3"
+
+# Download audio using yt-dlp
+notify-send -t 2000 "YouTube Summarizer" "⬇️ Downloading audio from YouTube..." -h string:x-canonical-private-synchronous:yt-summarizer
+yt-dlp -x --audio-format mp3 --audio-quality 0 -o "$AUDIO_FILE" "$YOUTUBE_URL" || {
+    notify-send -t 2000 "YouTube Summarizer" "❌ Failed to download video!" -h string:x-canonical-private-synchronous:yt-summarizer
+    rm -rf "$TEMP_DIR"
+    exit 1
+}
+
+# Get video title for reference
+VIDEO_TITLE=$(yt-dlp --get-title "$YOUTUBE_URL")
+notify-send -t 2000 "YouTube Summarizer" "📝 Video title: $VIDEO_TITLE" -h string:x-canonical-private-synchronous:yt-summarizer
+
+# Create a filename-safe version of the title
+if [ "$USE_BASIC_CLEAN" = true ]; then
+    # Basic cleaning if inline-detox is not available
+    SAFE_TITLE=$(echo "$VIDEO_TITLE" | sed -e 's/[^A-Za-z0-9._-]/_/g' | sed -e 's/__*/_/g')
+else
+    # Use inline-detox for better filename cleaning
+    SAFE_TITLE=$(echo "$VIDEO_TITLE" | inline-detox)
+fi
+
+# Make sure we don't have an empty filename
+if [ -z "$SAFE_TITLE" ] || [ "$SAFE_TITLE" = "_" ]; then
+    SAFE_TITLE="youtube_video_$(date +%Y%m%d_%H%M%S)"
+fi
+
+# Transcribe using whisper.cpp
+notify-send -t 2000 "YouTube Summarizer" "🎙️ Transcribing audio with whisper-cli ($WHISPER_MODEL)..." -h string:x-canonical-private-synchronous:yt-summarizer
+
+# Run whisper-cli with output to text file
+whisper-cli -m "$MODEL_PATH" -f "$AUDIO_FILE" -otxt -of "$TEMP_DIR/transcription" || {
+    notify-send -t 2000 "YouTube Summarizer" "❌ Transcription failed!" -h string:x-canonical-private-synchronous:yt-summarizer
+    rm -rf "$TEMP_DIR"
+    exit 1
+}
+
+# The output should be at transcription.txt
+if [ ! -f "$TEMP_DIR/transcription.txt" ]; then
+    notify-send -t 2000 "YouTube Summarizer" "❌ Couldn't find transcription file!" -h string:x-canonical-private-synchronous:yt-summarizer
+    rm -rf "$TEMP_DIR"
+    exit 1
+fi
+
+# Add video title at the beginning of the transcription
+FINAL_OUTPUT="$TEMP_DIR/final_output.txt"
+echo "Video Title: $VIDEO_TITLE" > "$FINAL_OUTPUT"
+echo "" >> "$FINAL_OUTPUT"
+echo "Transcription:" >> "$FINAL_OUTPUT"
+cat "$TEMP_DIR/transcription.txt" >> "$FINAL_OUTPUT"
+
+# Determine appropriate file number for cache
+FILE_BASE="$CACHE_DIR/$SAFE_TITLE"
+FILE_NUM=0
+while [ -f "${FILE_BASE}${FILE_NUM:+.$FILE_NUM}.transcript" ]; do
+    FILE_NUM=$((FILE_NUM + 1))
+done
+
+# Save transcription to cache
+CACHE_FILE="${FILE_BASE}${FILE_NUM:+.$FILE_NUM}.transcript"
+cp "$FINAL_OUTPUT" "$CACHE_FILE"
+
+# Copy to clipboard based on available clipboard utility
+if command -v wl-copy &> /dev/null; then
+    # For Wayland
+    cat "$FINAL_OUTPUT" | wl-copy
+    CLIP_METHOD="wl-copy (Wayland)"
+elif command -v xclip &> /dev/null; then
+    # For X11
+    cat "$FINAL_OUTPUT" | xclip -selection clipboard
+    CLIP_METHOD="xclip (X11)"
+else
+    notify-send -t 2000 "YouTube Summarizer" "❌ No clipboard utility found! Install wl-copy or xclip." -h string:x-canonical-private-synchronous:yt-summarizer
+    echo "❌ No clipboard utility found. Please install wl-copy or xclip."
+    echo "📄 Transcription saved at: $CACHE_FILE"
+    rm -rf "$TEMP_DIR"
+    exit 1
+fi
+
+# Notify of completion
+notify-send -t 2000 "YouTube Summarizer" "✅ Transcription copied to clipboard using $CLIP_METHOD! \n💾 Saved to: $CACHE_FILE" -h string:x-canonical-private-synchronous:yt-summarizer
+
+# Clean up
+rm -rf "$TEMP_DIR"
+echo "🎉 Process complete! Transcription saved to $CACHE_FILE and copied to clipboard."
