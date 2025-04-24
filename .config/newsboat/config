@@ -1,4 +1,5 @@
 #macro y set browser "mpv %u"; open-in-browser ; set browser "elinks %u"
+keep-articles-days 7
 
 show-read-feeds yes
 auto-reload yes
@@ -35,12 +36,13 @@ bind-key x pb-delete
 
 browser "setsid -f firefox"
 macro , open-in-browser-and-mark-read
+macro m set browser '_newsboat_watch_youtube_mpv'; open-in-browser-and-mark-read; set browser "setsid -f firefox"
 #macro t set browser "qndl"; open-in-browser ; set browser linkhandler
-macro a set browser "tsp youtube-dl --add-metadata -xic -f bestaudio/best" ; open-in-browser-and-mark-read
-macro m set browser "setsid -f mpv" ; open-in-browser-and-mark-read
-macro w set browser "setsid -f firefox" ; open-in-browser-and-mark-read 
-macro p set browser "handler" ; open-in-browser-and-mark-read 
-macro c set browser "xsel -b <<<" ; open-in-browser-and-mark-read #; set browser linkhandler
+#macro a set browser "tsp youtube-dl --add-metadata -xic -f bestaudio/best" ; open-in-browser-and-mark-read
+#macro m set browser "setsid -f mpv" ; open-in-browser-and-mark-read
+#macro w set browser "setsid -f firefox" ; open-in-browser-and-mark-read 
+#macro p set browser "handler" ; open-in-browser-and-mark-read 
+#macro c set browser "xsel -b <<<" ; open-in-browser-and-mark-read #; set browser linkhandler
 
 highlight feedlist "\"---.*---\"" magenta default bold
 highlight feedlist ".*0/0.." default default invis
