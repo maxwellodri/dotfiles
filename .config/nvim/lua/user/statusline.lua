@@ -58,7 +58,7 @@ require('lualine').setup {
                 end
               end
               -- If no spinner character is found, return the first one as fallback
-              return spinner_chars[1]
+              return "~"
             end
           end
           return ""
