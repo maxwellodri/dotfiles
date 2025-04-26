@@ -200,7 +200,7 @@ let &packpath=&runtimepath
     nnoremap <leader>fs <cmd>Telescope lsp_document_symbols find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>rg <cmd>Telescope live_grep prompt_prefix=🔍🤔<CR>
     nnoremap <leader>ry <cmd>Telescope lsp_workspace_symbols prompt_prefix=🔍👹<CR>
-    nnoremap gr <cmd>Telescope lsp_references prompt_prefix=😠<CR>
+    "nnoremap gr <cmd>Telescope lsp_references prompt_prefix=😠<CR>
     nnoremap <leader>rv :vsplit<CR>:<cmd>Telescope live_grep prompt_prefix=🔍🤔<CR>
  " Oil
 
