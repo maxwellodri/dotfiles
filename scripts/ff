@@ -10,10 +10,17 @@ def rust_docs(query):
         return f"https://docs.rs/{query[0]}/latest"
     else:
         return "https://docs.rs/"
+
+def bevy(query):
+    if len(query) > 0:
+        search_term = "+".join(query)
+        return f"https://docs.rs/bevy/latest/bevy/?search={search_term}"
+    else:
+        return "https://docs.rs/bevy/latest/bevy"
 local_bangs = {
     "!oni": "https://oxygennotincluded.wiki.gg/index.php?search=",
     "!docs": rust_docs,
-    "!bevydocs": "https://docs.rs/bevy/latest/bevy/?search="
+    "!bevy": bevy,
 }
 
 class ParsedArgs:
@@ -34,7 +41,6 @@ def parse_arguments(args):
 def search_local_bangs(parsed_args):
     if parsed_args.bang in local_bangs:
         data = local_bangs[parsed_args.bang]
-        print(type(data))
         if isinstance(data, str):
             base_url = data
             query = "+".join(parsed_args.search)
