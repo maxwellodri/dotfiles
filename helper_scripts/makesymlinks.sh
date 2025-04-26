@@ -50,12 +50,13 @@ case $1 in
     "pc")           tag="$1"
                     files=$pcfiles$files
                     mkdir ~/.local/share/dwm/ -p
-                    ln -sf $PWD/dwm/startup.sh ~/.local/share/dwm/autostart.sh
+                    mkdir -pv "$XDG_CACHE_HOME/dotfiles/{whisper_models,whisper_audio,llama_models}"
+                    ln -sf "$PWD/dwm/startup.sh" "$HOME/.local/share/dwm/autostart.sh"
                     ;;
     "hackerman")    tag="$1"
                     files=$hackermanfiles$files
                     mkdir ~/.local/share/dwm/ -p
-                    ln -sf $PWD/dwm/startup.sh ~/.local/share/dwm/autostart.sh
+                    ln -sf "$PWD/dwm/startup.sh" "$HOME/.local/share/dwm/autostart.sh"
 		            ;;
 
     "clean")        echo "Removing all symlinks..." 

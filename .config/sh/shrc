@@ -18,37 +18,33 @@ export EDITOR='vim'
 export VISUAL='vim'
 export BIN="$HOME/bin"
 export bin="$BIN"
-export PATH=$PATH:$BIN #add /home/$USER/bin to path
-export PATH=$PATH:"$BIN/steam_scripts" #and subfolder for steam scripts
-export PATH=$HOME/bin:$PATH:$HOME/.local/bin
+export PATH="$PATH:$BIN" #add /home/$USER/bin to path
+export PATH="$PATH:$BIN/steam_scripts" #and subfolder for steam scripts
+export PATH="$HOME/bin:$PATH:$HOME/.local/bin"
 export dl="$HOME/Downloads"
 export CARGO_ASC=true
-export GDUSER="~/.local/share/godot/app_userdata/Mykaelium/"
+export GDUSER="$HOME/.local/share/godot/app_userdata/Mykaelium/"
 export GTK_THEME=Arc-Dark
 export XCURSOR_THEME=Arc-Dark
 export GODOT4_BIN=/bin/godot-mono-bin
 export SOURCE="$HOME/source"
 export PASSWORD_STORE_GENERATED_LENGTH=30
 export QMK="$SOURCE/qmk_firmware"
-export JUPYTERLAB_DIR=$HOME/.local/share/jupyter/lab
-which systemctl 1,2>/dev/null && systemctl --user import-environment PATH HOME USER #DISPLAY defined in $dotifles/dwm/startup.sh
-
-################
-#Extras
-################
-[ -e ~/.cargo/env ] && . ~/.cargo/env 
-#export WORKON_HOME="/home/maxwell/pyvenv" #cant nest variables this is a hack to let emacs load successfully
+export JUPYTERLAB_DIR="$HOME/.local/share/jupyter/lab"
+command -v systemctl >/dev/null 2>&1 && systemctl --user import-environment PATH HOME USER
 
 ################
 #Functions:
 ################
 pd() { pandoc -T Plain "$1"| less; }
 hfiglet () { figlet "$@" | sed -n "s/.*/\# &/p"; }
-kn() { pgrep $@ | xargs kill -9 }
 
 #Addtional keybindings:
 #bindkey -s '^t' 'st & disown\nclear\n' #st in pwd
-bindkey -s 'C-c' 'kill -9 !%' #ruthless version of standard ctrl-c => should always kill the process rather than asking the process to shut down nicely
+# Only run bindkey if we're in a Zsh shell
+if [ -n "$ZSH_VERSION" ]; then
+    bindkey -s 'C-c' 'kill -9 !%' #ruthless version of standard ctrl-c => should always kill the process rather than asking the process to shut down nicely
+fi
 ################
 #Aliases:
 ###############
@@ -66,16 +62,20 @@ alias bashrctag="vim ~/.bashrc_extra && source ~/.bashrc"
 alias zshrctag="vim ~/.zshrc_extra && source ~/.zshrc_extra"
 alias bashprofile="vim ~/.bash_profile"
 alias zprofile="vim ~/.zprofile"
-alias xrc="vim $XDG_CONFIG_HOME/X11/xinitrc"
+alias xrc="vim \$XDG_CONFIG_HOME/X11/xinitrc"
 alias xres="vim ~/.Xresources && xrdb ~/.Xresources"
-type nvim  >>/dev/null && alias vimrc='PREV_DIR=$(pwd) && cd ~/.config/nvim/ && nvim init.vim && cd $PREV_DIR' || alias vimrc='vim ~/.vimrc'
+if type nvim >/dev/null 2>&1; then
+    alias vimrc='PREV_DIR=$(pwd) && cd ~/.config/nvim/ && nvim init.vim && cd "$PREV_DIR"'
+else
+    alias vimrc='vim ~/.vimrc'
+fi
 alias vw='PREV_DIR=$(pwd) && cd ~/vimwiki && nvim index.wiki && cd $PREV_DIR'
 alias tmuxrc="vim ~/.tmux.conf"
 alias emacsrc="vim ~/.emacs.d/init.el"
-alias i3rc="vim $dotfiles/.config/i3/config.base && $dotfiles/makesymlinks.sh $dotfiles_tag >> /dev/null && i3-msg reload"
-alias bm="vim $dotfiles/scripts/web_bookmarks.json"
+alias i3rc="vim \$dotfiles/.config/i3/config.base && \$dotfiles/makesymlinks.sh \$dotfiles_tag >> /dev/null && i3-msg reload"
+alias bm="vim \$dotfiles/scripts/web_bookmarks.json"
 alias dunstrc="vim ~/.config/dunst/dunstrc"
-alias i3tag="vim $dotfiles/.config/i3/config.extra && $dotfiles/makesymlinks.sh $dotfiles_tag >> /dev/null && i3-msg reload"
+alias i3tag="vim \$dotfiles/.config/i3/config.extra && \$dotfiles/makesymlinks.sh \$dotfiles_tag >> /dev/null && i3-msg reload"
 alias termrc="vim ~/.config/terminator/config"
 alias i3sbar="vim ~/.config/i3status/config && i3-msg restart"
 alias zathurarc="vim ~/.config/zathura/zathurarc"
@@ -96,31 +96,30 @@ alias clipboard='xclip -sel clipboard'
 alias mpdrc="vim ~/.config/mpd/mpd.conf"
 alias vimpcrc="vim ~/.config/vimpc/vimpcrc"
 ytdl () {
-    local dir=""
-    local urls=()
-    local pwd_flag=false
-    local dir_flag=false
-
-    while [[ "$#" -gt 0 ]]
+    dir=""
+    urls=""
+    pwd_flag=false
+    dir_flag=false
+    while [ "$#" -gt 0 ]
     do
         case "$1" in
-            (--dir) 
-                if [[ "$pwd_flag" = true ]]
+            --dir) 
+                if [ "$pwd_flag" = true ]
                 then
                     echo "Error: Cannot use both --pwd and --dir options."
                     return 1
                 fi
                 dir_flag=true
                 dir="$2"
-                if [[ ! -d "$dir" ]]
+                if [ ! -d "$dir" ]
                 then
                     echo "Error: Directory '$dir' does not exist."
                     return 1
                 fi
                 dir=$(realpath "$dir")
                 shift 2 ;;
-            (--pwd)
-                if [[ "$dir_flag" = true ]]
+            --pwd)
+                if [ "$dir_flag" = true ]
                 then
                     echo "Error: Cannot use both --pwd and --dir options."
                     return 1
@@ -128,24 +127,27 @@ ytdl () {
                 pwd_flag=true
                 dir="$PWD"
                 shift ;;
-            (*) 
-                urls+=("$1")
+            *) 
+                # Add URL to space-separated list
+                urls="${urls:+$urls }$1"
                 shift ;;
         esac
     done
-
-    if [[ ${#urls[@]} -eq 0 ]]
+    if [ -z "$urls" ]
     then
         echo "Error: No URLs supplied."
         return 1
     fi
-
-    [[ -z "$dir" ]] && dir="$HOME/Downloads/ytdlp"
-
-    for url in "${urls[@]}"
+    [ -z "$dir" ] && dir="$HOME/Downloads/ytdlp"
+    
+    # Process URLs
+    old_IFS="$IFS"
+    IFS=" "
+    for url in $urls
     do
         yt-dlp --restrict-filenames --abort-on-unavailable-fragment --trim-filenames 225 -o "$dir/%(title)s.%(ext)s" "$url"
     done
+    IFS="$old_IFS"
 }
 alias tsm='transmission-remote --torrent-done-script ~/bin/torrdone'
 alias tsmr='transmission-remote -l | grep -v 'Queued''
@@ -184,7 +186,7 @@ alias grep="grep --color=auto"
 alias mv="mv -v"
 alias cp="cp -v"
 alias pacs="pacman -Slq | fzf -m --preview 'pacman -Si {1}' | xargs -ro sudo pacman -S"
-alias alp="vim $dotfiles/archlinux_x86_64_packages"
+alias alp="vim \$dotfiles/archlinux_x86_64_packages"
 alias dfn="df -h | grep -vE 'run|tmpfs|efivars|efi' | awk '!/dev[[:space:]]/' | tail -n +1" #tail to remove whitespace above header
 
 alias untar='tar -zxvf'

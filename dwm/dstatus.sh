@@ -69,7 +69,7 @@ try_notify() {
         prev_hours=$((10#${prev_time_parts[0]}))
         prev_minutes=$((10#${prev_time_parts[1]}))
         if [ "$(($(xprintidle) / 60000 ))" -ge "$idle_threshold_minutes" ]; then
-            [ timew ] && timew stop 
+            command -v timew && timew stop 
         fi
         # Convert hours to minutes and add the remaining minutes
         prev_total_minutes=$(($prev_hours*60 + $prev_minutes))
@@ -80,7 +80,7 @@ try_notify() {
             # Obtain the window ID of the notify-send window
             notify_send_window_id=$(xdotool search --class "Dunst")
             # Calculate the screen and window dimensions for centering
-            screen_resolution=$(xrandr --listmonitors | grep '*' | awk '{print $3}' | awk -F'[x/+]' '{print $1, $3}')
+            screen_resolution=$(xrandr --listmonitors | grep -F '*' | awk '{print $3}' | awk -F'[x/+]' '{print $1, $3}')
             read -r screen_width screen_height <<< "$screen_resolution"         
             
             window_width=800
@@ -106,9 +106,9 @@ try_internet_connection() {
     ping -c 1 cia.gov >/dev/null 2>&1
     
     if [ $? -eq 0 ]; then
-        echo "yes" > $network_touch
+        echo "yes" > "$network_touch"
     else
-        echo "no" > $network_touch
+        echo "no" > "$network_touch"
     fi
 }
 
@@ -127,15 +127,15 @@ timew_timer="$(poll_timew)"
 internet="?"
 
 counter=0
-source ~/.zshrc_extra
+eval "$(grep 'export dotfiles_tag' "$HOME/.zprofile")"
 
 while true; do
-    case $dotfiles_tag in 
+    case "$dotfiles_tag" in 
         hackerman)
                     OPT=" $(poll_battery)"
                     ;;
         pc) 
-                    OPT="$(wireguard_poll)"
+                    OPT="$(docker_watch wireguard_poll)"
                     ;;
         *)  
                     OPT=" NO TAG"

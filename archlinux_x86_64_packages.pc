@@ -1,0 +1,3 @@
+#whisper.cpp-vulkan
+#whisper.cpp-model-base.en
+#diun-bin

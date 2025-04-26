@@ -1,4 +1,6 @@
 #ArchLinux
 0 4  * * * pacman -Qg > /home/maxwell/.backup_packages.txt 
 0 * * * * newsboat -x  reload
+#pc only:
+0 */6 * * * /home/maxwell/bin/_docker_diun_updater
 #DebianLinux
