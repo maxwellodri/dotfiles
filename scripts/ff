@@ -13,6 +13,7 @@ def rust_docs(query):
 local_bangs = {
     "!oni": "https://oxygennotincluded.wiki.gg/index.php?search=",
     "!docs": rust_docs,
+    "!bevydocs": "https://docs.rs/bevy/latest/bevy/?search="
 }
 
 class ParsedArgs:
