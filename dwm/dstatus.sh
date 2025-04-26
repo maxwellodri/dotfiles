@@ -1,14 +1,77 @@
 #!/bin/bash
 
+SCRIPT_PATH=$(readlink -f "$0")
+SCRIPT_NAME=$(basename "$SCRIPT_PATH")
 
-
+# Handle restart functionality
+if [ "$1" == "--restart" ]; then
+    echo "Restarting $SCRIPT_NAME..."
+    
+    # Get our own PID to exclude
+    CURRENT_PID=$$
+    
+    # Instead of starting a new instance immediately, start it in a subshell
+    # that waits for old instances to be killed
+    (
+        # Wait a moment to let the parent script kill other instances
+        sleep 1
+        
+        # Now start a fresh instance
+        exec "$SCRIPT_PATH" >/dev/null 2>&1
+    ) &
+    
+    SUBSHELL_PID=$!
+    echo "Created subshell with PID: $SUBSHELL_PID"
+    
+    # Collect all running instances except grep
+    ps_output=$(ps -eo pid,cmd | grep "$SCRIPT_NAME" | grep -v grep)
+    
+    echo "Current running instances:"
+    echo "$ps_output"
+    
+    # Process each line
+    IFS=$'\n' read -rd '' -a processes <<< "$ps_output"
+    
+    for process in "${processes[@]}"; do
+        pid=$(echo "$process" | awk '{print $1}')
+        cmd=$(echo "$process" | cut -d' ' -f2-)
+        
+        # Skip our current process and the subshell
+        if [ "$pid" = "$CURRENT_PID" ] || [ "$pid" = "$SUBSHELL_PID" ]; then
+            echo "Skipping process: $pid (current process or new subshell)"
+            continue
+        fi
+        
+        # Check for script execution patterns
+        if [[ "$cmd" == "$SCRIPT_PATH"* ]] || 
+           [[ "$cmd" == "./$SCRIPT_NAME"* ]] || 
+           [[ "$cmd" == *"/bash $SCRIPT_PATH"* ]] || 
+           [[ "$cmd" == *"/bash ./$SCRIPT_NAME"* ]] || 
+           [[ "$cmd" == *"/sh $SCRIPT_PATH"* ]] || 
+           [[ "$cmd" == *"/sh ./$SCRIPT_NAME"* ]] || 
+           [[ "$cmd" == "bash $SCRIPT_NAME"* ]] || 
+           [[ "$cmd" == "sh $SCRIPT_NAME"* ]] || 
+           [[ "$cmd" == *"setsid "?*"$SCRIPT_NAME"* ]] || 
+           [[ "$cmd" == *"nohup "?*"$SCRIPT_NAME"* ]]; then
+            
+            echo "Killing old instance with PID: $pid and its children"
+            # Kill children first
+            pkill -TERM -P $pid 2>/dev/null
+            # Then kill the parent
+            kill $pid 2>/dev/null
+        else
+            echo "Skipping non-execution process: $pid - $cmd"
+        fi
+    done
+    
+    exit 0
+fi
 cleanup() {
-  # Insert your cleanup code here
-  echo "Program was killed. Cleaning up..."
-  xsetroot -name "😠"
-  # Additional commands as needed
+    echo "Program was killed. Cleaning up..."
+    xsetroot -name "😠"
 }
 
+# Trap exit signal
 trap cleanup EXIT
 
 script_directory=$(dirname "$0")
@@ -16,26 +79,30 @@ package_file="$script_directory/package_file.txt"
 network_touch="$script_directory/network_touch.txt"
 
 poll_network() {
-    command -v nmcli &>/dev/null && network="🌐: $(nmcli device | awk '!/disconnected/&&/connected/ {print $4}') $(nmcli device wifi | awk '/\*/ {print $9}')" && [ $network = "🌐:" ] && network="🌐: NONE"
+    command -v nmcli &>/dev/null && network="🌐: $(nmcli device | awk '!/disconnected/&&/connected/ {print $4}') $(nmcli device wifi | awk '/\*/ {print $9}')" && [ "$network" = "🌐:" ] && network="🌐: NONE"
     echo "Current network: $network"
 }
 poll_battery() { 
-    python $dotfiles/dwm/poll_battery.py
+    eval "$(grep -E '(export dotfiles=|export src=)' "$HOME/.zshrc_extra")"
+    [ -v dotfiles ] && python "$dotfiles/dwm/poll_battery.py" 2>/dev/null
 }
 
 wireguard_poll() {
     wireguard_runner --query >/dev/null && echo " 🔒✅" || echo " 🔒❎"
 }
+docker_watch() {
+    echo " 🐳: $([ -e "$XDG_CACHE_DIR/dotfiles/dockerup.update" ] && wc -l "$XDG_CACHE_DIR/dotfiles/dockerup.update" | awk '{print $1}' || echo "0")"
+}
 
 async_poll_packages() {
-    checkupdates | wc -l > "$package_file"
+    (exec -a "async_poll_packages_dstatus" bash -c "checkupdates | wc -l > \"$package_file\"") &
 }
 
 poll_timew() {
     command -v timew > /dev/null || { echo "#"; return; }
     if timew > /dev/null; then
       duration=$(timew | grep Total | awk '{print $2}')
-      formatted_duration=$(echo $duration | cut -d: -f1,2)
+      formatted_duration="$(echo "$duration" | cut -d: -f1,2)"
       echo "$formatted_duration"
     else
       echo "#"
@@ -102,14 +169,15 @@ try_notify() {
     fi
 }
 
-try_internet_connection() {
-    ping -c 1 cia.gov >/dev/null 2>&1
-    
-    if [ $? -eq 0 ]; then
-        echo "yes" > "$network_touch"
-    else
-        echo "no" > "$network_touch"
-    fi
+async_check_internet() {
+    (exec -a "async_check_internet_dstatus" bash -c "
+        ping -c 1 cia.gov >/dev/null 2>&1
+        if [ \$? -eq 0 ]; then
+            echo \"yes\" > \"$network_touch\"
+        else
+            echo \"no\" > \"$network_touch\"
+        fi
+    ") &
 }
 
 [ -f "$package_file" ] && rm "$package_file"  # Clean up the shared data file
@@ -120,14 +188,15 @@ battery=""
 #network="$(poll_network)"
 network=""
 packages="?"
-async_poll_packages &
-try_internet_connection &
+async_poll_packages
+async_check_internet
 timedata=""
 timew_timer="$(poll_timew)"
 internet="?"
 
 counter=0
 eval "$(grep 'export dotfiles_tag' "$HOME/.zprofile")"
+[ -z "$dotfiles_tag" ] && echo "dotfiles_tag envar is not set in .zprofile?"
 
 while true; do
     case "$dotfiles_tag" in 
@@ -135,7 +204,7 @@ while true; do
                     OPT=" $(poll_battery)"
                     ;;
         pc) 
-                    OPT="$(docker_watch wireguard_poll)"
+            OPT="$(docker_watch)$(wireguard_poll)"
                     ;;
         *)  
                     OPT=" NO TAG"
@@ -156,11 +225,11 @@ while true; do
 
 	if (( counter % 4 == 0 )); then
 		try_notify
-        try_internet_connection &
+        async_check_internet
 	fi
     counter=$((counter+1))
 
-    [ $(date +%M) -eq "0" ] && async_poll_packages &
+    [ "$(date +%M)" -eq "0" ] && async_poll_packages
 
 
     if [ -f "$network_touch" ]; then
@@ -177,7 +246,7 @@ while true; do
 
     if [ -f "$package_file" ]; then
         package_file_contents="$(<"$package_file")"
-        if [ ! -z "$package_file_contents" ]; then
+        if [ -n "$package_file_contents" ]; then
             packages=$package_file_contents
             rm "$package_file"  # Clean up the shared data file
         fi
