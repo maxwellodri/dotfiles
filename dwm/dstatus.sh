@@ -91,7 +91,7 @@ wireguard_poll() {
     wireguard_runner --query >/dev/null && echo " 🔒✅" || echo " 🔒❎"
 }
 docker_watch() {
-    echo " 🐳: $([ -e "$XDG_CACHE_DIR/dotfiles/dockerup.update" ] && wc -l "$XDG_CACHE_DIR/dotfiles/dockerup.update" | awk '{print $1}' || echo "0")"
+    echo " 🐳: $([ -e "$XDG_CACHE_DIR/dotfiles/dockerup.update" ] && wc -l "$XDG_CACHE_DIR/dotfiles/dockerup.update" | awk '{print $1}' || echo "0")|$(docker ps | tail -n +2 | wc -l)"
 }
 
 async_poll_packages() {
