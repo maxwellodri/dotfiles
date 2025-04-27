@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# Display help and exit if requested
+if [[ "$1" == "--help" ]]; then
+  echo "Usage: $(basename "$0") DIRECTORY [EXTENSIONS...]"
+  echo ""
+  echo "Searches for text files in the specified directory and prints them with a header."
+  echo ""
+  echo "Arguments:"
+  echo "  DIRECTORY   Directory to search in"
+  echo "  EXTENSIONS  File extensions to include (without the dot)"
+  echo "              Use 'noext' for files with no extension"
+  echo "              If no extensions are specified, all text files will be included"
+  echo ""
+  echo "Examples:"
+  echo "  $(basename "$0") /path/to/dir sh py     # Only .sh and .py files"
+  echo "  $(basename "$0") \$PWD sh rs noext      # .sh, .rs and files with no extension"
+  echo "  $(basename "$0") \$PWD                  # All text files"
+  exit 0
+fi
+
+# Check if directory is provided
+if [ -z "$1" ]; then
+  echo "Error: No directory specified"
+  echo "Use --help for usage information"
+  exit 1
+fi
+
+# Set directory to search
+search_dir="$1"
+shift
+
+# Debug: Print what we're searching for
+echo "Searching in directory: $search_dir" >&2
+
+# If no extensions are provided, find all text files
+if [ $# -eq 0 ]; then
+  echo "Finding all text files..." >&2
+  fd --type file --base-directory "$search_dir" | while read -r file; do
+    full_path="$search_dir/$file"
+    if file -b "$full_path" | grep -i -q "text\|ascii\|empty\|script"; then
+      echo "#$file"
+      cat "$full_path"
+      echo ""
+    fi
+  done
+  exit 0
+fi
+
+# Handle specific extensions
+echo "Finding files with extensions: $*" >&2
+
+for ext in "$@"; do
+  if [ "$ext" == "noext" ]; then
+    echo "Looking for files without extension..." >&2
+    fd --type file --regex '^[^.]+$' --base-directory "$search_dir" | while read -r file; do
+      full_path="$search_dir/$file"
+      if file -b "$full_path" | grep -i -q "text\|ascii\|empty\|script"; then
+        echo "#$file"
+        cat "$full_path"
+        echo ""
+      fi
+    done
+  else
+    echo "Looking for .$ext files..." >&2
+    fd --type file -e "$ext" --base-directory "$search_dir" | while read -r file; do
+      full_path="$search_dir/$file"
+      if file -b "$full_path" | grep -i -q "text\|ascii\|empty\|script"; then
+        echo "#$file"
+        cat "$full_path"
+        echo ""
+      fi
+    done
+  fi
+done
