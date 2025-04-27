@@ -72,8 +72,8 @@ let &packpath=&runtimepath
     " ============ "
     " Rust Support "
     " ============ "
-    "Plug 'rust-lang/rust.vim'
-    "Plug 'arzg/vim-rust-syntax-ext'
+    Plug 'rust-lang/rust.vim'
+    Plug 'arzg/vim-rust-syntax-ext'
     Plug 'saecki/crates.nvim'
     "Plug 'simrat39/rust-tools.nvim'
     Plug 'mrcjkb/rustaceanvim', { 'tag': 'v6.0.2'}
@@ -314,6 +314,7 @@ let &packpath=&runtimepath
     
     autocmd Filetype rust nnoremap <leader>ds :call CdSrcDir()<CR>
     autocmd Filetype rust nnoremap <leader>dS :call CdParent()<CR>
+    let g:rustfmt_autosave = 1
 " terminal:
     command! Sterm silent execute '!nohup st -d' expand('%:p:h') '> /dev/null 2>&1 &'
     nnoremap <S-CR> :Sterm<CR>

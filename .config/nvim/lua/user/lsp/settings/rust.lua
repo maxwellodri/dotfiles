@@ -1,17 +1,17 @@
 local M = {}
 M.setup = function (opts)
   -- Autoformat Rust files on save using rustfmt
-  vim.api.nvim_create_autocmd("BufWritePre", {
-    pattern = "*.rs",
-    callback = function()
-      -- Save cursor position before formatting
-      local cursor_pos = vim.api.nvim_win_get_cursor(0)
-      -- Run rustfmt on the current buffer
-      vim.cmd('%!rustfmt')
-      -- Restore cursor position after formatting
-      vim.api.nvim_win_set_cursor(0, cursor_pos)
-    end
-  })
+  -- vim.api.nvim_create_autocmd("BufWritePre", {
+  --   pattern = "*.rs",
+  --   callback = function()
+  --     -- Save cursor position before formatting
+  --     local cursor_pos = vim.api.nvim_win_get_cursor(0)
+  --     -- Run rustfmt on the current buffer
+  --     vim.cmd('%!rustfmt 2>/dev/null >/dev/null')
+  --     -- Restore cursor position after formatting
+  --     vim.api.nvim_win_set_cursor(0, cursor_pos)
+  --   end
+  -- })
   vim.g.rustaceanvim = {
     tools = {
       open_url = function(url)
