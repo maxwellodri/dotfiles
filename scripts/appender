@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# Get clipboard content
+CLIP_CONTENT=$(xclip -sel clip -o)
+
+# Check if clipboard is not empty
+if [ -n "$CLIP_CONTENT" ]; then
+    # Check if content already exists in the file
+    if ! grep -Fxq "$CLIP_CONTENT" ~/tempfile; then
+        # Append to file
+        echo "$CLIP_CONTENT" >> ~/tempfile
+        notify-send -t 400 "Appended ✅"
+    else
+        notify-send -t 400 "Content already exists ❌"
+    fi
+else
+    notify-send -t 400 "Clipboard empty ⁉"
+fi
