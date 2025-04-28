@@ -62,7 +62,7 @@ for ext in "$@"; do
       fi
     done
   else
-    echo "Looking for .$ext files..." >&2
+    echo "Looking for $ext files..." >&2
     fd --type file -e "$ext" --base-directory "$search_dir" | while read -r file; do
       full_path="$search_dir/$file"
       if file -b "$full_path" | grep -i -q "text\|ascii\|empty\|script"; then
