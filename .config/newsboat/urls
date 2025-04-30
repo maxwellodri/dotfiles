@@ -1,4 +1,5 @@
 "---CONTENT---"
+https://bevyengine.org/atom.xml "Bevy" "Rust" ~Bevy" keep-articles-days 30
 https://www.archlinux.org/feeds/news/ "Linux" "ArchLinux" "~Arch Linux News" keep-articles-days 30
 https://www.youtube.com/feeds/videos.xml?channel_id=UC2eYFnH61tmytImy1mTYvhA "YT" "LukeSmith" "Tech" "Linux" "Politics" "~Luke Smith" keep-articles-days 30
 https://www.youtube.com/feeds/videos.xml?channel_id=UChl_NKOs1qqh_x7yJfaDpDw "YT" "Tech" "GameDev" "Gaming" "~Tantan" keep-articles-days 30
