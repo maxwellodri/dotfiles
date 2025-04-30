@@ -7,20 +7,41 @@ import json
 
 def rust_docs(query):
     if len(query) > 0:
-        return f"https://docs.rs/{query[0]}/latest"
+        search_term = " ".join(query)
+        if "::" in search_term:
+            if "?" in search_term: # ? makes search be an actual search
+                return f"https://docs.rs/{search_term}"
+            else:
+                # without ? in search then look for exact:
+                return f"https://docs.rs/{search_term}?go_to_first=true"
+                
+        else:
+            if len(query) > 1:
+                # First argument is the crate, rest is search term
+                crate_name = query[0]
+                search_terms = "+".join(query[1:])
+                return f"https://docs.rs/{crate_name}/latest/?search={search_terms}"
+            else:
+                # Just a crate name
+                return f"https://docs.rs/{query[0]}/latest/"
     else:
         return "https://docs.rs/"
 
-def bevy(query):
-    if len(query) > 0:
-        search_term = "+".join(query)
-        return f"https://docs.rs/bevy/latest/bevy/?search={search_term}"
-    else:
-        return "https://docs.rs/bevy/latest/bevy"
+#def bevy(query):
+#    if len(query) > 0:
+#        search_term = " ".join(query)
+#        if "::" in search_term and "?" not in search_term:
+#            return f"https://docs.rs/bevy::{search_term}?go_to_first=true"
+#        else:
+#            search_term = "+".join(query)
+#            return f"https://docs.rs/bevy/latest/bevy/?search={search_term}"
+#    else:
+#        return "https://docs.rs/bevy/latest/bevy"
+
 local_bangs = {
     "!oni": "https://oxygennotincluded.wiki.gg/index.php?search=",
     "!docs": rust_docs,
-    "!bevy": bevy,
+    #"!bevy": bevy,
 }
 
 class ParsedArgs:
