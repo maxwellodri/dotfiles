@@ -1,5 +1,5 @@
-lua vim.deprecate = function() end
 set runtimepath^=~/.vim runtimepath+=~/.vim/after
+lua vim.deprecate = function() end
 runtime! expand('$HOME') + '/.config/nvim/plugin'
 let g:polyglot_disabled = ['rust']
 "vim.g.rust_rustfmt_options = ''
