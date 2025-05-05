@@ -201,7 +201,7 @@ eval "$(grep 'export dotfiles_tag' "$HOME/.zprofile")"
 while true; do
     case "$dotfiles_tag" in 
         hackerman)
-                    OPT=" $(poll_battery)"
+            OPT="$(docker_watch) $(poll_battery)"
                     ;;
         pc) 
             OPT="$(docker_watch)$(wireguard_poll)"
