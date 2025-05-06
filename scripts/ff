@@ -1,29 +1,27 @@
 #!/usr/bin/env python3
-
 import sys
 import subprocess
 import json
-
+import os
+import urllib.parse
 
 def rust_docs(query):
     if len(query) > 0:
         search_term = " ".join(query)
         if "::" in search_term:
-            if "?" in search_term: # ? makes search be an actual search
-                return f"https://docs.rs/{search_term}"
+            if "~" in search_term: #~ changes it to be search rather than exact
+                clean_search_term = search_term.replace("~", "")
+                return f"https://docs.rs/{urllib.parse.quote(clean_search_term)}"
             else:
-                # without ? in search then look for exact:
-                return f"https://docs.rs/{search_term}?go_to_first=true"
-                
+                return f"https://docs.rs/{urllib.parse.quote(search_term)}?go_to_first=true"
         else:
             if len(query) > 1:
-                # First argument is the crate, rest is search term
                 crate_name = query[0]
-                search_terms = "+".join(query[1:])
-                return f"https://docs.rs/{crate_name}/latest/?search={search_terms}"
+                search_terms = " ".join(query[1:])
+                return f"https://docs.rs/{urllib.parse.quote(crate_name)}/latest/?search={urllib.parse.quote_plus(search_terms)}"
             else:
-                # Just a crate name
-                return f"https://docs.rs/{query[0]}/latest/"
+                # Just crate
+                return f"https://docs.rs/{urllib.parse.quote(query[0])}/latest/"
     else:
         return "https://docs.rs/"
 
@@ -33,30 +31,34 @@ local_bangs = {
 }
 
 class ParsedArgs:
-    def __init__(self, bang, search):
+    def __init__(self, bang, search, new_tab):
         self.bang = bang
         self.search = search
+        self.new_tab = new_tab
 
 def parse_arguments(args):
     bang = None
     search = []
+    new_tab = True  
     for arg in args:
-        if arg.startswith("!") and bang is None:
-            bang = arg
+        if bang == "!":
+            new_tab = False
         else:
             search.append(arg)
-    return ParsedArgs(bang, search)
+            
+    return ParsedArgs(bang, search, new_tab)
 
 def search_local_bangs(parsed_args):
-    if parsed_args.bang in local_bangs:
-        data = local_bangs[parsed_args.bang]
+    bang_key = parsed_args.bang
+    if bang_key.startswith("\\"):
+        bang_key = bang_key[1:]
+    if bang_key in local_bangs:
+        data = local_bangs[bang_key]
         if isinstance(data, str):
             base_url = data
             query = "+".join(parsed_args.search)
-            final_url = f"{base_url}{query}"
-            print(final_url)
+            final_url = f"{base_url}{urllib.parse.quote_plus(query)}"
         else:
-            print(parsed_args.search, data)
             final_url = data(parsed_args.search)
         print(final_url)
         return final_url
@@ -64,10 +66,11 @@ def search_local_bangs(parsed_args):
 
 def search_duckduckgo(parsed_args):
     query = parsed_args.bang + " " + " ".join(parsed_args.search) if parsed_args.bang else " ".join(parsed_args.search)
-    query = query.replace(" ", "+")
-    return f"https://duckduckgo.com/?q={query}"
+    return f"https://duckduckgo.com/?q={urllib.parse.quote_plus(query)}"
 
 def open_bookmarks_as_json(bookmarks_file, parsed_args):
+    if not parsed_args.search:
+        return None
     try:
         with open(bookmarks_file, "r") as f:
             bookmarks_str = f.read()
@@ -87,35 +90,54 @@ def open_bookmarks_as_json(bookmarks_file, parsed_args):
     else:
         return None
 
-web_bookmarks_path = "/home/maxwell/bin/web_bookmarks.json" # Path to bookmarks file 
+fallback_web_bookmarks_path = "/home/maxwell/bin/web_bookmarks.json"
 
 def main():
     if len(sys.argv) == 1:
         subprocess.run(["firefox", "-new-tab"])
         return
     
-    parsed_args = parse_arguments(sys.argv[1:])
+    # Print args for debugging
+    print(f"Debug - Arguments received: {sys.argv[1:]}")
     
-    # Check for single bang "!" to open Firefox in a new window
-    if parsed_args.bang == "!":
-        subprocess.run(["firefox"])
+    parsed_args = parse_arguments(sys.argv[1:])
+    print(f"Debug - Parsed: Bang={parsed_args.bang}, Search={parsed_args.search}, NewTab={parsed_args.new_tab}")
+    
+    # For standalone bang "!" with no search terms, just open Firefox in a new window
+    if parsed_args.bang == "!" and not parsed_args.search:
+        subprocess.run(["firefox", "-new-window"])
         return
     
     url = None
     if parsed_args.bang is not None:
         url = search_local_bangs(parsed_args)
     
-    # If no local bang is found, proceed to search DuckDuckGo
+    # If no local bang is found, proceed to search
     if url is None:
         if parsed_args.bang:
             url = search_duckduckgo(parsed_args)
         else:
+            bin_path = os.environ.get('BIN')
+            if bin_path:
+                web_bookmarks_path = os.path.join(bin_path, "web_bookmarks.json")
+            else:
+                web_bookmarks_path = fallback_web_bookmarks_path
+            
             url = open_bookmarks_as_json(web_bookmarks_path, parsed_args)
     
     if url is None:
+        # If we still don't have a URL and there are no search terms,
+        # just open a new tab/window based on the new_tab flag
+        if not parsed_args.search:
+            firefox_flag = "-new-tab" if parsed_args.new_tab else "-new-window"
+            subprocess.run(["firefox", firefox_flag])
+            return
+        # Otherwise, search DuckDuckGo
         url = search_duckduckgo(parsed_args)
     
-    subprocess.run(["firefox", "-new-tab", url])
+    # Use either -new-tab or -new-window based on the new_tab flag
+    firefox_flag = "-new-tab" if parsed_args.new_tab else "-new-window"
+    subprocess.run(["firefox", firefox_flag, url])
 
 if __name__ == "__main__":
     main()
