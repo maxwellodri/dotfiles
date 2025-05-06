@@ -225,7 +225,7 @@ let &packpath=&runtimepath
     autocmd Filetype lua set tabstop=2
     autocmd Filetype lua set shiftwidth=2
 " CSV Options
-    autocmd BufWritePre *.csv RainbowAlign
+    autocmd BufWritePre *.csv silent! RainbowAlign
 
  " Python Options
     autocmd Filetype python set tabstop=4 
