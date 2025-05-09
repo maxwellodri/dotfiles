@@ -40,10 +40,6 @@ is_url_already_queued() {
     return $?
 }
 
-if ! validate_url_format "$url"; then
-    exit 1
-fi
-
 if is_url_already_queued "$url"; then
     notify-send "URL already queued: $url"
     log "Skipped adding duplicate URL to queue: $url"
