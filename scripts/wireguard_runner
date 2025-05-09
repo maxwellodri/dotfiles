@@ -5,12 +5,6 @@ if ! pacman -Qi wireguard-tools >/dev/null 2>&1; then
     exit 0
 fi
 
-update_status_bar() {
-    if [ -n "$dotfiles" ] && [ -x "$dotfiles/dwm/dstatus.sh" ]; then
-        "$dotfiles/dwm/dstatus.sh" --update
-    fi
-}
-
 # Handle query mode
 if [ "$1" = "--query" ]; then
    if systemctl is-active --quiet wg-quick@wg0; then
@@ -27,7 +21,6 @@ if systemctl is-active --quiet wg-quick@wg0; then
     sudo systemctl stop wg-quick@wg0
     if ! systemctl is-active --quiet wg-quick@wg0; then
         notify-send -r 9901 -i network-vpn "WireGuard disconnected"
-        #update_status_bar
     else
         notify-send -r 9901 -i network-vpn-offline "WireGuard failed to disconnect" "Check system logs for details"
     fi
@@ -35,7 +28,6 @@ else
     sudo systemctl start wg-quick@wg0
     if systemctl is-active --quiet wg-quick@wg0; then
         notify-send -r 9901 -i network-vpn "WireGuard connected"
-        #update_status_bar
     else
         notify-send -r 9901 -i network-vpn-error "WireGuard failed to connect" "Check system logs for details"
     fi
