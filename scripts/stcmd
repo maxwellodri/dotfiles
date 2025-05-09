@@ -1,13 +1,28 @@
 #!/bin/bash
+TEMP_SCRIPT=$(mktemp -t stcmd.XXXXXX)
 
-# Get the command from arguments
-CMD="$@"
+cat << EOF > "$TEMP_SCRIPT"
+if [ -f ~/.zshrc ]; then
+  source ~/.zshrc >/dev/null 2>&1
+fi
+set -o noglob
+
+cmd="\$*"
+print -P "\$PS1\$cmd"
+eval "\$cmd"
+
+exec zsh -i
+EOF
 
 # Check if a command was provided
-if [ -z "$CMD" ]; then
+if [ -z "$*" ]; then
   echo "Usage: $(basename "$0") <command>"
+  rm "$TEMP_SCRIPT"
   exit 1
 fi
 
-# Run st with setsid, detached from parent process with all outputs redirected to /dev/null
-(setsid -f st -e zsh -c "source ~/.zshrc >/dev/null 2>&1; cmd=\"$CMD\"; print -P \"\$PS1\$cmd\"; $CMD; exec zsh -i") >/dev/null 2>&1
+chmod +x "$TEMP_SCRIPT"
+
+(setsid -f st -e zsh "$TEMP_SCRIPT" "$@") >/dev/null 2>&1
+sleep 0.2
+rm "$TEMP_SCRIPT"

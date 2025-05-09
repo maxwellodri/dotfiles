@@ -1,0 +1,62 @@
+#!/bin/bash
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
+}
+
+
+VIDEO_DIR="$HOME/Videos/youtube"
+LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles"
+LOG_FILE="$LOG_DIR/_tsp_download_video.log"
+VIDEO_PATH_TEMPLATE="$VIDEO_DIR/%(title)s-%(id)s.%(ext)s"
+
+mkdir -p "$VIDEO_DIR"
+mkdir -p "$LOG_DIR"
+url="$1"
+
+if [ -z "$url" ]; then
+    notify-send "Error: No URL provided"
+    exit 1
+fi
+
+filename="$(yt-dlp --print filename --restrict-filename "$url" -o "$VIDEO_PATH_TEMPLATE")"
+get_filename_status=$?
+
+
+if [ $get_filename_status -ne 0 ]; then
+    log "ERROR: Failed to get filename for $url (exit code: $get_filename_status)"
+    notify-send "Download failed: Could not resolve video info"
+    exit $get_filename_status
+fi
+
+if [ -z "$filename" ]; then
+    log "ERROR: Empty filename returned for $url"
+    notify-send "Download failed: Empty filename returned"
+    exit 1
+fi
+
+is_url_already_queued() {
+    local url="$1"
+    tsp -l | grep -q "yt-dlp: $url"
+    return $?
+}
+
+if ! validate_url_format "$url"; then
+    exit 1
+fi
+
+if is_url_already_queued "$url"; then
+    notify-send "URL already queued: $url"
+    log "Skipped adding duplicate URL to queue: $url"
+    exit 0
+fi
+
+tsp -L "yt-dlp: $url -> $filename" "TSP_YTDLP=1 $bin/_tsp_download_video_helper" "$url"
+tsp_exit_code="$?"
+if [ $tsp_exit_code -ne 0 ]; then
+    log "ERROR: Failed to queue download. TSP exit code: $tsp_exit_code"
+    notify-send "Error: Failed to queue download"
+    exit "$tsp_exit_code"
+else
+    log "Successfully queued download for: $url -> $filename"
+    notify-send "Download queued: $url -> $filename"
+fi

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#notify-send "$@"
+
 handle_magnet_link() {
     pgrep -f transmission-daemon > /dev/null || (transmission-daemon --no-auth && notify-send "Starting transmission daemon...")
     BEFORE_ADD=$(transmission-remote -l | awk 'NR>1 {print $1}' | tr -d '*')
@@ -16,24 +18,27 @@ handle_magnet_link() {
 }
 
 handle_url() {
-    CHOICE=$(echo -e "Open in Firefox (new tab)\nOpen in Firefox (default)\nDownload with yt-dlp\nDownload with gallery-dl\nAdd as feed" | dmenu -i -p "Choose how to open URL:")
+    CHOICE=$(echo -e "Open in Firefox Tab\nOpen in New Firefox Window\nDownload with yt-dlp using tsp (tsp_ytdlp)\nDownload with gallery-dl\nAdd as feed\nWatch as video in mpv" | dmenu -i -p "Choose how to open URL:")
 
     case "$CHOICE" in
-        "Open in Firefox (default)")
-            firefox "$1" &
+        "Open in New Firefox Window")
+            firefox --new-window "$1" &
             ;;
-        "Open in Firefox (new tab)")
+        "Open in Firefox Tab")
             firefox --new-tab "$1" &
             ;;
-
-        "Download with yt-dlp")
-            stcmd "yt-dlp --restrict-filenames --abort-on-unavailable-fragment --trim-filenames 225 -o '~/Downloads/ytdlp/%(title)s.%(ext)s' \"$1\""
+        "Download with yt-dlp using tsp (tsp_ytdlp)")
+            #stcmd "yt-dlp --restrict-filenames --abort-on-unavailable-fragment --trim-filenames 225 -o '~/Downloads/ytdlp/%(title)s.%(ext)s' \"$1\""
+            tsp_ytdlp "$1"
             ;;
         "Download with gallery-dl")
-            stcmd 'gallery-dl '$1''
+            stcmd "gallery-dl $1"
             ;;
         "Add as feed")
             handle_feed "$1"
+            ;;
+        "Watch as video in mpv")
+            stcmd "mpv $1"
             ;;
         *)
             notify-send "No valid option selected (url)."
@@ -43,7 +48,8 @@ handle_url() {
 
 handle_feed() {
     local url="$1"
-    local line_num=$(grep -F -n "$url" ~/.config/newsboat/urls | cut -d':' -f1)
+    local line_num=""
+    line_num=$(grep -F -n "$url" ~/.config/newsboat/urls | cut -d':' -f1)
     if [ -n "$line_num" ]; then
         notify-send "Feed already exists in newsboat: $url" "Found on line $line_num"
         return 0

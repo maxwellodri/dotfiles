@@ -12,7 +12,6 @@ https://www.youtube.com/feeds/videos.xml?channel_id=UCy0tKL1T7wFoYcxCe0xjN6Q "YT
 https://gamefromscratch.com/feed/ "Programming" ~GamesFromScratch" keep-articles-days 30
 https://suckless.org/atom.xml "Linux" "Suckless" "~Suckless News" keep-articles-days 30
 https://lukesmith.xyz/rss.xml "Linux" "Blog" "LukeSmith" "~Luke Smith" keep-articles-days 30
-https://www.youtube.com/feeds/videos.xml?channel_id=UCld68syR8Wi-GY_n4CaoJGA "YT" "Tech" "Linux" "~Brodie Robertson" keep-articles-days 30
 https://www.youtube.com/feeds/videos.xml?channel_id=UC_iD0xppBwwsrM9DegC5cQQ "YT" "Tech" "Linux" "Rust" "~Jon Gjengset" keep-articles-days 30
 https://www.youtube.com/feeds/videos.xml?channel_id=UC-8QAzbLcRglXeN_MY9blyw "YT" "Tech" "Web" "~Ben Award" keep-articles-days 30
 https://www.youtube.com/feeds/videos.xml?channel_id=UC7YOGHUfC1Tb6E4pudI9STA "YT" "Linux" "Tech" "~MentalOutlaw" keep-articles-days 30
@@ -24,6 +23,13 @@ https://www.youtube.com/feeds/videos.xml?channel_id=UC6Ju_W7Dy6sYNnyvKvpnvPA "Ga
 https://www.youtube.com/feeds/videos.xml?channel_id=UCCF6pCTGMKdo9r_kFQS-H3Q "Gaming" ~Grubby" keep-articles-days 30
 https://www.youtube.com/feeds/videos.xml?channel_id=UCAVDwXONJY40wl1spxVAm0A "Gaming" ~Lionheart Aoe3" keep-articles-days 30
 " "
+"---Regular __CONTENT__---"
+https://www.youtube.com/feeds/videos.xml?channel_id=UCld68syR8Wi-GY_n4CaoJGA "YT" "Tech" "Linux" "~Brodie Robertson" keep-articles-days 30
+https://www.youtube.com/feeds/videos.xml?channel_id=UCUyeluBRhGPCW4rPe_UvBZQ "YT" "Tech" "~ThePrimetimeagen" keep-articles-days 30
+https://www.youtube.com/feeds/videos.xml?channel_id=UCbRP3c757lWg9M-U7TyEkXA "YT" "Tech" "~Theo T3" keep-articles-days 30
+https://www.youtube.com/feeds/videos.xml?channel_id=UChk6TQce1EJMn6_liKdHDog "YT" "Tech" "~Primagen Clips "keep-articles-days 30
+https://www.youtube.com/feeds/videos.xml?channel_id=UCVk4b-svNJoeytrrlOixebQ "YT" "Tech" "~TheVimeagen" keep-articles-days 30
+https://www.youtube.com/feeds/videos.xml?channel_id=UC8ENHE5xdFSwx71u3fDH5Xw "YT" "Tech" "~ThePrimeagen" keep-articles-days 30
 "---Rust---"
 https://blog.rust-lang.org/feed.xml "Rust" "~Core Language" keep-articles-days 30
 https://blog.rust-lang.org/inside-rust/feed.xml "Rust" "~Inside Rust" keep-articles-days 30
