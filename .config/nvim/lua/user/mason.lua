@@ -63,8 +63,28 @@ local settings = {
     },
 }
 
+EnsureInstalled = {"vimls", "pyright", "bashls", "rust_analyzer" }
+AutomaticEnableExclude = { "rust_analyzer" }
+function GetAutoEnableServers()
+    -- Diff  of EnsureInstalled - AutomaticEnableExclude
+    local autoenableservers
+    for _, server in ipairs(EnsureInstalled) do
+        local should_include = true
+        for _, excluded in ipairs(AutomaticEnableExclude) do
+            if server == excluded then
+                should_include = false
+                break
+            end
+        end
+        if should_include then
+            table.insert(autoenableservers, server)
+        end
+    end
+    return autoenableservers
+end
 require("mason").setup(settings)
 require("mason-lspconfig").setup({
-    ensure_installed = { "rust_analyzer", "vimls", "pyright" } -- "wgsl-analyzer" }
+    ensure_installed =  EnsureInstalled,
+    automatic_enable = { exclude =  AutomaticEnableExclude },
 })
 

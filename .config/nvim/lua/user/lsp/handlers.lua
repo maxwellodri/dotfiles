@@ -3,32 +3,28 @@ local M = {}
 -- TODO: backfill this to template
 M.setup = function()
   local function goto_definition(split_cmd)
-      local util = vim.lsp.util
-      local log = require("vim.lsp.log")
-      local api = vim.api
-      local handler = function(_, result, ctx)
-          if result == nil or vim.tbl_isempty(result) then
-              local _ = log.info() and log.info(ctx.method, "No location found")
-              return nil
-          end
-          local client_id = ctx.client_id
-          local client = vim.lsp.get_client_by_id(client_id)
-          local offset_encoding = client and client.offset_encoding or "utf-8"  -- Fallback to 'utf-8' if not available
-          if split_cmd then
-              vim.cmd(split_cmd)
-          end
-          if vim.tbl_islist(result) then
-              util.jump_to_location(result[1], offset_encoding)
-              if #result > 1 then
-                  util.setqflist(util.locations_to_items(result, offset_encoding))
-                  api.nvim_command("copen")
-                  api.nvim_command("wincmd p")
-              end
-          else
-              util.jump_to_location(result, offset_encoding)
-          end
+    local util = vim.lsp.util
+    local log = require("vim.lsp.log")
+    local handler = function(_, result, ctx)
+      if result == nil or vim.tbl_isempty(result) then
+        local _ = log.info() and log.info(ctx.method, "No location found")
+        return nil
       end
-      return handler
+      local client_id = ctx.client_id
+      local client = vim.lsp.get_client_by_id(client_id)
+      local offset_encoding = client and client.offset_encoding or "utf-8"  -- Fallback to 'utf-8' if not available
+      if split_cmd then
+        vim.cmd(split_cmd)
+      end
+      if vim.tbl_islist(result) then
+        -- Just jump to the first result and don't open the quickfix list
+        util.jump_to_location(result[1], offset_encoding)
+        -- The quickfix list creation has been removed from here
+      else
+        util.jump_to_location(result, offset_encoding)
+      end
+    end
+    return handler
   end
   local signs = {
     { name = "DiagnosticSignError", text = "" },
@@ -63,12 +59,12 @@ M.setup = function()
 
   vim.diagnostic.config(config)
 
-  vim.lsp.handlers["textDocument/hover"] = vim.lsp.with(vim.lsp.handlers.hover, {
-    border = "rounded",
-  })
+  --vim.lsp.handlers["textDocument/hover"] = vim.lsp.with(vim.lsp.handlers.hover, {
+  --  border = "rounded",
+  --})
 
   vim.lsp.handlers["textDocument/signatureHelp"] = vim.lsp.with(vim.lsp.handlers.signature_help, {
-     border = "rounded",
+    border = "rounded",
   })
   vim.lsp.handlers["textDocument/definition"] = goto_definition('e')
 end
@@ -76,7 +72,7 @@ end
 local function lsp_highlight_document(client)
   -- Set autocommands conditional on server_capabilities
   if false then
-  -- if client.server_capabilities.documentHighlight then
+    -- if client.server_capabilities.documentHighlight then
     vim.api.nvim_exec(
       [[
       augroup lsp_document_highlight
@@ -90,23 +86,57 @@ local function lsp_highlight_document(client)
   end
 end
 
+local function first_only_on_list (options)
+  if options and options.items and #options.items > 0 then
+    -- Just take the first item and jump to it
+    local item = options.items[1]
+    vim.fn.setqflist({}, ' ', {items = {item}, title = options.title})
+    vim.cmd.cfirst()
+    -- Immediately close the quickfix list
+    vim.cmd.cclose()
+  end
+end
+
 local function lsp_keymaps(bufnr)
   local opts = { noremap = true, silent = true }
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "gD", "<cmd>lua vim.lsp.buf.declaration()<CR>", opts)
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "gd", ":w<CR>:exec 'vsplit +lua\\ vim.lsp.buf.definition()'<CR>", opts)
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "gi", ":w<CR><cmd>lua vim.lsp.buf.definition({})<CR>", opts)
+  --vim.api.nvim_buf_set_keymap(bufnr, "n", "gD", "<cmd>lua vim.lsp.buf.declaration()<CR>", opts)
+  vim.keymap.set("n", "gd", function()
+    vim.cmd('w')
+    vim.cmd('vsplit')
+    vim.lsp.buf.definition({ on_list = first_only_on_list })
+  end, { buffer = bufnr, desc = "Go to definition in vsplit", noremap = true, silent = true })
+
+  vim.keymap.set("n", "gi", function()
+    vim.cmd('w')
+    vim.lsp.buf.definition({ on_list = first_only_on_list })
+  end, { buffer = bufnr, desc = "Go to definition", noremap = true, silent = true })
+
   vim.api.nvim_buf_set_keymap(bufnr, "n", "<leader>K", "<cmd>lua vim.lsp.buf.hover()<CR>", opts)
+  vim.keymap.set("n", "<leader>K", vim.lsp.buf.hover, { buffer = bufnr, desc = "Show hover information", noremap = true, silent = true })
   vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>rn', '<cmd>lua vim.lsp.buf.rename()<CR>', opts)
-  -- vim.api.nvim_buf_set_keymap(bufnr, "n", "<C-k>", "<cmd>lua vim.lsp.buf.signature_help()<CR>", opts)
-  vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>gc', '<cmd>lua vim.lsp.buf.code_action()<CR>', opts)
+  vim.keymap.set('n', '<leader>gc', function()
+    vim.lsp.buf.code_action()
+  end, { buffer = bufnr, desc = "LSP Code Actions", noremap = true, silent = true })
   -- vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>gr', '<cmd>RustRunnables<CR>', opts)
-  -- vim.api.nvim_buf_set_keymap(bufnr, "n", "gr", "<cmd>lua vim.lsp.buf.references()<CR>", opts)
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "[d", '<cmd>lua vim.diagnostic.goto_prev({ border = "rounded" })<CR>', opts)
-  vim.api.nvim_buf_set_keymap(bufnr, "n", "]d", '<cmd>lua vim.diagnostic.goto_next({ border = "rounded" })<CR>', opts)
+  -- vim.api.nvim_buf_set_keymap(bufnr, "n", "[d", '<cmd>lua vim.diagnostic.goto_prev({ border = "rounded" })<CR>', opts)
+  -- vim.api.nvim_buf_set_keymap(bufnr, "n", "]d", '<cmd>lua vim.diagnostic.goto_next({ border = "rounded" })<CR>', opts)
   -- vim.api.nvim_buf_set_keymap(bufnr, "n", "<leader>q", "<cmd>lua vim.diagnostic.setloclist()<CR>", opts)
   -- vim.api.nvim_buf_set_keymap(bufnr, "n", "<leader>f", "<cmd>lua vim.diagnostic.open_float()<CR>", opts)
   -- vim.api.nvim_buf_set_keymap(bufnr, "n", "gi", "<cmd>lua vim.lsp.buf.definition()<CR><C-w>h:wq<CR>", opts)
   -- vim.api.nvim_buf_set_keymap(bufnr, "n", "gn", "<cmd>lua vim.lsp.buf.definition()<CR><C-w>T", opts)
+  -- vim.api.nvim_buf_set_keymap(bufnr, "n", "<C-k>", "<cmd>lua vim.lsp.buf.signature_help()<CR>", opts)
+  local telescope_builtin_ok, telescope_builtin = pcall(require, "telescope.builtin")
+  vim.keymap.set("n", "gr", function()
+    if telescope_builtin_ok then
+      telescope_builtin.lsp_references({
+        include_declaration = false,
+        show_line = true,
+        trim_text = true
+      })
+    else
+      vim.lsp.buf.references()
+    end
+  end, { buffer = bufnr, desc = "Find references (Telescope if available)", noremap = true, silent = true })
   vim.cmd [[ command! Format execute 'lua vim.lsp.buf.formatting()' ]]
 end
 M.on_attach = function(client, bufnr)

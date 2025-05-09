@@ -32,7 +32,6 @@ M.setup = function (opts)
         vim.fn.system("mkdir -p /tmp/rust-analyzer-check")
         vim.diagnostic.enable(bufnr)
         opts.on_attach(client, bufnr)
-
         vim.keymap.set("n", "<leader>M", function() vim.cmd("RustLsp expandMacro") end, { silent = true, desc = "Expand Macro" })
         vim.keymap.set("n", "J", function() vim.cmd("RustLsp joinLines") end, { silent = true, desc = "Join Lines" })
         vim.keymap.set("n", "<leader>gk", function() vim.cmd("RustLsp parentModule") end, { silent = true, desc = "Open Parent Module" })
@@ -54,7 +53,8 @@ M.setup = function (opts)
               enable = true,
             }
           },
-          checkOnSave = {
+          checkOnSave = true,
+          check = {
             command = "clippy",
             extraArgs={"--target-dir", "/tmp/rust-analyzer-check"},
             allTargets = false,

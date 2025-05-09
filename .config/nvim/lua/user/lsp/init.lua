@@ -7,20 +7,13 @@ Opts = {
 }
 require('user.lsp.settings.rust').setup(Opts)
 local lspconfig = require'lspconfig'
-
-require("mason-lspconfig").setup({
-  function (server_name)
-    lspconfig[server_name].setup {
-      on_attach = Opts.on_attach,
-      capabilities = Opts.capabilities,
-      config = Opts.config,
-    }
-  end,
-  ["rust_analyzer"] = function ()
-  end,
-})
-
-
+for _, server in ipairs(require('user.mason').GetAutoEnableServers()) do
+  lspconfig[server].setup {
+    on_attach = Opts.on_attach,
+    capabilities = Opts.capabilities,
+    config = Opts.config,
+  }
+end
 function GoNextIssue()
   -- Check if there are any errors in the buffer
   local all_errors = vim.diagnostic.get(nil, {
