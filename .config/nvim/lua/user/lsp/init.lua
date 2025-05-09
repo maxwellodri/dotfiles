@@ -7,7 +7,9 @@ Opts = {
 }
 require('user.lsp.settings.rust').setup(Opts)
 local lspconfig = require'lspconfig'
-for _, server in ipairs(require('user.mason').GetAutoEnableServers()) do
+local mason = require('user.lsp.mason')
+mason.setup()
+for _, server in ipairs(mason.get_auto_enable_servers()) do
   lspconfig[server].setup {
     on_attach = Opts.on_attach,
     capabilities = Opts.capabilities,

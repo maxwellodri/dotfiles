@@ -1,4 +1,5 @@
-local settings = {
+local M = {}
+M.settings = {
     ui = {
         -- Whether to automatically check for new versions when opening the :Mason window.
         check_outdated_packages_on_open = true,
@@ -63,14 +64,14 @@ local settings = {
     },
 }
 
-EnsureInstalled = {"vimls", "pyright", "bashls", "rust_analyzer" }
-AutomaticEnableExclude = { "rust_analyzer" }
-function GetAutoEnableServers()
-    -- Diff  of EnsureInstalled - AutomaticEnableExclude
-    local autoenableservers
-    for _, server in ipairs(EnsureInstalled) do
+M.ensure_installed_servers = {"vimls", "pyright", "bashls", "rust_analyzer" }
+M.automatic_enable_exclude_servers = { "rust_analyzer" }
+M.get_auto_enable_servers = function ()
+    -- Diff  of ensure_installed_servers - automatic_enable_exclude_servers
+    local autoenableservers = {}
+    for _, server in ipairs(M.ensure_installed_servers) do
         local should_include = true
-        for _, excluded in ipairs(AutomaticEnableExclude) do
+        for _, excluded in ipairs(M.automatic_enable_exclude_servers) do
             if server == excluded then
                 should_include = false
                 break
@@ -82,9 +83,12 @@ function GetAutoEnableServers()
     end
     return autoenableservers
 end
-require("mason").setup(settings)
-require("mason-lspconfig").setup({
-    ensure_installed =  EnsureInstalled,
-    automatic_enable = { exclude =  AutomaticEnableExclude },
-})
+M.setup = function()
+    require("mason").setup(M.settings)
+    require("mason-lspconfig").setup({
+        ensure_installed =  M.ensure_installed_servers,
+        automatic_enable = { exclude =  M.automatic_enable_exclude_servers },
+    })
 
+end
+return M

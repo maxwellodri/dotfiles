@@ -1,7 +1,6 @@
 require("user.utils")
 require("user.keybinds")
 require("user.font")
-require("user.mason")
 require("user.lsp")
 require('user.cmp').setup()
 require('user.null-ls').setup()
