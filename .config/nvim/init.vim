@@ -81,8 +81,8 @@ let &packpath=&runtimepath
     " =================
     " LSP / cmp / LuaSnip
     " =================
-    Plug 'williamboman/mason.nvim'
-    Plug 'williamboman/mason-lspconfig.nvim'
+    Plug 'mason-org/mason.nvim'
+    Plug 'mason-org/mason-lspconfig.nvim'
     Plug 'nvimtools/none-ls.nvim'
     Plug 'nvimtools/none-ls-extras.nvim'
     Plug 'neovim/nvim-lspconfig' 

@@ -8,7 +8,7 @@ Opts = {
 require('user.lsp.settings.rust').setup(Opts)
 local lspconfig = require'lspconfig'
 
-require("mason-lspconfig").setup_handlers({
+require("mason-lspconfig").setup({
   function (server_name)
     lspconfig[server_name].setup {
       on_attach = Opts.on_attach,
