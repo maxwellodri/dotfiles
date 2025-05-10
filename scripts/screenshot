@@ -1,4 +1,8 @@
 #!/bin/sh
+if [ -z "$dotfiles" ]; then 
+    notify-send "\$dotfiles not defined 👎" 
+    exit 1
+fi
 
 if [ "$1" != "selfexec" ]; then
     exec setsid "$0" selfexec "$@"
@@ -11,13 +15,16 @@ if [ -f "$LOCKFILE" ]; then
     rm -f "$LOCKFILE"
     shotgun - | xclip -t 'image/png' -selection clipboard
     notify-send -t 1000 "Screenshot Taken 📸"
-    setsid ffplay -nodisp -autoexit "$dotfiles/media/camera.ogg"
+    setsid ffplay -nodisp -autoexit "$dotfiles/media/camera.ogg" &
     exit 0
 else
     echo $$ > "$LOCKFILE"
     trap 'rm -f "$LOCKFILE"' EXIT
-    selection=$(hacksaw -f "-i %i -g %g")
-    shotgun "$selection" - | xclip -t 'image/png' -selection clipboard
+    #selection=$(hacksaw -f "%g")
+    selection="$(hacksaw -f "%i %g")"
+    window_id="$(echo "$selection" | cut -d' ' -f1)"
+    geometry="$(echo "$selection" | cut -d' ' -f2)"
+    shotgun -i "$window_id" -g "$geometry" - | xclip -t 'image/png' -selection clipboard
     rm -f "$LOCKFILE"
     exit 0
 fi
