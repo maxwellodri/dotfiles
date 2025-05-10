@@ -15,12 +15,12 @@ url="$1"
 
 
 if [ -z "$url" ]; then
-    notify-send "Error: No URL provided"
+    notify-send "Error: No URL provided 😠"
     exit 1
 fi
 
 if [[ ! "$url" =~ ^https?:// ]]; then
-    notify-send "Error: Not a URL - $url"
+    notify-send "Error: Not a URL - $url 👎👎"
     exit 1
 fi
 
@@ -31,7 +31,7 @@ is_url_already_queued() {
 }
 
 if is_url_already_queued "$url"; then
-    notify-send "URL already queued: $url"
+    notify-send "URL already queued: $url 🕺"
     log "Skipped adding duplicate URL to queue: $url"
     exit 0
 fi
@@ -40,9 +40,9 @@ tsp -L "yt-dlp: $url " env TSP_YTDLP=1 LOG_DIR="$LOG_DIR" LOG_FILE="$LOG_FILE" V
 tsp_exit_code="$?"
 if [ $tsp_exit_code -ne 0 ]; then
     log "ERROR: Failed to queue download. TSP exit code: $tsp_exit_code"
-    notify-send "Error: Failed to queue download"
+    notify-send -t 3000 "Error: Failed to queue download 🤯"
     exit "$tsp_exit_code"
 else
     log "Successfully queued tsp command for: $url, TSP exit code: $tsp_exit_code"
-    notify-send "Download queued: $url"
+    notify-send -t 3000 "Download queued: $url 😇"
 fi

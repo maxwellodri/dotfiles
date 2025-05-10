@@ -32,7 +32,7 @@ while true; do
             progress=$(echo "$line" | grep -o "[0-9]\+\.[0-9]\+%" | head -1)
             speed=$(echo "$line" | grep -o "[0-9]\+\.[0-9]\+[KMG]iB/s" | head -1)
             eta=$(echo "$line" | grep -o "ETA [0-9:]\+" | sed 's/ETA //')
-            update_progress "$url -> $filename" "$progress ($speed, ETA: $eta)"
+            update_progress "$url -> $VIDEO_DIR/$filename" "$progress ($speed, ETA: $eta)"
         fi
         if echo "$line" | grep -q "\[download\] Destination:"; then
             actual_file=${line#\[download\] Destination: }
@@ -54,6 +54,6 @@ while true; do
     fi
 done
 
-log "Download completed successfully: $url -> $filename"
-notify-send "Download completed successfully: $url -> $filename"
-update_progress "$url -> $filename" "COMPLETED"
+log "Download completed successfully: $url -> $VIDEO_DIR/$filename"
+notify-send -t 3000 "TSP download completed successfully: $filename 🤗"
+update_progress "$url -> $$VIDEO_DIR/$filename" "COMPLETED"
