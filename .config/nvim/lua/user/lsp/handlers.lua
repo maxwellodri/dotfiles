@@ -99,17 +99,26 @@ end
 
 local function lsp_keymaps(bufnr)
   local opts = { noremap = true, silent = true }
-  --vim.api.nvim_buf_set_keymap(bufnr, "n", "gD", "<cmd>lua vim.lsp.buf.declaration()<CR>", opts)
   vim.keymap.set("n", "gd", function()
     vim.cmd('w')
     vim.cmd('vsplit')
     vim.lsp.buf.definition({ on_list = first_only_on_list })
   end, { buffer = bufnr, desc = "Go to definition in vsplit", noremap = true, silent = true })
+  vim.keymap.set("n", "gD", function()
+    vim.cmd('w')
+    vim.cmd('vsplit')
+    vim.lsp.buf.type_definition({ on_list = first_only_on_list })
+  end, { buffer = bufnr, desc = "Go to type definition in vsplit", noremap = true, silent = true })
 
   vim.keymap.set("n", "gi", function()
     vim.cmd('w')
     vim.lsp.buf.definition({ on_list = first_only_on_list })
   end, { buffer = bufnr, desc = "Go to definition", noremap = true, silent = true })
+
+  vim.keymap.set("n", "gI", function()
+    vim.cmd('w')
+    vim.lsp.buf.type_definition({ on_list = first_only_on_list })
+  end, { buffer = bufnr, desc = "Go to type definition", noremap = true, silent = true })
 
   vim.api.nvim_buf_set_keymap(bufnr, "n", "<leader>K", "<cmd>lua vim.lsp.buf.hover()<CR>", opts)
   vim.keymap.set("n", "<leader>K", vim.lsp.buf.hover, { buffer = bufnr, desc = "Show hover information", noremap = true, silent = true })
