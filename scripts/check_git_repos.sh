@@ -1,53 +1,56 @@
 #!/bin/bash
-
-SOURCE_DIR=$SOURCE
-
 highlight_color="\033[1;32m" # Bright green
+giga_highlight_color="\033[1;35m" # Bright magenta (pink)
 reset_color="\033[0m"        # Reset to default
-
-highlighted_repos=("dwm" "slock" "st" "dotfiles" "dmenu" "private")
-
-is_highlighted_repo() {
-    for repo in "${highlighted_repos[@]}"; do
-        if [[ "$1" == *"$repo"* ]]; then
+important_repos=("dwm" "slock" "st" "dotfiles" "dmenu")
+giga_important_repos=("private" ".password-store")
+is_important_repo() {
+    for repo in "${important_repos[@]}"; do
+        if [[ "$1" == "$repo" ]]; then
             return 0
         fi
     done
     return 1
 }
-
-for dir in "$SOURCE_DIR"/*; do
-    [ -d "$dir" ] || continue
-
+is_giga_important_repo() {
+    for repo in "${giga_important_repos[@]}"; do
+        if [[ "$1" == "$repo" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+check_git_repo() {
+    local dir="$1"
     if [ -d "$dir/.git" ]; then
-        cd "$dir" || continue
-
+        cd "$dir" || return
+        local repo_name=""
         repo_name=$(basename "$dir")
-
-        if is_highlighted_repo "$repo_name"; then
+        local prefix=""
+        local suffix=""
+        if is_giga_important_repo "$repo_name"; then
+            prefix="${giga_highlight_color}"
+            suffix="${reset_color}"
+            git fetch
+        elif is_important_repo "$repo_name"; then
             prefix="${highlight_color}"
             suffix="${reset_color}"
             git fetch
-        else
-            prefix=""
-            suffix=""
         fi
 
         # Initialize message variables
-        message=""
+        local message=""
 
         # Check for uncommitted changes
-        if ! git diff --quiet || ! git diff --cached --quiet; then
+        if [ -n "$(git status --porcelain)" ]; then
             message="Uncommitted changes"
         fi
 
-        UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)
-
+        UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null)
         if [ -n "$UPSTREAM" ]; then
             LOCAL=$(git rev-parse @)
-            REMOTE=$(git rev-parse @{u})
-            BASE=$(git merge-base @ @{u})
-
+            REMOTE=$(git rev-parse '@{u}')
+            BASE=$(git merge-base @ '@{u}')
             if [ "$LOCAL" != "$REMOTE" ]; then
                 if [ "$LOCAL" = "$BASE" ]; then
                     if [ -n "$message" ]; then
@@ -73,4 +76,9 @@ for dir in "$SOURCE_DIR"/*; do
             echo -e "${prefix}Repository in $dir: $message.${suffix}"
         fi
     fi
+}
+for dir in "$SOURCE"/*; do
+    [ -d "$dir" ] || continue
+    check_git_repo "$dir"
 done
+check_git_repo "$HOME/.password-store"
