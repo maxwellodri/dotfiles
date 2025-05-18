@@ -1,0 +1,25 @@
+#!/bin/bash
+
+for cmd in xclip qrencode feh notify-send; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        echo "Error: $cmd is not installed" >&2
+        exit 1
+    fi
+done
+
+TEMP_QR_FILE=$(mktemp)
+trap 'rm -f "$TEMP_QR_FILE"' EXIT
+
+CLIPBOARD_CONTENT=$(xclip -selection clipboard -o)
+
+if [ -z "$CLIPBOARD_CONTENT" ]; then
+    notify-send "Clipboard is empty 🥺👉👈" 
+    exit 1
+fi
+
+
+if ! echo "$CLIPBOARD_CONTENT" | qrencode -o "$TEMP_QR_FILE"; then
+    notify-send "Error: Failed to encode QR code 😠"
+    exit 3
+fi
+feh "$TEMP_QR_FILE"
