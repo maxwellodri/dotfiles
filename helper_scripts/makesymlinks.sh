@@ -20,6 +20,7 @@ tmux=.tmux.conf
 gpg=.gnupg/gpg-agent.conf
 emacs=".emacs.d/init.el"
 mpd=" .config/mpd/mpd.conf"
+nix=" .config/nix/nix.conf"
 vimpc=" .config/vimpc/vimpcrc"
 bsp=".config/bspwm/bspwmrc .config/bspwm/terminals .config/bspwm/swallow .config/bspwm/noswallow"
 sxhkdconfig=.config/sxhkd/sxhkdrc
@@ -39,8 +40,8 @@ zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam"
 files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $gitconfig $npm .config/systemd/"
 
 ########### 
-pcfiles=" $xfiles $zsh $mpv $mpd $vimpc" #platform specific dotfiles
-hackermanfiles=" $xfiles $zsh $mpv"
+pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix" #platform specific dotfiles
+hackermanfiles=" $xfiles $zsh $mpv $nix"
 
 ##########
 
