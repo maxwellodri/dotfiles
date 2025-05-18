@@ -29,7 +29,7 @@ super + shift + b
 super + End
     /home/maxwell/bin/interactive_bookmarks.sh
 
-super + shift + q
+super + shift + Escape
 	set_kb_map && notify-send -t 1000 "Correctly Set Capslock => Escape 😍"
 super + shift + w
     $bin/wireguard_runner
@@ -39,6 +39,8 @@ super + shift + t
 	text_handler.sh
 super + shift + s
     screenshot
+super + shift + q
+    as_qr
 super + shift + o
     xdotool mousemove 2200 1000 && sleep 0.1 && xdotool mousemove 2250 1050 && sleep 0.1 && xdotool mousemove 2300 && 1000
 
