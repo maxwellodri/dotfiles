@@ -95,7 +95,13 @@ docker_watch() {
 }
 
 async_poll_packages() {
-    (exec -a "async_poll_packages_dstatus" bash -c "checkupdates | wc -l > \"$package_file\"") &
+    current_time=$(date +%s)
+    if [ ! -f "$package_file" ] || [ $((current_time - $(stat -c %Y "$package_file" 2>/dev/null || echo 0))) -gt 180 ]; then
+        touch "$package_file" 
+        (exec -a "async_poll_packages_dstatus" bash -c "checkupdates | wc -l > \"$package_file\"") &
+    else
+        return
+    fi
 }
 
 poll_timew() {
@@ -180,7 +186,6 @@ async_check_internet() {
     ") &
 }
 
-[ -f "$package_file" ] && rm "$package_file"  # Clean up the shared data file
 [ -f "$network_touch" ] && rm "$network_touch"
 
 #battery="$(poll_battery)"
@@ -230,6 +235,10 @@ while true; do
     counter=$((counter+1))
 
     [ "$(date +%M)" -eq "0" ] && async_poll_packages
+    if [ "$(date +%M)" -eq "05" ] || [ "$(date +%M)" -eq "35" ]; then
+        [ -f "$package_file" ] && packages="$(<"$package_file")" || packages="?"
+    fi
+
 
 
     if [ -f "$network_touch" ]; then
@@ -243,15 +252,6 @@ while true; do
         fi
         rm "$network_touch"
     fi
-
-    if [ -f "$package_file" ]; then
-        package_file_contents="$(<"$package_file")"
-        if [ -n "$package_file_contents" ]; then
-            packages=$package_file_contents
-            rm "$package_file"  # Clean up the shared data file
-        fi
-    fi
-
 
     cpu_usage=$(top -b -n 2 | grep Cpu | sed 's/:/ /g' | awk '{printf "CPU Load:%7.0f\n", $(NF-13) + $(NF-15)}' | sed -n '2 p' | awk '{print $3}')
     rounded_cpu=$(( $cpu_usage <  99 ? $cpu_usage : 99 ))
