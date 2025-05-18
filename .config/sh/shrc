@@ -17,10 +17,10 @@ export EMAILCLIENT='neomutt'
 export EDITOR='vim'
 export VISUAL='vim'
 export BIN="$HOME/bin"
-export bin="$BIN"
 export PATH="$PATH:$BIN" #add /home/$USER/bin to path
 export PATH="$PATH:$BIN/steam_scripts" #and subfolder for steam scripts
 export PATH="$HOME/bin:$PATH:$HOME/.local/bin"
+export bin="$BIN"
 export dl="$HOME/Downloads"
 export CARGO_ASC=true
 export GDUSER="$HOME/.local/share/godot/app_userdata/Mykaelium/"
@@ -87,11 +87,14 @@ alias picomrc="vim ~/.config/picom/picom.conf"
 alias muttrc="vim ~/.config/mutt/muttrc"
 alias mutt='cd ~/attach && neomutt -e "source ~/.config/mutt/accounts/1-maxwell@odri.net.au.muttrc"'
 alias mwrc='sudo vim /usr/share/mutt-wizard'
-alias newsboatrc="vim ~/.config/newsboat/config"
-alias url="vim ~/.config/newsboat/urls"
+alias newsboatrc="nvim ~/.config/newsboat/config"
+alias url="nvim ~/.config/newsboat/urls"
 alias dragon="dragon-drag-and-drop"
 alias rmdir='rmdir -p'
 alias clipboard='xclip -sel clipboard'
+strip_rust_doc_comments() {
+  sed 's@^[ \t]*///.*$@@g' "$@"
+}
 
 alias mpdrc="vim ~/.config/mpd/mpd.conf"
 alias vimpcrc="vim ~/.config/vimpc/vimpcrc"
