@@ -13,6 +13,7 @@ log() {
 }
 
 update_progress() {
+    echo "Debug: TSP_JOBID=${TSP_JOBID:-not set}" >> "$LOG_FILE"
     [ -z "$TSP_JOBID" ] && return
     local url_and_path="$1"
     local progress="$2"
@@ -55,5 +56,5 @@ while true; do
 done
 
 log "Download completed successfully: $url -> $VIDEO_DIR/$filename"
-notify-send -t 3000 "TSP download completed successfully: $filename 🤗"
-update_progress "$url -> $$VIDEO_DIR/$filename" "COMPLETED"
+notify-send -t 3000 "TSP download completed: $filename 🤗"
+update_progress "$url -> $VIDEO_DIR/$filename" "COMPLETED"
