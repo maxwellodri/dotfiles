@@ -27,7 +27,7 @@ filename=$(basename "$base_path")
 log "Downloading $url to $base_path.*"
 
 while true; do
-    yt-dlp --restrict-filename -o "${base_path}.%(ext)s" "$url" 2>&1 | while read -r line; do
+    yt-dlp --sponsorblock-remove sponsor --sponsorblock-mark intro,outro,selfpromo,preview --restrict-filename -o "${base_path}.%(ext)s" "$url" 2>&1 | while read -r line; do
         if echo "$line" | grep -q "\[download\].*%.*of"; then
             progress=$(echo "$line" | grep -o "[0-9]\+\.[0-9]\+%" | head -1)
             speed=$(echo "$line" | grep -o "[0-9]\+\.[0-9]\+[KMG]iB/s" | head -1)
