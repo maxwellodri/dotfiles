@@ -1,48 +1,52 @@
 #!/bin/bash
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
-}
-
-
-
+[ -z "$bin" ] && (echo "\$bin not defined"; exit 1)
 VIDEO_DIR="$HOME/Videos/youtube"
 LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles"
 LOG_FILE="$LOG_DIR/tsp_ytdlp.log"
-
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
+}
 mkdir -p "$VIDEO_DIR"
 mkdir -p "$LOG_DIR"
 url="$1"
-
-
 if [ -z "$url" ]; then
     notify-send "Error: No URL provided 😠"
     exit 1
 fi
-
 if [[ ! "$url" =~ ^https?:// ]]; then
     notify-send "Error: Not a URL - $url 👎👎"
     exit 1
 fi
+
+notification_id=$(echo "$url" | md5sum | cut -d' ' -f1)
+notification_hint="string:x-canonical-private-synchronous:$notification_id"
 
 is_url_already_queued() {
     local url="$1"
     tsp -l | grep -q "yt-dlp: $url"
     return $?
 }
-
 if is_url_already_queued "$url"; then
-    notify-send "URL already queued: $url 🕺"
+    notify-send -t 1200 -h "$notification_hint" "URL already queued: $url 🕺"
     log "Skipped adding duplicate URL to queue: $url"
     exit 0
 fi
 
-tsp -L "yt-dlp: $url " env TSP_YTDLP=1 LOG_DIR="$LOG_DIR" LOG_FILE="$LOG_FILE" VIDEO_DIR="$VIDEO_DIR" "$bin/_tsp_download_video_helper" "$url"
+notify-send -t 0 -h "$notification_hint" "Processing: $url 🔄"
+
+if ! title=$(yt-dlp --print filename --restrict-filename "$url" -o "%(title)s"); then
+    log "Failed to get filename for $url"
+    notify-send -t 3000 -h "$notification_hint" "Failed to get filename for $url ❌"
+    exit 1
+fi
+
+tsp -L "yt-dlp: $url - $title" "$bin/_tsp_download_video_helper" "$url"
 tsp_exit_code="$?"
 if [ $tsp_exit_code -ne 0 ]; then
     log "ERROR: Failed to queue download. TSP exit code: $tsp_exit_code"
-    notify-send -t 3000 "Error: Failed to queue download 🤯"
+    notify-send -t 3000 -h "$notification_hint" "Error: Failed to queue download 🤯"
     exit "$tsp_exit_code"
 else
     log "Successfully queued tsp command for: $url, TSP exit code: $tsp_exit_code"
-    notify-send -t 3000 "Download queued: $url 😇"
+    notify-send -t 3000 -h "$notification_hint" "Download queued: $title 😇"
 fi

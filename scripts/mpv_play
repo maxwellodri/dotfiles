@@ -64,15 +64,15 @@ def main():
         # Get files, excluding those ending with .part
         # Handle different modes
         if args.mode == 'r':
-            files_to_play = [f for f in get_files(args.directory, depth=0, folders=True) if not f.endswith('.part')]
+            files_to_play = [f for f in get_files(args.directory, depth=0, folders=True) if not f.endswith(('.part', '.ytdl'))]
             random.shuffle(files_to_play)
             play_files(files_to_play)
         elif args.mode == 'i':
-            files_to_play = [f for f in get_files(args.directory, depth=0) if not f.endswith('.part')]
+            files_to_play = [f for f in get_files(args.directory, depth=0) if not f.endswith(('.part', '.ytdl'))]
             files_to_play.sort(key=get_mtime)
             play_files(files_to_play)
         elif args.mode == 'o':
-            files_to_play = [f for f in get_files(args.directory, depth=0, folders=True) if not f.endswith('.part')]
+            files_to_play = [f for f in get_files(args.directory, depth=0, folders=True) if not f.endswith(('.part', '.ytdl'))]
             files_to_play.sort(key=get_mtime, reverse=True)
             play_files(files_to_play)
 

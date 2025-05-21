@@ -1,24 +1,19 @@
 #!/bin/bash
-[ -z "$TSP_YTDLP" ] && echo "Should be called by tsp_ytdlp, not intended to be called standalone - just use yt-dlp on its own, e.g. yt-dlp $1" && exit 1
-RETRY_DELAY=30
+[ -z "$1" ] && ( echo "No url provided"; exit 1)
+
 [ -z "$LOG_DIR" ] && LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles"
 [ -z "$LOG_FILE" ] && LOG_FILE="$LOG_DIR/tsp_ytdlp.log"
 [ -z "$VIDEO_DIR" ] && VIDEO_DIR="$HOME/Videos/youtube"
+
+RETRY_DELAY=30
 VIDEO_PATH_TEMPLATE="$VIDEO_DIR/%(title)s-%(id)s.%(ext)s"
-url="$1"
-mkdir -p "$LOG_DIR"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
 }
 
-update_progress() {
-    echo "Debug: TSP_JOBID=${TSP_JOBID:-not set}" >> "$LOG_FILE"
-    [ -z "$TSP_JOBID" ] && return
-    local url_and_path="$1"
-    local progress="$2"
-    tsp -L "yt-dlp: $url_and_path ($progress)" -i "$TSP_JOBID" >/dev/null 2>&1
-}
+mkdir -p "$LOG_DIR"
+url="$1"
 if ! full_path=$(yt-dlp --print filename --restrict-filename "$url" -o "$VIDEO_PATH_TEMPLATE"); then
     log "Failed to get filename for $url"
     exit 1
@@ -26,19 +21,13 @@ fi
 base_path=${full_path%.*}
 filename=$(basename "$base_path")
 log "Downloading $url to $base_path.*"
-
+once=""
 while true; do
-    yt-dlp --sponsorblock-remove sponsor --sponsorblock-mark intro,outro,selfpromo,preview --restrict-filename -o "${base_path}.%(ext)s" "$url" 2>&1 | while read -r line; do
-        if echo "$line" | grep -q "\[download\].*%.*of"; then
-            progress=$(echo "$line" | grep -o "[0-9]\+\.[0-9]\+%" | head -1)
-            speed=$(echo "$line" | grep -o "[0-9]\+\.[0-9]\+[KMG]iB/s" | head -1)
-            eta=$(echo "$line" | grep -o "ETA [0-9:]\+" | sed 's/ETA //')
-            update_progress "$url -> $VIDEO_DIR/$filename" "$progress ($speed, ETA: $eta)"
-        fi
+    yt-dlp --embed-metadata --xattrs --sponsorblock-remove sponsor --sponsorblock-mark intro,outro,selfpromo,preview --restrict-filename -o "${base_path}.%(ext)s" "$url" 2>&1 | while read -r line; do
         if echo "$line" | grep -q "\[download\] Destination:"; then
             actual_file=${line#\[download\] Destination: }
             filename=$(basename "$actual_file")
-            log "Actual destination: $actual_file"
+            [ -z "$once" ] && (once="done"; log "Actual destination: $actual_file" )
         fi
     done
     
@@ -50,11 +39,10 @@ while true; do
         break
     else
         log "Download failed for $url - retrying in ${RETRY_DELAY}s"
-        update_progress "$url" "retry in ${RETRY_DELAY}s"
         sleep $RETRY_DELAY
     fi
 done
 
+[ -e "$VIDEO_DIR/$filename" ] && touch "$VIDEO_DIR/$filename"
 log "Download completed successfully: $url -> $VIDEO_DIR/$filename"
-notify-send -t 3000 "TSP download completed: $filename 🤗"
-update_progress "$url -> $VIDEO_DIR/$filename" "COMPLETED"
+notify-send -t 5000 "Download completed: $filename 🤗"
