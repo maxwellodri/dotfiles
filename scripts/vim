@@ -1,8 +1,8 @@
 #!/bin/bash
-export TEMR_ITALICS=true
-if command -v neovide &>/dev/null && xprop -root &> /dev/null ; then
-    NEOVIDE_MULTIGRID=1 /usr/bin/neovide --no-fork "$@" &> /dev/null
-elif command -v nvim &>/dev/null ; then
+export TERM_ITALICS=true
+#if command -v neovide &>/dev/null && xprop -root &> /dev/null ; then
+#    NEOVIDE_MULTIGRID=1 /usr/bin/neovide --no-fork "$@" &> /dev/null
+if command -v nvim &>/dev/null ; then
     /usr/bin/nvim "$@"
 else
     /usr/bin/vim "$@"
