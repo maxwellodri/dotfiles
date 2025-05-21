@@ -1,6 +1,6 @@
 #!/bin/env bash
 
-cd ~/Documents/backup/
+cd ~/Documents/backup/ || exit 1
 
 if [ ! -f "maxwellsecrets.tomb" ]; then
     echo "Error: maxwellsecrets.tomb not found."
