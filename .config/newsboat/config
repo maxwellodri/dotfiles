@@ -1,5 +1,5 @@
 #macro y set browser "mpv %u"; open-in-browser ; set browser "elinks %u"
-keep-articles-days 7
+keep-articles-days 30
 
 show-read-feeds yes
 auto-reload yes

@@ -1,6 +1,6 @@
 "---CONTENT---"
-https://bevyengine.org/atom.xml "Bevy" "Rust" "~Bevy" keep-articles-days 30
-https://www.archlinux.org/feeds/news/ "Linux" "ArchLinux" "~Arch Linux News" keep-articles-days 30
+https://bevyengine.org/atom.xml "Bevy" "Rust" "~Bevy" keep-articles-days 365
+https://www.archlinux.org/feeds/news/ "Linux" "ArchLinux" "~Arch Linux News" keep-articles-days 365
 https://www.youtube.com/feeds/videos.xml?channel_id=UC2eYFnH61tmytImy1mTYvhA "YT" "LukeSmith" "Tech" "Linux" "Politics" "~Luke Smith" keep-articles-days 30
 https://www.youtube.com/feeds/videos.xml?channel_id=UChl_NKOs1qqh_x7yJfaDpDw "YT" "Tech" "GameDev" "Gaming" "~Tantan" keep-articles-days 30
 https://www.youtube.com/feeds/videos.xml?channel_id=UCdHKiETyuMbV6a86GRK-MWA "YT" "Gaming" "~Giant Grant Games" keep-articles-days 30
@@ -31,6 +31,8 @@ https://www.youtube.com/feeds/videos.xml?channel_id=UChk6TQce1EJMn6_liKdHDog "YT
 https://www.youtube.com/feeds/videos.xml?channel_id=UCVk4b-svNJoeytrrlOixebQ "YT" "Tech" "~TheVimeagen" keep-articles-days 30
 https://www.youtube.com/feeds/videos.xml?channel_id=UC8ENHE5xdFSwx71u3fDH5Xw "YT" "Tech" "~ThePrimeagen" keep-articles-days 30
 https://www.youtube.com/feeds/videos.xml?channel_id=UCTAfm-YD2M9xzvbYvRc5ttA "YT" "Tech" "GameDev" "~Tim Cain" keep-articles-days 30
+https://www.youtube.com/feeds/videos.xml?channel_id=UCcGXEidw0qjNdq7Gii8gHgg "YT" "~ProjectKamp" keep-articles-days 30
+https://www.youtube.com/feeds/videos.xml?channel_id=UCiSIL42pQRpc-8JNiYDFyzQ "YT" "~Chris Biscardi" keep-articles-days 30
 "---Rust---"
 https://blog.rust-lang.org/feed.xml "Rust" "~Core Language" keep-articles-days 30
 https://blog.rust-lang.org/inside-rust/feed.xml "Rust" "~Inside Rust" keep-articles-days 30
@@ -47,6 +49,8 @@ https://www.reddit.com/r/vegancirclejerk.rss "Reddit" keep-articles-days 30
 https://old.reddit.com/r/BuyItForLife.rss "Reddit" "~Buy it for Life" keep-articles-days 30
 https://xkcd.com/rss.xml "Blog" "Tech" "Web" "~xkcd" keep-articles-days 30
 " "
+"---Issues---"
+https://openrss.org/github.com/bevyengine/bevy/issues/16170 "Bevy" "Add Sprite Outline Issue" keep-articles-days 90
 "---Youtube Other---"
 https://www.youtube.com/feeds/videos.xml?channel_id=UCC3kVzi4cWpLl16KmzsEtiQ "YT" "Tech" "~Matt Godbolt"
 https://www.youtube.com/feeds/videos.xml?channel_id=UCOcphUKAnUaair1uZ7SlqiA "YT" "Food" "~Internet Shaquille"
