@@ -27,7 +27,7 @@ while true; do
         if echo "$line" | grep -q "\[download\] Destination:"; then
             actual_file=${line#\[download\] Destination: }
             filename=$(basename "$actual_file")
-            [ -z "$once" ] && (once="done"; log "Actual destination: $actual_file" )
+            [ -z "$once" ] && (once="done"; log "Destination for $url: $actual_file" )
         fi
     done
     
@@ -38,7 +38,7 @@ while true; do
         fi
         break
     else
-        log "Download failed for $url - retrying in ${RETRY_DELAY}s"
+        log "Download failed for $url ($filename)- retrying in ${RETRY_DELAY}s"
         sleep $RETRY_DELAY
     fi
 done

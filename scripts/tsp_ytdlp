@@ -40,13 +40,13 @@ if ! title=$(yt-dlp --print filename --restrict-filename "$url" -o "%(title)s");
     exit 1
 fi
 
-tsp -L "yt-dlp: $url - $title" "$bin/_tsp_download_video_helper" "$url"
+tsp -L "yt-dlp: $title" "$bin/_tsp_download_video_helper" "$url"
 tsp_exit_code="$?"
 if [ $tsp_exit_code -ne 0 ]; then
-    log "ERROR: Failed to queue download. TSP exit code: $tsp_exit_code"
-    notify-send -t 3000 -h "$notification_hint" "Error: Failed to queue download 🤯"
+    log "ERROR: Failed to queue download. TSP exit code: $tsp_exit_code - $url -> $title"
+    notify-send -t 3000 -h "$notification_hint" "Error: Failed to queue download 🤯 -> $title"
     exit "$tsp_exit_code"
 else
-    log "Successfully queued tsp command for: $url, TSP exit code: $tsp_exit_code"
+    log "Successfully queued tsp command for: $url -> $$title"
     notify-send -t 3000 -h "$notification_hint" "Download queued: $title 😇"
 fi
