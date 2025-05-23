@@ -37,8 +37,8 @@ bind-key x pb-delete
 browser "setsid -f firefox"
 macro , open-in-browser-and-mark-read
 macro m set browser '_newsboat_watch_youtube_mpv'; open-in-browser-and-mark-read; set browser "setsid -f firefox"
-macro d set browser "tsp_ytdlp"; open-in-browser-and-mark-read; set browser "setsid -f firefox"
-macro h set browser "text_handler.sh"; open-in-browser-and-mark-read; set browser "setsid -f firefox"
+macro d set browser "setsid -f tsp_ytdlp"; open-in-browser-and-mark-read; set browser "setsid -f firefox"
+macro h set browser "setsid -f text_handler.sh"; open-in-browser-and-mark-read; 
 #macro t set browser "qndl"; open-in-browser ; set browser linkhandler
 #macro a set browser "tsp youtube-dl --add-metadata -xic -f bestaudio/best" ; open-in-browser-and-mark-read
 #macro m set browser "setsid -f mpv" ; open-in-browser-and-mark-read
