@@ -1,0 +1,20 @@
+[Unit]
+Description=Dunst notification daemon
+Documentation=man:dunst(1)
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=dbus
+BusName=org.freedesktop.Notifications
+ExecStart=/usr/bin/dunst
+Restart=always
+RestartSec=3
+
+OOMScoreAdjust=-1000
+
+# Environment variables (if needed)
+# Environment="DISPLAY=:0"
+
+[Install]
+WantedBy=default.target
