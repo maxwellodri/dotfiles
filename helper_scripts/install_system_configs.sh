@@ -306,8 +306,8 @@ echo -e "${CYAN}Git root found at: ${GIT_ROOT}${NC}"
 cd "$GIT_ROOT" || exit
 
 # Check for dotfile tag
-if [ ! -f "$GIT_ROOT/.dotfiles_tag" ]; then
-    echo -e "${RED}No $GIT_ROOT/.dotfiles_tag found. Make sure to run installer_main.sh -> helper_scripts/makesymlinks.sh before this!${NC}"
+if [ ! -f "$GIT_ROOT/.dotfile_tag" ]; then
+    echo -e "${RED}No $GIT_ROOT/.dotfile_tag found. Make sure to run installer_main.sh -> helper_scripts/makesymlinks.sh before this!${NC}"
     exit 1
 fi
 
@@ -324,8 +324,8 @@ validate_sudo
 print_header "Installing System Configuration Files"
 
 # Copy dotfile tag (requires sudo)
-echo -e "${CYAN}Copying $GIT_ROOT/.dotfiles_tag to /etc/dotfiles_tag${NC}"
-sudo cp "$GIT_ROOT/.dotfiles_tag" "/etc/dotfiles_tag"
+echo -e "${CYAN}Copying $GIT_ROOT/.dotfile_tag to /etc/dotfile_tag${NC}"
+sudo cp "$GIT_ROOT/.dotfile_tag" "/etc/dotfile_tag"
 
 # Copy udev rules (requires sudo)
 print_header "Installing udev Rules"
