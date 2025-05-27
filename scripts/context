@@ -1,21 +1,23 @@
 #!/bin/bash
-
 # Display help and exit if requested
 if [[ "$1" == "--help" ]]; then
-  echo "Usage: $(basename "$0") DIRECTORY [EXTENSIONS...]"
+  echo "Usage: $(basename "$0") DIRECTORY [TARGETS...]"
   echo ""
   echo "Searches for text files in the specified directory and prints them with a header."
   echo ""
   echo "Arguments:"
   echo "  DIRECTORY   Directory to search in"
-  echo "  EXTENSIONS  File extensions to include (without the dot)"
+  echo "  TARGETS     File extensions (without dot), specific files, or 'noext'"
+  echo "              Extensions: sh, py, rs, etc."
+  echo "              Files: script.sh, config, README, etc."
   echo "              Use 'noext' for files with no extension"
-  echo "              If no extensions are specified, all text files will be included"
+  echo "              If no targets are specified, all text files will be included"
   echo ""
   echo "Examples:"
-  echo "  $(basename "$0") /path/to/dir sh py     # Only .sh and .py files"
-  echo "  $(basename "$0") \$PWD sh rs noext      # .sh, .rs and files with no extension"
-  echo "  $(basename "$0") \$PWD                  # All text files"
+  echo "  $(basename "$0") /path/to/dir sh py           # Only .sh and .py files"
+  echo "  $(basename "$0") \$PWD script.sh config      # Specific files"
+  echo "  $(basename "$0") \$PWD sh README noext       # Mix of extension, file, and no-ext"
+  echo "  $(basename "$0") \$PWD                       # All text files"
   exit 0
 fi
 
@@ -33,7 +35,7 @@ shift
 # Debug: Print what we're searching for
 echo "Searching in directory: $search_dir" >&2
 
-# If no extensions are provided, find all text files
+# If no targets are provided, find all text files
 if [ $# -eq 0 ]; then
   echo "Finding all text files..." >&2
   fd --type file --base-directory "$search_dir" | while read -r file; do
@@ -47,11 +49,10 @@ if [ $# -eq 0 ]; then
   exit 0
 fi
 
-# Handle specific extensions
-echo "Finding files with extensions: $*" >&2
-
-for ext in "$@"; do
-  if [ "$ext" == "noext" ]; then
+# Handle specific targets (extensions or files)
+echo "Finding files with targets: $*" >&2
+for target in "$@"; do
+  if [ "$target" == "noext" ]; then
     echo "Looking for files without extension..." >&2
     fd --type file --regex '^[^.]+$' --base-directory "$search_dir" | while read -r file; do
       full_path="$search_dir/$file"
@@ -61,9 +62,19 @@ for ext in "$@"; do
         echo ""
       fi
     done
+  elif [ -f "$search_dir/$target" ]; then
+    echo "Found specific file: $target" >&2
+    full_path="$search_dir/$target"
+    if file -b "$full_path" | grep -i -q "text\|ascii\|empty\|script"; then
+      echo "#$target"
+      cat "$full_path"
+      echo ""
+    else
+      echo "Warning: $target is not a text file, skipping" >&2
+    fi
   else
-    echo "Looking for $ext files..." >&2
-    fd --type file -e "$ext" --base-directory "$search_dir" | while read -r file; do
+    echo "Looking for $target files..." >&2
+    fd --type file -e "$target" --base-directory "$search_dir" | while read -r file; do
       full_path="$search_dir/$file"
       if file -b "$full_path" | grep -i -q "text\|ascii\|empty\|script"; then
         echo "#$file"
