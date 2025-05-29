@@ -30,3 +30,8 @@ ResetGuiFont()
 local opts = { noremap = true, silent = true }
 vim.keymap.set('n', "<leader>fU", function() ResizeGuiFont(1)  end, opts)
 vim.keymap.set('n', "<leader>fu", function() ResizeGuiFont(-1) end, opts)
+
+for i = 1, 9 do
+  vim.keymap.set('n', string.format("<leader>f%dU", i), function() ResizeGuiFont(i) end, opts)
+  vim.keymap.set('n', string.format("<leader>f%du", i), function() ResizeGuiFont(-i) end, opts)
+end
