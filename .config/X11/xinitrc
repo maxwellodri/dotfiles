@@ -44,7 +44,7 @@ if [ "$(basename "$WM")" = "dwm" ]; then
     eval $(ssh-agent)
     #sleep 1
     [ "$(basename "$WM")" = "dwm" ] && [ -f "$dotfiles/dwm/dstatus.sh" ] && "$dotfiles/dwm/dstatus.sh" 1,2>/dev/null &
-    $dotfiles/dwm/startup.sh &
+    "$dotfiles/dwm/startup.sh" &
     wait $startdwm_pid
     #sleep 10000
     #while [[ true ]]; do
