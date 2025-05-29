@@ -46,3 +46,4 @@ export WMNAME="$(basename "$WM")"
 [ ! "$DISPLAY" ] && [ -n "$WM" ] && startx || echo "$WM failed?"
 
 
+eval "$(direnv hook zsh)"

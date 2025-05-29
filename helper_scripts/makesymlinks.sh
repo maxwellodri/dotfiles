@@ -7,6 +7,7 @@
 dir="$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel)" #dotfiles git root directory
 i3config=.config/i3/config #combines with below to make i3 
 i3statusconfig=.config/i3status/config
+dotfiles=.config/dotfiles/
 zathura=.config/zathura/zathurarc
 terminator=.config/terminator/config
 sh=.config/sh/shrc
@@ -40,8 +41,8 @@ zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam"
 files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $gitconfig $npm"
 
 ########### 
-pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix" #platform specific dotfiles
-hackermanfiles=" $xfiles $zsh $mpv $nix"
+pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles" #platform specific dotfiles
+hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles"
 
 ##########
 

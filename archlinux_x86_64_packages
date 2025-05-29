@@ -2,6 +2,7 @@
 #extra/kwindowsystem #needed for pinentry-qt
 extra/kguiaddons
 perl-file-mimeinfo
+tmux
 age
 bat
 pcp
@@ -11,6 +12,8 @@ xdotool
 ctags
 npm
 jq
+go-yq
+direnv
 zip
 p7zip
 unzip

@@ -158,9 +158,24 @@ function _git_root {
     zle accept-line
 }
 
-zle -N _fuzzy_vim
-bindkey -M vicmd '^F' _fuzzy_vim
-bindkey -M viins '^F' _fuzzy_vim
+sw_widget() {
+   local output
+   output=$(sw)
+   if [[ -n "$output" ]]; then
+       eval "$output"
+       zle reset-prompt
+   fi
+}
+zle -N sw_widget
+bindkey -M vicmd '^F' sw_widget
+bindkey -M viins '^F' sw_widget
+zle -N sw_widget
+bindkey -M vicmd '^F' sw_widget
+bindkey -M viins '^F' sw_widget
+
+zle -N sw_widget #_fuzzy_vim
+bindkey -M vicmd '^F' sw_widget #_fuzzy_vim
+bindkey -M viins '^F' sw_widget #_fuzzy_vim
 
 zle -N _vim_in_dir
 bindkey -M viins '^X' _vim_in_dir
@@ -295,3 +310,5 @@ for lazy_conda_alias in $lazy_conda_aliases
 do
   alias $lazy_conda_alias="load_conda && $lazy_conda_alias"
 done
+
+eval "$(direnv hook zsh)"

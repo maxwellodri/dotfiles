@@ -31,7 +31,7 @@ export SOURCE="$HOME/source"
 export PASSWORD_STORE_GENERATED_LENGTH=30
 export QMK="$SOURCE/qmk_firmware"
 export JUPYTERLAB_DIR="$HOME/.local/share/jupyter/lab"
-command -v systemctl >/dev/null 2>&1 && systemctl --user import-environment PATH HOME USER
+command -v systemctl >/dev/null 2>&1 && systemctl --user import-environment PATH HOME USER XDG_CONFIG_HOME BIN
 
 ################
 #Functions:
@@ -70,6 +70,7 @@ else
     alias vimrc='vim ~/.vimrc'
 fi
 alias vw='PREV_DIR=$(pwd) && cd ~/vimwiki && nvim index.wiki && cd $PREV_DIR'
+alias swrc='$EDITOR "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/sw.yaml"'
 alias tmuxrc="vim ~/.tmux.conf"
 alias emacsrc="vim ~/.emacs.d/init.el"
 alias i3rc="vim \$dotfiles/.config/i3/config.base && \$dotfiles/makesymlinks.sh \$dotfiles_tag >> /dev/null && i3-msg reload"

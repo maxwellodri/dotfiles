@@ -1,0 +1,186 @@
+#!/usr/bin/env bash
+
+CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/sw.yaml"
+
+normalize_path() {
+    local path="$1"
+    path="${path/#\~/$HOME}"
+    path="${path/#\$HOME/$HOME}"
+    realpath "$path" 2>/dev/null || echo "$path"
+}
+
+validate_config() {
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        echo "Error: Config file not found at $CONFIG_FILE" >&2
+        return 1
+    fi
+    
+    if ! yq eval '.projects' "$CONFIG_FILE" >/dev/null 2>&1; then
+        echo "Error: Invalid YAML in $CONFIG_FILE" >&2
+        return 1
+    fi
+}
+
+get_projects() {
+    validate_config || return 1
+    yq eval '.projects[] | .name + "|" + .path + "|" + (.tmux // "")' "$CONFIG_FILE" | while IFS='|' read -r name path tmux_session; do
+        path=$(normalize_path "$path")
+        if [[ -d "$path" ]]; then
+            echo "$name|$path|$tmux_session"
+        fi
+    done
+}
+
+project_exists() {
+    tmux has-session -t "$1" 2>/dev/null
+}
+
+create_project_session() {
+    local name="$1"
+    local path="$2"
+    
+    if [[ ! -d "$path" ]]; then
+        echo "Error: Directory $path does not exist" >&2
+        return 1
+    fi
+    
+    tmux new-session -d -s "$name" -c "$path"
+}
+
+attach_project() {
+    local name="$1"
+    
+    if project_exists "$name"; then
+        if [[ -n "$TMUX" ]]; then
+            tmux detach-client
+        fi
+        tmux attach-session -t "$name"
+    else
+        echo "Error: Session $name does not exist" >&2
+        return 1
+    fi
+}
+
+switch_project() {
+    local project_line
+    project_line=$(get_projects | fzf --delimiter="|" --with-nth=1 --preview="echo \"Name: {1}\nPath: {2}\"" --algo=v2)
+    
+    if [[ -n "$project_line" ]]; then
+        local name path tmux_session
+        name=$(echo "$project_line" | cut -d'|' -f1)
+        path=$(echo "$project_line" | cut -d'|' -f2)
+        tmux_session=$(echo "$project_line" | cut -d'|' -f3)
+        
+        if [[ -n "$tmux_session" ]]; then
+            cd "$path" || return
+            if project_exists "$tmux_session"; then
+                if [[ -n "$TMUX" ]]; then
+                    tmux detach-client
+                fi
+                tmux attach-session -t "$tmux_session"
+            else
+                create_project_session "$tmux_session" "$path"
+                if [[ -n "$TMUX" ]]; then
+                    tmux detach-client
+                fi
+                tmux attach-session -t "$tmux_session"
+            fi
+        else
+            echo "cd '$path'"
+        fi
+    fi
+}
+
+start() {
+    while IFS='|' read -r name path tmux_session; do
+        if [[ -n "$tmux_session" ]] && ! project_exists "$tmux_session"; then
+            create_project_session "$tmux_session" "$path"
+        fi
+    done < <(get_projects)
+}
+
+add_project() {
+    local name="$1"
+    local path="$2"
+    
+    if [[ -z "$name" || -z "$path" ]]; then
+        echo "Error: Usage: sw add <n> <path>" >&2
+        return 1
+    fi
+    
+    path=$(normalize_path "$path")
+    
+    if [[ ! -d "$path" ]]; then
+        echo "Error: Path $path does not exist" >&2
+        return 1
+    fi
+    
+    if get_projects | grep -q "^$name|"; then
+        echo "Error: Project $name already exists" >&2
+        return 1
+    fi
+    
+    yq eval ".projects += [{\"name\": \"$name\", \"path\": \"$path\"}]" -i "$CONFIG_FILE"
+    
+    local envrc_template="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/sw.envrc.sh"
+    if [[ -f "$envrc_template" ]]; then
+        cp "$envrc_template" "$path/.envrc"
+        cd "$path" && direnv allow .
+    else
+        echo "        sw.envrc.sh template not found, skipping .envrc setup" >&2
+        cd "$path" && direnv allow .
+    fi
+}
+
+list_projects() {
+    echo "Projects:"
+    while IFS='|' read -r name path tmux_session; do
+        local status="📁"
+        if [[ -n "$tmux_session" ]]; then
+            if project_exists "$tmux_session"; then
+                status="✓"
+            else
+                status="✗"
+            fi
+        fi
+        echo "  $status $name"
+    done < <(get_projects)
+}
+
+case "${1:-switch}" in
+    "switch"|"s")
+        switch_project
+        ;;
+    "start")
+        start
+        ;;
+    "list"|"l")
+        list_projects
+        ;;
+    "attach"|"a")
+        if [[ -n "$2" ]]; then
+            attach_project "$2"
+        else
+            echo "Error: Usage: sw attach <project_name>" >&2
+        fi
+        ;;
+    "add")
+        add_project "$2" "$3" "$4"
+        ;;
+    "help"|"-h"|"--help")
+        echo "Usage: sw [command] [args]"
+        echo ""
+        echo "Commands:"
+        echo "  switch, s           Interactive project picker (default)"
+        echo "  list, l             Show project status"
+        echo "  attach, a <n>    Attach to project session"
+        echo "  add <n> <path>         Add new project"
+        echo "  start               Start all project sessions"
+        echo "  help                Show this help"
+        ;;
+    *)
+        echo "Unknown command: $1" >&2
+        echo "Run 'sw help' for usage info" >&2
+        exit 1
+        ;;
+esac

@@ -42,6 +42,6 @@ if [ -z "$WM" ] ; then
 fi
 export WM
 export WMNAME="$(basename "$WM")"
-[ ! "$DISPLAY" ] && [ -n "$WM" ] && startx || echo "$WM failed?"
+#[ ! "$DISPLAY" ] && [ -n "$WM" ] && startx || echo "$WM failed?"
 
-
+[[ -x "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/sw.autostart.sh" ]] && "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/sw.autostart.sh"
