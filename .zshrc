@@ -161,19 +161,9 @@ function _git_root {
 sw_widget() {
    local output
    output=$(sw)
-   if [[ -n "$output" ]]; then
-       eval "$output"
-       zle reset-prompt
-   fi
+   [[ -n "$output" ]] && eval "$output" && zle reset-prompt
 }
 zle -N sw_widget
-bindkey -M vicmd '^F' sw_widget
-bindkey -M viins '^F' sw_widget
-zle -N sw_widget
-bindkey -M vicmd '^F' sw_widget
-bindkey -M viins '^F' sw_widget
-
-zle -N sw_widget #_fuzzy_vim
 bindkey -M vicmd '^F' sw_widget #_fuzzy_vim
 bindkey -M viins '^F' sw_widget #_fuzzy_vim
 

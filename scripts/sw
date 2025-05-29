@@ -1,186 +1,348 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
 
-CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/sw.yaml"
+import os
+import shlex
+import sys
+import subprocess
+import argparse
+import yaml
+from pathlib import Path
+from typing import Dict, List, Tuple, Optional
+import re
+import logging
 
-normalize_path() {
-    local path="$1"
-    path="${path/#\~/$HOME}"
-    path="${path/#\$HOME/$HOME}"
-    realpath "$path" 2>/dev/null || echo "$path"
-}
+# Setup debug logging
+log_file = Path.home() / "sw.log"
+logging.basicConfig(filename=log_file, level=logging.DEBUG, format='DEBUG: %(message)s')
 
-validate_config() {
-    if [[ ! -f "$CONFIG_FILE" ]]; then
-        echo "Error: Config file not found at $CONFIG_FILE" >&2
-        return 1
-    fi
+CONFIG_DIR = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config')) / 'dotfiles'
+CONFIG_FILE =  CONFIG_DIR / 'sw.yaml'
+FZF_PREVIEWER = CONFIG_DIR / "fzf_preview.sh"
+
+def normalize_path(path: str) -> Path:
+    path = os.path.expanduser(path)
+    path = os.path.expandvars(path)
+    return Path(path).absolute()
+
+def resolve_handler_path(handler_override: str) -> Path:
+    handler_path = Path(handler_override)
+    if handler_path.is_absolute():
+        return handler_path
+    else:
+        return CONFIG_FILE.parent / handler_override
+
+def validate_config() -> bool:
+    if not CONFIG_FILE.exists():
+        print(f"Error: Config file not found at {CONFIG_FILE}", file=sys.stderr)
+        return False
     
-    if ! yq eval '.projects' "$CONFIG_FILE" >/dev/null 2>&1; then
-        echo "Error: Invalid YAML in $CONFIG_FILE" >&2
-        return 1
-    fi
-}
+    try:
+        with open(CONFIG_FILE) as f:
+            config = yaml.safe_load(f)
+            if 'projects' not in config:
+                raise ValueError("Missing 'projects' key")
+        return True
+    except Exception as e:
+        print(f"Error: Invalid YAML in {CONFIG_FILE}: {e}", file=sys.stderr)
+        return False
 
-get_projects() {
-    validate_config || return 1
-    yq eval '.projects[] | .name + "|" + .path + "|" + (.tmux // "")' "$CONFIG_FILE" | while IFS='|' read -r name path tmux_session; do
-        path=$(normalize_path "$path")
-        if [[ -d "$path" ]]; then
-            echo "$name|$path|$tmux_session"
-        fi
-    done
-}
+def load_config() -> Dict:
+    with open(CONFIG_FILE) as f:
+        return yaml.safe_load(f)
 
-project_exists() {
-    tmux has-session -t "$1" 2>/dev/null
-}
-
-create_project_session() {
-    local name="$1"
-    local path="$2"
+def get_projects() -> List[Tuple[str, Path, str]]:
+    if not validate_config():
+        return []
     
-    if [[ ! -d "$path" ]]; then
-        echo "Error: Directory $path does not exist" >&2
-        return 1
-    fi
+    config = load_config()
+    projects = []
     
-    tmux new-session -d -s "$name" -c "$path"
-}
+    for name, details in config.get('projects', {}).items():
+        path = normalize_path(details['path'])
+        if path.is_dir():
+            tmux_session = details.get('tmux', '')
+            projects.append((name, path, tmux_session))
+    
+    return projects
 
-attach_project() {
-    local name="$1"
+def validate_handler_config(name: str, details: Dict) -> bool:
+    handler_pattern = details.get('handler_pattern', '')
+    handler_override = details.get('handler_override', '')
     
-    if project_exists "$name"; then
-        if [[ -n "$TMUX" ]]; then
-            tmux detach-client
-        fi
-        tmux attach-session -t "$name"
-    else
-        echo "Error: Session $name does not exist" >&2
-        return 1
-    fi
-}
+    if bool(handler_pattern) != bool(handler_override):
+        print(f"Error: Project '{name}' has handler_pattern but no handler_override (or vice versa)", file=sys.stderr)
+        print(f"{name}:", file=sys.stderr)
+        for key, value in details.items():
+            print(f"  {key}: {repr(value)}", file=sys.stderr)
+        return False
+    return True
 
-switch_project() {
-    local project_line
-    project_line=$(get_projects | fzf --delimiter="|" --with-nth=1 --preview="echo \"Name: {1}\nPath: {2}\"" --algo=v2)
+def get_current_project() -> Optional[Tuple[str, Path, str, str, str, str, str]]:
+    current_dir = Path(os.getcwd()).absolute()
+    current_resolved = Path(os.getcwd()).resolve()
     
-    if [[ -n "$project_line" ]]; then
-        local name path tmux_session
-        name=$(echo "$project_line" | cut -d'|' -f1)
-        path=$(echo "$project_line" | cut -d'|' -f2)
-        tmux_session=$(echo "$project_line" | cut -d'|' -f3)
+    logging.debug(f"current_dir={current_dir}")
+    logging.debug(f"current_resolved={current_resolved}")
+    
+    config = load_config()
+    
+    for name, details in config.get('projects', {}).items():
+        if not validate_handler_config(name, details):
+            sys.exit(1)
+            
+        project_path = normalize_path(details['path'])
+        project_str = str(project_path).rstrip('/')
         
-        if [[ -n "$tmux_session" ]]; then
-            cd "$path" || return
-            if project_exists "$tmux_session"; then
-                if [[ -n "$TMUX" ]]; then
-                    tmux detach-client
-                fi
-                tmux attach-session -t "$tmux_session"
-            else
-                create_project_session "$tmux_session" "$path"
-                if [[ -n "$TMUX" ]]; then
-                    tmux detach-client
-                fi
-                tmux attach-session -t "$tmux_session"
-            fi
-        else
-            echo "cd '$path'"
-        fi
-    fi
-}
+        for check_dir in [current_dir, current_resolved]:
+            check_str = str(check_dir).rstrip('/')
+            logging.debug(f"checking project {name}, path={project_str} against {check_str}")
+            
+            if project_path.is_dir() and (check_str == project_str or check_str.startswith(project_str + '/')):
+                logging.debug(f"MATCH found for {name}")
+                return (
+                    name,
+                    project_path,
+                    details.get('tmux', ''),
+                    details.get('filter_for', ''),
+                    details.get('filter_out', ''),
+                    details.get('handler_pattern', ''),
+                    details.get('handler_override', '')
+                )
+    
+    logging.debug("no project match found")
+    return None
 
-start() {
-    while IFS='|' read -r name path tmux_session; do
-        if [[ -n "$tmux_session" ]] && ! project_exists "$tmux_session"; then
-            create_project_session "$tmux_session" "$path"
-        fi
-    done < <(get_projects)
-}
+def change_to_directory(path: Path):
+    """Output command to change directory for shell integration"""
+    print(f"cd '{path}'")
 
-add_project() {
-    local name="$1"
-    local path="$2"
+def find_project_files(project_path: Path, filter_for: str, filter_out: str, handler_pattern: str, handler_override: str):
+    logging.debug(f"find_project_files called with path={project_path}, filter_for={filter_for}, filter_out={filter_out}, handler_pattern={handler_pattern}")
     
-    if [[ -z "$name" || -z "$path" ]]; then
-        echo "Error: Usage: sw add <n> <path>" >&2
-        return 1
-    fi
+    #default_filter_out = r"\.git/"
+    #default_filter_out = r"\.git/.+"
+    default_filter_out = r"\.git/.+"
+    default_filter_out = r"\.git"
     
-    path=$(normalize_path "$path")
+    if filter_for:
+        filter_for = filter_for.replace('./', f"^{project_path}/")
+        logging.debug(f"expanded filter_for={filter_for}")
     
-    if [[ ! -d "$path" ]]; then
-        echo "Error: Path $path does not exist" >&2
-        return 1
-    fi
+    if filter_out:
+        filter_out = filter_out.replace('./', f"^{project_path}/")
+        filter_out = f"{default_filter_out}|{filter_out}"
+    else:
+        filter_out = default_filter_out
+    logging.debug(f"final filter_out={filter_out}")
     
-    if get_projects | grep -q "^$name|"; then
-        echo "Error: Project $name already exists" >&2
-        return 1
-    fi
+    files = []
+    for item in project_path.rglob('*'):
+        files.append(str(item))
     
-    yq eval ".projects += [{\"name\": \"$name\", \"path\": \"$path\"}]" -i "$CONFIG_FILE"
+    logging.debug(f"find returned {len(files)} items")
     
-    local envrc_template="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/sw.envrc.sh"
-    if [[ -f "$envrc_template" ]]; then
-        cp "$envrc_template" "$path/.envrc"
-        cd "$path" && direnv allow .
-    else
-        echo "        sw.envrc.sh template not found, skipping .envrc setup" >&2
-        cd "$path" && direnv allow .
-    fi
-}
+    if filter_for:
+        pattern = re.compile(filter_for)
+        files = [f for f in files if pattern.search(f)]
+        logging.debug(f"after filter_for: {len(files)} items")
+    
+    if filter_out:
+        pattern = re.compile(filter_out)
+        files = [f for f in files if not pattern.search(f)]
+        logging.debug(f"after filter_out: {len(files)} items")
+    
+    relative_files = [str(Path(f).relative_to(project_path)) for f in files]
+    project_path_str = str(project_path) 
+    quoted_abs_project_path_str_for_env = shlex.quote(project_path_str)
+    fzf_preview_script_path_str = str(FZF_PREVIEWER)
+    quoted_fzf_preview_script_path_str = shlex.quote(fzf_preview_script_path_str)
+    fzf_preview_arg = (
+        f"env PROJECT_PATH_ENV_VAR={quoted_abs_project_path_str_for_env} "
+        f"{quoted_fzf_preview_script_path_str} {{}}"
+    )
+    fzf_cmd = [
+            'fzf',
+            '--preview', fzf_preview_arg,
+        '--preview-window=right:50%:border-left:noinfo',
+            '--border=rounded',
+            '--color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8',
+            '--color=fg:#cdd6f4,header:#f38ba8,info:#cba6ac,pointer:#f5e0dc',
+            '--color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6ac,hl+:#f38ba8',
+            '--bind=ctrl-u:preview-page-up,ctrl-d:preview-page-down',
+            '--cycle'
+    ]
+    #TODO add  a binding, Ctrl+r? if its a textifle -> ripgrep it?
+    
+    
+    try:
+        result = subprocess.run(
+            fzf_cmd,
+            input='\n'.join(relative_files),
+            text=True,
+            capture_output=True
+        )
+        
+        if result.returncode == 0:
+            selected_file = result.stdout.strip()
+            logging.debug(f"selected_file={selected_file}")
+            
+            if selected_file:
+                full_path = project_path / selected_file
+                
+                if full_path.is_dir():
+                    change_to_directory(full_path)
+                else:
+                    # Check if file matches handler pattern
+                    if handler_pattern and handler_override:
+                        pattern = re.compile(handler_pattern)
+                        if pattern.search(str(full_path)):
+                            handler_script = resolve_handler_path(handler_override)
+                            if handler_script.is_file() and os.access(handler_script, os.X_OK):
+                                subprocess.run([str(handler_script), str(full_path)])
+                                return
+                            else:
+                                print(f"Error: Handler script {handler_script} not found or not executable", file=sys.stderr)
+                                return
+                    
+                    # Default handling based on mime type
+                    mime_result = subprocess.run(['file', '--mime-type', '-b', str(full_path)], capture_output=True, text=True)
+                    mime_type = mime_result.stdout.strip()
+                    
+                    if mime_type.startswith('text/') or mime_type in ['application/json', 'application/xml', 'application/x-empty']:
+                        editor = os.environ.get('EDITOR', 'nvim')
+                        print(f"{editor} '{full_path}'")
+                    else:
+                        print(f"xdg-open '{full_path}'")
+    
+    except subprocess.CalledProcessError:
+        pass
 
-list_projects() {
-    echo "Projects:"
-    while IFS='|' read -r name path tmux_session; do
-        local status="📁"
-        if [[ -n "$tmux_session" ]]; then
-            if project_exists "$tmux_session"; then
-                status="✓"
-            else
-                status="✗"
-            fi
-        fi
-        echo "  $status $name"
-    done < <(get_projects)
-}
+def project_exists(name: str) -> bool:
+    result = subprocess.run(['tmux', 'has-session', '-t', name], capture_output=True)
+    return result.returncode == 0
 
-case "${1:-switch}" in
-    "switch"|"s")
-        switch_project
-        ;;
-    "start")
-        start
-        ;;
-    "list"|"l")
-        list_projects
-        ;;
-    "attach"|"a")
-        if [[ -n "$2" ]]; then
-            attach_project "$2"
-        else
-            echo "Error: Usage: sw attach <project_name>" >&2
-        fi
-        ;;
-    "add")
-        add_project "$2" "$3" "$4"
-        ;;
-    "help"|"-h"|"--help")
-        echo "Usage: sw [command] [args]"
-        echo ""
-        echo "Commands:"
-        echo "  switch, s           Interactive project picker (default)"
-        echo "  list, l             Show project status"
-        echo "  attach, a <n>    Attach to project session"
-        echo "  add <n> <path>         Add new project"
-        echo "  start               Start all project sessions"
-        echo "  help                Show this help"
-        ;;
-    *)
-        echo "Unknown command: $1" >&2
-        echo "Run 'sw help' for usage info" >&2
-        exit 1
-        ;;
-esac
+def create_project_session(name: str, path: Path) -> bool:
+    if not path.is_dir():
+        print(f"Error: Directory {path} does not exist", file=sys.stderr)
+        return False
+    
+    result = subprocess.run(['tmux', 'new-session', '-d', '-s', name, '-c', str(path)])
+    return result.returncode == 0
+
+def attach_project(name: str) -> bool:
+    if project_exists(name):
+        if os.environ.get('TMUX'):
+            subprocess.run(['tmux', 'detach-client'])
+        subprocess.run(['tmux', 'attach-session', '-t', name])
+        return True
+    else:
+        print(f"Error: Session {name} does not exist", file=sys.stderr)
+        return False
+
+def switch_project():
+    current_project = get_current_project()
+    if current_project:
+        name, path, tmux_session, filter_for, filter_out, handler_pattern, handler_override = current_project
+        find_project_files(path, filter_for, filter_out, handler_pattern, handler_override)
+        return
+    
+    config = load_config()
+    for name, details in config.get('projects', {}).items():
+        if not validate_handler_config(name, details):
+            sys.exit(1)
+    
+    projects = get_projects()
+    if not projects:
+        print("No projects found", file=sys.stderr)
+        return
+    
+    project_lines = []
+    for name, path, tmux_session in projects:
+        project_lines.append(f"{name}|{path}|{tmux_session}")
+    
+    fzf_cmd = [
+        'fzf',
+        '--delimiter=|',
+        '--with-nth=1',
+        '--preview=echo "Name: {1}\nPath: {2}"',
+        '--algo=v2'
+    ]
+    
+    try:
+        result = subprocess.run(
+            fzf_cmd,
+            input='\n'.join(project_lines),
+            text=True,
+            capture_output=True
+        )
+        
+        if result.returncode == 0:
+            selected = result.stdout.strip()
+            if selected:
+                parts = selected.split('|')
+                name, path, tmux_session = parts[0], Path(parts[1]), parts[2] if len(parts) > 2 else ''
+                
+                if tmux_session:
+                    os.chdir(path)
+                    if project_exists(tmux_session):
+                        if os.environ.get('TMUX'):
+                            subprocess.run(['tmux', 'detach-client'])
+                        subprocess.run(['tmux', 'attach-session', '-t', tmux_session])
+                    else:
+                        create_project_session(tmux_session, path)
+                        if os.environ.get('TMUX'):
+                            subprocess.run(['tmux', 'detach-client'])
+                        subprocess.run(['tmux', 'attach-session', '-t', tmux_session])
+                else:
+                    change_to_directory(path)
+    
+    except subprocess.CalledProcessError:
+        pass
+
+def start():
+    projects = get_projects()
+    for name, path, tmux_session in projects:
+        if tmux_session and not project_exists(tmux_session):
+            create_project_session(tmux_session, path)
+
+def list_projects():
+    print("Projects:")
+    projects = get_projects()
+    
+    for name, path, tmux_session in projects:
+        if tmux_session:
+            status = "✓" if project_exists(tmux_session) else "✗"
+        else:
+            status = "📁"
+        print(f"  {status} {name}")
+
+def main():
+    parser = argparse.ArgumentParser(description='Project switcher with tmux integration')
+    subparsers = parser.add_subparsers(dest='command', help='Commands')
+    
+    parser.set_defaults(command='switch')
+    
+    subparsers.add_parser('switch', aliases=['s'], help='Interactive project picker (default)')
+    subparsers.add_parser('list', aliases=['l'], help='Show project status')
+    
+    attach_parser = subparsers.add_parser('attach', aliases=['a'], help='Attach to project session')
+    attach_parser.add_argument('name', help='Project name')
+    
+    subparsers.add_parser('start', help='Start all project sessions')
+    
+    args = parser.parse_args()
+    
+    if args.command in ['switch', 's', None]:
+        switch_project()
+    elif args.command in ['list', 'l']:
+        list_projects()
+    elif args.command in ['attach', 'a']:
+        attach_project(args.name)
+    elif args.command == 'start':
+        start()
+    else:
+        parser.print_help()
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()

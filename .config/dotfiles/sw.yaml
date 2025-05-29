@@ -1,21 +1,34 @@
 projects:
-  - name: "mykaelium"
+  mykaelium:
     path: "/home/maxwell/source/mykaelium"
-  - name: "dotfiles"
+    filter_out: "./target/"
+  dotfiles:
     path: "/home/maxwell/source/dotfiles"
-  - name: "dwm"
+  dwm:
     path: "/home/maxwell/source/dwm"
-  - name: "st"
+  st:
     path: "/home/maxwell/source/st"
-  - name: "dmenu"
+  dmenu:
     path: "/home/maxwell/source/dmenu"
-  - name: "nixconfigs"
+  nixconfigs:
     path: "/home/maxwell/source/nix_config"
-  - name: "agentcoder"
+  agentcoder:
     path: "/home/maxwell/source/agent_coder"
-  - name: "gltf_animation-blender-plugin"
+  gltf_animation-blender-plugin:
     path: "/home/maxwell/source/gltf_animation_layerer"
-  - name: "private"
+  private:
     path: "/home/maxwell/source/private"
-  - name: "TofuBerry🍓🍇"
+  TofuBerry🍓🍇:
     path: "/home/maxwell/source/tofuberry"
+    filter_out: "./target/"
+  Games:
+    path: "/home/maxwell/Games"
+    filter_for: '\.sh$'
+    handler_override: 'handlers/game_script_handler.sh'
+    handler_pattern: '\.sh$'
+
+#name: "example"
+#  path: "/home/maxwell/example"
+#    filter_for: "\.sh$"
+#    filter_outL: "\.cache$"
+#    tmux: "example-dev"
