@@ -12,7 +12,7 @@ import re
 import logging
 
 # Setup debug logging
-log_file = Path.home() / "sw.log"
+log_file = Path(os.environ.get('XDG_CACHE_HOME', Path.home() / '.cache')) / 'dotfiles' / 'sw.log'
 logging.basicConfig(filename=log_file, level=logging.DEBUG, format='DEBUG: %(message)s')
 
 CONFIG_DIR = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config')) / 'dotfiles'

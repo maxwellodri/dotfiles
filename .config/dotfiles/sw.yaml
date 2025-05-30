@@ -27,8 +27,10 @@ projects:
     handler_override: 'handlers/game_script_handler.sh'
     handler_pattern: '\.sh$'
 
-#name: "example"
-#  path: "/home/maxwell/example"
-#    filter_for: "\.sh$"
-#    filter_outL: "\.cache$"
-#    tmux: "example-dev"
+#name: "example_project"
+#  path: "/path/to/example/project" #project dir, must be absolute, if project doesnt exist, will be hidden from list
+#    filter_for: "\.sh$" #files to explictly include (allow list)
+#    filter_out: "\.cache$" #files to exclude (deny list)
+#    tmux: "example-dev" #name of tmux session; if not used, then no tmux
+#    handler_override: "handlers/my_script_that_handles_sh_files #path to script, requires handler_pattern to be specified as well
+#    handler_pattern: '\.sh$' #regex for specific files to handle with handler_override
