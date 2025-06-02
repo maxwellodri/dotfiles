@@ -1,10 +1,11 @@
 #!/bin/bash
-[ -z "$1" ] && ( echo "No url provided"; exit 1)
+[ -z "$1" ] && { echo "No url provided"; exit 1;}
 [ -z "$LOG_DIR" ] && LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles"
 [ -z "$LOG_FILE" ] && LOG_FILE="$LOG_DIR/tsp_ytdlp.log"
 [ -z "$FAILURE_LOG" ] && FAILURE_LOG="$LOG_DIR/tsp_ytdlp.failure.log"
 [ -z "$VIDEO_DIR" ] && VIDEO_DIR="$HOME/Videos/youtube"
-VIDEO_PATH_TEMPLATE="$VIDEO_DIR/%(title)s-%(id)s.%(ext)s"
+VIDEO_PATH_TEMPLATE="$VIDEO_DIR/%(title)s-%(channel)s-%(id)s.%(ext)s"
+COOKIES="$HOME/source/private/cookies.firefox-private.txt"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
@@ -13,7 +14,7 @@ log() {
 mkdir -p "$LOG_DIR"
 url="$1"
 
-if ! full_path=$(yt-dlp --print filename --restrict-filename "$url" -o "$VIDEO_PATH_TEMPLATE"); then
+if ! full_path=$(yt-dlp --print filename --cookies "$COOKIES" --restrict-filename "$url" -o "$VIDEO_PATH_TEMPLATE"); then
     log "Failed to get filename for $url"
     exit 1
 fi
@@ -25,6 +26,7 @@ log "Downloading $url to $base_path.*"
 # Use yt-dlp's built-in retry mechanisms instead of manual loop
 output_file=$(mktemp)
 if yt-dlp \
+    --cookies "$COOKIES" \
     --write-info-json \
     --embed-metadata \
     --xattrs \
@@ -45,6 +47,7 @@ if yt-dlp \
     
     if [ -n "$actual_file" ]; then
         filename=$(basename "$actual_file")
+        touch "$actual_file"
         # Clean up metadata file after successful embed
         rm -f "${actual_file%.*}.info.json"
         log "Download completed successfully: $url -> $actual_file"
