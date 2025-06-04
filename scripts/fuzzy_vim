@@ -36,14 +36,24 @@ prev_dir=$(pwd)
 if git -C "$prev_dir" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
     # If in Git repo, cd to the root of the repository
     cd_path=$(git -C "$prev_dir" rev-parse --show-toplevel)
-    cd "$cd_path"
-else
-    # If not in Git repo, cd to $HOME
-    cd $HOME
+    [ -d "$cd_path" ] && cd "$cd_path"
 fi
+    ## If not in Git repo, cd to $HOME
+    #cd $HOME
+#fi
 
 # Get file using fzf and fd, excluding "Games" directory
-files=$(fd . $prev_dir | fd -E $prev_dir | fzf -m)
+#files=$(fd . $prev_dir | fd -E $prev_dir | fzf -m)
+files=$(fd . --exclude "$prev_dir" | fzf \
+    --multi \
+    --preview "env PROJECT_PATH_ENV_VAR=\"$(pwd)\" \"${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/fzf_preview.sh\" {}" \
+    --preview-window=right:50%:border-left:noinfo \
+    --border=rounded \
+    --color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8 \
+    --color=fg:#cdd6f4,header:#f38ba8,info:#cba6ac,pointer:#f5e0dc \
+    --color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6ac,hl+:#f38ba8 \
+    --bind=ctrl-u:preview-page-up,ctrl-d:preview-page-down \
+    --cycle)
 
 #TODO: if selecting multiple files of the same type, we end up opening the same program multiple times instead of combining them
 

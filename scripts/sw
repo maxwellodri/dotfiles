@@ -260,13 +260,27 @@ def switch_project():
     for name, path, tmux_session in projects:
         project_lines.append(f"{name}|{path}|{tmux_session}")
     
+
     fzf_cmd = [
-        'fzf',
-        '--delimiter=|',
-        '--with-nth=1',
-        '--preview=echo "Name: {1}\nPath: {2}"',
-        '--algo=v2'
+            'fzf',
+            '--delimiter=|',
+            '--with-nth=1',
+            '--preview=echo "Name: {1}\nPath: {2}"',
+            '--algo=v2',
+            '--border=rounded',
+            '--color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8',
+            '--color=fg:#cdd6f4,header:#f38ba8,info:#cba6ac,pointer:#f5e0dc',
+            '--color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6ac,hl+:#f38ba8',
+            '--bind=ctrl-u:preview-page-up,ctrl-d:preview-page-down',
+            '--cycle'
     ]
+    #fzf_cmd = [
+    #    'fzf',
+    #    '--delimiter=|',
+    #    '--with-nth=1',
+    #    '--preview=echo "Name: {1}\nPath: {2}"',
+    #    '--algo=v2'
+    #]
     
     try:
         result = subprocess.run(

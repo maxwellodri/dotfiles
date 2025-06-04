@@ -164,8 +164,14 @@ sw_widget() {
    [[ -n "$output" ]] && eval "$output" && zle reset-prompt
 }
 zle -N sw_widget
-bindkey -M vicmd '^F' sw_widget #_fuzzy_vim
-bindkey -M viins '^F' sw_widget #_fuzzy_vim
+bindkey -M vicmd '^F' sw_widget
+bindkey -M viins '^F' sw_widget
+
+stty -ixon
+
+zle -N _fuzzy_vim
+bindkey -M vicmd '^S' _fuzzy_vim
+bindkey -M viins '^S' _fuzzy_vim
 
 zle -N _vim_in_dir
 bindkey -M viins '^X' _vim_in_dir
