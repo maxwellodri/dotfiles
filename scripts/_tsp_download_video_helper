@@ -1,17 +1,68 @@
 #!/bin/bash
 [ -z "$1" ] && { echo "No url provided"; exit 1;}
+
 [ -z "$LOG_DIR" ] && LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles"
 [ -z "$LOG_FILE" ] && LOG_FILE="$LOG_DIR/tsp_ytdlp.log"
 [ -z "$FAILURE_LOG" ] && FAILURE_LOG="$LOG_DIR/tsp_ytdlp.failure.log"
 [ -z "$VIDEO_DIR" ] && VIDEO_DIR="$HOME/Videos/youtube"
+
 VIDEO_PATH_TEMPLATE="$VIDEO_DIR/%(title)s-%(channel)s-%(id)s.%(ext)s"
 COOKIES="$HOME/source/private/cookies.firefox-private.txt"
+QUEUED_URLS_FILE="$LOG_DIR/active_downloads.txt"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
 }
 
+atomic_append() {
+    local file="$1"
+    local content="$2"
+    local temp_file="$LOG_DIR/tempfiles/$(basename "$file").tmp.$"
+    
+    mkdir -p "$LOG_DIR/tempfiles"
+    touch "$file" 2>/dev/null || true
+    cat "$file" > "$temp_file"
+    echo "$content" >> "$temp_file"
+    mv "$temp_file" "$file"
+}
+
+atomic_remove_line() {
+    local file="$1"
+    local line="$2"
+    local temp_file="$LOG_DIR/tempfiles/$(basename "$file").tmp.$"
+    
+    mkdir -p "$LOG_DIR/tempfiles"
+    if [ -f "$file" ]; then
+        grep -v "^$line$" "$file" > "$temp_file" 2>/dev/null || true
+        mv "$temp_file" "$file"
+    fi
+}
+
+wait_for_disk_space() {
+    while true; do
+        local available_kb
+        available_kb=$(df "$(dirname "$VIDEO_DIR")" | awk 'NR==2 {print $4}')
+        local required_kb=$((2 * 1024 * 1024))  # 2GB minimum for video downloads
+        
+        if [ "$available_kb" -gt "$required_kb" ]; then
+            return 0
+        fi
+        
+        notify-send -t 0 "Disk full - download paused. Free space needed."
+        sleep 60
+    done
+}
+
+wait_for_network() {
+    local domain
+    domain=$(echo "$url" | sed -n 's|https\?://\([^/]*\).*|\1|p')
+    while ! curl -s --connect-timeout 10 "https://$domain" >/dev/null 2>&1; do
+        sleep 30
+    done
+}
+
 mkdir -p "$LOG_DIR"
+
 url="$1"
 
 if ! full_path=$(yt-dlp --print filename --cookies "$COOKIES" --restrict-filename "$url" -o "$VIDEO_PATH_TEMPLATE"); then
@@ -21,10 +72,14 @@ fi
 
 base_path=${full_path%.*}
 filename=$(basename "$base_path")
+
 log "Downloading $url to $base_path.*"
 
-# Use yt-dlp's built-in retry mechanisms instead of manual loop
+wait_for_disk_space
+wait_for_network
+
 output_file=$(mktemp)
+
 if yt-dlp \
     --cookies "$COOKIES" \
     --write-info-json \
@@ -42,29 +97,30 @@ if yt-dlp \
     -o "${base_path}.%(ext)s" \
     "$url" > "$output_file" 2>&1; then
     
-    # Find the actual downloaded file
     actual_file=$(find "$(dirname "$base_path")" -type f -name "$(basename "$base_path").*" | grep -v '\.info\.json$' | head -1)
     
     if [ -n "$actual_file" ]; then
         filename=$(basename "$actual_file")
         touch "$actual_file"
-        # Clean up metadata file after successful embed
         rm -f "${actual_file%.*}.info.json"
         log "Download completed successfully: $url -> $actual_file"
         notify-send -t 5000 "Download completed: $filename 🤗✅"
+        atomic_remove_line "$QUEUED_URLS_FILE" "$url"
     else
         failure_msg="Download reported success but no file found for $url"
         log "$failure_msg"
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] $failure_msg" >> "$FAILURE_LOG"
         cat "$output_file" >> "$LOG_FILE"
+        atomic_remove_line "$QUEUED_URLS_FILE" "$url"
         rm -f "$output_file"
         exit 1
     fi
 else
-    failure_msg="Download failed permanently for $url"
+    failure_msg="Download failed for $url"
     log "$failure_msg"
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $failure_msg" >> "$FAILURE_LOG"
     cat "$output_file" >> "$LOG_FILE"
+    atomic_remove_line "$QUEUED_URLS_FILE" "$url"
     rm -f "$output_file"
     exit 1
 fi

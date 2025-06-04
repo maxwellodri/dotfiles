@@ -1,35 +1,109 @@
 #!/bin/bash
 [ -z "$bin" ] && (echo "\$bin not defined"; exit 1)
-VIDEO_DIR="$HOME/Videos/youtube"
+
+[ -z "$VIDEO_DIR" ] && VIDEO_DIR="$HOME/Videos/youtube"
 LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles"
 LOG_FILE="$LOG_DIR/tsp_ytdlp.log"
+QUEUED_URLS_FILE="$LOG_DIR/active_downloads.txt"
 COOKIES="$HOME/source/private/cookies.firefox-private.txt"
+
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
 }
+
+atomic_append() {
+    local file="$1"
+    local content="$2"
+    local temp_file="$LOG_DIR/tempfiles/$(basename "$file").tmp.$"
+    
+    mkdir -p "$LOG_DIR/tempfiles"
+    touch "$file" 2>/dev/null || true
+    cat "$file" > "$temp_file"
+    echo "$content" >> "$temp_file"
+    mv "$temp_file" "$file"
+}
+
+atomic_remove_line() {
+    local file="$1"
+    local line="$2"
+    local temp_file="$LOG_DIR/tempfiles/$(basename "$file").tmp.$"
+    
+    mkdir -p "$LOG_DIR/tempfiles"
+    if [ -f "$file" ]; then
+        grep -v "^$line$" "$file" > "$temp_file" 2>/dev/null || true
+        mv "$temp_file" "$file"
+    fi
+}
+
+atomic_move_file() {
+    local src="$1"
+    local dest="$2"
+    local temp_file="$LOG_DIR/tempfiles/$(basename "$dest").tmp.$"
+    
+    mkdir -p "$LOG_DIR/tempfiles"
+    if [ -f "$src" ]; then
+        cat "$src" >> "$temp_file" 2>/dev/null || true
+        cat "$dest" >> "$temp_file" 2>/dev/null || true
+        mv "$temp_file" "$dest"
+        true > "$src"
+    fi
+}
+
 mkdir -p "$VIDEO_DIR"
 mkdir -p "$LOG_DIR"
-url="$1"
-if [ -z "$url" ]; then
-    notify-send "Error: No URL provided 😠"
-    exit 1
-fi
-if [[ ! "$url" =~ ^https?:// ]]; then
-    notify-send "Error: Not a URL - $url 👎👎"
-    exit 1
-fi
-notification_id=$(echo "$url" | md5sum | cut -d' ' -f1)
-notification_hint="string:x-canonical-private-synchronous:$notification_id"
+
+recover_queued_urls() {
+    atomic_move_file "$QUEUED_URLS_FILE" "$RETRY_URLS_FILE"
+}
+
 is_url_already_queued() {
     local url="$1"
     tsp -l | grep -q "$url"
     return $?
 }
+
+process_retry_list() {
+    [ ! -f "$RETRY_URLS_FILE" ] && return
+    local retry_count=0
+    while IFS= read -r retry_url; do
+        [ -z "$retry_url" ] && continue
+        if ! is_url_already_queued "$retry_url"; then
+            local title
+            title=$(yt-dlp --print filename --cookies "$COOKIES" "$retry_url" -o "%(title)s" 2>/dev/null || echo "unknown")
+            tsp -L "retry: $title | $retry_url" "$bin/_tsp_download_video_helper" "$retry_url"
+            ((retry_count++))
+        fi
+    done < "$RETRY_URLS_FILE"
+    
+    if [ $retry_count -gt 0 ]; then
+        true > "$RETRY_URLS_FILE"
+        log "Requeued $retry_count URLs from retry list"
+    fi
+}
+
+recover_queued_urls
+process_retry_list
+
+url="$1"
+if [ -z "$url" ]; then
+    notify-send "Error: No URL provided 😠"
+    exit 1
+fi
+
+if [[ ! "$url" =~ ^https?:// ]]; then
+    notify-send "Error: Not a URL - $url 👎👎"
+    exit 1
+fi
+
+notification_id=$(echo "$url" | md5sum | cut -d' ' -f1)
+notification_hint="string:x-canonical-private-synchronous:$notification_id"
+
 if is_url_already_queued "$url"; then
     notify-send -t 1200 -h "$notification_hint" "URL already queued: $url 🕺"
     log "Skipped adding duplicate URL to queue: $url"
     exit 0
 fi
+
 notify-send -t 0 -h "$notification_hint" "Processing: $url 🔄"
 
 if ! title=$(yt-dlp --print filename --cookies "$COOKIES" "$url" -o "%(channel)s_%(title)s"); then
@@ -37,14 +111,18 @@ if ! title=$(yt-dlp --print filename --cookies "$COOKIES" "$url" -o "%(channel)s
     notify-send -t 3000 -h "$notification_hint" "Failed to get filename for $url ❌"
     exit 1
 fi
-mkdir -p /tmp/tsp/
+
+atomic_append "$QUEUED_URLS_FILE" "$url"
+
 tsp -L "yt-dlp: $title | $url" "$bin/_tsp_download_video_helper" "$url"
 tsp_exit_code="$?"
+
 if [ $tsp_exit_code -ne 0 ]; then
+    atomic_remove_line "$QUEUED_URLS_FILE" "$url"
     log "ERROR: Failed to queue download. TSP exit code: $tsp_exit_code - $url -> $title"
     notify-send -t 3000 -h "$notification_hint" "Error: Failed to queue download 🤯 -> $title"
     exit "$tsp_exit_code"
 else
     log "Successfully queued tsp command for: $url -> $title"
-    notify-send -t 3000 -h "$notification_hint" "Download queued: $title 🏃‍♂️"
+    notify-send -t 3000 -h "$notification_hint" "Download queued: $title 🏃♂️"
 fi
