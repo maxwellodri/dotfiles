@@ -1,6 +1,6 @@
 #!/bin/env bash
 
-cd ~/Documents/backup/ || exit 1
+cd "$HOME/Documents/backup/" || { echo "no $HOME/Documents/backup/ directory"; exit 1;}
 
 if [ ! -f "maxwellsecrets.tomb" ]; then
     echo "Error: maxwellsecrets.tomb not found."
@@ -12,30 +12,39 @@ if [ ! -f "maxwellsecrets.tomb.key" ]; then
     exit 1
 fi
 
+check_kernel() {
+    if command -v pacman >/dev/null 2>&1; then
+        running_kernel=$(uname -r)
+        installed_kernel=$(pacman -Qi linux | grep Version | awk '{print $3}')
+        
+        # Normalize version strings (handle hyphen vs period differences)
+        running_normalized=$(echo "$running_kernel" | sed 's/\.arch/-arch/')
+        installed_normalized=$(echo "$installed_kernel" | sed 's/\.arch/-arch/')
+        
+        if [ "$running_normalized" != "$installed_normalized" ]; then
+            echo "Kernel version mismatch detected:"
+            echo "Running kernel:    $running_kernel"
+            echo "Installed kernel:  $installed_kernel"
+            echo "Please reboot your system to use the new kernel."
+            echo "This may cause tomb/device-mapper issues."
+            return 1
+        fi
+    fi
+    return 0
+}
+
 update() {
-    tomb open maxwellsecrets.tomb -k maxwellsecrets.tomb.key
+    check_kernel
+    
+    tomb open maxwellsecrets.tomb -k maxwellsecrets.tomb.key -f
     if [ $? -ne 0 ]; then
-        exit 1 #password not supplied
+        check_kernel
+        exit 1
     fi
 
     mount_point=$(findmnt --real --list | grep maxwellsecrets | awk '{print $1}')
     if [ -z "$mount_point" ]; then
         echo "Failed to find the mount point for tomb."
-        # Check if pacman exists and is in PATH
-        if command -v pacman >/dev/null 2>&1; then
-            # Get running kernel version
-            running_kernel=$(uname -r)
-            # Get installed kernel version
-            installed_kernel=$(pacman -Qi linux | grep Version | awk '{print $3}')
-
-            if [ "$running_kernel" != "$installed_kernel" ]; then
-                echo "Kernel version mismatch detected:"
-                echo "Running kernel:    $running_kernel"
-                echo "Installed kernel:  $installed_kernel"
-                echo "Please reboot your system to use the new kernel."
-            fi
-        fi
-
         exit 1
     fi
 
@@ -50,6 +59,34 @@ update() {
     echo "Tomb has been updated"
 }
 
+toggle() {
+    mount_point=$(findmnt --real --list | grep maxwellsecrets | awk '{print $1}')
+    
+    if [ -n "$mount_point" ]; then
+        echo "Tomb is currently mounted at: $mount_point"
+        echo "Closing tomb..."
+        tomb close maxwellsecrets
+        if [ $? -eq 0 ]; then
+            echo "Tomb closed successfully."
+        else
+            echo "Error: Failed to close tomb."
+            exit 1
+        fi
+    else
+        echo "Tomb is not mounted. Opening..."
+        check_kernel
+        
+        tomb open maxwellsecrets.tomb -k maxwellsecrets.tomb.key -f
+        if [ $? -eq 0 ]; then
+            mount_point=$(findmnt --real --list | grep maxwellsecrets | awk '{print $1}')
+            echo "Tomb opened successfully at: $mount_point"
+        else
+            echo "Error: Failed to open tomb."
+            check_kernel
+            exit 1
+        fi
+    fi
+}
 
 backup() {
     local paths=("$@")  # Accepts a list of paths as arguments
@@ -100,12 +137,13 @@ backup() {
 
 
 if [[ $# -eq 0 ]]; then
-    echo "Error: At least one flag (--update or --backup) is required."
+    echo "Error: At least one flag (--update, --backup, or --toggle) is required."
     exit 1
 fi
 
 update_flag=false
 backup_flag=false
+toggle_flag=false
 dropbox_flag=true
 device=""
 paths=()
@@ -119,6 +157,10 @@ while [[ $# -gt 0 ]]; do
         --backup)
             backup_flag=true
             paths+=("maxwell@donnie:~/backups/")  # Path to VPS
+            shift
+            ;;
+        --toggle)
+            toggle_flag=true
             shift
             ;;
         --dev | --path)
@@ -138,7 +180,7 @@ while [[ $# -gt 0 ]]; do
 
                 shift 2
             else
-                echo "Error: "$1" flag requires a path/device argument."
+                echo "Error: $1 flag requires a path/device argument."
                 exit 1
             fi
             ;;
@@ -162,4 +204,8 @@ fi
 
 if [ "$backup_flag" = true ]; then
     backup "${paths[@]}"  # Pass the list of paths to backup()
+fi
+
+if [ "$toggle_flag" = true ]; then
+    toggle
 fi
