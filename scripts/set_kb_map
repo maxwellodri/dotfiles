@@ -1,4 +1,4 @@
 #!/bin/sh
 setxkbmap -option caps:escape
 setcapslock off
-numlockx off
+numlockx on
