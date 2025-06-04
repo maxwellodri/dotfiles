@@ -177,7 +177,7 @@ try_notify() {
 
 async_check_internet() {
     (exec -a "async_check_internet_dstatus" bash -c "
-        ping -c 1 cia.gov >/dev/null 2>&1
+        ping -c 3 -W 2 9.9.9.9 > /dev/null 2>&1
         if [ \$? -eq 0 ]; then
             echo \"yes\" > \"$network_touch\"
         else
