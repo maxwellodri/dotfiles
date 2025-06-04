@@ -30,7 +30,7 @@ export AI_GPU=AMD
 #command transmission-daemon --no-auth
 command ssh-agent
 #command xfce-polkit
-[ ! -s ~/.config/mpd/pid ] && [ -f "$(which mpd)" ] && mpd
+[ ! -s ~/.config/mpd/pid ] && [ -f "$(which mpd)" ] && mpd &
 
 if [ -z "$WM" ] ; then
     case $XDG_VTNR in
