@@ -163,15 +163,21 @@ sw_widget() {
    output=$(sw)
    [[ -n "$output" ]] && eval "$output" && zle reset-prompt
 }
+
+sw_find() {
+   local output
+   output=$(sw find)
+   [[ -n "$output" ]] && eval "$output" && zle reset-prompt
+}
 zle -N sw_widget
 bindkey -M vicmd '^F' sw_widget
 bindkey -M viins '^F' sw_widget
 
 stty -ixon
 
-zle -N _fuzzy_vim
-bindkey -M vicmd '^S' _fuzzy_vim
-bindkey -M viins '^S' _fuzzy_vim
+zle -N sw_find
+bindkey -M vicmd '^S' sw_find
+bindkey -M viins '^S' sw_find
 
 zle -N _vim_in_dir
 bindkey -M viins '^X' _vim_in_dir

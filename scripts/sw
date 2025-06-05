@@ -119,40 +119,7 @@ def change_to_directory(path: Path):
 def find_project_files(project_path: Path, filter_for: str, filter_out: str, handler_pattern: str, handler_override: str):
     logging.debug(f"find_project_files called with path={project_path}, filter_for={filter_for}, filter_out={filter_out}, handler_pattern={handler_pattern}")
     
-    #default_filter_out = r"\.git/"
-    #default_filter_out = r"\.git/.+"
-    default_filter_out = r"\.git/.+"
-    default_filter_out = r"\.git"
-    
-    if filter_for:
-        filter_for = filter_for.replace('./', f"^{project_path}/")
-        logging.debug(f"expanded filter_for={filter_for}")
-    
-    if filter_out:
-        filter_out = filter_out.replace('./', f"^{project_path}/")
-        filter_out = f"{default_filter_out}|{filter_out}"
-    else:
-        filter_out = default_filter_out
-    logging.debug(f"final filter_out={filter_out}")
-    
-    files = []
-    for item in project_path.rglob('*'):
-        files.append(str(item))
-    
-    logging.debug(f"find returned {len(files)} items")
-    
-    if filter_for:
-        pattern = re.compile(filter_for)
-        files = [f for f in files if pattern.search(f)]
-        logging.debug(f"after filter_for: {len(files)} items")
-    
-    if filter_out:
-        pattern = re.compile(filter_out)
-        files = [f for f in files if not pattern.search(f)]
-        logging.debug(f"after filter_out: {len(files)} items")
-    
-    relative_files = [str(Path(f).relative_to(project_path)) for f in files]
-    project_path_str = str(project_path) 
+    project_path_str = str(project_path)
     quoted_abs_project_path_str_for_env = shlex.quote(project_path_str)
     fzf_preview_script_path_str = str(FZF_PREVIEWER)
     quoted_fzf_preview_script_path_str = shlex.quote(fzf_preview_script_path_str)
@@ -160,67 +127,69 @@ def find_project_files(project_path: Path, filter_for: str, filter_out: str, han
         f"env PROJECT_PATH_ENV_VAR={quoted_abs_project_path_str_for_env} "
         f"{quoted_fzf_preview_script_path_str} {{}}"
     )
+    
+    find_cmd = ['find', str(project_path), '-type', 'f', '-not', '-path', '*/.git/*']
+    
     fzf_cmd = [
-            'fzf',
-            '--preview', fzf_preview_arg,
+        'fzf',
+        '--preview', fzf_preview_arg,
         '--preview-window=right:50%:border-left:noinfo',
-            '--border=rounded',
-            '--color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8',
-            '--color=fg:#cdd6f4,header:#f38ba8,info:#cba6ac,pointer:#f5e0dc',
-            '--color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6ac,hl+:#f38ba8',
-            '--bind=ctrl-u:preview-page-up,ctrl-d:preview-page-down',
-            '--cycle'
+        '--border=rounded',
+        '--color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8',
+        '--color=fg:#cdd6f4,header:#f38ba8,info:#cba6ac,pointer:#f5e0dc',
+        '--color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6ac,hl+:#f38ba8',
+        '--bind=ctrl-u:preview-page-up,ctrl-d:preview-page-down',
+        '--cycle'
     ]
-    #TODO add  a binding, Ctrl+r? if its a textifle -> ripgrep it?
     
     
     try:
-        result = subprocess.run(
-            fzf_cmd,
-            input='\n'.join(relative_files),
-            text=True,
-            capture_output=True
-        )
+        find_proc = subprocess.Popen(find_cmd, stdout=subprocess.PIPE, text=True)
+        sed_proc = subprocess.Popen(['sed', f's|^{project_path_str}/||'], stdin=find_proc.stdout, stdout=subprocess.PIPE, text=True)
+
+        if find_proc.stdout:
+            find_proc.stdout.close()
         
-        if result.returncode == 0:
-            selected_file = result.stdout.strip()
+        fzf_proc = subprocess.Popen(fzf_cmd, stdin=sed_proc.stdout, stdout=subprocess.PIPE, text=True)
+        if sed_proc.stdout:
+            sed_proc.stdout.close()
+        
+        selected_file, _ = fzf_proc.communicate()
+        
+        if fzf_proc.returncode == 0 and selected_file.strip():
+            selected_file = selected_file.strip()
             logging.debug(f"selected_file={selected_file}")
             
-            if selected_file:
-                full_path = project_path / selected_file
+            full_path = project_path / selected_file
+            
+            if full_path.is_dir():
+                change_to_directory(full_path)
+            else:
+                if handler_pattern and handler_override:
+                    pattern = re.compile(handler_pattern)
+                    if pattern.search(str(full_path)):
+                        handler_script = resolve_handler_path(handler_override)
+                        if handler_script.is_file() and os.access(handler_script, os.X_OK):
+                            subprocess.run([str(handler_script), str(full_path)])
+                            return
+                        else:
+                            print(f"Error: Handler script {handler_script} not found or not executable", file=sys.stderr)
+                            return
                 
-                if full_path.is_dir():
-                    change_to_directory(full_path)
+                mime_result = subprocess.run(['file', '--mime-type', '-b', str(full_path)], capture_output=True, text=True)
+                mime_type = mime_result.stdout.strip()
+                
+                default_app_result = subprocess.run(['xdg-mime', 'query', 'default', mime_type], capture_output=True, text=True)
+                default_app = default_app_result.stdout.strip()
+                
+                if default_app == 'neovide.desktop':
+                    editor = os.environ.get('EDITOR', 'nvim')
+                    print(f"{editor} '{full_path}'")
                 else:
-                    # Check if file matches handler pattern
-                    if handler_pattern and handler_override:
-                        pattern = re.compile(handler_pattern)
-                        if pattern.search(str(full_path)):
-                            handler_script = resolve_handler_path(handler_override)
-                            if handler_script.is_file() and os.access(handler_script, os.X_OK):
-                                subprocess.run([str(handler_script), str(full_path)])
-                                return
-                            else:
-                                print(f"Error: Handler script {handler_script} not found or not executable", file=sys.stderr)
-                                return
-                    
-                    # Default handling based on mime type
-                    mime_result = subprocess.run(['file', '--mime-type', '-b', str(full_path)], capture_output=True, text=True)
-                    mime_type = mime_result.stdout.strip()
-                    
-                    if mime_type.startswith('text/') or mime_type in ['application/json', 'application/xml', 'application/x-empty']:
-                        editor = os.environ.get('EDITOR', 'nvim')
-                        print(f"{editor} '{full_path}'")
-                    else:
-                        print(f"xdg-open '{full_path}'")
+                    print(f"xdg-open '{full_path}'")
     
     except subprocess.CalledProcessError:
         pass
-
-def project_exists(name: str) -> bool:
-    result = subprocess.run(['tmux', 'has-session', '-t', name], capture_output=True)
-    return result.returncode == 0
-
 def create_project_session(name: str, path: Path) -> bool:
     if not path.is_dir():
         print(f"Error: Directory {path} does not exist", file=sys.stderr)
@@ -229,6 +198,9 @@ def create_project_session(name: str, path: Path) -> bool:
     result = subprocess.run(['tmux', 'new-session', '-d', '-s', name, '-c', str(path)])
     return result.returncode == 0
 
+def project_exists(name: str) -> bool:
+    result = subprocess.run(['tmux', 'has-session', '-t', name], capture_output=True)
+    return result.returncode == 0
 def attach_project(name: str) -> bool:
     if project_exists(name):
         if os.environ.get('TMUX'):
@@ -338,6 +310,7 @@ def main():
     
     subparsers.add_parser('switch', aliases=['s'], help='Interactive project picker (default)')
     subparsers.add_parser('list', aliases=['l'], help='Show project status')
+    subparsers.add_parser('find', aliases=['f'], help='Find files in current directory')
     
     attach_parser = subparsers.add_parser('attach', aliases=['a'], help='Attach to project session')
     attach_parser.add_argument('name', help='Project name')
@@ -350,6 +323,8 @@ def main():
         switch_project()
     elif args.command in ['list', 'l']:
         list_projects()
+    elif args.command in ['find', 'f']:
+        find_project_files(Path(os.getcwd()), '', '', '', '')
     elif args.command in ['attach', 'a']:
         attach_project(args.name)
     elif args.command == 'start':
