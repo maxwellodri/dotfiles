@@ -2,7 +2,7 @@
 # Check if wireguard-tools is installed
 if ! pacman -Qi wireguard-tools >/dev/null 2>&1; then
     echo "WireGuard tools not installed"
-    exit 0
+    exit 1
 fi
 
 # Handle query mode
@@ -22,13 +22,13 @@ if systemctl is-active --quiet wg-quick@wg0; then
     if ! systemctl is-active --quiet wg-quick@wg0; then
         notify-send -r 9901 -i network-vpn "WireGuard disconnected"
     else
-        notify-send -r 9901 -i network-vpn-offline "WireGuard failed to disconnect" "Check system logs for details"
+        notify-send -r 9901 -i network-vpn-offline "WireGuard failed to disconnect - Check system logs for details"
     fi
 else
     sudo systemctl start wg-quick@wg0
     if systemctl is-active --quiet wg-quick@wg0; then
         notify-send -r 9901 -i network-vpn "WireGuard connected"
     else
-        notify-send -r 9901 -i network-vpn-error "WireGuard failed to connect" "Check system logs for details"
+        notify-send -r 9901 -i network-vpn-error "WireGuard failed to connect - Check system logs for details"
     fi
 fi
