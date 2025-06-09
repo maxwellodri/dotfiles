@@ -1,11 +1,11 @@
 #!/bin/sh
 
-[ -e "$HOME/.config/sh/shrc" ] && source "$HOME/.config/sh/shrc" #load alias and exports 
 
 export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_DATA_HOME="$HOME/.local/share"
 export XDG_CACHE_HOME="$HOME/.cache"
 export XDG_STATE_HOME="$HOME/.local/state"
+[ -e "$HOME/.config/sh/shrc" ] && source "$HOME/.config/sh/shrc" #load alias and exports 
 source "$XDG_CONFIG_HOME/zsh/xdg.zsh"
 
 export PATH=$HOME/bin:/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl
@@ -42,6 +42,6 @@ if [ -z "$WM" ] ; then
 fi
 export WM
 export WMNAME="$(basename "$WM")"
-#[ ! "$DISPLAY" ] && [ -n "$WM" ] && startx || echo "$WM failed?"
+[ ! "$DISPLAY" ] && [ -n "$WM" ] && startx
 
 [[ -x "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/sw.autostart.sh" ]] && "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/sw.autostart.sh"

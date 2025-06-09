@@ -69,7 +69,7 @@ if type nvim >/dev/null 2>&1; then
 else
     alias vimrc='vim ~/.vimrc'
 fi
-alias vw='PREV_DIR=$(pwd) && cd ~/vimwiki && nvim index.wiki && cd $PREV_DIR'
+alias vw='PREV_DIR=$(pwd) && cd ~/Documents/notes && nvim index.md && cd $PREV_DIR'
 alias swrc='$EDITOR "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/sw.yaml"'
 alias tmuxrc="vim ~/.tmux.conf"
 alias emacsrc="vim ~/.emacs.d/init.el"
