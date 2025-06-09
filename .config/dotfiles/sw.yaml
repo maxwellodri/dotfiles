@@ -26,6 +26,10 @@ projects:
     filter_for: '\.sh$'
     handler_override: 'handlers/game_script_handler.sh'
     handler_pattern: '\.sh$'
+  videos:
+    path: "/home/maxwell/Videos/youtube"
+    filter_out: "(.*part|.*json)"
+      #filter_out: "(*.\.json$|*.\.part$)"
 
 #name: "example_project"
 #  path: "/path/to/example/project" #project dir, must be absolute, if project doesnt exist, will be hidden from list
