@@ -20,3 +20,5 @@ require('user.dap')
 require('user.gigatextstreaming')
 require('user.folds')
 require('user.diff_applier')
+require('user.live-preview')
+

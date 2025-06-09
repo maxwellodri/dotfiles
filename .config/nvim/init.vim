@@ -150,7 +150,8 @@ let &packpath=&runtimepath
     " ===============
     " NoteTaking & Vim Wiki
     " ===============
-    Plug 'vimwiki/vimwiki'
+    "Plug 'vimwiki/vimwiki'
+    Plug 'brianhuster/live-preview.nvim'
     " ===============
     " Perf
     " ===============
