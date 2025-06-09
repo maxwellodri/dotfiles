@@ -1,11 +1,13 @@
 #!/bin/bash
 [ -z "$bin" ] && (echo "\$bin not defined"; exit 1)
-
 [ -z "$VIDEO_DIR" ] && VIDEO_DIR="$HOME/Videos/youtube"
 LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles"
 LOG_FILE="$LOG_DIR/tsp_ytdlp.log"
 QUEUED_URLS_FILE="$LOG_DIR/active_downloads.txt"
+RETRY_URLS_FILE="$LOG_DIR/retry_downloads.txt"
 COOKIES="$HOME/source/private/cookies.firefox-private.txt"
+
+mkdir -p "$LOG_DIR" || { echo "Failed to create log directory: $LOG_DIR"; exit 1; }
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
@@ -14,7 +16,7 @@ log() {
 atomic_append() {
     local file="$1"
     local content="$2"
-    local temp_file="$LOG_DIR/tempfiles/$(basename "$file").tmp.$"
+    local temp_file="$LOG_DIR/tempfiles/$(basename "$file").tmp.$.$RANDOM"
     
     mkdir -p "$LOG_DIR/tempfiles"
     touch "$file" 2>/dev/null || true
@@ -26,7 +28,7 @@ atomic_append() {
 atomic_remove_line() {
     local file="$1"
     local line="$2"
-    local temp_file="$LOG_DIR/tempfiles/$(basename "$file").tmp.$"
+    local temp_file="$LOG_DIR/tempfiles/$(basename "$file").tmp.$.$RANDOM"
     
     mkdir -p "$LOG_DIR/tempfiles"
     if [ -f "$file" ]; then
@@ -38,7 +40,7 @@ atomic_remove_line() {
 atomic_move_file() {
     local src="$1"
     local dest="$2"
-    local temp_file="$LOG_DIR/tempfiles/$(basename "$dest").tmp.$"
+    local temp_file="$LOG_DIR/tempfiles/$(basename "$dest").tmp.$.$RANDOM"
     
     mkdir -p "$LOG_DIR/tempfiles"
     if [ -f "$src" ]; then
@@ -49,35 +51,75 @@ atomic_move_file() {
     fi
 }
 
-mkdir -p "$VIDEO_DIR"
-mkdir -p "$LOG_DIR"
+should_skip_duplicate_url() {
+    local url="$1"
+    local status
+    status=$(tsp -l | grep "$url" | head -1 | awk '{print $2}' 2>/dev/null)
+    [[ "$status" == "queued" || "$status" == "finished" ]]
+}
 
 recover_queued_urls() {
-    atomic_move_file "$QUEUED_URLS_FILE" "$RETRY_URLS_FILE"
+    [ ! -f "$QUEUED_URLS_FILE" ] && return
+    local recovered_count=0
+    while IFS= read -r queued_url; do
+        [ -z "$queued_url" ] && continue
+        if ! should_skip_duplicate_url "$queued_url"; then
+            atomic_append "$RETRY_URLS_FILE" "$queued_url"
+            ((recovered_count++))
+        fi
+    done < "$QUEUED_URLS_FILE"
+    
+    if [ $recovered_count -gt 0 ]; then
+        true > "$QUEUED_URLS_FILE"
+        log "Recovered $recovered_count URLs to retry list"
+    fi
 }
 
-is_url_already_queued() {
-    local url="$1"
-    tsp -l | grep -q "$url"
-    return $?
-}
+mkdir -p "$VIDEO_DIR" || { echo "Failed to create video directory: $VIDEO_DIR"; exit 1; }
+mkdir -p "$LOG_DIR"
 
 process_retry_list() {
     [ ! -f "$RETRY_URLS_FILE" ] && return
     local retry_count=0
     while IFS= read -r retry_url; do
         [ -z "$retry_url" ] && continue
-        if ! is_url_already_queued "$retry_url"; then
-            local title
-            title=$(yt-dlp --print filename --cookies "$COOKIES" "$retry_url" -o "%(title)s" 2>/dev/null || echo "unknown")
-            tsp -L "retry: $title | $retry_url" "$bin/_tsp_download_video_helper" "$retry_url"
+        
+        if should_skip_duplicate_url "$retry_url"; then
+            log "Deduped retry URL (already queued/finished): $retry_url"
             ((retry_count++))
+            continue
         fi
+        
+        local retry_video_dir="$HOME/Videos/youtube"
+        
+        if [[ "$retry_url" != *"youtube.com"* ]] && [ -x "$HOME/source/private/get_video_dir.sh" ]; then
+            if custom_dir=$("$HOME/source/private/get_video_dir.sh" "$retry_url" 2>/dev/null); then
+                if [ -n "$custom_dir" ]; then
+                    if [[ "$custom_dir" =~ ^[/~] ]] || [[ "$custom_dir" =~ ^\$HOME ]]; then
+                        custom_dir="${custom_dir//\$HOME/$HOME}"
+                        if mkdir -p "$custom_dir" 2>/dev/null; then
+                            retry_video_dir="$custom_dir"
+                        fi
+                    fi
+                fi
+            fi
+        fi
+        
+        notify-send t 3000 "Retrying: $retry_url"
+        local title
+        title=$(yt-dlp --print filename --cookies "$COOKIES" "$retry_url" -o "%(title)s" 2>/dev/null || echo "unknown")
+        
+        if [ "$retry_video_dir" != "$HOME/Videos/youtube" ]; then
+            tsp -L "retry: $title | $retry_url" env VIDEO_DIR="$retry_video_dir" "$bin/_tsp_download_video_helper" "$retry_url"
+        else
+            tsp -L "retry: $title | $retry_url" "$bin/_tsp_download_video_helper" "$retry_url"
+        fi
+        ((retry_count++))
     done < "$RETRY_URLS_FILE"
     
+    true > "$RETRY_URLS_FILE"
     if [ $retry_count -gt 0 ]; then
-        true > "$RETRY_URLS_FILE"
-        log "Requeued $retry_count URLs from retry list"
+        log "Processed $retry_count URLs from retry list"
     fi
 }
 
@@ -95,18 +137,52 @@ if [[ ! "$url" =~ ^https?:// ]]; then
     exit 1
 fi
 
+if [[ "$url" != *"youtube.com"* ]] && [ -x "$HOME/source/private/get_video_dir.sh" ]; then
+    if custom_dir=$("$HOME/source/private/get_video_dir.sh" "$url" 2>/dev/null); then
+        if [ -n "$custom_dir" ] && [ "$custom_dir" != "$VIDEO_DIR" ]; then
+            if [[ "$custom_dir" =~ ^[/~] ]] || [[ "$custom_dir" =~ ^\$HOME ]]; then
+                custom_dir="${custom_dir//\$HOME/$HOME}"
+                if mkdir -p "$custom_dir" 2>/dev/null; then
+                    VIDEO_DIR="$custom_dir"
+                    log "Custom directory detected for URL: $url -> $VIDEO_DIR"
+                else
+                    log "ERROR: Failed to create custom directory: $custom_dir, using default"
+                fi
+            else
+                log "WARNING: get_video_dir.sh returned invalid directory path: $custom_dir"
+            fi
+        else
+            log "INFO: get_video_dir.sh returned empty result, using default directory for URL: $url"
+        fi
+    else
+        log "INFO: get_video_dir.sh returned empty result, using default directory for URL: $url"
+    fi
+else
+    if [[ "$url" == *"youtube.com"* ]]; then
+        log "INFO: YouTube URL detected, using default directory: $VIDEO_DIR"
+    else
+        log "INFO: get_video_dir.sh not found or not executable, using default directory"
+    fi
+fi
+
 notification_id=$(echo "$url" | md5sum | cut -d' ' -f1)
 notification_hint="string:x-canonical-private-synchronous:$notification_id"
 
-if is_url_already_queued "$url"; then
-    notify-send -t 1200 -h "$notification_hint" "URL already queued: $url 🕺"
-    log "Skipped adding duplicate URL to queue: $url"
+if should_skip_duplicate_url "$url"; then
+    notify-send -t 1200 -h "$notification_hint" "URL already queued/finished: $url 🕺"
+    log "Deduped URL (already queued/finished): $url"
     exit 0
 fi
 
 notify-send -t 0 -h "$notification_hint" "Processing: $url 🔄"
 
-if ! title=$(yt-dlp --print filename --cookies "$COOKIES" "$url" -o "%(channel)s_%(title)s"); then
+if [[ "$url" == *"youtube.com"* ]]; then
+    title_format="%(channel)s_%(title)s"
+else
+    title_format="%(title)s"
+fi
+
+if ! title=$(yt-dlp --print filename --cookies "$COOKIES" "$url" -o "$title_format"); then
     log "Failed to get filename for $url"
     notify-send -t 3000 -h "$notification_hint" "Failed to get filename for $url ❌"
     exit 1
@@ -114,9 +190,13 @@ fi
 
 atomic_append "$QUEUED_URLS_FILE" "$url"
 
-tsp -L "yt-dlp: $title | $url" "$bin/_tsp_download_video_helper" "$url"
-tsp_exit_code="$?"
+if [ "$VIDEO_DIR" != "$HOME/Videos/youtube" ]; then
+    tsp -L "yt-dlp: $title | $url" env VIDEO_DIR="$VIDEO_DIR" "$bin/_tsp_download_video_helper" "$url"
+else
+    tsp -L "yt-dlp: $title | $url" "$bin/_tsp_download_video_helper" "$url"
+fi
 
+tsp_exit_code="$?"
 if [ $tsp_exit_code -ne 0 ]; then
     atomic_remove_line "$QUEUED_URLS_FILE" "$url"
     log "ERROR: Failed to queue download. TSP exit code: $tsp_exit_code - $url -> $title"

@@ -1,12 +1,18 @@
 #!/bin/bash
 [ -z "$1" ] && { echo "No url provided"; exit 1;}
-
 [ -z "$LOG_DIR" ] && LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles"
 [ -z "$LOG_FILE" ] && LOG_FILE="$LOG_DIR/tsp_ytdlp.log"
 [ -z "$FAILURE_LOG" ] && FAILURE_LOG="$LOG_DIR/tsp_ytdlp.failure.log"
 [ -z "$VIDEO_DIR" ] && VIDEO_DIR="$HOME/Videos/youtube"
 
-VIDEO_PATH_TEMPLATE="$VIDEO_DIR/%(title)s-%(channel)s-%(id)s.%(ext)s"
+# Set path template based on URL type
+url="$1"
+if [[ "$url" == *"youtube.com"* ]]; then
+    VIDEO_PATH_TEMPLATE="$VIDEO_DIR/%(title)s-%(channel)s-%(id)s.%(ext)s"
+else
+    VIDEO_PATH_TEMPLATE="$VIDEO_DIR/%(title)s.%(ext)s"
+fi
+
 COOKIES="$HOME/source/private/cookies.firefox-private.txt"
 QUEUED_URLS_FILE="$LOG_DIR/active_downloads.txt"
 
@@ -17,7 +23,8 @@ log() {
 atomic_append() {
     local file="$1"
     local content="$2"
-    local temp_file="$LOG_DIR/tempfiles/$(basename "$file").tmp.$"
+    local temp_file
+    temp_file="$LOG_DIR/tempfiles/$(basename "$file").tmp.$.$RANDOM"
     
     mkdir -p "$LOG_DIR/tempfiles"
     touch "$file" 2>/dev/null || true
@@ -29,7 +36,8 @@ atomic_append() {
 atomic_remove_line() {
     local file="$1"
     local line="$2"
-    local temp_file="$LOG_DIR/tempfiles/$(basename "$file").tmp.$"
+    local temp_file
+    temp_file="$LOG_DIR/tempfiles/$(basename "$file").tmp.$.$RANDOM"
     
     mkdir -p "$LOG_DIR/tempfiles"
     if [ -f "$file" ]; then
@@ -62,8 +70,7 @@ wait_for_network() {
 }
 
 mkdir -p "$LOG_DIR"
-
-url="$1"
+mkdir -p "$VIDEO_DIR"
 
 if ! full_path=$(yt-dlp --print filename --cookies "$COOKIES" --restrict-filename "$url" -o "$VIDEO_PATH_TEMPLATE"); then
     log "Failed to get filename for $url"
@@ -72,21 +79,25 @@ fi
 
 base_path=${full_path%.*}
 filename=$(basename "$base_path")
-
 log "Downloading $url to $base_path.*"
 
 wait_for_disk_space
 wait_for_network
-
 output_file=$(mktemp)
+
+# Set yt-dlp options based on URL type
+if [[ "$url" == *"youtube.com"* ]]; then
+    read -ra YTDLP_EXTRA_ARGS <<< "--sponsorblock-remove sponsor --sponsorblock-mark intro,outro,selfpromo,preview"
+else
+    YTDLP_EXTRA_ARGS=()
+fi
 
 if yt-dlp \
     --cookies "$COOKIES" \
     --write-info-json \
     --embed-metadata \
     --xattrs \
-    --sponsorblock-remove sponsor \
-    --sponsorblock-mark intro,outro,selfpromo,preview \
+    "${YTDLP_EXTRA_ARGS[@]}" \
     --restrict-filename \
     --trim-filenames 200 \
     --retries infinite \
