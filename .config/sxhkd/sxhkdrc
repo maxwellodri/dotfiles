@@ -32,7 +32,7 @@ super + End
 super + shift + Escape
 	set_kb_map && notify-send -t 1000 "Correctly Set Capslock => Escape 😍"
 super + shift + w
-    $bin/wireguard_runner
+    $bin/wg_switcher.sh
 super + w
     wallpaper-shader
 super + shift + t

@@ -23,6 +23,7 @@ declare -a ENABLED_SERVICES=()
 declare -a STARTED_SERVICES=()
 declare -a RESTARTED_SERVICES=()
 
+
 # Function to find git root
 find_git_root() {
     local current_dir
@@ -169,6 +170,7 @@ manage_user_service() {
 copy_files() {
     local src="$1"
     local dst_dir="$2"
+    dst_dir="${dst_dir%/}"
     local needs_sudo="${3:-false}"
     local is_user_service="${4:-false}"
     
@@ -317,6 +319,7 @@ if [ ! -d "udev-rules" ] || [ ! -d "systemd-services" ] || [ ! -d "system_config
     exit 1
 fi
 
+
 # Validate sudo access
 validate_sudo
 
@@ -338,7 +341,8 @@ copy_files "systemd-services/system" "/etc/systemd/system" true
 # Copy user systemd services (no sudo needed)
 print_header "Installing User Services"
 USER_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-copy_files "systemd-services/user" "$USER_CONFIG_HOME/systemd/user/" false true
+mkdir -p "$USER_CONFIG_HOME/systemd/user"
+copy_files "systemd-services/user" "$USER_CONFIG_HOME/systemd/user" false
 
 # Handle individual files in system_configs/etc
 print_header "Installing System Configurations"

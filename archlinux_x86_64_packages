@@ -57,6 +57,7 @@ detox
 #htop
 xdo
 python
+python-yaml
 python-qtconsole
 python-pynvim
 python-xlib

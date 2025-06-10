@@ -1,5 +1,9 @@
 #!/bin/sh
-emoji=$(cat "$HOME/bin/unicode_fmt" | dmenu -i -l 40 -b | awk '{print $1}' | tr -d '\n')
+if [ "$dotfile_tag" == "pc" ]; then
+    emoji=$(cat "$HOME/bin/unicode_fmt" | dmenu -i -l 40 -b | awk '{print $1}' | tr -d '\n')
+else
+    emoji=$(cat "$HOME/bin/unicode_fmt" | dmenu -i -l 25 -b | awk '{print $1}' | tr -d '\n')
+fi
 
 if [ "$emoji" != "" ] && awk '{print $1}' "$HOME/bin/unicode_fmt" | grep -Fxq "$emoji"; then
     echo $emoji | tr -d "\n" | tr -d " " | xclip -selection clipboard && pgrep -x dunst >/dev/null && notify-send -t 700 "$(xclip -o -selection clipboard) => clipboard"
