@@ -1,14 +1,37 @@
 polkit.addRule(function(action, subject) {
-    if ((action.id == "org.freedesktop.systemd1.manage-units" ||
-         action.id == "org.freedesktop.policykit.exec") &&
-        action.lookup("program") == "/usr/bin/systemctl" &&
+    if (action.id == "org.freedesktop.policykit.exec" &&
         subject.isInGroup("wheel")) {
         
-        var verb = action.lookup("verb");
-        var unit = action.lookup("unit");
+        var program = action.lookup("program");
+        var command_line = action.lookup("command_line");
         
-        if ((verb == "start" || verb == "stop") && 
-            unit && unit.indexOf("wg-quick@") == 0) {
+        // Allow wg-quick commands
+        if (program == "/usr/bin/wg-quick" ||
+            (command_line && command_line.indexOf("wg-quick") != -1)) {
+            return polkit.Result.YES;
+        }
+        
+        // Allow wg commands for status checking
+        if (program == "/usr/bin/wg" ||
+            (command_line && command_line.indexOf("/usr/bin/wg ") != -1)) {
+            return polkit.Result.YES;
+        }
+        
+        // Allow find/test for wireguard directory access
+        if ((program == "/usr/bin/find" || program == "/bin/find") &&
+            command_line && command_line.indexOf("/etc/wireguard") != -1) {
+            return polkit.Result.YES;
+        }
+        
+        if ((program == "/usr/bin/test" || program == "/bin/test") &&
+            command_line && command_line.indexOf("/etc/wireguard") != -1) {
+            return polkit.Result.YES;
+        }
+        
+        // Allow awk only for reading wireguard config labels (not keys)
+        if ((program == "/usr/bin/awk" || program == "/bin/awk") &&
+            command_line && command_line.indexOf("/etc/wireguard") != -1 &&
+            command_line.indexOf("/^#Label:/ && !/PrivateKey/ && !/PreSharedKey/ && !/[A-Za-z0-9+\\/]{43}=/ {print; exit}") != -1) {
             return polkit.Result.YES;
         }
     }

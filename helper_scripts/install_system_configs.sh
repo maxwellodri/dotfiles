@@ -353,6 +353,9 @@ copy_files "system_configs/etc/polkit-1/rules.d/" "/etc/polkit-1/rules.d" true
 # Reload configurations
 print_header "Reloading System Configurations"
 
+echo -e "${CYAN}Reloading polkit...${NC}"
+sudo systemctl reload polkit
+
 echo -e "${CYAN}Reloading system daemon...${NC}"
 sudo systemctl daemon-reload
 

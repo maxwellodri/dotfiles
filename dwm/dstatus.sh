@@ -88,9 +88,10 @@ poll_battery() {
 }
 
 wireguard_poll() {
-    wireguard_runner --query >/dev/null && echo " 🔒✅" || echo " 🔒❎"
+    wg_switcher.sh --query >/dev/null && echo " 🔒✅" || echo " 🔒❎"
 }
 docker_watch() {
+    command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1 || { echo ""; return; }
     echo " 🐳: $([ -e "$XDG_CACHE_DIR/dotfiles/dockerup.update" ] && wc -l "$XDG_CACHE_DIR/dotfiles/dockerup.update" | awk '{print $1}' || echo "0")|$(docker ps | tail -n +2 | wc -l)"
 }
 
@@ -112,6 +113,53 @@ poll_timew() {
       echo "$formatted_duration"
     else
       echo "#"
+    fi
+}
+
+# Global array to store CPU samples
+declare -a cpu_cache
+
+get_cpu_usage() {
+    # Read current CPU stats
+    read cpu user nice system idle iowait irq softirq steal guest guest_nice < /proc/stat
+    local current_total=$((user + nice + system + idle + iowait + irq + softirq + steal))
+    local current_idle=$idle
+    
+    # Add current sample to array
+    cpu_cache=("$current_total $current_idle" "${cpu_cache[@]}")
+    
+    # Keep only 4 most recent samples
+    if [ ${#cpu_cache[@]} -gt 4 ]; then
+        cpu_cache=("${cpu_cache[@]:0:4}")
+    fi
+    
+    # Need at least 2 samples to calculate usage
+    if [ ${#cpu_cache[@]} -lt 2 ]; then
+        echo "0"
+        return
+    fi
+    
+    # Calculate usage between newest and oldest samples
+    read newest_total newest_idle <<< "${cpu_cache[0]}"
+    read oldest_total oldest_idle <<< "${cpu_cache[-1]}"
+    
+    local total_diff=$((newest_total - oldest_total))
+    local idle_diff=$((newest_idle - oldest_idle))
+    
+    if [ $total_diff -eq 0 ]; then
+        echo "0"
+        return
+    fi
+    
+    local cpu_percent=$(( ((total_diff - idle_diff) * 100) / total_diff ))
+    
+    # Clamp between 0-100
+    if [ $cpu_percent -gt 100 ]; then
+        echo "100"
+    elif [ $cpu_percent -lt 0 ]; then
+        echo "0"
+    else
+        echo "$cpu_percent"
     fi
 }
 
@@ -206,13 +254,14 @@ eval "$(grep 'export dotfiles_tag' "$HOME/.zprofile")"
 while true; do
     case "$dotfiles_tag" in 
         hackerman)
-            OPT="$(docker_watch)$(wireguard_poll) $(poll_battery)"
+            OPT="$(wireguard_poll) $(poll_battery)"
+            setxkbmap -query | grep -q "caps:escape" || { setxkbmap -option caps:escape; setcapslock off; }
                     ;;
         pc) 
-            OPT="$(docker_watch)$(wireguard_poll)"
+            OPT="$(wireguard_poll)"
                     ;;
         *)  
-                    OPT=" NO TAG"
+            OPT=" NO TAG"
                     ;;
     esac
     #cpu_usage=$(echo "100-$(mpstat --dec=0 | grep all | awk '{print $12}')" | bc)
@@ -253,10 +302,9 @@ while true; do
         rm "$network_touch"
     fi
 
-    cpu_usage=$(top -b -n 2 | grep Cpu | sed 's/:/ /g' | awk '{printf "CPU Load:%7.0f\n", $(NF-13) + $(NF-15)}' | sed -n '2 p' | awk '{print $3}')
-    rounded_cpu=$(( $cpu_usage <  99 ? $cpu_usage : 99 ))
+    cpu_usage=$(get_cpu_usage)
     command -v get_reminders.sh > /dev/null && reminders="🧐: $(get_reminders.sh --count)" || reminders="😠: 0"
-    xsetroot -name "$timedata $reminders 🕒: $(date +%a-%d-%b-%R) 🧠: $(sh memory_checker)% 🤔:$(printf "%2d" "$rounded_cpu")% 🌏: $internet 🚚: $packages$OPT"
+    xsetroot -name "$timedata $reminders 🕒: $(date +%a-%d-%b-%R) 🧠: $(sh memory_checker)% 🤔:$(printf "%2d" "$cpu_usage")% 🌏: $internet 🚚: $packages$(docker_watch)$OPT"
 
 	sleep 0.25s
 done

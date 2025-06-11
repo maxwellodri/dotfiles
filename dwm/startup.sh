@@ -1,7 +1,7 @@
 #!/bin/sh
 #setsid dunst & # Use service file to make it resistant to OOM killer
 which picom && picom -b --config ~/.config/picom/picom.conf &
-polkit-dumb-agent &
+/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
 systemctl --user import-environment DISPLAY XAUTHORITY #non-xorg vars defined in shrc 
 #pgrep -xf "transmission-daemon --no-auth" || ( echo "Starting transmission-daemon" && transmission-daemon --no-auth )
 
