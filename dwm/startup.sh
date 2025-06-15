@@ -17,5 +17,6 @@ $dotfiles/dwm/neovim-server-runner.py --cleanup
 [ $dotfiles_tag = "pc" ] && nicotine &
 background_set.sh &
 $bin/set_kb_map &
+$bin/tsp_ytdlp --daemon &
 
 echo "Done startup"
