@@ -36,6 +36,9 @@ function fg-bg {
 zle -N fg-bg
 bindkey '^z' fg-bg
 
+bindkey -r '^[f'
+bindkey '^[ ' forward-word
+
 declare -A venvs=(
     #["tortoise"]="~/source/tortoise/"
     # add more directories and virtual environment paths here
