@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# A user-friendly wrapper for the system's `sleep-until` command.
+# Usage: ./wait-until.sh "time string"
+# Example: ./wait-until.sh "6:30pm"
+# Example: ./wait-until.sh "tomorrow 08:00"
+
+# --- 1. Input Validation ---
+if [ -z "$1" ]; then
+    echo "Error: No time string provided."
+    echo "Usage: $0 \"<time string>\""
+    echo "Example: $0 \"5:30pm\""
+    exit 1
+fi
+
+TIME_STRING="$1"
+
+# --- 2. Timestamp Calculation ---
+# Use `date` to convert the human-readable time string into a Unix timestamp.
+# The `date` command is very flexible and handles all your requested formats.
+# We wrap this in a `if` statement to catch invalid time strings.
+if ! TARGET_TS=$(date -d "$TIME_STRING" +%s 2>/dev/null); then
+    echo "Error: Could not parse the time string: '$TIME_STRING'"
+    echo "Please use a format that the 'date' command understands."
+    exit 1
+fi
+
+# Get the current timestamp
+NOW_TS=$(date +%s)
+
+# --- 3. Handle Past Times (Crucial for robust behavior) ---
+# If the calculated time is in the past, assume the user meant the next day.
+if [ "$TARGET_TS" -le "$NOW_TS" ]; then
+    echo "Info: '$TIME_STRING' is in the past. Assuming you mean tomorrow."
+    # Recalculate the timestamp for the same time, but tomorrow.
+    TARGET_TS=$(date -d "$TIME_STRING tomorrow" +%s)
+fi
+
+# --- 4. Execution ---
+# Provide feedback to the user about what's happening.
+echo "Waiting until $(date -d "@$TARGET_TS")"
+
+# Call the actual `sleep-until` command with the calculated numeric timestamp.
+# This is the core of the script.
+sleep-until "$TARGET_TS"
