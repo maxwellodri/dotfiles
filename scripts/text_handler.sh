@@ -5,7 +5,7 @@
 handle_magnet_link() {
     pgrep -f transmission-daemon > /dev/null || (transmission-daemon --no-auth && notify-send "Starting transmission daemon...")
     BEFORE_ADD=$(transmission-remote -l | awk 'NR>1 {print $1}' | tr -d '*')
-    transmission-remote -a "$1" --torrent-done-script ~/bin/torrdone || { notify-send "Invalid link ⛔ (Not a magnet link?)"; exit; }
+    transmission-remote -a --start-paused "$1" --torrent-done-script ~/bin/torrdone || { notify-send "Invalid link ⛔ (Not a magnet link?)"; exit; }
     AFTER_ADD=$(transmission-remote -l | awk 'NR>1 {print $1}' | tr -d '*')
     TORRENT_ID=$(diff <(echo "$BEFORE_ADD") <(echo "$AFTER_ADD") | grep '>' | awk '{print $2}')
     if [ -z "$TORRENT_ID" ]; then
@@ -18,7 +18,7 @@ handle_magnet_link() {
 }
 
 handle_url() {
-    CHOICE=$(echo -e "Open in Firefox Tab\nOpen in New Firefox Window\nDownload with yt-dlp using tsp (tsp_ytdlp)\nDownload with gallery-dl\nAdd as feed\nWatch as video in mpv" | dmenu -i -p "Choose how to open URL:")
+    CHOICE=$(echo -e "Open in Firefox Tab\nOpen in New Firefox Window\nDownload with yt-dlp using tsp (tsp_ytdlp)\nDownload with gallery-dl\nAdd as feed\nWatch as video in mpv" | dmenu -l 20 -c -i -p "Choose how to open URL:")
 
     case "$CHOICE" in
         "Open in New Firefox Window")
@@ -66,7 +66,7 @@ handle_feed() {
 }
 
 handle_directory() {
-    CHOICE=$(echo -e "Open in st\nOpen in pcmanfm" | dmenu -i -p "Choose how to open directory:")
+    CHOICE=$(echo -e "Open in st\nOpen in pcmanfm" | dmenu -l 20 -c -i -p "Choose how to open directory:")
 
     case "$CHOICE" in
         "Open in st")
@@ -82,7 +82,7 @@ handle_directory() {
 }
 
 handle_file() {
-    CHOICE=$(echo -e "Open parent directory in st\nOpen parent directory in pcmanfm\nOpen file with xdg-open" | dmenu -i -p "Choose how to handle file:")
+    CHOICE=$(echo -e "Open parent directory in st\nOpen parent directory in pcmanfm\nOpen file with xdg-open" | dmenu -l 20 -c -i -p "Choose how to handle file:")
 
     case "$CHOICE" in
         "Open parent directory in st")
