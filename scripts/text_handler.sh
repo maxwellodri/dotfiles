@@ -103,6 +103,9 @@ handle_file() {
 if [ $# -eq 0 ]; then
     # No command-line arguments, read from clipboard
     input=$(xclip -o -selection clipboard | sed 's/^[ \t]*//;s/[ \t]*$//')
+elif [ "$1" = "sel" ] && [ $# -eq 1 ]; then
+    # Only "sel" argument, read from primary selection
+    input=$(xclip -o -selection primary | sed 's/^[ \t]*//;s/[ \t]*$//')
 else
     # Concatenate command-line arguments and trim whitespace
     input=$(echo "$*" | sed 's/^[ \t]*//;s/[ \t]*$//')

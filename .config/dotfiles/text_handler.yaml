@@ -1,0 +1,81 @@
+auto_select_max_threshold: 100
+auto_select_min_threshold: 10
+commands:
+  ff_tab:
+    display: "🌐 Open in Firefox Tab"
+    command: firefox --new-tab "$TEXT"
+  ff_window:
+    display: "🗔 Open in New Firefox Window"
+    command: firefox --new-window "$TEXT"
+  tsp_ytdlp:
+    display: "⬇️ Download with tsp_ytdlp"
+    command: tsp_ytdlp "$TEXT"
+  gallery-dl:
+    display: "🖼️ Download with gallery-dl"
+    command: stcmd "gallery-dl $TEXT"
+  rss:
+    display: "📰 Add as newsboat feed"
+    command: echo "$TEXT" >> ~/.config/newsboat/urls && notify-send "Added feed to newsboat"
+  watch_mpv:
+    display: "🎬 Watch video in mpv"
+    command: stcmd "mpv $TEXT"
+  magnet_link:
+    display: "🏴‍☠️ Add torrent"
+    command: ~/.config/dotfiles/handlers/magnet_link_handler.sh "$TEXT"
+  xdg-open:
+    display: "📄 Open file with xdg-open"
+    command: xdg-open "$TEXT"
+  st_parent_dir:
+    display: "📁 Open parent dir in terminal"
+    command: st -d "$(dirname "$TEXT")"
+  pcmanfm_parent_dir:
+    display: "📁 Open parent dir in file manager"
+    command: pcmanfm "$(dirname "$TEXT")"
+  st_dir:
+    display: "📂 Open directory in terminal"
+    command: st -d "$TEXT"
+  pcmanfm_dir:
+    display: "📂 Open directory in file manager"
+    command: pcmanfm "$TEXT"
+  nvim:
+    display: "📝 Open in Nvim"
+    command: stcmd "printf '%s' \"$TEXT\" | nvim -; exit"
+
+scorers:
+  - regex: '^https?://.*'
+    command_label: ff_tab
+    score_change: 11
+  - regex: '^https?://.*'
+    command_label: ff_window
+    score_change: 10
+  - regex: 'youtube\.com|youtu\.be|twitch\.tv'
+    command_label: tsp_ytdlp
+    score_change: 20
+  - regex: 'instagram\.com|twitter\.com|x\.com'
+    command_label: gallery-dl
+    score_change: 20
+  - regex: '\.rss$|feeds\.xml|/feed'
+    command_label: rss
+    score_change: 25
+  - regex: '^magnet:\?'
+    command_label: magnet_link
+    score_change: 150
+  - regex: '\.(txt|md|rs|py|js|html|css)$'
+    command_label: xdg-open
+    score_change: 20
+  - regex: '\.(txt|md|rs|py|js|html|css)$'
+    command_label: st_parent_dir
+    score_change: 15
+  - regex: '\.(txt|md|rs|py|js|html|css)$'
+    command_label: pcmanfm_parent_dir
+    score_change: 10
+  - regex: '^(/[^/\s]*)+/?$'
+    command_label: st_dir
+    score_change: 5
+  - regex: '^(/[^/\s]*)+/?$'
+    command_label: pcmanfm_dir
+    score_change: 5
+  - regex: '\S'
+    score_change: 1
+    command_label: nvim
+
