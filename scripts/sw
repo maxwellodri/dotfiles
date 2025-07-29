@@ -112,9 +112,10 @@ def get_current_project() -> Optional[Tuple[str, Path, str, str, str, str, str]]
     logging.debug("no project match found")
     return None
 
-def change_to_directory(path: Path):
-    """Output command to change directory for shell integration"""
+def change_to_directory(path: Path, on_enter_cmd: str | None = None):
     print(f"cd '{path}'")
+    if on_enter_cmd:
+        print(on_enter_cmd)
 
 def find_project_files(project_path: Path, filter_for: str, filter_out: str, handler_pattern: str, handler_override: str):
     logging.debug(f"find_project_files called with path={project_path}, filter_for={filter_for}, filter_out={filter_out}, handler_pattern={handler_pattern}")
@@ -212,16 +213,17 @@ def attach_project(name: str) -> bool:
         return False
 
 def switch_project():
+    config = load_config()
+    for name, details in config.get('projects', {}).items():
+        if not validate_handler_config(name, details):
+            sys.exit(1)
+
     current_project = get_current_project()
     if current_project:
         name, path, tmux_session, filter_for, filter_out, handler_pattern, handler_override = current_project
         find_project_files(path, filter_for, filter_out, handler_pattern, handler_override)
         return
     
-    config = load_config()
-    for name, details in config.get('projects', {}).items():
-        if not validate_handler_config(name, details):
-            sys.exit(1)
     
     projects = get_projects()
     if not projects:
@@ -281,6 +283,10 @@ def switch_project():
                         subprocess.run(['tmux', 'attach-session', '-t', tmux_session])
                 else:
                     change_to_directory(path)
+                    on_enter_cmd = config.get('projects', {}).get(name, {}).get('on_enter')
+                    if on_enter_cmd:
+                        print(on_enter_cmd)
+
     
     except subprocess.CalledProcessError:
         pass
@@ -318,6 +324,8 @@ def main():
     subparsers.add_parser('start', help='Start all project sessions')
     
     args = parser.parse_args()
+
+    validate_config()
     
     if args.command in ['switch', 's', None]:
         switch_project()

@@ -29,7 +29,9 @@ projects:
   videos:
     path: "/home/maxwell/Videos/youtube"
     filter_out: "(.*part|.*json)"
-      #filter_out: "(*.\.json$|*.\.part$)"
+    handler_override: "handlers/video_handler.sh"
+    handler_pattern: "*"
+    on_enter: "mpv_play -m o"
 
 #name: "example_project"
 #  path: "/path/to/example/project" #project dir, must be absolute, if project doesnt exist, will be hidden from list
@@ -38,3 +40,4 @@ projects:
 #    tmux: "example-dev" #name of tmux session; if not used, then no tmux
 #    handler_override: "handlers/my_script_that_handles_sh_files #path to script, requires handler_pattern to be specified as well
 #    handler_pattern: '\.sh$' #regex for specific files to handle with handler_override
+#    on_enter:
