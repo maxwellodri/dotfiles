@@ -43,5 +43,5 @@ if [ "$GENERATE_KEY" -eq 1 ]; then
     echo "Paste the contents of $KEY_FILE.pub into https://github.com/settings/keys as a new SSH key."
 fi
 
-echo "To push changes, you will need to use: git push --set-upstream origin master"
+echo "To push changes for extra repos, you will need to use: git push --set-upstream origin master"
 exit 0
