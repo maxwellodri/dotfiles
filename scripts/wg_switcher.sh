@@ -1,27 +1,12 @@
 #!/bin/bash
 
-<<<<<<< HEAD
-NOTIFY_TIMEOUT=2000
-
-if ! pacman -Qi wireguard-tools >/dev/null 2>&1; then
-    exit 0
-fi
-
-=======
 NOTIFY_SEND=false
 NOTIFY_TIMEOUT=2000
 
->>>>>>> f132c36 (add wg_switcher script incl necessary config changes)
 get_active_interfaces() {
     wg show interfaces 2>/dev/null | tr ' ' '\n' | grep -v '^ '|| true
 }
 
-<<<<<<< HEAD
-get_interface_label() {
-    local config_path="$1"
-    local label
-    label=$(run_elevated grep "^#Label:" "$config_path" 2>/dev/null | sed 's/^#Label:[[:space:]]*//' | head -n1)
-=======
 if [ "$1" = "--query" ]; then
     active_interfaces=$(get_active_interfaces)
     if [ -n "$active_interfaces" ]; then
@@ -41,7 +26,6 @@ get_interface_label() {
     local config_path="$1"
     local label
     label=$(run_elevated awk '/^#Label:/ && !/PrivateKey/ && !/PreSharedKey/ && !/[A-Za-z0-9+\/]{43}=/ {print; exit}' "$config_path" 2>/dev/null | sed 's/^#Label:[[:space:]]*//')
->>>>>>> f132c36 (add wg_switcher script incl necessary config changes)
     echo "$label"
 }
 
@@ -53,18 +37,6 @@ run_elevated() {
     fi
 }
 
-<<<<<<< HEAD
-if [ "$1" = "--query" ]; then
-    active_interfaces=$(get_active_interfaces)
-    if [ -n "$active_interfaces" ]; then
-        exit 0
-    else
-        exit 1
-    fi
-fi
-
-=======
->>>>>>> f132c36 (add wg_switcher script incl necessary config changes)
 available_output=$(run_elevated find /etc/wireguard -maxdepth 1 -name "*.conf" -type f)
 discovery_exit_code=$?
 
@@ -95,15 +67,11 @@ active_interfaces=$(get_active_interfaces)
 
 none="none"
 options=()
-<<<<<<< HEAD
-options+=("$none")
-=======
 if [ -z "$active_interfaces" ]; then
     options+=("$none (active)")
 else
     options+=("$none")
 fi
->>>>>>> f132c36 (add wg_switcher script incl necessary config changes)
 
 for interface in "${available_interfaces[@]}"; do
     display_name="$interface"
@@ -128,28 +96,19 @@ if [ "$selected" = "$none" ]; then
     if [ -n "$active_interfaces" ]; then
         success_count=0
         for interface in $active_interfaces; do
-<<<<<<< HEAD
-            if run_elevated wg-quick down "$interface"; then
-                notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn "WireGuard disconnected" "Interface: $interface"
-=======
             if run_elevated wg-quick down "$interface" >/dev/null 2>&1; then
                 if [ "$NOTIFY_SEND" = "true" ]; then
                     notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn "WireGuard disconnected" "Interface: $interface"
                 fi
->>>>>>> f132c36 (add wg_switcher script incl necessary config changes)
                 ((success_count++))
             else
                 notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn-offline "WireGuard failed to disconnect" "Interface: $interface"
             fi
         done
     else
-<<<<<<< HEAD
-        notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn "WireGuard" "No active interfaces to disconnect"
-=======
         if [ "$NOTIFY_SEND" = "true" ]; then
             notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn "WireGuard" "No active interfaces to disconnect"
         fi
->>>>>>> f132c36 (add wg_switcher script incl necessary config changes)
     fi
     exit 0
 fi
@@ -157,26 +116,14 @@ fi
 interface="$selected"
 
 if echo "$active_interfaces" | grep -q "^$interface$"; then
-<<<<<<< HEAD
-    notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn "WireGuard" "Interface $interface is already active"
-=======
     if [ "$NOTIFY_SEND" = "true" ]; then
         notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn "WireGuard" "Interface $interface is already active"
     fi
->>>>>>> f132c36 (add wg_switcher script incl necessary config changes)
     exit 0
 fi
 
 if [ -n "$active_interfaces" ]; then
     for active_interface in $active_interfaces; do
-<<<<<<< HEAD
-        run_elevated wg-quick down "$active_interface" || true
-    done
-fi
-
-if run_elevated wg-quick up "$interface"; then
-    notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn "WireGuard connected" "Interface: $interface"
-=======
         run_elevated wg-quick down "$active_interface" >/dev/null 2>&1 || true
     done
 fi
@@ -185,7 +132,6 @@ if run_elevated wg-quick up "$interface" >/dev/null 2>&1; then
     if [ "$NOTIFY_SEND" = "true" ]; then
         notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn "WireGuard connected" "Interface: $interface"
     fi
->>>>>>> f132c36 (add wg_switcher script incl necessary config changes)
 else
     notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn-error "WireGuard failed to connect" "Interface: $interface - Check system logs"
 fi
