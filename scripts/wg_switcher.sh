@@ -96,12 +96,14 @@ if [ "$selected" = "$none" ]; then
     if [ -n "$active_interfaces" ]; then
         success_count=0
         for interface in $active_interfaces; do
-            if run_elevated wg-quick down "$interface" >/dev/null 2>&1; then
+            echo "Disconnecting interface: $interface"
+            if run_elevated wg-quick down "$interface"; then
                 if [ "$NOTIFY_SEND" = "true" ]; then
                     notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn "WireGuard disconnected" "Interface: $interface"
                 fi
                 ((success_count++))
             else
+                echo "Failed to disconnect $interface"
                 notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn-offline "WireGuard failed to disconnect" "Interface: $interface"
             fi
         done
@@ -116,6 +118,7 @@ fi
 interface="$selected"
 
 if echo "$active_interfaces" | grep -q "^$interface$"; then
+    echo "Interface $interface is already active"
     if [ "$NOTIFY_SEND" = "true" ]; then
         notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn "WireGuard" "Interface $interface is already active"
     fi
@@ -124,14 +127,18 @@ fi
 
 if [ -n "$active_interfaces" ]; then
     for active_interface in $active_interfaces; do
-        run_elevated wg-quick down "$active_interface" >/dev/null 2>&1 || true
+        echo "Disconnecting active interface: $active_interface"
+        run_elevated wg-quick down "$active_interface" || true
     done
 fi
 
-if run_elevated wg-quick up "$interface" >/dev/null 2>&1; then
+echo "Connecting to interface: $interface"
+if run_elevated wg-quick up "$interface"; then
+    echo "Successfully connected to $interface"
     if [ "$NOTIFY_SEND" = "true" ]; then
         notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn "WireGuard connected" "Interface: $interface"
     fi
 else
+    echo "Failed to connect to $interface"
     notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn-error "WireGuard failed to connect" "Interface: $interface - Check system logs"
 fi
