@@ -3,7 +3,7 @@ highlight_color="\033[1;32m" # Bright green
 giga_highlight_color="\033[1;35m" # Bright magenta (pink)
 reset_color="\033[0m"        # Reset to default
 important_repos=("dwm" "slock" "st" "dotfiles" "dmenu")
-giga_important_repos=("private" ".password-store")
+giga_important_repos=("private" ".password-store" "Documents/notes")
 is_important_repo() {
     for repo in "${important_repos[@]}"; do
         if [[ "$1" == "$repo" ]]; then
@@ -82,3 +82,4 @@ for dir in "$SOURCE"/*; do
     check_git_repo "$dir"
 done
 check_git_repo "$HOME/.password-store"
+check_git_repo "$HOME/Documents/notes"
