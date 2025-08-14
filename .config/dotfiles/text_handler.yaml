@@ -40,11 +40,21 @@ commands:
   nvim:
     display: "📝 Open in Nvim"
     command: stcmd "printf '%s' \"$TEXT\" | nvim -; exit"
+  dragon_drop:
+    display: "🐲 - dragon - drag and drop"
+    command: if [ -d "$TEXT" ]; then dragon-drag-and-drop "$TEXT"/*; else dragon-drag-and-drop "$TEXT"; fi
+
 
 scorers:
+  - regex: '^/.*'
+    command_label: dragon_drop
+    score_change: 10
   - regex: '^https?://.*'
     command_label: ff_tab
     score_change: 11
+  - regex: '^https?://.*'
+    command_label: tsp_ytdlp
+    score_change: 1
   - regex: '^https?://.*'
     command_label: ff_window
     score_change: 10
@@ -78,4 +88,7 @@ scorers:
   - regex: '\S'
     score_change: 1
     command_label: nvim
+  - regex: ^https?://www\.youtube\.com/watch
+    command_label: tsp_ytdlp
+    score_change: 10
 

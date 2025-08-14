@@ -180,17 +180,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .join("\n");
             debug!("Concatenated labels to dmenu: {labels}");
 
-            let mut child = std::process::Command::new("dmenu")
-                .args(["-l", "20", "-c", "-i"])
+            let mut child = std::process::Command::new("sh")
+                .args(["-c", "dmenu -l 20 -c -i"])
                 .stdin(std::process::Stdio::piped())
                 .stdout(std::process::Stdio::piped())
                 .spawn()?;
 
             child.stdin.as_mut().unwrap().write_all(labels.as_bytes())?;
 
-            let output = child.wait_with_output()?;
+            let output = child.wait_with_output()?; // This gives you the actual output
             let selected_label = String::from_utf8(output.stdout)?.trim().to_string();
-
             let selected_command = scored_commands
                 .iter()
                 .find(|(_, (cmd, _))| cmd.display == selected_label);
