@@ -353,6 +353,10 @@ copy_files "system_configs/etc/polkit-1/rules.d/" "/etc/polkit-1/rules.d" true
 # Reload configurations
 print_header "Reloading System Configurations"
 
+echo -e "${CYAN}Setting systemd stop timeout to 15s...${NC}"
+sudo mkdir -p /etc/systemd/system.conf.d && \
+echo -e "[Manager]\nDefaultTimeoutStopSec=15s" | sudo tee /etc/systemd/system.conf.d/timeout.conf > /dev/null
+
 echo -e "${CYAN}Reloading polkit...${NC}"
 sudo systemctl reload polkit
 
@@ -364,6 +368,9 @@ systemctl --user daemon-reload
 
 echo -e "${CYAN}Reloading udev rules...${NC}"
 sudo udevadm control --reload-rules && sudo udevadm trigger
+
+sudo systemctl enable atd
+sudo systemctl start atd
 
 # Print summary
 print_header "Installation Summary"
