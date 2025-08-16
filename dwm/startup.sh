@@ -1,5 +1,5 @@
 #!/bin/sh
-#setsid dunst & # Use service file to make it resistant to OOM killer
+#setsid dunst & # Using service file to make it resistant to OOM killer
 which picom && picom -b --config ~/.config/picom/picom.conf &
 /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
 systemctl --user import-environment DISPLAY XAUTHORITY #non-xorg vars defined in shrc 
@@ -15,6 +15,7 @@ $dotfiles/dwm/neovim-server-runner.py --cleanup
 [ $dotfiles_tag = "pc" ] && thunderbird &
 [ $dotfiles_tag = "pc" ] && pgrep -x mpd || mpd
 [ $dotfiles_tag = "pc" ] && nicotine &
+[ -f "$bin/monitor.sh" ] && $bin/monitor.sh
 background_set.sh &
 $bin/set_kb_map &
 $bin/tsp_ytdlp --daemon &
