@@ -43,6 +43,9 @@ commands:
   dragon_drop:
     display: "🐲 - dragon - drag and drop"
     command: if [ -d "$TEXT" ]; then dragon-drag-and-drop "$TEXT"/*; else dragon-drag-and-drop "$TEXT"; fi
+  qr_code:
+    display: "📸 Generate QR code"
+    command: qrencode -t PNG -o /tmp/qr.png "$TEXT" && feh /tmp/qr.png && rm /tmp/qr.png
 
 
 scorers:
@@ -91,4 +94,15 @@ scorers:
   - regex: ^https?://www\.youtube\.com/watch
     command_label: tsp_ytdlp
     score_change: 10
-
+  - regex: '^\S+$'
+    command_label: qr_code
+    score_change: 5
+  - regex: '^/.*'
+    command_label: qr_code
+    score_change: -100
+  - regex: '^https?://.*'
+    command_label: qr_code
+    score_change: -100
+  - regex: '^magnet:\?'
+    command_label: qr_code
+    score_change: -100
