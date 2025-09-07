@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Video downscaling script - REWRITTEN
 # Finds videos >720p and downscales them to 720p using VA-API
 
 # Default settings
