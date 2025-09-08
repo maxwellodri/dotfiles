@@ -1,0 +1,23 @@
+#!/bin/sh
+if [ -z "$dotfiles" ]; then 
+    notify-send "\$dotfiles not defined 👎" 
+    exit 1
+fi
+
+cache_dir="$XDG_CACHE_HOME/dotfiles"
+mkdir -p "$cache_dir"
+
+# Detect display server and take screenshot
+if [ -n "$WAYLAND_DISPLAY" ]; then
+    # Wayland
+    grim - | tee "$cache_dir/screenshot.png" | wl-copy --type image/png
+elif [ -n "$DISPLAY" ]; then
+    # X11
+    shotgun - | tee "$cache_dir/screenshot.png" | xclip -t 'image/png' -selection clipboard
+else
+    notify-send "No display server detected"
+    exit 1
+fi
+
+notify-send -t 1000 "Screenshot Taken 📸"
+setsid ffplay -nodisp -autoexit "$dotfiles/media/camera.ogg" &
