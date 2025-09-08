@@ -4,8 +4,10 @@
 
 # Default settings
 DRY_RUN=0
-SEARCH_DIR=""
 ACCEPT_ALL=0
+
+# Array to store all input paths
+INPUT_PATHS=()
 
 # Arrays to track file size info
 ORIGINAL_SIZES=()
@@ -68,14 +70,14 @@ test_vaapi() {
         echo "⚠ vainfo not found (install libva-utils)"
     fi
     
-    # Test the actual encoder using working syntax from Test 4
+    # Test the actual encoder
     echo "Testing hevc_vaapi encoder..."
     local test_temp="$HOME/.cache/dotfiles/transcode/test_encoder.mp4"
     mkdir -p "$(dirname "$test_temp")"
     
     if ffmpeg -f lavfi -i "testsrc=duration=1:size=320x240:rate=1" \
         -vaapi_device /dev/dri/renderD128 \
-        -vf "format=nv12,hwupload" \
+        -vf "scale=320:240,format=nv12,hwupload" \
         -c:v hevc_vaapi -frames:v 1 \
         -y "$test_temp" >/dev/null 2>&1; then
         echo "✓ hevc_vaapi encoder works"
@@ -102,7 +104,7 @@ format_size() {
     fi
 }
 
-# Function to transcode video using the working command format
+# Function to transcode video using CPU scaling + VA-API encoding
 transcode_video() {
     local input_file
     input_file="$(realpath "$1")"
@@ -129,19 +131,23 @@ transcode_video() {
     
     if [[ $DRY_RUN -eq 1 ]]; then
         echo "[DRY RUN] Would execute:"
-        echo "ffmpeg -hwaccel vaapi -i \"$input_file\" -vf \"format=nv12,hwupload,scale_vaapi=-2:720\" -c:v hevc_vaapi -qp 28 -c:a copy \"$temp_file\""
+        echo "ffmpeg -i \"$input_file\" -vaapi_device /dev/dri/renderD128 -vf \"scale=1280:720,format=nv12,hwupload\" -c:v hevc_vaapi -qp 28 -c:a copy -fps_mode cfr -r 30 -async 1 \"$temp_file\""
         echo "[DRY RUN] Would replace original file"
         return 0
     fi
     
-    # Execute the exact working command format
+    # Fixed command - CPU scaling first, then VA-API encoding
     echo "Executing ffmpeg command..."
-    if ffmpeg -hwaccel vaapi \
+    if ffmpeg \
         -i "$input_file" \
-        -vf "format=nv12,hwupload,scale_vaapi=-2:720" \
+        -vaapi_device /dev/dri/renderD128 \
+        -vf "scale=1280:720,format=nv12,hwupload" \
         -c:v hevc_vaapi \
         -qp 28 \
         -c:a copy \
+        -fps_mode cfr \
+        -r 30 \
+        -async 1 \
         "$temp_file" 2>&1 | tee "/tmp/ffmpeg_$(basename "$input_file").log"; then
         
         # Check if temp file was created and has content
@@ -204,6 +210,51 @@ transcode_video() {
     fi
 }
 
+# Function to collect video files from paths
+collect_video_files() {
+    local video_files=()
+    
+    # Send status messages to stderr so they don't interfere with the file list
+    echo "Processing input paths:" >&2
+    for path in "${INPUT_PATHS[@]}"; do
+        echo "  $path" >&2
+        
+        if [[ ! -e "$path" ]]; then
+            echo "    ✗ Path does not exist: $path" >&2
+            continue
+        fi
+        
+        if [[ -f "$path" ]]; then
+            # It's a file - check if it's a video
+            if is_video_file "$path"; then
+                video_files+=("$path")
+                echo "    ✓ Added video file" >&2
+            else
+                echo "    ✗ Not a video file (extension not recognized)" >&2
+            fi
+        elif [[ -d "$path" ]]; then
+            # It's a directory - search recursively
+            local dir_files=()
+            local count=0
+            
+            while IFS= read -r -d '' file; do
+                if is_video_file "$file"; then
+                    dir_files+=("$file")
+                    ((count++))
+                fi
+            done < <(find "$path" -type f -print0)
+            
+            video_files+=("${dir_files[@]}")
+            echo "    ✓ Found $count video files in directory" >&2
+        else
+            echo "    ✗ Path is neither file nor directory: $path" >&2
+        fi
+    done
+    
+    # Return the array by printing each element on a new line
+    printf '%s\n' "${video_files[@]}"
+}
+
 # Parse command line arguments
 parse_args() {
     while [[ $# -gt 0 ]]; do
@@ -217,7 +268,7 @@ parse_args() {
                 shift
                 ;;
             --help|-h)
-                echo "Usage: $0 [OPTIONS] [DIRECTORY]"
+                echo "Usage: $0 [OPTIONS] [FILES/DIRECTORIES...]"
                 echo ""
                 echo "Options:"
                 echo "  --dryrun, -n     Show what would be done without modifying files"
@@ -225,7 +276,14 @@ parse_args() {
                 echo "  --help, -h       Show this help message"
                 echo ""
                 echo "Arguments:"
-                echo "  DIRECTORY        Directory to search (default: current directory)"
+                echo "  FILES/DIRECTORIES   Files and/or directories to process"
+                echo "                      Directories are searched recursively"
+                echo "                      If no arguments provided, uses current directory"
+                echo ""
+                echo "Examples:"
+                echo "  $0 /path/to/videos/                    # Process directory"
+                echo "  $0 video1.mp4 video2.mkv              # Process specific files"
+                echo "  $0 /videos/ file.mp4 /more/videos/    # Mix files and directories"
                 echo ""
                 echo "This script finds videos larger than 720p and downscales them using VA-API."
                 exit 0
@@ -236,24 +294,23 @@ parse_args() {
                 exit 1
                 ;;
             *)
-                # This is the directory argument
-                SEARCH_DIR="$1"
+                # This is a file or directory argument
+                INPUT_PATHS+=("$1")
                 shift
                 ;;
         esac
     done
+    
+    # If no paths provided, use current directory
+    if [[ ${#INPUT_PATHS[@]} -eq 0 ]]; then
+        INPUT_PATHS=(".")
+    fi
 }
 
 # Main function
 main() {
-    local search_dir="${SEARCH_DIR:-.}"
     local start_time
     start_time=$(date +%s)
-    
-    if [[ ! -d "$search_dir" ]]; then
-        echo "Error: Directory '$search_dir' does not exist."
-        exit 1
-    fi
     
     # Test VA-API support
     if ! test_vaapi; then
@@ -262,27 +319,24 @@ main() {
     fi
     
     echo ""
-    echo "Searching for video files in: $(realpath "$search_dir")"
     echo "Video extensions: ${VIDEO_EXTENSIONS[*]}"
     if [[ $DRY_RUN -eq 1 ]]; then
         echo "*** DRY RUN MODE - No files will be modified ***"
     fi
     echo ""
     
-    # Find all video files
+    # Collect all video files from input paths
     local video_files=()
-    while IFS= read -r -d '' file; do
-        if is_video_file "$file"; then
-            video_files+=("$file")
-        fi
-    done < <(find "$search_dir" -type f -print0)
+    mapfile -t video_files < <(collect_video_files)
     
     if [[ ${#video_files[@]} -eq 0 ]]; then
-        echo "No video files found."
+        echo ""
+        echo "No video files found in specified paths."
         exit 0
     fi
     
-    echo "Found ${#video_files[@]} video files."
+    echo ""
+    echo "Found ${#video_files[@]} video files total."
     echo ""
     
     # Check which files need downscaling
@@ -447,7 +501,7 @@ if ! command -v ffmpeg &> /dev/null; then
 fi
 
 if ! command -v ffprobe &> /dev/null; then
-    echo "Error: ffprobe is not installed or not in PATH."
+    echo "Error: ffprobe is not in PATH."
     exit 1
 fi
 
