@@ -4,6 +4,7 @@ extra/kguiaddons
 perl-file-mimeinfo
 tmux
 at
+handbrake-cli
 age
 bat
 pcp
