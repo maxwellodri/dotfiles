@@ -94,7 +94,30 @@ alias newsboatrc="nvim ~/.config/newsboat/config"
 alias url="nvim ~/.config/newsboat/urls"
 alias dragon="dragon-drag-and-drop"
 alias rmdir='rmdir -p'
-alias clipboard='xclip -sel clipboard'
+clipboard() {
+    if [ "$XDG_SESSION_TYPE" = "wayland" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+        # Wayland
+        if command -v wl-copy >/dev/null 2>&1; then
+            wl-copy
+        else
+            echo "wl-copy not found" >&2
+            return 1
+        fi
+    else
+        # X11 - copy to both primary and clipboard
+        if command -v xclip >/dev/null 2>&1; then
+            # Use a temporary file since sh doesn't have process substitution
+            temp_file=$(mktemp)
+            cat > "$temp_file"
+            xclip -selection primary < "$temp_file"
+            xclip -selection clipboard < "$temp_file"
+            rm "$temp_file"
+        else
+            echo "xclip not found" >&2
+            return 1
+        fi
+    fi
+}
 strip_rust_doc_comments() {
   sed 's@^[ \t]*///.*$@@g' "$@"
 }
