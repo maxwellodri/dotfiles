@@ -20,6 +20,7 @@ export BIN="$HOME/bin"
 export PATH="$PATH:$BIN" #add /home/$USER/bin to path
 export PATH="$PATH:$BIN/steam_scripts" #and subfolder for steam scripts
 export PATH="$HOME/bin:$PATH:$HOME/.local/bin"
+export PATH="$HOME/.cargo/bin:$PATH"
 export bin="$BIN"
 export dl="$HOME/Downloads"
 export CARGO_ASC=true
