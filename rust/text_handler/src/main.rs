@@ -2,7 +2,7 @@ use anyhow::Result;
 use indexmap::IndexMap;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, io::Write};
+use std::io::{stdin, IsTerminal, Read, Write};
 use tracing::{debug, trace};
 
 #[derive(Serialize, Deserialize)]
@@ -81,14 +81,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let text_source: &str;
     let text: String = match args.len() {
         1 => {
-            text_source = "clipboard";
-            // Case 1: no args - read from clipboard
-            String::from_utf8(
-                std::process::Command::new("sh")
-                    .args(["-c", "xclip -selection clipboard -o"])
-                    .output()?
-                    .stdout,
-            )?
+            // Case 1: no args - check if stdin has data, otherwise read from clipboard
+            if !stdin().is_terminal() {
+                text_source = "stdin";
+                let mut buffer = String::new();
+                stdin().read_to_string(&mut buffer)?;
+                buffer
+            } else {
+                text_source = "clipboard";
+                String::from_utf8(
+                    std::process::Command::new("sh")
+                        .args(["-c", "xclip -selection clipboard -o"])
+                        .output()?
+                        .stdout,
+                )?
+            }
         }
         2 if args[1] == "sel" => {
             text_source = "selection";
@@ -107,7 +114,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
     debug!("Text from {text_source} to be plumbed: '{text}'");
-
     let mut scored_commands: IndexMap<String, (Command, i32)> = config
         .commands
         .iter()
