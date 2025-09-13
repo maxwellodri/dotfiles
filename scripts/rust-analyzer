@@ -1,0 +1,21 @@
+#!/bin/bash
+# Wrapper script for rust-analyzer that uses the current rustup toolchain
+# This ensures rust-analyzer works regardless of which toolchain is active
+
+# Use rustup to find the rust-analyzer binary for the current toolchain
+rust_analyzer_path=$(rustup which rust-analyzer 2>/dev/null)
+
+# Check if rustup found rust-analyzer
+if [ $? -eq 0 ] && [ -n "$rust_analyzer_path" ] && [ -x "$rust_analyzer_path" ]; then
+    # Execute rust-analyzer with all passed arguments
+    exec "$rust_analyzer_path" "$@"
+else
+    # Fallback: try to find rust-analyzer in PATH
+    if command -v rust-analyzer >/dev/null 2>&1; then
+        exec rust-analyzer "$@"
+    else
+        echo "Error: rust-analyzer not found in current toolchain or PATH" >&2
+        echo "Try running: rustup component add rust-analyzer" >&2
+        exit 1
+    fi
+fi

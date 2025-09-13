@@ -64,7 +64,7 @@ M.settings = {
     },
 }
 
-M.ensure_installed_servers = {"vimls", "pyright", "bashls", "rust_analyzer" }
+M.ensure_installed_servers = {"vimls", "pyright", "bashls"}
 M.automatic_enable_exclude_servers = { "rust_analyzer" }
 M.get_auto_enable_servers = function ()
     -- Diff  of ensure_installed_servers - automatic_enable_exclude_servers
