@@ -10,6 +10,9 @@ commands:
   tsp_ytdlp:
     display: "⬇️ Download with tsp_ytdlp"
     command: tsp_ytdlp "$TEXT"
+  tsp_ytdlp_batch:
+    display: "⬇️ Batch Download with tsp_ytdlp"
+    command: 'echo "$TEXT" | while IFS= read -r url; do [ -n "$url" ] && tsp_ytdlp "$url"; done'
   gallery-dl:
     display: "🖼️ Download with gallery-dl"
     command: stcmd "gallery-dl $TEXT"
@@ -25,39 +28,33 @@ commands:
   xdg-open:
     display: "📄 Open file with xdg-open"
     command: xdg-open "$TEXT"
-  st_parent_dir:
-    display: "📁 Open parent dir in terminal"
-    command: st -d "$(dirname "$TEXT")"
-  pcmanfm_parent_dir:
-    display: "📁 Open parent dir in file manager"
-    command: pcmanfm "$(dirname "$TEXT")"
   st_dir:
     display: "📂 Open directory in terminal"
-    command: st -d "$TEXT"
+    command: 'TEXT="${TEXT/#~/$HOME}" && [ -d "$TEXT" ] && st -e sh -c "cd \"$TEXT\" && exec \$SHELL" || st -e sh -c "cd \"$(dirname \"$TEXT\")\" && exec \$SHELL"'
   pcmanfm_dir:
     display: "📂 Open directory in file manager"
-    command: pcmanfm "$TEXT"
+    command: 'TEXT="${TEXT/#~/$HOME}" && [ -d "$TEXT" ] && pcmanfm "$TEXT" || pcmanfm "$(dirname "$TEXT")"'
   nvim:
     display: "📝 Open in Nvim"
     command: stcmd "printf '%s' \"$TEXT\" | nvim -; exit"
   dragon_drop:
-    display: "🐲 - dragon - drag and drop"
-    command: if [ -d "$TEXT" ]; then dragon-drag-and-drop "$TEXT"/*; else dragon-drag-and-drop "$TEXT"; fi
+    display: "🐲 Dragon drop"
+    command: 'TEXT="${TEXT/#~/$HOME}" && if [ -d "$TEXT" ]; then dragon-drag-and-drop "$TEXT"/*; else dragon-drag-and-drop "$TEXT"; fi'
   qr_code:
     display: "📸 Generate QR code"
     command: qrencode -t PNG -o /tmp/qr.png "$TEXT" && feh /tmp/qr.png && rm /tmp/qr.png
 
 
 scorers:
-  - regex: '^/.*'
-    command_label: dragon_drop
-    score_change: 10
   - regex: '^https?://.*'
     command_label: ff_tab
     score_change: 11
   - regex: '^https?://.*'
     command_label: tsp_ytdlp
     score_change: 1
+  - regex: '^(?:https?://.*(?:\n|$))+$'
+    command_label: tsp_ytdlp_batch
+    score_change: 30
   - regex: '^https?://.*'
     command_label: ff_window
     score_change: 10
@@ -76,18 +73,6 @@ scorers:
   - regex: '\.(txt|md|rs|py|js|html|css)$'
     command_label: xdg-open
     score_change: 20
-  - regex: '\.(txt|md|rs|py|js|html|css)$'
-    command_label: st_parent_dir
-    score_change: 15
-  - regex: '\.(txt|md|rs|py|js|html|css)$'
-    command_label: pcmanfm_parent_dir
-    score_change: 10
-  - regex: '^(/[^/\s]*)+/?$'
-    command_label: st_dir
-    score_change: 5
-  - regex: '^(/[^/\s]*)+/?$'
-    command_label: pcmanfm_dir
-    score_change: 5
   - regex: '\S'
     score_change: 1
     command_label: nvim
@@ -106,3 +91,22 @@ scorers:
   - regex: '^magnet:\?'
     command_label: qr_code
     score_change: -100
+
+  - regex: '^~/([^/\s]*/?)*$'
+    command_label: st_dir
+    score_change: 10
+  - regex: '^~/([^/\s]*/?)*$'
+    command_label: pcmanfm_dir
+    score_change: 10
+  - regex: '^(/[^/\s]*)+/?$'
+    command_label: st_dir
+    score_change: 5
+  - regex: '^(/[^/\s]*)+/?$'
+    command_label: pcmanfm_dir
+    score_change: 5
+  - regex: '^(/[^/\s]*)+/?$'
+    command_label: dragon_drop
+    score_change: 5
+  - regex: '^~/([^/\s]*/?)*$'
+    command_label: dragon_drop
+    score_change: 5
