@@ -23,6 +23,6 @@ elif [ $exit_status -ne 0 ]; then
     exit $exit_status
 else
     # Success with actual commits
-    notify-send "Autocommit Success" "Changes committed successfully"
+    notify-send "Autocommit Success" "Changes committed and pushed successfully"
     exit 0
 fi
