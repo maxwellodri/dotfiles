@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1"
+base64 = "0.22.1"
 dirs = "6"
 indexmap = { version = "2", features = ["serde"] }
 regex = "1"

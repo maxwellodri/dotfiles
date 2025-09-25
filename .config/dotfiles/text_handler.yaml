@@ -43,6 +43,11 @@ commands:
   qr_code:
     display: "📸 Generate QR code"
     command: qrencode -t PNG -o /tmp/qr.png "$TEXT" && feh /tmp/qr.png && rm /tmp/qr.png
+  dragon_drop_image:
+    display: "🐲🖼️ Dragon drop image"
+    command: |
+      cp "$DATA_FILE" /tmp/text_handler_image.png
+      dragon-drag-and-drop /tmp/text_handler_image.png
 
 
 scorers:
@@ -91,7 +96,6 @@ scorers:
   - regex: '^magnet:\?'
     command_label: qr_code
     score_change: -100
-
   - regex: '^~/([^/\s]*/?)*$'
     command_label: st_dir
     score_change: 10
@@ -110,3 +114,7 @@ scorers:
   - regex: '^~/([^/\s]*/?)*$'
     command_label: dragon_drop
     score_change: 5
+  - regex: '^�PNG'
+    command_label: dragon_drop_image
+    score_change: 25
+    for_binary_data: true

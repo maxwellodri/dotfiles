@@ -5,11 +5,17 @@ use serde::{Deserialize, Serialize};
 use std::io::{stdin, IsTerminal, Read, Write};
 use tracing::{debug, trace};
 
+fn default_for_binary_data() -> bool {
+    false
+}
+
 #[derive(Serialize, Deserialize)]
 struct Scorer {
     regex: String,
     command_label: String,
     score_change: i32,
+    #[serde(default = "default_for_binary_data")]
+    for_binary_data: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -60,6 +66,33 @@ fn validate_config(config: &Config) -> Result<()> {
     Ok(())
 }
 
+enum Data {
+    Text(String),
+    Binary(Vec<u8>),
+}
+impl Data {
+    fn as_text_for_matching(&self) -> String {
+        match self {
+            Data::Text(s) => s.clone(),
+            Data::Binary(bytes) => {
+                // Try to convert to UTF-8 for regex matching, use lossy conversion
+                String::from_utf8_lossy(bytes).to_string()
+            }
+        }
+    }
+    fn write_to_temp_file(&self, path: &str) -> Result<()> {
+        match self {
+            Data::Text(s) => std::fs::write(path, s.as_bytes())?,
+            Data::Binary(bytes) => std::fs::write(path, bytes)?,
+        }
+        Ok(())
+    }
+
+    fn is_text(&self) -> bool {
+        matches!(self, Data::Text(..))
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::TRACE)
@@ -78,56 +111,143 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.scorers.len()
     );
     let args: Vec<String> = std::env::args().collect();
-    let text_source: &str;
-    let text: String = match args.len() {
+    let data_source: &str;
+    let data: Data = match args.len() {
         1 => {
-            // Case 1: no args - check if stdin has data, otherwise read from clipboard
+            // Try to read from stdin non-blockingly first
             if !stdin().is_terminal() {
-                text_source = "stdin";
-                let mut buffer = String::new();
-                stdin().read_to_string(&mut buffer)?;
-                buffer
+                let mut buffer = Vec::new();
+                match stdin().read_to_end(&mut buffer) {
+                    Ok(_) if !buffer.is_empty() => {
+                        data_source = "stdin";
+                        if let Ok(text) = String::from_utf8(buffer.clone()) {
+                            Data::Text(text)
+                        } else {
+                            Data::Binary(buffer)
+                        }
+                    }
+                    _ => {
+                        // No stdin data or read failed, use clipboard
+                        data_source = "clipboard";
+                        let clipboard_bytes = std::process::Command::new("sh")
+                            .args(["-c", "xclip -selection clipboard -o"])
+                            .output()?
+                            .stdout;
+
+                        if let Ok(text) = String::from_utf8(clipboard_bytes.clone()) {
+                            Data::Text(text)
+                        } else {
+                            Data::Binary(clipboard_bytes)
+                        }
+                    }
+                }
             } else {
-                text_source = "clipboard";
-                String::from_utf8(
-                    std::process::Command::new("sh")
-                        .args(["-c", "xclip -selection clipboard -o"])
-                        .output()?
-                        .stdout,
-                )?
+                // stdin is a terminal, read from clipboard
+                data_source = "clipboard";
+                let clipboard_bytes = std::process::Command::new("sh")
+                    .args(["-c", "xclip -selection clipboard -o"])
+                    .output()?
+                    .stdout;
+
+                if let Ok(text) = String::from_utf8(clipboard_bytes.clone()) {
+                    Data::Text(text)
+                } else {
+                    Data::Binary(clipboard_bytes)
+                }
             }
         }
         2 if args[1] == "sel" => {
-            text_source = "selection";
-            // Case 2: exactly "sel" - read from selection
-            String::from_utf8(
-                std::process::Command::new("sh")
+            data_source = "selection";
+
+            // Check what types are available
+            let targets = std::process::Command::new("sh")
+                .args(["-c", "xclip -selection primary -t TARGETS -o"])
+                .output()?
+                .stdout;
+
+            let targets_str = String::from_utf8_lossy(&targets);
+
+            if targets_str.contains("image/") {
+                // Get as image - try common image formats
+                let selection_bytes = if targets_str.contains("image/png") {
+                    std::process::Command::new("sh")
+                        .args(["-c", "xclip -selection primary -t image/png -o"])
+                        .output()?
+                        .stdout
+                } else if targets_str.contains("image/jpeg") {
+                    std::process::Command::new("sh")
+                        .args(["-c", "xclip -selection primary -t image/jpeg -o"])
+                        .output()?
+                        .stdout
+                } else {
+                    // Try generic image type
+                    std::process::Command::new("sh")
+                        .args(["-c", "xclip -selection primary -t image -o"])
+                        .output()?
+                        .stdout
+                };
+                Data::Binary(selection_bytes)
+            } else {
+                // Get as text
+                let selection_bytes = std::process::Command::new("sh")
                     .args(["-c", "xclip -selection primary -o"])
                     .output()?
-                    .stdout,
-            )?
+                    .stdout;
+
+                if let Ok(text) = String::from_utf8(selection_bytes.clone()) {
+                    Data::Text(text)
+                } else {
+                    Data::Binary(selection_bytes)
+                }
+            }
+        }
+        3 if args[1] == "file" => {
+            data_source = "file";
+            let file_path = &args[2];
+            let file_bytes = std::fs::read(file_path)?;
+
+            if let Ok(text) = String::from_utf8(file_bytes.clone()) {
+                Data::Text(text)
+            } else {
+                Data::Binary(file_bytes)
+            }
         }
         _ => {
-            text_source = "command line";
-            // Case 3: regular cmdline args joined
-            args[1..].join(" ")
+            data_source = "command line";
+            // Case 3: regular cmdline args joined - always text
+            Data::Text(args[1..].join(" "))
         }
     };
-    debug!("Text from {text_source} to be plumbed: '{text}'");
+
+    let text_for_matching = data.as_text_for_matching();
+    let (data_kind, data_as_text) = match data {
+        Data::Text(ref text) => ("Text", text.clone()),
+        Data::Binary(..) => ("Data", "[Binary Data]".to_string()),
+    };
+    debug!(
+        "text_for_matching: {}",
+        text_for_matching.chars().take(100).collect::<String>()
+    );
+    debug!("{data_kind} from {data_source} to be plumbed: '{data_as_text}'");
+
     let mut scored_commands: IndexMap<String, (Command, i32)> = config
         .commands
         .iter()
         .map(|(label, cmd)| (label.clone(), (cmd.clone(), 0)))
         .collect();
+    let is_binary = !data.is_text();
+
     config
         .scorers
         .iter()
+        // Filter scorers based on data type
+        .filter(|scorer| scorer.for_binary_data == is_binary)
         .filter_map(|scorer| {
             Regex::new(&scorer.regex)
                 .ok()
                 .map(|re| (re, scorer.command_label.clone(), scorer.score_change))
         })
-        .filter(|(re, _, _)| re.is_match(&text))
+        .filter(|(re, _, _)| re.is_match(&text_for_matching))
         .for_each(|(_, command_label, score_change)| {
             if let Some((command, score)) = scored_commands.get_mut(&command_label) {
                 trace!(
@@ -151,6 +271,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .cmp(&a.1 .1 .1) // score descending
             .then_with(|| a.0.cmp(&b.0)) // yaml order ascending
     });
+
+    // Write data to temp file for commands to use
+    let temp_file = "/tmp/text_handler_data";
+    data.write_to_temp_file(temp_file)?;
+
     match sorted_commands.len() {
         0 => {
             debug!("No scorers matched");
@@ -172,10 +297,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
             // Auto-select first cmd if there is exactly one cmd or if first command scores 100+ points higher than second
             let (_, (_label, (command, _))) = &sorted_commands[0];
-            std::process::Command::new("sh")
-                .args(["-c", &command.command])
-                .env("TEXT", &text)
-                .spawn()?;
+            let mut cmd = std::process::Command::new("sh");
+            cmd.args(["-c", &command.command])
+                .env("DATA_FILE", temp_file)
+                .env("IS_BINARY", if data.is_text() { "0" } else { "1" });
+
+            // Only set TEXT env var for text data (binary data contains null bytes)
+            if data.is_text() {
+                cmd.env("TEXT", &text_for_matching);
+            }
+
+            cmd.spawn()?;
         }
         _ => {
             // Show dmenu for user selection
@@ -202,10 +334,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             if let Some((label, (command, _))) = selected_command {
                 debug!("Selected command label: {label}");
-                std::process::Command::new("sh")
-                    .args(["-c", &command.command])
-                    .env("TEXT", &text)
-                    .spawn()?;
+                let mut cmd = std::process::Command::new("sh");
+                cmd.args(["-c", &command.command])
+                    .env("DATA_FILE", temp_file)
+                    .env("IS_BINARY", if data.is_text() { "0" } else { "1" });
+
+                // Only set TEXT env var for text data (binary data contains null bytes)
+                if data.is_text() {
+                    cmd.env("TEXT", &text_for_matching);
+                }
+
+                cmd.spawn()?;
             } else {
                 debug!("Didn't select a command in dmenu")
             }
