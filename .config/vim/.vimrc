@@ -35,7 +35,7 @@ if exists('$SHELL') "probably unnecesary
     set path+=** ""recursive subdirectory search
     set wildmenu
     set wildmode=longest,list,full
-    set clipboard=unnamedplus
+    set clipboard=unnamed,unnamedplus
     set number
     set nocompatible
     set ignorecase

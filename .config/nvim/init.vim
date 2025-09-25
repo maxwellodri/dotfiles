@@ -346,7 +346,9 @@ let &packpath=&runtimepath
 " Font
 " Neovide
 "
-   set mouse=
+   set mouse=a
+   vnoremap <2-LeftRelease> "*ygv
+   vnoremap <LeftRelease> "*ygv
    let g:neovide_cursor_vfx_mode = "wireframe"
    let g:neovide_cursor_animation_length=0.035
    let g:neovide_cursor_trail_length=0.01

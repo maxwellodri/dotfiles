@@ -1,24 +1,11 @@
 M = {}
-
-M.setup = function (opts)
- vim.g.rustaceanvim = {
-     tools = {
-       open_url = function(url)
-         -- Run the script with the URL as an argument in a detached process
-         vim.fn.jobstart({
-           "_rust-analyzer-url_handler",
-           url
-         }, {
-             detach = true  -- Run in the background
-           })
-       end,
-     },
-     dap = {},
-     server = {
-       config = opts.config,
-       capabilities = opts.capabilities,
+M.setup = function(opts)
+  vim.g.rustaceanvim = {
+    dap = {},
+    server = {
+    config = opts.config,
+    capabilities = opts.capabilities,
        on_attach = function(client, bufnr)
-         vim.fn.system("mkdir -p /tmp/rust-analyzer-check")
          vim.diagnostic.enable(bufnr)
          opts.on_attach(client, bufnr)
          vim.keymap.set("n", "<leader>M", function() vim.cmd("RustLsp expandMacro") end, { silent = true, desc = "Expand Macro" })
@@ -27,30 +14,24 @@ M.setup = function (opts)
          vim.keymap.set("n", "<leader>gb", function() vim.cmd("RustLsp openDocs") end, { silent = true, desc = "Open Documentation" })
          vim.keymap.set("n", "<leader>gt", function() vim.cmd("RustLsp openCargo") end, { silent = true, desc = "Open Cargo.toml" })
        end,
-       handlers = {
-         --vim.notify_once("Rust LSP ready to go")
-       },
-       default_settings = {
-         ["rust-analyzer"] = {
-           diagnostics = { enabled = true, disabled = {"inactive-code", "unlinked-file"} },
-           semanticHighlighting = {
-             enabled = true,
-           },
-           procMacro = {
+      default_settings = {
+        ['rust-analyzer'] = {
+          -- Enable diagnostics
+          diagnostics = { enabled = true, disabled = {"inactive-code", "unlinked-file"} },
+          checkOnSave = true,
+          check = {
+            command = "clippy",
+          },
+          cargo = {
+            allFeatures = true,
+            loadOutDirsFromCheck = true,
+            buildScripts = { enable = true },
+          },
+          procMacro = {
              enable = true,
              attributes = {
                enable = true,
              }
-           },
-           checkOnSave = true,
-           check = {
-             command = "clippy",
-             extraArgs={"--target-dir", "/tmp/rust-analyzer-check"},
-             allTargets = false,
-             runBuildScripts = false,
-           },
-           cargo = {
-             loadOutDirsFromCheck = true,
            },
            imports = { prefix = "crate" },
            inlay_hints = {
@@ -66,9 +47,9 @@ M.setup = function (opts)
              right_align_padding = 8,
              highlight = "SpecialComment",
            },
-         }
-       }
+        },
+      },
     },
-}
+  }
 end
 return M

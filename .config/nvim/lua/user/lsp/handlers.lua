@@ -27,10 +27,10 @@ M.setup = function()
     return handler
   end
   local signs = {
-    { name = "DiagnosticSignError", text = "" },
+    { name = "DiagnosticSignError", text = "✘" },
     { name = "DiagnosticSignWarn", text = "" },
-    { name = "DiagnosticSignHint", text = "" },
-    { name = "DiagnosticSignInfo", text = "" },
+    { name = "DiagnosticSignHint", text = "⚑" },
+    { name = "DiagnosticSignInfo", text = "»" },
   }
 
   -- for _, sign in ipairs(signs) do
@@ -67,23 +67,6 @@ M.setup = function()
     border = "rounded",
   })
   vim.lsp.handlers["textDocument/definition"] = goto_definition('e')
-end
-
-local function lsp_highlight_document(client)
-  -- Set autocommands conditional on server_capabilities
-  if false then
-    -- if client.server_capabilities.documentHighlight then
-    vim.api.nvim_exec(
-      [[
-      augroup lsp_document_highlight
-        autocmd! * <buffer>
-        autocmd CursorHold <buffer> lua vim.lsp.buf.document_highlight()
-        autocmd CursorMoved <buffer> lua vim.lsp.buf.clear_references()
-      augroup END
-    ]],
-      false
-    )
-  end
 end
 
 local function first_only_on_list (options)
