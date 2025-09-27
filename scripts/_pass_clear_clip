@@ -1,32 +1,41 @@
 #!/usr/bin/env bash
-
 if [[ -z "$1" ]]; then
     echo "Error: No password hash provided" >&2
     exit 1
 fi
-
 password_hash="$1"
-
 sleep 30
 
 if [[ -n "$WAYLAND_DISPLAY" ]]; then
     current_clipboard=$(wl-paste 2>/dev/null)
 elif [[ -n "$DISPLAY" ]]; then
     current_clipboard=$(xclip -selection clipboard -o 2>/dev/null)
+    current_primary=$(xclip -selection primary -o 2>/dev/null)
 else
     echo "Error: No display detected" >&2
     exit 1
 fi
 
-current_hash=$(echo -n "$current_clipboard" | sha256sum | cut -d' ' -f1)
+# Check clipboard
+if [[ -n "$current_clipboard" ]]; then
+    current_hash=$(echo -n "$current_clipboard" | sha256sum | cut -d' ' -f1)
+    if [[ "$current_hash" == "$password_hash" ]]; then
+        if [[ -n "$WAYLAND_DISPLAY" ]]; then
+            wl-copy --clear
+            notify-send "Password cleared from clipboard"
+        elif [[ -n "$DISPLAY" ]]; then
+            echo -n "" | xclip -selection clipboard
+            notify-send "Password cleared from clipboard"
+        fi
+    fi
+fi
 
-if [[ "$current_hash" == "$password_hash" ]]; then
-    if [[ -n "$WAYLAND_DISPLAY" ]]; then
-        wl-copy --clear
-        notify-send "Password cleared from clipboard"
-    elif [[ -n "$DISPLAY" ]]; then
-        echo -n "" | xclip -selection clipboard
-        notify-send "Password cleared from clipboard"
+# Check primary selection (X11 only)
+if [[ -n "$DISPLAY" && -n "$current_primary" ]]; then
+    primary_hash=$(echo -n "$current_primary" | sha256sum | cut -d' ' -f1)
+    if [[ "$primary_hash" == "$password_hash" ]]; then
+        echo -n "" | xclip -selection primary
+        notify-send "Password cleared from primary selection"
     fi
 fi
 

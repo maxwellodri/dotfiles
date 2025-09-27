@@ -40,6 +40,7 @@ if [[ $typeit -eq 0 ]]; then
     if [[ "$display" == "X11" ]]; then
         password_text=$(pass $show_subcommand "$password" | head -n1)
         echo -n "$password_text" | xclip -selection clipboard 2>/dev/null
+        echo -n "$password_text" | xclip -selection primary 2>/dev/null
         
         password_hash=$(echo -n "$password_text" | sha256sum | cut -d' ' -f1) #keep in sync with _pass_clear_clip hashing
         [ -n "$bin" ] && nohup "$bin/_pass_clear_clip" "$password_hash" >/dev/null 2>&1 &
