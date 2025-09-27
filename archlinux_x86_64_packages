@@ -63,6 +63,7 @@ python-yaml
 python-qtconsole
 python-pynvim
 python-xlib
+python-beautifulsoup4
 sshpass
 pavucontrol
 github-cli
