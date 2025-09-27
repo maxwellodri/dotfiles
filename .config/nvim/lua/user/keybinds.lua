@@ -30,3 +30,15 @@ function SyncGodotLog()
         print("None")
     end
 end
+local function find_files_from_git_root()
+    local cwd = vim.fn.getcwd()
+    if vim.fn.FugitiveGitDir() ~= '' then
+        cwd = vim.fn.fnamemodify(vim.fn.FugitiveGitDir(), ':h')
+    end
+    require('telescope.builtin').find_files({
+        find_command = {'rg', '--ignore', '--hidden', '--files'},
+        prompt_prefix = '🔍🥺',
+        cwd = cwd
+    })
+end
+vim.keymap.set('n', '<leader>fo', find_files_from_git_root)

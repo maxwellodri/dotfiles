@@ -194,7 +194,6 @@ let &packpath=&runtimepath
     let g:do_filetype_lua = 0
 
 " Telescope
-    nnoremap <leader>fo <cmd>Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>fh <cmd>Telescope find_files find_command=rg,--hidden=true,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>ff :tabnew<CR>:Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>fv :vsplit<CR>:Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
