@@ -57,7 +57,10 @@ scorers:
   - regex: '^https?://.*'
     command_label: tsp_ytdlp
     score_change: 1
-  - regex: '^(?:https?://.*(?:\n|$))+$'
+  - regex: '^https?://.*(?:video|view).*'
+    command_label: tsp_ytdlp
+    score_change: 20
+  - regex: '^(?:https?://.*(?:\n|$)){2,}$'
     command_label: tsp_ytdlp_batch
     score_change: 30
   - regex: '^https?://.*'
