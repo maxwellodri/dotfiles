@@ -6,29 +6,13 @@ authors = ["Maxwell Odri <maxwellodri@gmail.com>"]
 description = "A tool for grouping similar files based on filename similarity"
 
 [dependencies]
-# Command line argument parsing
 clap = { version = "4.4", features = ["derive"] }
-
-# String similarity calculation
 strsim = "0.11"
-
-# Parallelization
-rayon = "1.8"
-
-# File path handling
 walkdir = "2.4"
-
-# Terminal output styling
 colored = "3.0"
-
-# Progress bar
-indicatif = "0.17"
-
-# Error handling
+indicatif = "0.18"
 anyhow = "1.0"
 thiserror = "2.0"
-
-# Logging
 log = "0.4"
 env_logger = "0.11"
 

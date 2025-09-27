@@ -2,12 +2,10 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
-use rayon::prelude::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs;
 use std::io::{self, Write};
-use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicBool;
+use std::path::PathBuf;
 use strsim::levenshtein;
 
 /// Command line arguments
@@ -106,7 +104,13 @@ fn find_lcs_for_group(files: &[PathBuf]) -> String {
     // Replace spaces with underscores and remove special characters
     let lcs = lcs
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '_' || c == '-' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '_' || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect::<String>()
         .replace(' ', "_");
 
@@ -122,7 +126,8 @@ fn collect_files(dirs: &[PathBuf]) -> Result<Vec<PathBuf>> {
     let mut all_files = Vec::new();
 
     for dir in dirs {
-        let entries = fs::read_dir(dir).with_context(|| format!("Failed to read directory: {}", dir.display()))?;
+        let entries = fs::read_dir(dir)
+            .with_context(|| format!("Failed to read directory: {}", dir.display()))?;
 
         for entry in entries {
             let entry = entry?;
@@ -162,13 +167,26 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    println!("{} {} {}", "Found".green(), all_files.len().to_string().yellow(), "files to process".green());
-    println!("{} {}", "Using maximum Levenshtein distance:".green(), args.dist.to_string().yellow());
+    println!(
+        "{} {} {}",
+        "Found".green(),
+        all_files.len().to_string().yellow(),
+        "files to process".green()
+    );
+    println!(
+        "{} {}",
+        "Using maximum Levenshtein distance:".green(),
+        args.dist.to_string().yellow()
+    );
 
     // Calculate total comparisons
     let file_count = all_files.len();
     let total_comparisons = (file_count * (file_count - 1)) / 2;
-    println!("{} {}", "Analyzing similarity...".green(), format!("({} total comparisons)", total_comparisons).cyan());
+    println!(
+        "{} {}",
+        "Analyzing similarity...".green(),
+        format!("({} total comparisons)", total_comparisons).cyan()
+    );
 
     // Setup progress bar
     let progress = ProgressBar::new(total_comparisons as u64);
@@ -219,10 +237,8 @@ fn main() -> Result<()> {
                 let mut ambiguous = false;
                 for group in &groups {
                     for group_file in &group.files {
-                        let group_base_name = group_file
-                            .file_stem()
-                            .unwrap_or_default()
-                            .to_string_lossy();
+                        let group_base_name =
+                            group_file.file_stem().unwrap_or_default().to_string_lossy();
 
                         let group_distance = levenshtein(&base_name_j, &group_base_name);
                         if group_distance <= args.dist {
@@ -302,10 +318,13 @@ fn main() -> Result<()> {
         group.files.iter().for_each(|file_path| {
             println!(
                 "  - {}",
-                file_path.file_name().unwrap_or_default().to_string_lossy().cyan()
+                file_path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .cyan()
             );
         });
-
     }
 
     // Display rejected files
@@ -320,7 +339,11 @@ fn main() -> Result<()> {
         (0..display_count).for_each(|f| {
             println!(
                 "  - {}",
-                rejected_files[f].file_name().unwrap_or_default().to_string_lossy().red()
+                rejected_files[f]
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .red()
             );
         });
 
@@ -333,8 +356,14 @@ fn main() -> Result<()> {
     }
 
     // Ask for confirmation
-    if !confirm(&format!("\nConfirm creation of {} directories?", groups.len()))? {
-        println!("{}", "Operation cancelled. No directories were created.".yellow());
+    if !confirm(&format!(
+        "\nConfirm creation of {} directories?",
+        groups.len()
+    ))? {
+        println!(
+            "{}",
+            "Operation cancelled. No directories were created.".yellow()
+        );
         return Ok(());
     }
 
@@ -372,8 +401,15 @@ fn main() -> Result<()> {
         "Created".green(),
         format!("{} groups", groups.len()).yellow().bold()
     );
-    println!("{}", "Original files remain in their original locations.".green());
-    println!("{} {}", "Grouped copies are in:".green(), args.path[0].display().to_string().cyan());
+    println!(
+        "{}",
+        "Original files remain in their original locations.".green()
+    );
+    println!(
+        "{} {}",
+        "Grouped copies are in:".green(),
+        args.path[0].display().to_string().cyan()
+    );
 
     Ok(())
 }
