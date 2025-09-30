@@ -1,30 +1,63 @@
 #!/bin/sh
-if [ -z "$dotfiles" ]; then 
-    notify-send "\$dotfiles not defined 👎" 
+
+SOUND_FILE="${dotfiles:-$HOME/source/dotfiles}/media/camera.ogg"
+
+if [ ! -f "$SOUND_FILE" ]; then
+    notify-send "Camera sound file not found"
     exit 1
 fi
+
 if [ "$1" != "selfexec" ]; then
     exec setsid "$0" selfexec "$@"
 fi
 
-cache_dir="$XDG_CACHE_HOME/dotfiles"
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles"
 mkdir -p "$cache_dir"
+LOCKFILE="/tmp/screenshot-$USER.lock"
 
-LOCKFILE="/tmp/screenshot.lock"
+# Detect display server
+if [ -n "$WAYLAND_DISPLAY" ]; then
+    SESSION_TYPE="wl"
+elif [ -n "$DISPLAY" ]; then
+    SESSION_TYPE="x11"
+else
+    notify-send "Cannot detect display server"
+    exit 1
+fi
+
 if [ -f "$LOCKFILE" ]; then
     old_pid=$(cat "$LOCKFILE")
     kill -TERM -"$old_pid" 2>/dev/null
     rm -f "$LOCKFILE"
-    shotgun - | tee "$cache_dir/screenshot.png" | xclip -t 'image/png' -selection clipboard
+    
+    if [ "$SESSION_TYPE" = "wl" ]; then
+        grim - | tee "$cache_dir/screenshot.png" | wl-copy --type image/png
+    else
+        shotgun - | tee "$cache_dir/screenshot.png" | xclip -t 'image/png' -selection clipboard
+    fi
+    
     notify-send -t 1000 "Screenshot Taken 📸"
-    setsid ffplay -nodisp -autoexit "$dotfiles/media/camera.ogg" &
+    setsid ffplay -nodisp -autoexit "$SOUND_FILE" &
 else
     echo $$ > "$LOCKFILE"
     trap 'rm -f "$LOCKFILE"' EXIT
-    selection="$(hacksaw -f "%i %g")"
-    window_id="$(echo "$selection" | cut -d' ' -f1)"
-    geometry="$(echo "$selection" | cut -d' ' -f2)"
-    shotgun -i "$window_id" -g "$geometry" - | tee "$cache_dir/screenshot.png" | xclip -t 'image/png' -selection clipboard
+    
+    if [ "$SESSION_TYPE" = "wl" ]; then
+        geometry="$(slurp)"
+        grim -g "$geometry" - | tee "$cache_dir/screenshot.png" | wl-copy --type image/png
+    else
+        selection="$(hacksaw -f "%i %g")"
+        window_id="$(echo "$selection" | cut -d' ' -f1)"
+        geometry="$(echo "$selection" | cut -d' ' -f2)"
+        shotgun -i "$window_id" -g "$geometry" - | tee "$cache_dir/screenshot.png" | xclip -t 'image/png' -selection clipboard
+    fi
+    
     rm -f "$LOCKFILE"
 fi
-xclip -selection clipboard -o | xclip -selection primary #duplicate image on both primary and clipboard
+
+# Copy clipboard to primary selection
+if [ "$SESSION_TYPE" = "wl" ]; then
+    wl-paste | wl-copy --primary
+else
+    xclip -selection clipboard -o | xclip -selection primary
+fi
