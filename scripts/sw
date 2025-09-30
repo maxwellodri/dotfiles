@@ -132,7 +132,7 @@ def find_project_files(project_path: Path, filter_for: str, filter_out: str, han
         f"{quoted_fzf_preview_script_path_str} {{}}"
     )
     
-    find_cmd = ['find', str(project_path), '-type', 'f', '-not', '-path', '*/.git/*']
+    find_cmd = ['fd', '--type', 'f', '--hidden', '--follow', '--exclude', '.git', '.', str(project_path)]
     
     if use_gui:
         dmenu_cmd = [
