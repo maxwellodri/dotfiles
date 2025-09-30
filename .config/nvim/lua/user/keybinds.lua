@@ -30,13 +30,27 @@ function SyncGodotLog()
         print("None")
     end
 end
+
+local ignore_git_root = { "~/.config/nvim" }
 local function find_files_from_git_root()
     local cwd = vim.fn.getcwd()
-    if vim.fn.FugitiveGitDir() ~= '' then
-        cwd = vim.fn.fnamemodify(vim.fn.FugitiveGitDir(), ':h')
+    local should_ignore_git_root = false
+    for _, dir in ipairs(ignore_git_root) do
+        local expanded_dir = vim.fn.resolve(vim.fn.expand(dir))
+        if cwd == expanded_dir then
+            should_ignore_git_root = true
+            break
+        end
+    end
+    if not should_ignore_git_root then
+        local git_root = vim.fn.systemlist('git rev-parse --show-toplevel')[1]
+        if vim.v.shell_error == 0 then
+            cwd = git_root
+        end
     end
     require('telescope.builtin').find_files({
-        find_command = {'rg', '--ignore', '--hidden', '--files'},
+        hidden = true,
+        file_ignore_patterns = { "^%.git/" },
         prompt_prefix = '🔍🥺',
         cwd = cwd
     })
