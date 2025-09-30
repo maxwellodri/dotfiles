@@ -1,0 +1,6 @@
+[Unit]
+Description=Git commit reminder for multiple repos
+
+[Service]
+Type=oneshot
+ExecStart=/home/%u/bin/_git_reminder.sh
