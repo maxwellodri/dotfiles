@@ -11,7 +11,7 @@ for repo in $REPOS; do
     cd "$repo_path" || continue
     
     if ! git diff-index --quiet HEAD -- 2>/dev/null; then
-        newest=$(git ls-files -m -z | xargs -0 stat -c %Y 2>/dev/null | sort -rn | head -n1)
+        newest=$(git ls-files -z | xargs -0 stat -c %Y 2>/dev/null | sort -rn | head -n1)
         now=$(date +%s)
         
         if [ -n "$newest" ] && [ $((now - newest)) -gt "$GRACE_PERIOD" ]; then
