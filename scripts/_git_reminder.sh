@@ -22,5 +22,5 @@ done
 
 if [ -n "$dirty_repos" ]; then
     notify-send -h string:x-canonical-private-synchronous:git_reminder -t 0 \
-        "Git Reminder" "$(printf '%b' "$dirty_repos" | sed '/^$/d')"
+        "🤓 Git Reminder 📔" "$(printf '%b' "$dirty_repos" | sed '/^$/d')"
 fi
