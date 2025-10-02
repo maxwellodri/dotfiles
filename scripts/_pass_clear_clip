@@ -16,27 +16,30 @@ else
     exit 1
 fi
 
-# Check clipboard
+# Check clipboard and primary selection
+cleared=()
 if [[ -n "$current_clipboard" ]]; then
     current_hash=$(echo -n "$current_clipboard" | sha256sum | cut -d' ' -f1)
     if [[ "$current_hash" == "$password_hash" ]]; then
         if [[ -n "$WAYLAND_DISPLAY" ]]; then
             wl-copy --clear
-            notify-send "Password cleared from clipboard"
         elif [[ -n "$DISPLAY" ]]; then
             echo -n "" | xclip -selection clipboard
-            notify-send "Password cleared from clipboard"
         fi
+        cleared+=("clipboard")
     fi
 fi
 
-# Check primary selection (X11 only)
 if [[ -n "$DISPLAY" && -n "$current_primary" ]]; then
     primary_hash=$(echo -n "$current_primary" | sha256sum | cut -d' ' -f1)
     if [[ "$primary_hash" == "$password_hash" ]]; then
         echo -n "" | xclip -selection primary
-        notify-send "Password cleared from primary selection"
+        cleared+=("primary selection")
     fi
 fi
 
+if [[ ${#cleared[@]} -gt 0 ]]; then
+    separator=" and "
+    IFS="$separator" notify-send "Password cleared from ${cleared[*]}"
+fi
 exit 0
