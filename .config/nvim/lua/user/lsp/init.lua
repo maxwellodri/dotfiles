@@ -16,42 +16,32 @@ for _, server in ipairs(mason.get_auto_enable_servers()) do
     config = Opts.config,
   }
 end
+
 function GoNextIssue()
-  -- Check if there are any errors in the buffer
-  local all_errors = vim.diagnostic.get(nil, {
+  local all_diagnostics = vim.diagnostic.get(nil)
+  
+  if #all_diagnostics == 0 then
+    vim.notify("No diagnostics found", vim.log.levels.INFO)
+    return
+  end
+  
+    local current_buf = vim.api.nvim_get_current_buf()
+  local all_errors = vim.diagnostic.get(current_buf, {
     severity = vim.diagnostic.severity.ERROR,
   })
-
-  if #all_errors > 0 then
-    -- Navigate to the next error if present
-    vim.diagnostic.goto_next({
-      severity = vim.diagnostic.severity.ERROR,
-      float = false  -- Disable the popup box
-    })
-  else
-    -- Check if there are any non-error diagnostics (warnings, etc.)
-    local all_other_diagnostics = vim.diagnostic.get(nil, {
-      severity = {
-        vim.diagnostic.severity.WARN,
-        vim.diagnostic.severity.INFO,
-        vim.diagnostic.severity.HINT,
-      },
-    })
-
-    if #all_other_diagnostics > 0 then
-      vim.notify("No errors found, reverting to warnings", vim.log.levels.INFO)
-      vim.diagnostic.goto_next({
-        severity = {
-          vim.diagnostic.severity.WARN,
-          vim.diagnostic.severity.INFO,
-          vim.diagnostic.severity.HINT,
-        },
-        float = false  -- Disable the popup box
-      })
-    else
-      vim.notify("No more valid diagnostics to move to", vim.log.levels.INFO)
-    end
-  end
+  
+   if #all_errors > 0 then
+     pcall(vim.diagnostic.goto_next, {
+       severity = vim.diagnostic.severity.ERROR,
+       float = false,
+       wrap = true
+     })
+   else
+     pcall(vim.diagnostic.goto_next, {
+       float = false,
+       wrap = true
+     })
+   end
 end
 
 vim.api.nvim_set_keymap('n', '<leader>ge', '<cmd>lua GoNextIssue()<CR>', { noremap = true, silent = true })
