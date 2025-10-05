@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+PREV_DIR=$(pwd)
+
+GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
+
+if [ -n "$GIT_ROOT" ] && [ -f "$GIT_ROOT/notes/index.md" ]; then
+    cd "$GIT_ROOT/notes" && nvim index.md
+    cd "$PREV_DIR" || exit 1
+elif [ -f "$HOME/Documents/notes/index.md" ]; then
+    cd "$HOME/Documents/notes" && nvim index.md
+    cd "$PREV_DIR" || exit 1
+else
+    exit 1
+fi
