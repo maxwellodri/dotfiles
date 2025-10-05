@@ -19,17 +19,14 @@ end
 
 function GoNextIssue()
   local all_diagnostics = vim.diagnostic.get(nil)
-  
   if #all_diagnostics == 0 then
     vim.notify("No diagnostics found", vim.log.levels.INFO)
     return
   end
-  
     local current_buf = vim.api.nvim_get_current_buf()
   local all_errors = vim.diagnostic.get(current_buf, {
     severity = vim.diagnostic.severity.ERROR,
   })
-  
    if #all_errors > 0 then
      pcall(vim.diagnostic.goto_next, {
        severity = vim.diagnostic.severity.ERROR,

@@ -149,6 +149,7 @@ cmp.setup {
      { name = "nvim_lsp_document_symbol" },
      { name = "luasnip" },
      { name = "rg" },
+     { name = 'mkdnflow' },
      -- { name = "codeium" },
   },
   confirm_opts = {

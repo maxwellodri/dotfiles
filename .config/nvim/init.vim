@@ -1,7 +1,7 @@
 set runtimepath^=~/.vim runtimepath+=~/.vim/after
 lua vim.deprecate = function() end
 runtime! expand('$HOME') + '/.config/nvim/plugin'
-let g:polyglot_disabled = ['rust']
+let g:polyglot_disabled = ['rust', 'markdown']
 "vim.g.rust_rustfmt_options = ''
 let &packpath=&runtimepath
 " Autoinstall VimPlug
@@ -151,7 +151,8 @@ let &packpath=&runtimepath
     " NoteTaking & Vim Wiki
     " ===============
     "Plug 'vimwiki/vimwiki'
-    Plug 'brianhuster/live-preview.nvim'
+    "Plug 'brianhuster/live-preview.nvim'
+    Plug 'jakewvincent/mkdnflow.nvim'
     " ===============
     " Perf
     " ===============
