@@ -42,12 +42,12 @@ commands:
     command: 'TEXT="${TEXT/#~/$HOME}" && if [ -d "$TEXT" ]; then dragon-drag-and-drop "$TEXT"/*; else dragon-drag-and-drop "$TEXT"; fi'
   qr_code:
     display: "📸 Generate QR code"
-    command: qrencode -t PNG -o /tmp/qr.png "$TEXT" && feh /tmp/qr.png && rm /tmp/qr.png
-  dragon_drop_image:
-    display: "🐲🖼️ Dragon drop image"
+    command: qrencode -t PNG -o /tmp/qr.png < "$DATA_FILE" && feh /tmp/qr.png && rm /tmp/qr.png
+  dragon_drop_file:
+    display: "🐲🖼️ Dragon drop File📁"
     command: |
-      cp "$DATA_FILE" /tmp/text_handler_image.png
-      dragon-drag-and-drop /tmp/text_handler_image.png
+      cp "$DATA_FILE" /tmp/text_handler_file
+      dragon-drag-and-drop /tmp/text_handler_file
 
 
 scorers:
@@ -117,7 +117,9 @@ scorers:
   - regex: '^~/([^/\s]*/?)*$'
     command_label: dragon_drop
     score_change: 5
-  - regex: '^�PNG'
-    command_label: dragon_drop_image
+  - regex: 'image/png'
+    command_label: dragon_drop_file
     score_change: 25
-    for_binary_data: true
+  - regex: '^[a-z]+/[a-z0-9+.-]+$'
+    command_label: nvim
+    score_change: -2

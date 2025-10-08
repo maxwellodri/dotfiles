@@ -5,17 +5,11 @@ use serde::{Deserialize, Serialize};
 use std::io::{stdin, IsTerminal, Read, Write};
 use tracing::{debug, trace};
 
-fn default_for_binary_data() -> bool {
-    false
-}
-
 #[derive(Serialize, Deserialize)]
 struct Scorer {
     regex: String,
     command_label: String,
     score_change: i32,
-    #[serde(default = "default_for_binary_data")]
-    for_binary_data: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -23,9 +17,11 @@ struct Command {
     display: String,
     command: String,
 }
+
 fn default_min_threshold() -> i32 {
     10
 }
+
 fn default_max_threshold() -> i32 {
     100
 }
@@ -40,7 +36,20 @@ struct Config {
     auto_select_max_threshold: i32,
 }
 
-fn validate_config(config: &Config) -> Result<()> {
+fn check_command_exists(command: &str) -> Result<()> {
+    let status = std::process::Command::new("which").arg(command).status()?;
+
+    if !status.success() {
+        anyhow::bail!("Required command '{}' not found in PATH", command);
+    }
+    Ok(())
+}
+
+fn validate_environment(config: &Config) -> Result<()> {
+    for cmd in ["file", "dmenu", "xclip", "sh"] {
+        check_command_exists(cmd)?;
+    }
+
     if config.auto_select_min_threshold >= config.auto_select_max_threshold {
         anyhow::bail!(
             "Bad auto select values: min ({}) >= max ({})",
@@ -48,12 +57,14 @@ fn validate_config(config: &Config) -> Result<()> {
             config.auto_select_max_threshold
         );
     }
+
     let missing_commands: Vec<(String, String)> = config
         .scorers
         .iter()
         .filter(|scorer| !config.commands.contains_key(&scorer.command_label))
         .map(|scorer| (scorer.regex.clone(), scorer.command_label.clone()))
         .collect();
+
     if !missing_commands.is_empty() {
         let error_msg = missing_commands
             .iter()
@@ -70,16 +81,20 @@ enum Data {
     Text(String),
     Binary(Vec<u8>),
 }
+
 impl Data {
-    fn as_text_for_matching(&self) -> String {
+    fn get_text_for_matching(&self, temp_file_path: &str) -> Result<String> {
         match self {
-            Data::Text(s) => s.clone(),
-            Data::Binary(bytes) => {
-                // Try to convert to UTF-8 for regex matching, use lossy conversion
-                String::from_utf8_lossy(bytes).to_string()
+            Data::Text(s) => Ok(s.clone()),
+            Data::Binary(_) => {
+                let output = std::process::Command::new("file")
+                    .args(["--mime-type", "-b", temp_file_path])
+                    .output()?;
+                Ok(String::from_utf8(output.stdout)?.trim().to_string())
             }
         }
     }
+
     fn write_to_temp_file(&self, path: &str) -> Result<()> {
         match self {
             Data::Text(s) => std::fs::write(path, s.as_bytes())?,
@@ -103,7 +118,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .join("text_handler.yaml");
     let config_content = std::fs::read_to_string(&config_path)?;
     let config: Config = serde_yaml::from_str(&config_content)?;
-    validate_config(&config)?;
+    validate_environment(&config)?;
 
     debug!(
         "Loaded {} commands and {} scorers",
@@ -114,7 +129,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let data_source: &str;
     let data: Data = match args.len() {
         1 => {
-            // Try to read from stdin non-blockingly first
             if !stdin().is_terminal() {
                 let mut buffer = Vec::new();
                 match stdin().read_to_end(&mut buffer) {
@@ -127,7 +141,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     _ => {
-                        // No stdin data or read failed, use clipboard
                         data_source = "clipboard";
                         let clipboard_bytes = std::process::Command::new("sh")
                             .args(["-c", "xclip -selection clipboard -o"])
@@ -142,7 +155,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             } else {
-                // stdin is a terminal, read from clipboard
                 data_source = "clipboard";
                 let clipboard_bytes = std::process::Command::new("sh")
                     .args(["-c", "xclip -selection clipboard -o"])
@@ -159,7 +171,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         2 if args[1] == "sel" => {
             data_source = "selection";
 
-            // Check what types are available
             let targets = std::process::Command::new("sh")
                 .args(["-c", "xclip -selection primary -t TARGETS -o"])
                 .output()?
@@ -168,7 +179,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let targets_str = String::from_utf8_lossy(&targets);
 
             if targets_str.contains("image/") {
-                // Get as image - try common image formats
                 let selection_bytes = if targets_str.contains("image/png") {
                     std::process::Command::new("sh")
                         .args(["-c", "xclip -selection primary -t image/png -o"])
@@ -180,7 +190,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .output()?
                         .stdout
                 } else {
-                    // Try generic image type
                     std::process::Command::new("sh")
                         .args(["-c", "xclip -selection primary -t image -o"])
                         .output()?
@@ -188,7 +197,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 };
                 Data::Binary(selection_bytes)
             } else {
-                // Get as text
                 let selection_bytes = std::process::Command::new("sh")
                     .args(["-c", "xclip -selection primary -o"])
                     .output()?
@@ -214,16 +222,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         _ => {
             data_source = "command line";
-            // Case 3: regular cmdline args joined - always text
             Data::Text(args[1..].join(" "))
         }
     };
 
-    let text_for_matching = data.as_text_for_matching();
+    let temp_file = "/tmp/text_handler_data";
+    data.write_to_temp_file(temp_file)?;
+
+    let text_for_matching = data.get_text_for_matching(temp_file)?;
     let (data_kind, data_as_text) = match data {
         Data::Text(ref text) => ("Text", text.clone()),
-        Data::Binary(..) => ("Data", "[Binary Data]".to_string()),
+        Data::Binary(..) => ("Data", format!("[Binary: {}]", text_for_matching)),
     };
+
     debug!(
         "text_for_matching: {}",
         text_for_matching.chars().take(100).collect::<String>()
@@ -235,13 +246,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .iter()
         .map(|(label, cmd)| (label.clone(), (cmd.clone(), 0)))
         .collect();
-    let is_binary = !data.is_text();
 
     config
         .scorers
         .iter()
-        // Filter scorers based on data type
-        .filter(|scorer| scorer.for_binary_data == is_binary)
         .filter_map(|scorer| {
             Regex::new(&scorer.regex)
                 .ok()
@@ -260,21 +268,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 *score += score_change;
             }
         });
+
     let mut sorted_commands: Vec<_> = scored_commands
         .iter()
         .enumerate()
         .filter(|(_, (_, (_, score)))| *score > 0)
         .collect();
-    sorted_commands.sort_by(|a, b| {
-        b.1 .1
-             .1
-            .cmp(&a.1 .1 .1) // score descending
-            .then_with(|| a.0.cmp(&b.0)) // yaml order ascending
-    });
-
-    // Write data to temp file for commands to use
-    let temp_file = "/tmp/text_handler_data";
-    data.write_to_temp_file(temp_file)?;
+    sorted_commands.sort_by(|a, b| b.1 .1 .1.cmp(&a.1 .1 .1).then_with(|| a.0.cmp(&b.0)));
 
     match sorted_commands.len() {
         0 => {
@@ -295,14 +295,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 sorted_commands[0].1 .0,
                 sorted_commands[0].1 .1 .1
             );
-            // Auto-select first cmd if there is exactly one cmd or if first command scores 100+ points higher than second
             let (_, (_label, (command, _))) = &sorted_commands[0];
             let mut cmd = std::process::Command::new("sh");
             cmd.args(["-c", &command.command])
                 .env("DATA_FILE", temp_file)
                 .env("IS_BINARY", if data.is_text() { "0" } else { "1" });
 
-            // Only set TEXT env var for text data (binary data contains null bytes)
             if data.is_text() {
                 cmd.env("TEXT", &text_for_matching);
             }
@@ -310,7 +308,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             cmd.spawn()?;
         }
         _ => {
-            // Show dmenu for user selection
             let labels: String = sorted_commands
                 .iter()
                 .map(|(_, (_, (cmd, _)))| cmd.display.as_str())
@@ -326,7 +323,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             child.stdin.as_mut().unwrap().write_all(labels.as_bytes())?;
 
-            let output = child.wait_with_output()?; // This gives you the actual output
+            let output = child.wait_with_output()?;
             let selected_label = String::from_utf8(output.stdout)?.trim().to_string();
             let selected_command = scored_commands
                 .iter()
@@ -339,7 +336,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .env("DATA_FILE", temp_file)
                     .env("IS_BINARY", if data.is_text() { "0" } else { "1" });
 
-                // Only set TEXT env var for text data (binary data contains null bytes)
                 if data.is_text() {
                     cmd.env("TEXT", &text_for_matching);
                 }
