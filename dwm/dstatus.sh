@@ -116,51 +116,32 @@ poll_timew() {
     fi
 }
 
-# Global array to store CPU samples
 declare -a cpu_cache
 
 get_cpu_usage() {
-    # Read current CPU stats
-    read cpu user nice system idle iowait irq softirq steal guest guest_nice < /proc/stat
-    local current_total=$((user + nice + system + idle + iowait + irq + softirq + steal))
-    local current_idle=$idle
+    local line
+    read -r line < /proc/stat
+    set -- $line
+    local user=$2 nice=$3 system=$4 idle=$5 iowait=$6 irq=$7 softirq=$8 steal=$9
+    local current="$((user+nice+system+idle+iowait+irq+softirq+steal)) $idle"
     
-    # Add current sample to array
-    cpu_cache=("$current_total $current_idle" "${cpu_cache[@]}")
+    cpu_cache=("$current" "${cpu_cache[@]:0:19}")
     
-    # Keep only 4 most recent samples
-    if [ ${#cpu_cache[@]} -gt 4 ]; then
-        cpu_cache=("${cpu_cache[@]:0:4}")
-    fi
-    
-    # Need at least 2 samples to calculate usage
     if [ ${#cpu_cache[@]} -lt 2 ]; then
-        echo "0"
+        cpu_usage=0
         return
     fi
     
-    # Calculate usage between newest and oldest samples
-    read newest_total newest_idle <<< "${cpu_cache[0]}"
-    read oldest_total oldest_idle <<< "${cpu_cache[-1]}"
+    read -r new_total new_idle <<< "${cpu_cache[0]}"
+    read -r old_total old_idle <<< "${cpu_cache[-1]}"
     
-    local total_diff=$((newest_total - oldest_total))
-    local idle_diff=$((newest_idle - oldest_idle))
-    
-    if [ $total_diff -eq 0 ]; then
-        echo "0"
+    local diff_total=$((new_total - old_total))
+    if [ $diff_total -eq 0 ]; then
+        cpu_usage=0
         return
     fi
     
-    local cpu_percent=$(( ((total_diff - idle_diff) * 100) / total_diff ))
-    
-    # Clamp between 0-100
-    if [ $cpu_percent -gt 100 ]; then
-        echo "100"
-    elif [ $cpu_percent -lt 0 ]; then
-        echo "0"
-    else
-        echo "$cpu_percent"
-    fi
+    cpu_usage=$(( (diff_total - (new_idle - old_idle)) * 100 / diff_total ))
 }
 
 xsetroot -name "🥹"
@@ -302,7 +283,7 @@ while true; do
         rm "$network_touch"
     fi
 
-    cpu_usage=$(get_cpu_usage)
+    get_cpu_usage
     command -v get_reminders.sh > /dev/null && reminders="🧐: $(get_reminders.sh --count)" || reminders="😠: 0"
     xsetroot -name "$timedata $reminders 🕒: $(date +%a-%d-%b-%R) 🧠: $(sh memory_checker)% 🤔:$(printf "%2d" "$cpu_usage")% 🌏: $internet 🚚: $packages$(docker_watch)$OPT"
 
