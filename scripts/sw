@@ -249,20 +249,21 @@ def find_project_files(project_path: Path, filter_for: str, filter_out: str, han
                     if path_only:
                         print(f"{full_path}")
                     else:
-                        mime_result = subprocess.run(['file', '--mime-type', '-b', str(full_path)], capture_output=True, text=True)
-                        mime_type = mime_result.stdout.strip()
-                        
-                        default_app_result = subprocess.run(['xdg-mime', 'query', 'default', mime_type], capture_output=True, text=True)
-                        default_app = default_app_result.stdout.strip()
-                        
-                        if default_app == 'neovide.desktop':
+                        if is_text_file(full_path):
                             editor = os.environ.get('EDITOR', 'nvim')
                             print(f"{editor} '{full_path}'")
                         else:
                             print(f"xdg-open '{full_path}'")
-        
         except subprocess.CalledProcessError:
             pass
+
+def is_text_file(filepath):
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            f.read(8192)  # Read first 8KB
+        return True
+    except (UnicodeDecodeError, PermissionError):
+        return False
 
 def create_project_session(name: str, path: Path) -> bool:
     if not path.is_dir():
