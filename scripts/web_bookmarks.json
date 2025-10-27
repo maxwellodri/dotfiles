@@ -48,6 +48,7 @@
     "rustcrud": "https://medium.com/sean3z/building-a-restful-crud-api-with-rust-1867308352d8",
     "coc": "https://github.com/neoclide/coc.nvim/wiki/Language-servers",
     "bevy": "https://github.com/bevyengine/bevy",
+    "bevydocs": "https://docs.rs/bevy/latest/bevy/",
     "cookbook": "https://bevy-cheatbook.github.io/",
     "wallet": "https://ethereum-balance.com/?wa=49a347eeab83bf3a2979ba919bbb1a3553a20250",
     "sfx": "https://www.freesoundslibrary.com",
