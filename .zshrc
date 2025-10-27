@@ -186,9 +186,21 @@ zle -N _vim_in_dir
 bindkey -M viins '^X' _vim_in_dir
 bindkey -M vicmd '^X' _vim_in_dir
 
-zle -N _git_root
-bindkey -M viins '^G' _git_root
-bindkey -M vicmd '^G' _git_root
+#zle -N _git_root
+#bindkey -M viins '^G' _git_root
+#bindkey -M vicmd '^G' _git_root
+
+function _rg_fzf_widget() {
+  local script_path="$bin/_rg_fzf.sh"  # Adjust path as needed
+  BUFFER=""
+  zle -I
+  "$script_path"
+  zle reset-prompt
+}
+zle -N _rg_fzf_widget
+bindkey '^g' _rg_fzf_widget
+bindkey -M viins '^G' _rg_fzf_widget
+bindkey -M vicmd '^G' _rg_fzf_widget
 
 zle -N _sterm
 bindkey -M vicmd '^T' _sterm

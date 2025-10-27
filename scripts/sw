@@ -132,7 +132,7 @@ def find_project_files(project_path: Path, filter_for: str, filter_out: str, han
         f"{quoted_fzf_preview_script_path_str} {{}}"
     )
     
-    find_cmd = ['fd', '--type', 'f', '--hidden', '--follow', '--exclude', '.git', '.', str(project_path)]
+    find_cmd = ['fd', '--base-directory', str(project_path), '--type', 'f', '--hidden', '--follow', '--exclude', '.git', '--color=always']
     
     if use_gui:
         dmenu_cmd = [
@@ -146,14 +146,10 @@ def find_project_files(project_path: Path, filter_for: str, filter_out: str, han
         
         try:
             find_proc = subprocess.Popen(find_cmd, stdout=subprocess.PIPE, text=True)
-            sed_proc = subprocess.Popen(['sed', f's|^{project_path_str}/||'], stdin=find_proc.stdout, stdout=subprocess.PIPE, text=True)
-
+            dmenu_proc = subprocess.Popen(dmenu_cmd, stdin=find_proc.stdout, stdout=subprocess.PIPE, text=True)
+            
             if find_proc.stdout:
                 find_proc.stdout.close()
-            
-            dmenu_proc = subprocess.Popen(dmenu_cmd, stdin=sed_proc.stdout, stdout=subprocess.PIPE, text=True)
-            if sed_proc.stdout:
-                sed_proc.stdout.close()
             
             selected_file, _ = dmenu_proc.communicate()
             
@@ -200,6 +196,7 @@ def find_project_files(project_path: Path, filter_for: str, filter_out: str, han
     else:
         fzf_cmd = [
             'fzf',
+            '--ansi',
             '--preview', fzf_preview_arg,
             '--preview-window=right:50%:border-left:noinfo',
             '--border=rounded',
@@ -212,14 +209,10 @@ def find_project_files(project_path: Path, filter_for: str, filter_out: str, han
         
         try:
             find_proc = subprocess.Popen(find_cmd, stdout=subprocess.PIPE, text=True)
-            sed_proc = subprocess.Popen(['sed', f's|^{project_path_str}/||'], stdin=find_proc.stdout, stdout=subprocess.PIPE, text=True)
-
+            fzf_proc = subprocess.Popen(fzf_cmd, stdin=find_proc.stdout, stdout=subprocess.PIPE, text=True)
+            
             if find_proc.stdout:
                 find_proc.stdout.close()
-            
-            fzf_proc = subprocess.Popen(fzf_cmd, stdin=sed_proc.stdout, stdout=subprocess.PIPE, text=True)
-            if sed_proc.stdout:
-                sed_proc.stdout.close()
             
             selected_file, _ = fzf_proc.communicate()
             
