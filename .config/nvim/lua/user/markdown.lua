@@ -13,3 +13,4 @@ require('mkdnflow').setup({
     },
     filetypes = {md = true, markdown = true},
 })
+require('render-markdown').setup({})

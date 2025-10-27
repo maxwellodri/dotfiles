@@ -3,17 +3,21 @@ M.setup = function(opts)
   vim.g.rustaceanvim = {
     dap = {},
     server = {
-    config = opts.config,
-    capabilities = opts.capabilities,
-       on_attach = function(client, bufnr)
-         vim.diagnostic.enable(bufnr)
-         opts.on_attach(client, bufnr)
-         vim.keymap.set("n", "<leader>M", function() vim.cmd("RustLsp expandMacro") end, { silent = true, desc = "Expand Macro" })
-         vim.keymap.set("n", "J", function() vim.cmd("RustLsp joinLines") end, { silent = true, desc = "Join Lines" })
-         vim.keymap.set("n", "<leader>gk", function() vim.cmd("RustLsp parentModule") end, { silent = true, desc = "Open Parent Module" })
-         vim.keymap.set("n", "<leader>gb", function() vim.cmd("RustLsp openDocs") end, { silent = true, desc = "Open Documentation" })
-         vim.keymap.set("n", "<leader>gt", function() vim.cmd("RustLsp openCargo") end, { silent = true, desc = "Open Cargo.toml" })
-       end,
+      config = opts.config,
+      capabilities = opts.capabilities,
+      on_attach = function(client, bufnr)
+        vim.diagnostic.enable(bufnr)
+        opts.on_attach(client, bufnr)
+        vim.keymap.set("n", "<leader>M", function() vim.cmd("RustLsp expandMacro") end, { silent = true, desc = "Expand Macro" })
+        vim.keymap.set("n", "J", function() vim.cmd("RustLsp joinLines") end, { silent = true, desc = "Join Lines" })
+        vim.keymap.set("n", "<leader>gk", function() vim.cmd("RustLsp parentModule") end, { silent = true, desc = "Open Parent Module" })
+        vim.keymap.set("n", "<leader>gb", function() vim.cmd("RustLsp openDocs") end, { silent = true, desc = "Open Documentation" })
+        vim.keymap.set("n", "<leader>gt", function() vim.cmd("RustLsp openCargo") end, { silent = true, desc = "Open Cargo.toml" })
+        vim.keymap.set("n", "<leader>rM", function()
+          vim.notify("Rebuilding macros")
+          vim.cmd("RustLsp rebuildProcMacros")
+        end, { silent = true, desc = "Rebuild Proc Macros" })
+      end,
       default_settings = {
         ['rust-analyzer'] = {
           -- Enable diagnostics
@@ -28,25 +32,25 @@ M.setup = function(opts)
             buildScripts = { enable = true },
           },
           procMacro = {
-             enable = true,
-             attributes = {
-               enable = true,
-             }
-           },
-           imports = { prefix = "crate" },
-           inlay_hints = {
-             enable = true,
-             lifetimeElisionHints = { enable = "skip_trivial" },
-             only_current_line_autocmd = "CursorHold",
-             show_parameter_hints = true,
-             parameter_hints_prefix = "",
-             other_hints_prefix = "=> ",
-             max_len_align = true,
-             max_len_align_padding = 4,
-             right_align = false,
-             right_align_padding = 8,
-             highlight = "SpecialComment",
-           },
+            enable = true,
+            attributes = {
+              enable = true,
+            }
+          },
+          imports = { prefix = "crate" },
+          inlay_hints = {
+            enable = true,
+            lifetimeElisionHints = { enable = "skip_trivial" },
+            only_current_line_autocmd = "CursorHold",
+            show_parameter_hints = true,
+            parameter_hints_prefix = "",
+            other_hints_prefix = "=> ",
+            max_len_align = true,
+            max_len_align_padding = 4,
+            right_align = false,
+            right_align_padding = 8,
+            highlight = "SpecialComment",
+          },
         },
       },
     },

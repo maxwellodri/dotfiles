@@ -130,6 +130,9 @@ let &packpath=&runtimepath
     Plug 'Yggdroot/indentLine' "depcrecated
     Plug 'nvim-lualine/lualine.nvim'
     Plug 'nvim-tree/nvim-web-devicons'
+    Plug 'HakonHarnes/img-clip.nvim'
+    Plug 'stevearc/dressing.nvim'
+    Plug 'folke/snacks.nvim'
 
     " ===============
     " Color Schemes 
@@ -153,12 +156,17 @@ let &packpath=&runtimepath
     "Plug 'vimwiki/vimwiki'
     "Plug 'brianhuster/live-preview.nvim'
     Plug 'jakewvincent/mkdnflow.nvim'
+    Plug 'MeanderingProgrammer/render-markdown.nvim'
     " ===============
     " Perf
     " ===============
     Plug 'lewis6991/impatient.nvim'
     "Plug 'nathom/filetype.nvim'
     Plug 'tweekmonster/startuptime.vim'
+    " ===============
+    " LLM
+    " ===============
+    "Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': 'make' }
     "
     call plug#end()
     source ~/.config/vim/vimrc "vimrc is effectively a plugin lmao

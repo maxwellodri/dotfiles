@@ -112,6 +112,20 @@ local function lsp_keymaps(bufnr)
   vim.keymap.set('n', 'gr', function()
     vim.lsp.buf.references()
   end, { buffer = bufnr, desc = "LSP References", noremap = true, silent = true })
+vim.keymap.set('n', '<leader>rD', function()
+  local d = vim.diagnostic.get(0)
+  local l = {}
+  for _, v in ipairs(d) do
+    table.insert(l, string.format("%s:%d:%d: %s: %s",
+      vim.fn.bufname(v.bufnr),
+      v.lnum + 1,
+      v.col + 1,
+      vim.diagnostic.severity[v.severity],
+      v.message))
+  end
+  vim.fn.setreg('+', table.concat(l, '\n'))
+  print('Copied ' .. #d .. ' diagnostics')
+end)
   -- vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>gr', '<cmd>RustRunnables<CR>', opts)
   -- vim.api.nvim_buf_set_keymap(bufnr, "n", "[d", '<cmd>lua vim.diagnostic.goto_prev({ border = "rounded" })<CR>', opts)
   -- vim.api.nvim_buf_set_keymap(bufnr, "n", "]d", '<cmd>lua vim.diagnostic.goto_next({ border = "rounded" })<CR>', opts)
