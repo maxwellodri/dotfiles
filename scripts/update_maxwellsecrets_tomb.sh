@@ -1,5 +1,6 @@
 #!/bin/env bash
 
+
 cd "$HOME/Documents/backup/" || { echo "no $HOME/Documents/backup/ directory"; exit 1;}
 
 if [ ! -f "maxwellsecrets.tomb" ]; then
@@ -33,14 +34,14 @@ check_kernel() {
     return 0
 }
 
-update() {
+if [ $? -ne 0 ]; then
     check_kernel
+    exit 1
+fi
+
+update() {
     
     tomb open maxwellsecrets.tomb -k maxwellsecrets.tomb.key -f
-    if [ $? -ne 0 ]; then
-        check_kernel
-        exit 1
-    fi
 
     mount_point=$(findmnt --real --list | grep maxwellsecrets | awk '{print $1}')
     if [ -z "$mount_point" ]; then
@@ -74,7 +75,6 @@ toggle() {
         fi
     else
         echo "Tomb is not mounted. Opening..."
-        check_kernel
         
         tomb open maxwellsecrets.tomb -k maxwellsecrets.tomb.key -f
         if [ $? -eq 0 ]; then
@@ -82,7 +82,6 @@ toggle() {
             echo "Tomb opened successfully at: $mount_point"
         else
             echo "Error: Failed to open tomb."
-            check_kernel
             exit 1
         fi
     fi
