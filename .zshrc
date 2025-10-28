@@ -172,6 +172,19 @@ sw_find() {
    output=$(sw find)
    [[ -n "$output" ]] && eval "$output" && zle reset-prompt
 }
+
+sw_switch() {
+   local output
+   output=$(sw --path)
+   [[ -n "$output" ]] && cd "$output" && zle reset-prompt
+}
+
+zle -N sw_switch
+bindkey -M vicmd '^[^F' sw_switch
+bindkey -M viins '^[^F' sw_switch
+
+
+
 zle -N sw_widget
 bindkey -M vicmd '^F' sw_widget
 bindkey -M viins '^F' sw_widget
