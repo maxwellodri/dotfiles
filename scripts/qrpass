@@ -33,10 +33,4 @@ fi
 # Extract first line as password
 password=$(echo "$password" | head -n1)
 
-qrencode -o /tmp/qr.png -l H -s 10 "$password"
-
-# Display QR code
-feh --title "qrpass - ${entry_name}" /tmp/qr.png
-
-# Clean up
-rm /tmp/qr.png
+qrencode -o - -l H -s 10 "$password" | feh --title "qrpass - ${entry_name}" -
