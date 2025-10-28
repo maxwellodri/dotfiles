@@ -4,7 +4,7 @@
 prev_song="$(mpc --host="$HOME/.config/mpd/socket" current)"
 
 # Open fzf selection window for new songs
-st -g 100x20+2000+720 -c "stfuzzy" -e sh -c 'cd $HOME/Music/; fd --full-path "." -E "*.jpg" -E "*.nfo" -E "*.png" --type file --type symlink | shuf | fzf -m | xargs realpath | mpc --host="$HOME/.config/mpd/socket" insert'
+st -g 100x20+2000+720 -c "stfuzzy" -e sh -c 'cd $HOME/Music/; fd --full-path "." -E "*.jpg" -E "*.nfo" -E "*.png" --type file --type symlink | shuf | fzf -m --ansi --border=rounded --color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8 --color=fg:#cdd6f4,header:#f38ba8,info:#cba6ac,pointer:#f5e0dc --color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6ac,hl+:#f38ba8 --bind=ctrl-u:preview-page-up,ctrl-d:preview-page-down --cycle | xargs realpath | mpc --host="$HOME/.config/mpd/socket" insert'
 
 # Get the newly queued song (if any)
 current_song="$(mpc --host="$HOME/.config/mpd/socket" current)"
