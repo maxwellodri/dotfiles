@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+path_is_valid() {
+    [ -f "$1" ] || [ -d "$1" ]
+}
+
 usage() {
     echo "Usage: $0 [--file <file_path>] [--dir <starting_directory>] [--notify-send]"
     echo "  --file <file_path>        : Specify the file to move. Defaults to clipboard content."
@@ -86,18 +90,19 @@ fi
 
 cd "$working_dir" || { echo "Error: Could not change to directory '$working_dir'."; exit 1; }
 
-if [ ! -f "$file_path" ]; then
+if ! path_is_valid "$file_path"; then
     trimmed_path=$(echo "$file_path" | xargs)
-    if [ "$trimmed_path" != "$file_path" ] && [ -f "$trimmed_path" ]; then
+    
+    if [ "$trimmed_path" != "$file_path" ] && path_is_valid "$trimmed_path"; then
         file_path="$trimmed_path"
         echo "Note: Trailing/leading whitespace trimmed from clipboard path."
     else
-        echo "Error: File '$file_path' does not exist or is not a regular file."
+        echo "Error: Path '$file_path' does not exist or is not a regular file or directory."
         exit 1
     fi
 fi
 
-selected_dir=$(fd --type directory | fzf --prompt="Select destination for '$(basename "$file_path")': ")
+selected_dir=$( fd --type directory | fzf --prompt="Select destination for '$(basename "$file_path")': " --ansi --border=rounded --color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8 --color=fg:#cdd6f4,header:#f38ba8,info:#cba6ac,pointer:#f5e0dc --color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6ac,hl+:#f38ba8 --bind=ctrl-u:preview-page-up,ctrl-d:preview-page-down --cycle)
 
 if [ -z "$selected_dir" ]; then
     echo "Directory selection cancelled. Exiting."
@@ -116,15 +121,26 @@ SUCCESS_MESSAGE="✅ Successfully moved:
     FROM: ${full_source_path}
     TO:   ${full_destination_path}"
 
+destination_path="$selected_dir/$file_name"
+
+if [ -f "$destination_path" ]; then
+    echo "⚠️ WARNING: Destination file already exists:"
+    echo "  $destination_path"
+    read -r -p "Do you want to overwrite it? (y/N) " response
+    
+    if [[ "$response" != "y" ]] && [[ "$response" != "Y" ]]; then
+        echo "Move cancelled by user. Exiting."
+        exit 0
+    fi
+fi
+
 if mv "$file_path" "$destination_path"; then
     if [ "$NOTIFY_SEND_FLAG" -eq 1 ]; then
         NOTIFY_BODY=$(echo "$SUCCESS_MESSAGE" | sed ':a;N;s/\n/ /g;ta')
         notify-send -t 2500 "Move Complete" "$NOTIFY_BODY"
-        
-        echo "$SUCCESS_MESSAGE"
-    else
-        echo "$SUCCESS_MESSAGE"
     fi
+    echo "$SUCCESS_MESSAGE"
+
 else
     echo "❌ Error moving '$file_name' to '$selected_dir'"
     exit 1
