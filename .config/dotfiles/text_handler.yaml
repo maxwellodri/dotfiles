@@ -13,6 +13,9 @@ commands:
   tsp_ytdlp_batch:
     display: "⬇️ Batch Download with tsp_ytdlp"
     command: 'echo "$TEXT" | while IFS= read -r url; do [ -n "$url" ] && tsp_ytdlp "$url"; done'
+  mvx:
+    display: "🚚 Move file"
+    command: st -g 100x20+2000+720 -c "stfuzzy" -e sh -c 'mvx --notify-send --dir "$HOME" --file "$TEXT"; exit 0'
   gallery-dl:
     display: "🖼️ Download with gallery-dl"
     command: stcmd "gallery-dl $TEXT"
@@ -123,3 +126,6 @@ scorers:
   - regex: '^[a-z]+/[a-z0-9+.-]+$'
     command_label: nvim
     score_change: -2
+  - command: '[ -f "$TEXT" ]'
+    command_label: mvx
+    score_change: 10
