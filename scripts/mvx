@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+
+usage() {
+    echo "Usage: $0 [--file <file_path>] [--dir <starting_directory>] [--notify-send]"
+    echo "  --file <file_path>        : Specify the file to move. Defaults to clipboard content."
+    echo "  --dir <starting_directory>: Specify the directory to start fzf/fd from. Defaults to \$PWD."
+    echo "  --notify-send             : Send a desktop notification upon successful move."
+    exit 1
+}
+
+# Default values
+file_path=""
+working_dir="$PWD"
+NOTIFY_SEND_FLAG=0
+
+while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+        --notify-send)
+            NOTIFY_SEND_FLAG=1
+            shift
+            ;;
+        --file)
+            if [ -n "$2" ] && ! [[ "$2" == -* ]]; then
+                file_path="$2"
+                shift 2
+            else
+                echo "Error: Argument for $1 is missing or invalid."
+                usage
+            fi
+            ;;
+        --dir)
+            if [ -n "$2" ] && ! [[ "$2" == -* ]]; then
+                working_dir="$2"
+                shift 2
+            else
+                echo "Error: Argument for $1 is missing or invalid."
+                usage
+            fi
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *)
+            echo "Error: Unknown parameter passed: $1"
+            usage
+            ;;
+    esac
+done
+CLIP_PASTE=""
+
+if [[ -n $WAYLAND_DISPLAY ]]; then
+    # Wayland environment
+    if command -v wl-paste &> /dev/null; then
+        CLIP_PASTE="wl-paste -n"
+    else
+        echo "Warning: Wayland detected, but 'wl-paste' not found. Clipboard support disabled." >&2
+    fi
+elif [[ -n $DISPLAY ]]; then
+    # X11 environment
+    if command -v xclip &> /dev/null; then
+        CLIP_PASTE="xclip -selection clipboard -o"
+    elif command -v xsel &> /dev/null; then
+        CLIP_PASTE="xsel --clipboard --output"
+    else
+        echo "Warning: X11 detected, but 'xclip' or 'xsel' not found. Clipboard support disabled." >&2
+    fi
+else
+    # No display found
+    echo "Warning: No Wayland or X11 display detected. Clipboard support disabled." >&2
+fi
+if [ -z "$file_path" ]; then
+    if [ -n "$CLIP_PASTE" ]; then
+        echo "No file specified with --file, attempting to get file path from clipboard..."
+        file_path=$($CLIP_PASTE)
+    else
+        echo "Error: No file specified with --file, and no suitable clipboard utility was found."
+        echo "       Please specify a file using '--file <file_path>'."
+        exit 1
+    fi
+fi
+
+if [ ! -d "$working_dir" ]; then
+    echo "Error: Working directory '$working_dir' does not exist."
+    exit 1
+fi
+
+cd "$working_dir" || { echo "Error: Could not change to directory '$working_dir'."; exit 1; }
+
+if [ ! -f "$file_path" ]; then
+    trimmed_path=$(echo "$file_path" | xargs)
+    if [ "$trimmed_path" != "$file_path" ] && [ -f "$trimmed_path" ]; then
+        file_path="$trimmed_path"
+        echo "Note: Trailing/leading whitespace trimmed from clipboard path."
+    else
+        echo "Error: File '$file_path' does not exist or is not a regular file."
+        exit 1
+    fi
+fi
+
+selected_dir=$(fd --type directory | fzf --prompt="Select destination for '$(basename "$file_path")': ")
+
+if [ -z "$selected_dir" ]; then
+    echo "Directory selection cancelled. Exiting."
+    exit 0
+fi
+
+file_name=$(basename "$file_path")
+destination_path="$selected_dir/$file_name"
+
+full_source_path=$(realpath "$file_path" 2>/dev/null || echo "$file_path")
+full_destination_dir=$(realpath "$selected_dir" 2>/dev/null || echo "$selected_dir")
+full_destination_path="$full_destination_dir/$file_name"
+
+
+SUCCESS_MESSAGE="✅ Successfully moved:
+    FROM: ${full_source_path}
+    TO:   ${full_destination_path}"
+
+if mv "$file_path" "$destination_path"; then
+    if [ "$NOTIFY_SEND_FLAG" -eq 1 ]; then
+        NOTIFY_BODY=$(echo "$SUCCESS_MESSAGE" | sed ':a;N;s/\n/ /g;ta')
+        notify-send -t 2500 "Move Complete" "$NOTIFY_BODY"
+        
+        echo "$SUCCESS_MESSAGE"
+    else
+        echo "$SUCCESS_MESSAGE"
+    fi
+else
+    echo "❌ Error moving '$file_name' to '$selected_dir'"
+    exit 1
+fi
