@@ -422,6 +422,23 @@ def list_projects():
             status = "📁"
         print(f"  {status} {name}")
 
+def get_start_path():
+    """Determines the starting path: Git root if available, otherwise CWD."""
+    cwd = Path(os.getcwd())
+    
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--show-toplevel'],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return Path(result.stdout.strip())
+        
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return cwd
+
 def main():
     parser = argparse.ArgumentParser(description='Project switcher with tmux integration')
     parser.add_argument('--path', '-p', action='store_true', help='Output only the path, forces switch mode')
@@ -451,7 +468,7 @@ def main():
     elif args.command in ['list', 'l']:
         list_projects()
     elif args.command in ['find', 'f']:
-        find_project_files(Path(os.getcwd()), '', '', '', '', args.path, args.gui)
+        find_project_files(get_start_path(), '', '', '', '', args.path, args.gui)
     elif args.command in ['attach', 'a']:
         attach_project(args.name)
     elif args.command == 'start':
