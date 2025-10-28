@@ -21,6 +21,9 @@ projects:
   TofuBerry🍓🍇:
     path: "/home/maxwell/source/tofuberry"
     filter_out: "./target/"
+  tsp_ytdlp🌏:
+    path: "/home/maxwell/source/tsp_ytdlp"
+    filter_out: "./target/"
   Games:
     path: "/home/maxwell/Games"
     filter_for: '\.sh$'
