@@ -3,13 +3,29 @@ use indexmap::IndexMap;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::io::{stdin, IsTerminal, Read, Write};
-use tracing::{debug, trace};
+use tracing::{debug, error, trace};
 
 #[derive(Serialize, Deserialize)]
-struct Scorer {
-    regex: String,
-    command_label: String,
-    score_change: i32,
+#[serde(untagged)]
+enum Scorer {
+    Regex {
+        regex: String,
+        command_label: String,
+        score_change: i32,
+    },
+    Command {
+        command: String,
+        command_label: String,
+        score_change: i32,
+    },
+}
+impl Scorer {
+    fn command_label(&self) -> &str {
+        match self {
+            Scorer::Regex { command_label, .. } => command_label,
+            Scorer::Command { command_label, .. } => command_label,
+        }
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -58,17 +74,32 @@ fn validate_environment(config: &Config) -> Result<()> {
         );
     }
 
-    let missing_commands: Vec<(String, String)> = config
+    let missing_commands: Vec<(String, String, String)> = config
         .scorers
         .iter()
-        .filter(|scorer| !config.commands.contains_key(&scorer.command_label))
-        .map(|scorer| (scorer.regex.clone(), scorer.command_label.clone()))
+        .filter(|scorer| !config.commands.contains_key(scorer.command_label()))
+        .map(|scorer| match scorer {
+            Scorer::Regex {
+                regex,
+                command_label,
+                ..
+            } => ("regex".to_string(), regex.clone(), command_label.clone()),
+            Scorer::Command {
+                command,
+                command_label,
+                ..
+            } => (
+                "command".to_string(),
+                command.clone(),
+                command_label.clone(),
+            ),
+        })
         .collect();
 
     if !missing_commands.is_empty() {
         let error_msg = missing_commands
             .iter()
-            .map(|(regex, command)| format!("regex '{}' -> command '{}'", regex, command))
+            .map(|(kind, data, command)| format!("{} '{}' -> command '{}'", kind, data, command))
             .collect::<Vec<_>>()
             .join(", ");
 
@@ -85,7 +116,7 @@ enum Data {
 impl Data {
     fn get_text_for_matching(&self, temp_file_path: &str) -> Result<String> {
         match self {
-            Data::Text(s) => Ok(s.clone()),
+            Data::Text(s) => Ok(s.trim_end().to_string()),
             Data::Binary(_) => {
                 let output = std::process::Command::new("file")
                     .args(["--mime-type", "-b", temp_file_path])
@@ -247,27 +278,63 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(|(label, cmd)| (label.clone(), (cmd.clone(), 0)))
         .collect();
 
-    config
-        .scorers
-        .iter()
-        .filter_map(|scorer| {
-            Regex::new(&scorer.regex)
-                .ok()
-                .map(|re| (re, scorer.command_label.clone(), scorer.score_change))
-        })
-        .filter(|(re, _, _)| re.is_match(&text_for_matching))
-        .for_each(|(_, command_label, score_change)| {
-            if let Some((command, score)) = scored_commands.get_mut(&command_label) {
-                trace!(
-                    "Updating score for command '{}' ('{}'): {} -> {}",
-                    command.display,
-                    command.command,
-                    *score,
-                    *score + score_change
-                );
-                *score += score_change;
+    config.scorers.iter().for_each(|scorer| match scorer {
+        Scorer::Regex {
+            regex,
+            command_label,
+            score_change,
+        } => {
+            if let Ok(re) = Regex::new(regex)
+                && re.is_match(&text_for_matching)
+                    && let Some((command, score)) = scored_commands.get_mut(command_label) {
+                        trace!(
+                            "Updating score for command '{}' ('{}'): {} -> {}",
+                            command.display,
+                            command.command,
+                            *score,
+                            *score + score_change
+                        );
+                        *score += score_change;
+                    }
             }
-        });
+
+        Scorer::Command {
+            command,
+            command_label,
+            score_change,
+        } => {
+            let mut cmd = std::process::Command::new("sh");
+            cmd.args(["-c", command])
+                .env("DATA_FILE", temp_file)
+                .env("IS_BINARY", if data.is_text() { "0" } else { "1" });
+
+            if data.is_text() {
+                cmd.env("TEXT", &text_for_matching);
+            }
+            let command_succeeded = match cmd.status() {
+                Ok(status) => status.success(), // success() returns true if the exit code is 0
+                Err(e) => {
+                    // Handle spawn/wait error (e.g., "sh" not found)
+                    error!("Failed to execute command for scoring: {e}");
+                    false
+                }
+            };
+
+            tracing::info!("command_succeeded: {command_succeeded}");
+
+            if command_succeeded
+                && let Some((command, score)) = scored_commands.get_mut(command_label) {
+                    trace!(
+                        "Command scoring succeeded for '{}' ('{}'): {} -> {}",
+                        command.display,
+                        command.command,
+                        *score,
+                        *score + score_change
+                    );
+                    *score += score_change;
+                }
+        }
+    });
 
     let mut sorted_commands: Vec<_> = scored_commands
         .iter()
