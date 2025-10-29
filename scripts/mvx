@@ -103,6 +103,7 @@ if ! path_is_valid "$file_path"; then
 fi
 
 selected_dir=$( fd --type directory | fzf --prompt="Select destination for '$(basename "$file_path")': " --ansi --border=rounded --color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8 --color=fg:#cdd6f4,header:#f38ba8,info:#cba6ac,pointer:#f5e0dc --color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6ac,hl+:#f38ba8 --bind=ctrl-u:preview-page-up,ctrl-d:preview-page-down --cycle)
+[[ "$selected_dir" != "/" ]] && selected_dir="${selected_dir%/}" #strip trailing /
 
 if [ -z "$selected_dir" ]; then
     echo "Directory selection cancelled. Exiting."
@@ -116,6 +117,28 @@ full_source_path=$(realpath "$file_path" 2>/dev/null || echo "$file_path")
 full_destination_dir=$(realpath "$selected_dir" 2>/dev/null || echo "$selected_dir")
 full_destination_path="$full_destination_dir/$file_name"
 
+# Check available space
+if [ -f "$file_path" ]; then
+    file_size=$(stat -f%z "$file_path" 2>/dev/null || stat -c%s "$file_path" 2>/dev/null)
+elif [ -d "$file_path" ]; then
+    file_size=$(du -sb "$file_path" 2>/dev/null | awk '{print $1}')
+fi
+
+available_space=$(df --output=avail "$selected_dir" 2>/dev/null | tail -1)
+# Fallback for macOS/BSD
+if [ -z "$available_space" ]; then
+    available_space=$(df -k "$selected_dir" | tail -1 | awk '{print $4}')
+    available_space=$((available_space * 1024))
+fi
+
+if [ -n "$file_size" ] && [ -n "$available_space" ] && [ "$file_size" -gt "$available_space" ]; then
+    ERROR_MSG="❌ Insufficient space on device. Need $(numfmt --to=iec-i --suffix=B $file_size 2>/dev/null || echo "$file_size bytes"), available $(numfmt --to=iec-i --suffix=B $available_space 2>/dev/null || echo "$available_space bytes")"
+    echo "$ERROR_MSG"
+    if [ "$NOTIFY_SEND_FLAG" -eq 1 ] && command -v notify-send &> /dev/null; then
+        notify-send -u critical "Move Failed - No Space" "$ERROR_MSG"
+    fi
+    exit 1
+fi
 
 SUCCESS_MESSAGE="✅ Successfully moved:
     FROM: ${full_source_path}
@@ -142,6 +165,10 @@ if mv "$file_path" "$destination_path"; then
     echo "$SUCCESS_MESSAGE"
 
 else
-    echo "❌ Error moving '$file_name' to '$selected_dir'"
+    ERROR_MSG="❌ Error moving '$file_name' to '$selected_dir'"
+    echo "$ERROR_MSG"
+    if [ "$NOTIFY_SEND_FLAG" -eq 1 ] && command -v notify-send &> /dev/null; then
+        notify-send -u critical "Move Failed" "$ERROR_MSG"
+    fi
     exit 1
 fi
