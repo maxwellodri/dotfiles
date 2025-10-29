@@ -227,8 +227,6 @@ let &packpath=&runtimepath
 " Lastplace
   let g:lastplace_ignore = "gitcommit,gitrebase,svn,hgcommit"
 
-" Markdown Options
-    autocmd Filetype markdown set conceallevel=2
 " Lua Options
     autocmd Filetype lua set softtabstop=2
     autocmd Filetype lua set tabstop=2
@@ -406,5 +404,5 @@ end
 EOF
 
 
-nnoremap <silent><leader>v :w<CR>:lua ReloadVimConfig()<CR>
+nnoremap <silent><leader>vv :w<CR>:lua ReloadVimConfig()<CR>
 lua require('user.init')

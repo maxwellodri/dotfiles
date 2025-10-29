@@ -1,5 +1,26 @@
+vim.keymap.set('n', '<leader>vw', function()
+    local git_root = vim.fn.system('git rev-parse --show-toplevel 2>/dev/null'):gsub('%s+$', '')
+    local notes_path
+
+    if vim.v.shell_error == 0 and vim.fn.filereadable(git_root .. '/notes/index.md') == 1 then
+        notes_path = git_root .. '/notes/index.md'
+    elseif vim.fn.filereadable(vim.fn.expand('~/Documents/notes/index.md')) == 1 then
+        notes_path = vim.fn.expand('~/Documents/notes/index.md')
+    else
+        print('Notes file not found')
+        return
+    end
+    vim.cmd('edit ' .. vim.fn.fnameescape(notes_path))
+end, { desc = 'Open notes index' })
+
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'markdown',
+  callback = function()
+    vim.opt_local.conceallevel = 2
+  end,
+})
+
 require('mkdnflow').setup({
-    
     modules = {
         bib = true,
         buffers = true,
