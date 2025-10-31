@@ -100,7 +100,6 @@ debug_detoxx() {
 fdt() {
     fd "$1" -0 | xargs -0 touch
 }
-
 #fpath=(~/.zsh/completion /usr/local/share/zsh/site-functions /usr/share/zsh/site-functions /usr/share/zsh/5.9/functions)
 autoload -Uz compinit && compinit
 compdef _my_cargo_completion cargo
@@ -202,6 +201,45 @@ bindkey -M vicmd '^X' _vim_in_dir
 #zle -N _git_root
 #bindkey -M viins '^G' _git_root
 #bindkey -M vicmd '^G' _git_root
+
+tmux_attach() {
+  local saved_buffer="$BUFFER"
+  local saved_cursor="$CURSOR"
+  BUFFER=""
+  CURSOR=0
+  zle reset-prompt
+  
+  local sessions=$(tmux list-sessions 2>/dev/null)
+  if [ -z "$sessions" ]; then
+    echo "No tmux sessions"
+    BUFFER="$saved_buffer"
+    CURSOR="$saved_cursor"
+    zle reset-prompt
+    return 1
+  fi
+  
+  local selected=$(echo "$sessions" | fzf \
+    --ansi \
+    --border=rounded \
+    --color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8 \
+    --color=fg:#cdd6f4,header:#f38ba8,info:#cba6ac,pointer:#f5e0dc \
+    --color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6ac,hl+:#f38ba8 \
+    --cycle)
+    
+  if [ -n "$selected" ]; then
+    local session_name=$(echo "$selected" | cut -d: -f1)
+    tmux attach-session -t "$session_name"
+  else
+    BUFFER="$saved_buffer"
+    CURSOR="$saved_cursor"
+  fi
+  
+  zle reset-prompt
+}
+zle -N tmux_attach
+bindkey -M viins '^b' tmux_attach
+bindkey -M vicmd '^b' tmux_attach
+  
 
 function _rg_fzf_widget() {
   local script_path="$bin/_rg_fzf.sh"  # Adjust path as needed
