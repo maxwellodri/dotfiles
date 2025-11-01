@@ -37,9 +37,12 @@ commands:
   pcmanfm_dir:
     display: "📂 Open directory in file manager"
     command: 'TEXT="${TEXT/#~/$HOME}" && [ -d "$TEXT" ] && pcmanfm "$TEXT" || pcmanfm "$(dirname "$TEXT")"'
-  nvim:
-    display: "📝 Open in Nvim"
+  nvim_text:
+    display: "📝 Open text in Nvim"
     command: stcmd "printf '%s' \"$TEXT\" | nvim -; exit"
+  nvim_file:
+    display: "📝 Open file in Nvim"
+    command: stcmd "nvim \"$TEXT\"; exit"
   dragon_drop:
     display: "🐲 Dragon drop"
     command: 'TEXT="${TEXT/#~/$HOME}" && if [ -d "$TEXT" ]; then dragon-drag-and-drop "$TEXT"/*; else dragon-drag-and-drop "$TEXT"; fi'
@@ -86,7 +89,7 @@ scorers:
     score_change: 20
   - regex: '\S'
     score_change: 1
-    command_label: nvim
+    command_label: nvim_text
   - regex: ^https?://www\.youtube\.com/watch
     command_label: tsp_ytdlp
     score_change: 10
@@ -124,8 +127,15 @@ scorers:
     command_label: dragon_drop_file
     score_change: 25
   - regex: '^[a-z]+/[a-z0-9+.-]+$'
-    command_label: nvim
+    command_label: nvim_text
     score_change: -2
   - command: '[ -f "$TEXT" ] || [ -d "$TEXT" ]'
     command_label: mvx
     score_change: 10
+  - command: '[ -f "$TEXT" ] && ([ ! -s "$TEXT" ] || grep -qI . "$TEXT" 2>/dev/null)'
+    scores:
+      - ["nvim_file", 10]
+      - ["nvim_text", -2]
+  - command: '[ -f "$TEXT" ] && ! grep -qI . "$TEXT" 2>/dev/null'
+    command_label: nvim_text
+    score_change: -2
