@@ -163,11 +163,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_max_level(tracing::Level::TRACE)
         .init();
     let config_path = dirs::config_dir()
-        .ok_or_else(|| anyhow::anyhow!("Could not find config directory"))?
-        .join("faucet")
-        .join("faucet.yaml");
-    let config_content = std::fs::read_to_string(&config_path)?;
-    let config: Config = serde_yaml::from_str(&config_content)?;
+        .ok_or_else(|| anyhow::anyhow!("Could not find config directory"))?.join("faucet").join("faucet.yaml");
+    
+    let config_content = std::fs::read_to_string(&config_path)
+        .map_err(|e| anyhow::anyhow!("Failed to read config file at '{}': {}", config_path.display(), e))?;
+    
+    let config: Config = serde_yaml::from_str(&config_content)
+        .map_err(|e| anyhow::anyhow!("Failed to parse config file '{}': {}", config_path.display(), e))?;
+    
     validate_environment(&config)?;
 
     debug!(
