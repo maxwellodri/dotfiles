@@ -36,7 +36,7 @@ super + shift + w
 super + w
     wallpaper-shader
 super + shift + t
-	text_handler
+	faucet
 super + shift + s
     screenshot
 super + shift + q

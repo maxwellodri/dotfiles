@@ -38,7 +38,7 @@ browser "setsid -f firefox"
 macro , open-in-browser-and-mark-read
 macro m set browser '_newsboat_watch_youtube_mpv'; open-in-browser-and-mark-read; set browser "setsid -f firefox"
 macro d set browser "setsid -f tsp_ytdlp > /dev/null 2>&1"; open-in-browser-and-mark-read; set browser "setsid -f firefox > /dev/null 2>&1"
-macro h set browser "setsid -f text_handler > /dev/null 2>&1"; open-in-browser-and-mark-read;
+macro h set browser "setsid -f faucet > /dev/null 2>&1"; open-in-browser-and-mark-read;
 #macro t set browser "qndl"; open-in-browser ; set browser linkhandler
 #macro a set browser "tsp youtube-dl --add-metadata -xic -f bestaudio/best" ; open-in-browser-and-mark-read
 #macro m set browser "setsid -f mpv" ; open-in-browser-and-mark-read

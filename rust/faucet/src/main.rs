@@ -164,8 +164,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
     let config_path = dirs::config_dir()
         .ok_or_else(|| anyhow::anyhow!("Could not find config directory"))?
-        .join("dotfiles")
-        .join("text_handler.yaml");
+        .join("faucet")
+        .join("faucet.yaml");
     let config_content = std::fs::read_to_string(&config_path)?;
     let config: Config = serde_yaml::from_str(&config_content)?;
     validate_environment(&config)?;
@@ -276,7 +276,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    let temp_file = "/tmp/text_handler_data";
+    let temp_file = "/tmp/faucet_data";
     data.write_to_temp_file(temp_file)?;
 
     let text_for_matching = data.get_text_for_matching(temp_file)?;
@@ -447,7 +447,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             debug!("Concatenated labels to dmenu: {labels}");
 
             let mut child = std::process::Command::new("sh")
-                .args(["-c", "dmenu -l 20 -c -i"])
+                .args(["-c", "dmenu -l 20 -c -i -p 'Faucet'"])
                 .stdin(std::process::Stdio::piped())
                 .stdout(std::process::Stdio::piped())
                 .spawn()?;

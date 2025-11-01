@@ -69,6 +69,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
+name = "faucet"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64",
+ "dirs",
+ "indexmap",
+ "itertools",
+ "regex",
+ "serde",
+ "serde_yaml",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -304,22 +320,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "text_handler"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "base64",
- "dirs",
- "indexmap",
- "itertools",
- "regex",
- "serde",
- "serde_yaml",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

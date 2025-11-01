@@ -52,8 +52,8 @@ commands:
   dragon_drop_file:
     display: "🐲🖼️ Dragon drop File📁"
     command: |
-      cp "$DATA_FILE" /tmp/text_handler_file
-      dragon-drag-and-drop /tmp/text_handler_file
+      cp "$DATA_FILE" /tmp/faucet_file
+      dragon-drag-and-drop /tmp/faucet_file
 
 
 scorers:

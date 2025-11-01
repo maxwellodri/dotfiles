@@ -32,13 +32,14 @@ mpv=.config/mpv/
 gtk=".config/gtk-2.0 .config/gtk-3.0 .config/gtk-4.0 .config/gtkrc .config/gtkrc-2.0"
 qt=".config/Trolltech.conf"
 npm=".config/npm/"
+faucet=".config/faucet/"
 
 ########### Meta Variables
 i3=" $i3config $i3statusconfig"
 xfiles=" .config/X11/xinitrc .config/X11/.Xresources .config/X11/.Xmodmap .config/neovide $zathura $picom $dunst $ncmpcpp $sxhkdconfig $rofi $gtk $qt"
 bash=" .bashrc .bashrc_extra .bash_profile $sh $pam"
 zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam" 
-files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $gitconfig $npm"
+files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $gitconfig $npm $faucet"
 
 ########### 
 pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles" #platform specific dotfiles
