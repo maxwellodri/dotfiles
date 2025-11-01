@@ -228,13 +228,13 @@ tmux_attach() {
     
   if [ -n "$selected" ]; then
     local session_name=$(echo "$selected" | cut -d: -f1)
-    tmux attach-session -t "$session_name"
+    BUFFER="tmux attach-session -t '$session_name'"
+    zle accept-line
   else
     BUFFER="$saved_buffer"
     CURSOR="$saved_cursor"
+    zle reset-prompt
   fi
-  
-  zle reset-prompt
 }
 zle -N tmux_attach
 bindkey -M viins '^b' tmux_attach
