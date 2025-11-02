@@ -1,7 +1,8 @@
+set <S-CR>=^[[13;2u
 set runtimepath^=~/.vim runtimepath+=~/.vim/after
 lua vim.deprecate = function() end
-runtime! expand('$HOME') + '/.config/nvim/plugin'
 let g:polyglot_disabled = ['rust', 'markdown']
+runtime! expand('$HOME') + '/.config/nvim/plugin'
 "vim.g.rust_rustfmt_options = ''
 let &packpath=&runtimepath
 " Autoinstall VimPlug
@@ -38,6 +39,7 @@ let &packpath=&runtimepath
     Plug 'nvim-lua/plenary.nvim' "library of functions, used by other modules
     Plug 'MunifTanjim/nui.nvim' "ui component library
     Plug 'kyazdani42/nvim-web-devicons' "library of icons
+    Plug 'lambdalisue/suda.vim' "handle writing files w/ elevated permissions
     " =================
     " Language Support
     " =================
@@ -153,7 +155,6 @@ let &packpath=&runtimepath
     " ===============
     " NoteTaking & Vim Wiki
     " ===============
-    "Plug 'vimwiki/vimwiki'
     "Plug 'brianhuster/live-preview.nvim'
     Plug 'jakewvincent/mkdnflow.nvim'
     Plug 'MeanderingProgrammer/render-markdown.nvim'
@@ -256,7 +257,6 @@ let &packpath=&runtimepath
     "unmap <leader>ws
     "unmap <leader>wd
     "unmap <leader>wr
-    nnoremap <leader>wo <Plug>VimwikiIndex
 " LSP / cmp / luasnip/null-ls
   set completeopt=menu,menuone,noselect,preview
   nnoremap <leader><C-m> :Mason<CR>
@@ -324,7 +324,7 @@ let &packpath=&runtimepath
     let g:rustfmt_autosave = 1
 " terminal:
     command! Sterm silent execute '!nohup st -d' expand('%:p:h') '> /dev/null 2>&1 &'
-    nnoremap <S-CR> :Sterm<CR>
+    nnoremap <leader>tt :Sterm<CR>
 " vim
     command! Vimrc silent lcd ~/.config/nvim/ | edit init.vim
 " Navigation & Splits
@@ -392,6 +392,8 @@ nnoremap <C-z> :stop<CR>
 inoremap <C-z> <Esc>:stop<CR>
 lua << EOF
 function _G.ReloadVimConfig()
+    vim.g.suppress_tmux_reload_msg = true
+    vim.cmd('silent! write')
     vim.cmd('source $MYVIMRC')
     -- Clear the Lua module cache
     for name, _ in pairs(package.loaded) do
@@ -399,10 +401,20 @@ function _G.ReloadVimConfig()
             package.loaded[name] = nil
         end
     end
+    vim.g.suppress_tmux_reload_msg = nil
     print("Reloaded vimrc and Lua configuration")
 end
 EOF
+nnoremap <silent><leader>vv :lua ReloadVimConfig()<CR>
 
 
-nnoremap <silent><leader>vv :w<CR>:lua ReloadVimConfig()<CR>
+" gx-extended
+nmap <leader>gx <Plug>(gxext-normal)
+xmap <leader>gx <Plug>(gxext-visual)
+let g:gxext#opencmd = "sh -c 'xdg-open \"$1\"' _"
+let g:gxext#handlers = {
+            \ 'global': ['global#urls', 'global#gx'],
+            \ 'vim': ['vim#plugin'],
+            \}
+
 lua require('user.init')

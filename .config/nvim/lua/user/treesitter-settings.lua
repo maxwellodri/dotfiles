@@ -8,15 +8,15 @@ configs.setup {
     sync_install = false,
     ignore_install = { "" },
     highlight = {
-        enable=true,
+        enable = { "markdown", "markdown_inline" },
         additional_vim_regex_highlighting = false,
+        -- disable = { "markdown" },
     },
-    indent = { enable = true, disable = { "yaml" } },
+    indent = { enable = true, disable = { "yaml", "markdown", "markdown_inline" } },
 }
 
 vim.keymap.set("n", "<leader>gT", function()
     local result = {}
-    
     -- Get word and line info
     local cursor_word = vim.fn.expand('<cword>')
     local cursor_line = vim.api.nvim_get_current_line()

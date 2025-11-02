@@ -56,3 +56,4 @@ local function find_files_from_git_root()
     })
 end
 vim.keymap.set('n', '<leader>fo', find_files_from_git_root)
+vim.keymap.set('n', '<leader>fb', require('telescope.builtin').buffers, { desc = 'Telescope buffers' })

@@ -25,6 +25,10 @@ require'treesitter-context'.setup{
                 'struct',
                 'enum',
            },
+        markdown = {
+            'atx_heading',    -- Matches both setext and atx headings in the tree-sitter markdown parser
+            'setext_heading',
+        },
     },
     exact_patterns = {
         -- Example for a specific filetype with Lua patterns
@@ -40,3 +44,4 @@ require'treesitter-context'.setup{
     mode = 'cursor',  -- Line used to calculate context. Choices: 'cursor', 'topline'
     separator = nil, -- Separator between context and content. Should be a single character string, like '-'.
 }
+
