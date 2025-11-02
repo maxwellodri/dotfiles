@@ -63,6 +63,11 @@ super + F2
 	_mpc_volume +5
 super + F3
 	_mpc_volume -5
+
+super + shift + F2
+	_pactl_volume +5%
+super + shift + F3
+	_pactl_volume -5%
 super + q
     [ timew ] && timew stop | timew start 
 #Media:
