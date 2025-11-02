@@ -1,0 +1,20 @@
+{
+    "privacy_accept": true,
+    "concurrent_downloads_max": 1,
+    "show_success_notification": false,
+    "theme": "dark",
+    "view_options": {
+        "all_tabs": false,
+        "low_quality": false,
+        "sort_by_status": true,
+        "sort_reverse": false,
+        "show_button_clean": true,
+        "show_button_clean_all": false,
+        "show_button_convert_local": false,
+        "hide_downloaded": false
+    },
+    "show_context_menu": false,
+    "use_sidebar": true,
+    "open_count_store": 4,
+    "successfull_dl": 1
+}
