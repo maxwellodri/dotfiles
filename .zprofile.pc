@@ -29,7 +29,7 @@ export AI_GPU=AMD
 
 [ -f "$(which transmission-daemon)" ] && transmission-daemon --no-auth
 #command transmission-daemon --no-auth
-command ssh-agent
+eval "$(command ssh-agent)" > /dev/null
 #command xfce-polkit
 [ ! -s ~/.config/mpd/pid ] && [ -f "$(which mpd)" ] && mpd &
 
