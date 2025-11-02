@@ -203,6 +203,15 @@ bindkey -M vicmd '^X' _vim_in_dir
 #bindkey -M vicmd '^G' _git_root
 
 tmux_attach() {
+  # Check if we're in tmux and in the terminal pane
+  if [ -n "$TMUX" ]; then
+    local pane_title=$(tmux display-message -p "#{pane_title}")
+    if [ "$pane_title" = "terminal" ]; then
+      "$XDG_CONFIG_HOME/tmux/_tmux_terminal_pane"
+      return 0
+    fi
+  fi
+  
   local saved_buffer="$BUFFER"
   local saved_cursor="$CURSOR"
   BUFFER=""
@@ -210,15 +219,12 @@ tmux_attach() {
   zle reset-prompt
   
   local sessions=$(tmux list-sessions 2>/dev/null)
-  if [ -z "$sessions" ]; then
-    echo "No tmux sessions"
-    BUFFER="$saved_buffer"
-    CURSOR="$saved_cursor"
-    zle reset-prompt
-    return 1
+  local session_list="+ Create new session"
+  if [ -n "$sessions" ]; then
+    session_list="$session_list\n$sessions"
   fi
   
-  local selected=$(echo "$sessions" | fzf \
+  local selected=$(echo "$session_list" | fzf \
     --ansi \
     --border=rounded \
     --color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8 \
@@ -226,14 +232,58 @@ tmux_attach() {
     --color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6ac,hl+:#f38ba8 \
     --cycle)
     
-  if [ -n "$selected" ]; then
-    local session_name=$(echo "$selected" | cut -d: -f1)
-    BUFFER="tmux attach-session -t '$session_name'"
-    zle accept-line
-  else
+  if [ -z "$selected" ]; then
     BUFFER="$saved_buffer"
     CURSOR="$saved_cursor"
     zle reset-prompt
+    return 0
+  fi
+  
+  if [ "$selected" = "+ Create new session" ]; then
+    local tmpfile=$(mktemp /tmp/tmux_session_name_XXXXXX)
+    echo "# Enter the new tmux session name on the line below (lines starting with # are ignored)" > "$tmpfile"
+    echo "" >> "$tmpfile"
+    
+    local editor="${EDITOR:-vim}"
+    if [[ "$editor" == "nvim" ]] || [[ "$editor" == "vim" ]]; then
+      $editor "+normal! 2G" "+startinsert" "$tmpfile"
+    else
+      $editor "$tmpfile"
+    fi
+    
+    local session_name=$(grep -v '^#' "$tmpfile" | grep -v '^[[:space:]]*$' | head -n1 | xargs)
+    rm -f "$tmpfile"
+    
+    if [ -z "$session_name" ]; then
+      echo "No session name provided"
+      BUFFER="$saved_buffer"
+      CURSOR="$saved_cursor"
+      zle reset-prompt
+      return 1
+    fi
+    
+    if tmux has-session -t "$session_name" 2>/dev/null; then
+      echo "Session '$session_name' already exists"
+      BUFFER="$saved_buffer"
+      CURSOR="$saved_cursor"
+      zle reset-prompt
+      return 1
+    fi
+    
+    if [[ "$session_name" =~ [^a-zA-Z0-9_-] ]]; then
+      echo "Invalid session name (use only alphanumeric, dash, underscore)"
+      BUFFER="$saved_buffer"
+      CURSOR="$saved_cursor"
+      zle reset-prompt
+      return 1
+    fi
+    
+    BUFFER="tmux new-session -s '$session_name'"
+    zle accept-line
+  else
+    local session_name=$(echo "$selected" | cut -d: -f1)
+    BUFFER="tmux attach-session -t '$session_name'"
+    zle accept-line
   fi
 }
 zle -N tmux_attach
