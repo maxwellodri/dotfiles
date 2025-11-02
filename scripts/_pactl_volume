@@ -1,0 +1,8 @@
+#!/usr/bin/bash
+pactl set-sink-volume @DEFAULT_SINK@ "$1"
+volume=$(pactl get-sink-volume @DEFAULT_SINK@ | grep -oP '\d+%' | head -1 | grep -oP '\d+')
+if [[ "$1" == +* ]]; then
+    notify-send -t 1200 "volume 🔊 $volume%" -h string:x-canonical-private-synchronous:system-volume
+else
+    notify-send -t 1200 "volume 🔈 $volume%" -h string:x-canonical-private-synchronous:system-volume
+fi
