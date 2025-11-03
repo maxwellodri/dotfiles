@@ -8,6 +8,8 @@
 // To change a preference value, you can either:
 // - modify it via the UI (e.g. via about:config in the browser); or
 // - set it within a user.js file in your profile.
+user_pref("extensions.webextensions.background-delayed-startup-idle-ms", 10000);
+user_pref("extensions.webextensions.delayedStartup", true);
 user_pref("accessibility.force_disabled", true);
 user_pref("accessibility.browsewithcaret_shortcut.enabled", false);
 user_pref("accessibility.typeaheadfind.flashBar", 0);
@@ -86,6 +88,9 @@ user_pref("browser.uidensity", 1);
 user_pref("browser.urlbar.autocomplete.enabled", false);
 user_pref("browser.urlbar.placeholderName", "Heck");
 user_pref("browser.urlbar.placeholderName.private", Heck");
+user_pref("browser.urlbar.trimURLs", false);
+user_pref("browser.urlbar.trimHttps", false);
+user_pref("browser.urlbar.untrimOnUserInteraction", false);
 user_pref("browser.urlbar.quicksuggest.migrationVersion", 2);
 user_pref("browser.urlbar.quicksuggest.scenario", "history");
 user_pref("browser.urlbar.shortcuts.bookmarks", false);
