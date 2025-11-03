@@ -1,5 +1,6 @@
-auto_select_max_threshold: 100
-auto_select_min_threshold: 10
+options:
+  auto_select_max_threshold: 100
+  auto_select_min_threshold: 10
 commands:
   ff_tab:
     display: "🌐 Open in Firefox Tab"
