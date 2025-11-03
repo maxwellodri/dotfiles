@@ -1,6 +1,7 @@
 options:
   auto_select_max_threshold: 100
   auto_select_min_threshold: 10
+  display_server: "X11"
 commands:
   ff_tab:
     display: "🌐 Open in Firefox Tab"
@@ -57,6 +58,7 @@ commands:
       dragon-drag-and-drop /tmp/faucet_file
 
 
+
 scorers:
   - regex: '^https?://.*'
     command_label: ff_tab
@@ -86,9 +88,12 @@ scorers:
   - regex: '^magnet:\?'
     command_label: magnet_link
     score_change: 150
-  - regex: '\.(txt|md|rs|py|js|html|css)$'
+  - command: '[ -f "$TEXT" ]'
     command_label: xdg-open
     score_change: 20
+  - regex: '^#!'
+    command_label: newscript
+    score_change: 15
   - regex: '\S'
     score_change: 1
     command_label: nvim_text
