@@ -67,7 +67,7 @@ scorers:
     command_label: tsp_ytdlp
     score_change: 20
   - regex: '^(?:https?://.*(?:\n|$)){2,}$'
-    - scores:
+    scores:
       - ["tsp_ytdlp_batch", 30]
       - ["tsp_ytdlp", -100]
   - regex: '^https?://.*'

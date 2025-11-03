@@ -169,7 +169,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map_err(|e| anyhow::anyhow!("Failed to read config file at '{}': {}", config_path.display(), e))?;
     
     let config: Config = serde_yaml::from_str(&config_content)
-        .map_err(|e| anyhow::anyhow!("Failed to parse config file '{}': {}", config_path.display(), e))?;
+        .map_err(|e| anyhow::anyhow!(
+            "Failed to parse config file '{}':\n{}",
+            config_path.display(),
+            e
+        ))?;
     
     validate_environment(&config)?;
 
