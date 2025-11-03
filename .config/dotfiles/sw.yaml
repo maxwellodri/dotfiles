@@ -29,6 +29,9 @@ projects:
     filter_for: '\.sh$'
     handler_override: 'handlers/game_script_handler.sh'
     handler_pattern: '\.sh$'
+  faucet 🌊:
+    path: "/home/maxwell/source/faucet"
+    filter_out: "./target/"
   videos:
     path: "/home/maxwell/Videos/youtube"
     filter_out: "(.*part|.*json)"
