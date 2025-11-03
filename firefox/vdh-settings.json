@@ -1,5 +1,6 @@
 {
     "privacy_accept": true,
+    "download_directory": "/home/maxwell/Downloads/vdh",
     "concurrent_downloads_max": 1,
     "show_success_notification": false,
     "theme": "dark",
@@ -15,6 +16,6 @@
     },
     "show_context_menu": false,
     "use_sidebar": true,
-    "open_count_store": 4,
-    "successfull_dl": 1
+    "open_count_store": 5,
+    "successfull_dl": 6
 }
