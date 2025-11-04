@@ -56,6 +56,15 @@ commands:
     command: |
       cp "$DATA_FILE" /tmp/faucet_file
       dragon-drag-and-drop /tmp/faucet_file
+  extract_rss:
+    display: "👷 Extract RSS Feed from Youtube Channel URL⚒"
+    command: "extract_rss $TEXT"
+  feh_image:
+    display: "🖼️ View image in feh"
+    command: feh - < "$DATA_FILE"
+  pinta_image:
+    display: "🎨 Edit image in Pinta"
+    command: 'cp "$DATA_FILE" /tmp/faucet_image.png && pinta /tmp/faucet_image.png'
 
 
 
@@ -91,9 +100,6 @@ scorers:
   - command: '[ -f "$TEXT" ]'
     command_label: xdg-open
     score_change: 20
-  - regex: '^#!'
-    command_label: newscript
-    score_change: 15
   - regex: '\S'
     score_change: 1
     command_label: nvim_text
@@ -146,3 +152,14 @@ scorers:
   - command: '[ -f "$TEXT" ] && ! grep -qI . "$TEXT" 2>/dev/null'
     command_label: nvim_text
     score_change: -2
+  - regex: 'youtube\.com/@[\w-]+'
+    scores:
+      - [ "extract_rss", 10]
+      - [ "tsp_ytdlp", -100]
+      - [ "tsp_ytdlp_batch", -100]
+  - regex: '^image/(png|jpeg|gif|webp)'
+    command_label: feh_image
+    score_change: 20
+  - regex: '^image/(png|jpeg|gif|webp|bmp)'
+    command_label: pinta_image
+    score_change: 15

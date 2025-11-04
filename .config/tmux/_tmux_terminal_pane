@@ -7,6 +7,7 @@ current_pane=$(tmux display-message -p "#{pane_id}")
 pane=$(tmux list-panes -t "$session" -F "#{pane_id} #{pane_title}" | awk '$2 == "terminal" {print $1; exit}')
 window=$(tmux list-windows -t "$session" -F "#{window_id} #{window_name}" | awk '$2 == "terminal" {print $1; exit}')
 
+
 if [ "$current_pane" = "$pane" ]; then
   # Focused on terminal pane — hide it as a window
   tmux break-pane -d -n terminal

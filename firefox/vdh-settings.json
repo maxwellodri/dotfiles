@@ -2,8 +2,8 @@
     "privacy_accept": true,
     "download_directory": "/home/maxwell/Downloads/vdh",
     "concurrent_downloads_max": 1,
+    "show_thumbnail_in_notification": false,
     "show_success_notification": false,
-    "theme": "dark",
     "view_options": {
         "all_tabs": false,
         "low_quality": false,
@@ -14,8 +14,7 @@
         "show_button_convert_local": false,
         "hide_downloaded": false
     },
-    "show_context_menu": false,
+    "forget_media_on_tab_close": true,
     "use_sidebar": true,
-    "open_count_store": 5,
-    "successfull_dl": 6
+    "open_count_store": 3
 }

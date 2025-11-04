@@ -1,0 +1,26 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+    echo "Usage: $0 <youtube-channel-url>"
+    exit 1
+fi
+
+url="$1"
+
+# Fetch page and extract RSS feed URL
+rss_url=$(curl -s "$url" | grep -oP 'type="application/rss\+xml"[^>]*href="\K[^"]+')
+
+if [ -n "$rss_url" ]; then
+    if [[ -n $WAYLAND_DISPLAY ]]; then
+        echo "$rss_url" | wl-copy
+        notify-send "RSS Feed Found" "Copied to clipboard"
+    elif [[ -n $DISPLAY ]]; then
+        echo "$rss_url" | xclip -selection clipboard
+        notify-send "RSS Feed Found" "Copied to clipboard"
+    else
+        echo "$rss_url"
+    fi
+else
+    notify-send "RSS Feed Error" "No RSS feed found for $url"
+    exit 1
+fi
