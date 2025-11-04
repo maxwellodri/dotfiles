@@ -1,0 +1,42 @@
+#!/bin/sh
+
+# Parse arguments
+input_source="stdin"
+if [ "$1" = "--stderr" ]; then
+    input_source="stderr"
+fi
+
+# Function to copy data
+copy_to_clipboard() {
+    if [ "$XDG_SESSION_TYPE" = "wayland" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+        # Wayland
+        if command -v wl-copy >/dev/null 2>&1; then
+            wl-copy
+        else
+            echo "wl-copy not found" >&2
+            exit 1
+        fi
+    else
+        # X11 - copy to both primary and clipboard
+        if command -v xclip >/dev/null 2>&1; then
+            # Use a temporary file since sh doesn't have process substitution
+            temp_file=$(mktemp)
+            cat > "$temp_file"
+            xclip -selection primary < "$temp_file"
+            xclip -selection clipboard < "$temp_file"
+            rm "$temp_file"
+        else
+            echo "xclip not found" >&2
+            exit 1
+        fi
+    fi
+}
+
+# Read from appropriate source
+if [ "$input_source" = "stderr" ]; then
+    # Redirect stderr to stdin, then pipe to clipboard function
+    exec 3>&1
+    copy_to_clipboard 2>&1 1>&3 3>&-
+else
+    copy_to_clipboard
+fi
