@@ -349,6 +349,7 @@ print_header "Installing System Configurations"
 copy_files "system_configs/etc/tlp.conf" "/etc" true
 copy_files "system_configs/etc/pacman.d/hooks" "/etc/pacman.d/hooks" true
 copy_files "system_configs/etc/polkit-1/rules.d/" "/etc/polkit-1/rules.d" true
+copy_files "system_configs/etc/systemd/" "/etc/systemd/" true
 
 # Reload configurations
 print_header "Reloading System Configurations"
