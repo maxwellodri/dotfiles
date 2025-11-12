@@ -22,9 +22,9 @@ if exists('$SHELL') "probably unnecesary
     set title
     set titlestring=%F
     set sessionoptions-=options
-    set softtabstop=4
-    set tabstop=4
-    set shiftwidth=4
+    "set softtabstop=4
+    "set tabstop=4
+    "set shiftwidth=4
     set expandtab
     augroup lua_settings
       autocmd!
