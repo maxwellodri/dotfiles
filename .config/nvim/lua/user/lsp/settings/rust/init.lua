@@ -1,7 +1,10 @@
 M = {}
+local modify_openDocs_url = require('user.lsp.settings.rust.open_docs')
+
 M.setup = function(opts)
   vim.g.rustaceanvim = {
     dap = {},
+    tools = { open_url = modify_openDocs_url },
     server = {
       config = opts.config,
       capabilities = opts.capabilities,
