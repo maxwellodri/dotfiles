@@ -1,7 +1,6 @@
 set <S-CR>=^[[13;2u
 set runtimepath^=~/.vim runtimepath+=~/.vim/after
 lua vim.deprecate = function() end
-let g:polyglot_disabled = ['rust', 'markdown']
 runtime! expand('$HOME') + '/.config/nvim/plugin'
 "vim.g.rust_rustfmt_options = ''
 let &packpath=&runtimepath
@@ -57,7 +56,6 @@ let &packpath=&runtimepath
     endfunction
     Plug 'nvim-treesitter/nvim-treesitter', {'do': function('TSCustomInstall') }
     Plug 'nvim-treesitter/nvim-treesitter-context'
-    Plug 'sheerun/vim-polyglot' "AIO bundle
     Plug 'tikhomirov/vim-glsl'
     Plug 'JuliaEditorSupport/julia-vim'
     Plug 'kevinoid/vim-jsonc'
