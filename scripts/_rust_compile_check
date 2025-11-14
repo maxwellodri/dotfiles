@@ -1,0 +1,7 @@
+#!/bin/sh
+output=$(cargo lcheck 2>&1)
+if [ $? -eq 0 ]; then 
+    echo "code compiles"
+else 
+    echo "$output"; 
+fi
