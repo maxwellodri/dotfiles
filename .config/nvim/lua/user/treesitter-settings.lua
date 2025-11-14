@@ -15,7 +15,7 @@ configs.setup {
     indent = { enable = true, disable = { "yaml", "markdown", "markdown_inline" } },
 }
 
-vim.keymap.set("n", "<leader>gT", function()
+vim.keymap.set("n", "<leader>gS", function()
     local result = {}
     -- Get word and line info
     local cursor_word = vim.fn.expand('<cword>')

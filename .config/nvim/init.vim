@@ -75,8 +75,7 @@ let &packpath=&runtimepath
     Plug 'rust-lang/rust.vim'
     Plug 'arzg/vim-rust-syntax-ext'
     Plug 'saecki/crates.nvim'
-    "Plug 'simrat39/rust-tools.nvim'
-    Plug 'mrcjkb/rustaceanvim', { 'tag': 'v6.0.2'}
+    "Plug 'mrcjkb/rustaceanvim', { 'tag': 'v6.0.2'}
 
     " =================
     " LSP / cmp / LuaSnip
@@ -85,7 +84,6 @@ let &packpath=&runtimepath
     Plug 'mason-org/mason-lspconfig.nvim'
     Plug 'nvimtools/none-ls.nvim'
     Plug 'nvimtools/none-ls-extras.nvim'
-    Plug 'neovim/nvim-lspconfig' 
     Plug 'hrsh7th/nvim-cmp'
     Plug 'hrsh7th/cmp-buffer'
     Plug 'hrsh7th/cmp-path'

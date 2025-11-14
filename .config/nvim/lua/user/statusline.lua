@@ -71,7 +71,6 @@ require('lualine').setup {
             return { fg = "#00FF00" } -- Green for checkmark (fixed the missing # in your code)
           end
         end,
-        ignore_lsp = {'null-ls'},
       },
       'encoding',
       'fileformat',

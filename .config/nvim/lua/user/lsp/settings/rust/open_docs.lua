@@ -44,7 +44,7 @@ local function resolve_relative_url(base_url, relative_url)
   return result
 end
 
-local function modify_openDocs_url(url)
+function ModifyOpenDocsUrl(url)
   -- local debug_info = {}
   -- table.insert(debug_info, "=== START ===")
   -- table.insert(debug_info, "Original URL: " .. url)
@@ -122,3 +122,5 @@ local function modify_openDocs_url(url)
     }
   )
 end
+
+return { ModifyOpenDocsUrl = ModifyOpenDocsUrl }

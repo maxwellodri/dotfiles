@@ -1,11 +1,13 @@
+vim.opt_local.softtabstop = 4
+vim.opt_local.tabstop = 4
+vim.opt_local.shiftwidth = 4
+
 require('user.colorscheme')
 require("user.utils")
 require("user.autoread")
 require("user.keybinds")
 require("user.font")
-require("user.lsp")
 require('user.cmp').setup()
-require('user.null-ls').setup()
 require('impatient')
 require("telescope").load_extension("lazygit")
 require('user.git')
@@ -24,3 +26,5 @@ require('user.llm')
 require('user.tmux')
 require('user.sudavim')
 require('user.title')
+require('user.leadercopy')
+require("user.lsp")

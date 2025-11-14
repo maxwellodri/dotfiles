@@ -1,62 +1,184 @@
-M = {}
-local modify_openDocs_url = require('user.lsp.settings.rust.open_docs')
+local M = {}
 
 M.setup = function(opts)
-  vim.g.rustaceanvim = {
-    dap = {},
-    tools = { open_url = modify_openDocs_url },
-    server = {
-      config = opts.config,
-      capabilities = opts.capabilities,
-      on_attach = function(client, bufnr)
-        vim.diagnostic.enable(bufnr)
-        opts.on_attach(client, bufnr)
-        vim.keymap.set("n", "<leader>M", function() vim.cmd("RustLsp expandMacro") end, { silent = true, desc = "Expand Macro" })
-        vim.keymap.set("n", "J", function() vim.cmd("RustLsp joinLines") end, { silent = true, desc = "Join Lines" })
-        vim.keymap.set("n", "<leader>gk", function() vim.cmd("RustLsp parentModule") end, { silent = true, desc = "Open Parent Module" })
-        vim.keymap.set("n", "<leader>gb", function() vim.cmd("RustLsp openDocs") end, { silent = true, desc = "Open Documentation" })
-        vim.keymap.set("n", "<leader>gt", function() vim.cmd("RustLsp openCargo") end, { silent = true, desc = "Open Cargo.toml" })
-        vim.keymap.set("n", "<leader>rM", function()
-          vim.notify("Rebuilding macros")
-          vim.cmd("RustLsp rebuildProcMacros")
-        end, { silent = true, desc = "Rebuild Proc Macros" })
-      end,
-      default_settings = {
-        ['rust-analyzer'] = {
-          -- Enable diagnostics
-          diagnostics = { enabled = true, disabled = {"inactive-code", "unlinked-file"} },
-          checkOnSave = true,
-          check = {
-            command = "clippy",
-          },
-          cargo = {
-            allFeatures = true,
-            loadOutDirsFromCheck = true,
-            buildScripts = { enable = true },
-          },
-          procMacro = {
-            enable = true,
-            attributes = {
-              enable = true,
-            }
-          },
-          imports = { prefix = "crate" },
-          inlay_hints = {
-            enable = true,
-            lifetimeElisionHints = { enable = "skip_trivial" },
-            only_current_line_autocmd = "CursorHold",
-            show_parameter_hints = true,
-            parameter_hints_prefix = "",
-            other_hints_prefix = "=> ",
-            max_len_align = true,
-            max_len_align_padding = 4,
-            right_align = false,
-            right_align_padding = 8,
-            highlight = "SpecialComment",
-          },
+  -- Rust-analyzer config
+  local config = vim.lsp.config['rust_analyzer']
+  vim.lsp.config['rust_analyzer'] = vim.tbl_deep_extend('force', config or {}, {
+    cmd = { 'rust-analyzer' },
+    root_markers = { 'Cargo.toml', 'rust-project.json' },
+    filetypes = { 'rust' },
+    capabilities = opts.capabilities,
+    on_attach = function(client, bufnr)
+      opts.on_attach(client, bufnr)
+      vim.diagnostic.enable(bufnr)
+      vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
+
+      local function map(mode, lhs, rhs, desc)
+        vim.keymap.set(mode, lhs, rhs, { buffer = bufnr, silent = true, desc = desc })
+      end
+      -- Need to override default  goto definition keybinds (gd/gi) to explicitly use rust analyzer
+      map("n", "gd", function()
+        local clients = vim.lsp.get_clients({bufnr = bufnr, name = 'rust_analyzer'})
+        if not clients[1] then return end
+
+        local params = vim.lsp.util.make_position_params(0, clients[1].offset_encoding)
+        clients[1].request('textDocument/definition', params, function(err, result)
+          if err or not result or vim.tbl_isempty(result) then
+            vim.print("Definition not found")
+            return
+          end
+          vim.cmd('silent! w')
+          vim.cmd('vsplit')
+          vim.lsp.util.jump_to_location(result[1], clients[1].offset_encoding)
+        end, bufnr)
+      end, "Go to definition in vsplit")
+
+      map("n", "gi", function()
+        local clients = vim.lsp.get_clients({bufnr = bufnr, name = 'rust_analyzer'})
+        if not clients[1] then return end
+
+        local params = vim.lsp.util.make_position_params(0, clients[1].offset_encoding)
+        clients[1].request('textDocument/definition', params, function(err, result)
+          if err or not result or vim.tbl_isempty(result) then
+            vim.print("Definition not found")
+            return
+          end
+          vim.cmd('silent! w')
+          vim.lsp.util.jump_to_location(result[1], clients[1].offset_encoding)
+        end, bufnr)
+      end, "Go to definition")
+      map("n", "<leader>M", function()
+        local params = vim.lsp.util.make_position_params()
+        client.request('rust-analyzer/expandMacro', params, function(err, result)
+          if err then
+            vim.notify("Expand macro failed: " .. vim.inspect(err), vim.log.levels.ERROR)
+          elseif result and result.expansion then
+            vim.cmd('vsplit')
+            local buf = vim.api.nvim_create_buf(false, true)
+            vim.api.nvim_win_set_buf(0, buf)
+            local lines = vim.split(result.expansion, '\n')
+            vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+            vim.bo[buf].filetype = 'rust'
+            vim.bo[buf].buftype = 'nofile'
+            vim.bo[buf].bufhidden = 'wipe'
+          else
+            vim.notify("Cursor not on a macro")
+          end
+        end, bufnr)
+      end, "Expand Macro")
+
+      map("n", "J", function()
+        local params = vim.lsp.util.make_range_params()
+        client.request('experimental/joinLines', params, function(err, result)
+          if err then
+            vim.notify("Join lines failed: " .. vim.inspect(err), vim.log.levels.ERROR)
+          elseif result then
+            vim.lsp.util.apply_text_edits(result, bufnr, client.offset_encoding)
+          end
+        end, bufnr)
+      end, "Join Lines")
+
+      map("n", "<leader>gk", function()
+        local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
+        client.request('experimental/parentModule', params, function(err, result)
+          if err then
+            vim.notify("Parent module failed: " .. vim.inspect(err), vim.log.levels.ERROR)
+          elseif result and result[1] then
+            vim.lsp.util.jump_to_location(result[1], client.offset_encoding)
+          end
+        end, bufnr)
+      end, "Open Parent Module")
+
+      map("n", "<leader>gb", function()
+        local params = vim.lsp.util.make_position_params()
+        client.request('experimental/externalDocs', params, function(err, result)
+          if err then
+            vim.notify("External docs failed: " .. vim.inspect(err), vim.log.levels.ERROR)
+          elseif result then
+            local url = result.uri or result.url or result
+            require('user.lsp.settings.rust.open_docs').ModifyOpenDocsUrl(url)
+          end
+        end, bufnr)
+      end, "Open Documentation")
+
+      map("n", "<leader>gt", function()
+        local params = {
+          textDocument = vim.lsp.util.make_text_document_params()
+        }
+        client.request('experimental/openCargoToml', params, function(err, result)
+          if err then
+            vim.notify("Open Cargo.toml failed: " .. vim.inspect(err), vim.log.levels.ERROR)
+          elseif result then
+            vim.lsp.util.jump_to_location(result, client.offset_encoding)
+          end
+        end, bufnr)
+      end, "Open Cargo.toml")
+
+      map("n", "<leader>gT", function()
+        local git_root = vim.fn.systemlist('git rev-parse --show-toplevel')[1]
+        if vim.v.shell_error ~= 0 then
+          vim.notify("Not in a git repository")
+          return
+        end
+
+        local cargo_toml = git_root .. '/Cargo.toml'
+        if vim.fn.filereadable(cargo_toml) == 1 then
+          vim.cmd('edit ' .. vim.fn.fnameescape(cargo_toml))
+        else
+          vim.notify("Can't find workspace Cargo.toml")
+        end
+      end, "Open Workspace Cargo.toml")
+
+      map("n", "<leader>rM", function()
+        vim.notify("Restarting rust-analyzer")
+        vim.lsp.stop_client(vim.lsp.get_clients({ name = "rust_analyzer" }))
+        vim.defer_fn(function()
+          vim.cmd('edit')
+        end, 500)
+      end, "Restart rust-analyzer")
+    end,
+    settings = {
+      ['rust-analyzer'] = {
+        -- Disable rust-analyzer diagnostics (bacon-ls handles them)
+        diagnostics = { enable = false },
+        checkOnSave = { enable = false },
+        cargo = {
+          allFeatures = true,
+          loadOutDirsFromCheck = true,
+          buildScripts = { enable = true },
+        },
+        procMacro = {
+          enable = true,
+          attributes = { enable = true }
+        },
+        imports = { prefix = "crate" },
+        inlayHints = {
+          bindingModeHints = { enable = false },
+          chainingHints = { enable = true },
+          closingBraceHints = { enable = true, minLines = 30 },
+          closureReturnTypeHints = { enable = "with_block" },
+          lifetimeElisionHints = { enable = "skip_trivial" },
+          parameterHints = { enable = false },
+          reborrowHints = { enable = "never" },
+          typeHints = { enable = false },
         },
       },
     },
+  })
+  vim.lsp.enable("rust_analyzer")
+  vim.lsp.config['bacon_ls'] = {
+    check = { command = "check" },
+    cmd = { 'bacon-ls' },
+    root_markers = { 'Cargo.toml' },
+    filetypes = { 'rust' },
+    capabilities = opts.capabilities,
+    on_attach = opts.on_attach,
+    settings = {
+      updateOnSave = true,
+      updateOnSaveWaitMillis = 100,
+    },
   }
+  vim.lsp.enable("bacon_ls")
 end
+
 return M

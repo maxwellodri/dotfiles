@@ -6,45 +6,46 @@ Opts = {
   config = require("user.lsp.handlers").config,
 }
 require('user.lsp.settings.rust').setup(Opts)
-local lspconfig = require'lspconfig'
 local mason = require('user.lsp.mason')
 mason.setup()
-for _, server in ipairs(mason.get_auto_enable_servers()) do
-  lspconfig[server].setup {
-    on_attach = Opts.on_attach,
-    capabilities = Opts.capabilities,
-    config = Opts.config,
-  }
-end
 
-function GoNextIssue()
-  local all_diagnostics = vim.diagnostic.get(nil)
-  if #all_diagnostics == 0 then
-    vim.notify("No diagnostics found", vim.log.levels.INFO)
-    return
+vim.api.nvim_create_user_command('LspLog', function()
+  vim.cmd('tabnew ' .. vim.lsp.get_log_path())
+end, {})
+
+vim.api.nvim_create_user_command('LspRestart', function()
+  vim.lsp.stop_client(vim.lsp.get_clients())
+  vim.defer_fn(function()
+    vim.cmd('edit')
+  end, 500)
+end, {})
+
+vim.api.nvim_create_user_command('LspInfo', function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local clients = vim.lsp.get_clients({ bufnr = bufnr })
+  
+  local info = {}
+  for _, client in ipairs(clients) do
+    table.insert(info, {
+      name = client.name,
+      id = client.id,
+      server_capabilities = client.server_capabilities,
+      config = client.config,
+      workspace_folders = client.workspace_folders,
+      attached_buffers = vim.tbl_keys(client.attached_buffers or {}),
+    })
   end
-    local current_buf = vim.api.nvim_get_current_buf()
-  local all_errors = vim.diagnostic.get(current_buf, {
-    severity = vim.diagnostic.severity.ERROR,
-  })
-   if #all_errors > 0 then
-     pcall(vim.diagnostic.goto_next, {
-       severity = vim.diagnostic.severity.ERROR,
-       float = false,
-       wrap = true
-     })
-   else
-     pcall(vim.diagnostic.goto_next, {
-       float = false,
-       wrap = true
-     })
-   end
-end
+  
+  local output = vim.inspect(info)
+  vim.fn.setreg('+', output)
+  
+  vim.cmd('tabnew')
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, vim.split(output, '\n'))
+  vim.bo.filetype = 'lua'
+  vim.bo.buftype = 'nofile'
+  vim.bo.bufhidden = 'wipe'
+end, {})
 
-vim.api.nvim_set_keymap('n', '<leader>ge', '<cmd>lua GoNextIssue()<CR>', { noremap = true, silent = true })
-
-local godot_cmd = vim.lsp.rpc.connect('127.0.0.1', 6014)
-require('lspconfig').gdscript.setup{ cmd = godot_cmd, on_attach = Opts.on_attach, flags = { debounce_text_changes = 150, } }
 require("crates").setup {
   lsp = {
     enabled = true,
@@ -53,9 +54,8 @@ require("crates").setup {
     completion = true,
     hover = true,
   },
-  --null_ls = {
-  --  enabled = true,
-  --  name = "crates.nvim",
-  --},
 }
 return Opts
+
+-- local godot_cmd = vim.lsp.rpc.connect('127.0.0.1', 6014)
+-- require('lspconfig').gdscript.setup{ cmd = godot_cmd, on_attach = Opts.on_attach, flags = { debounce_text_changes = 150, } }
