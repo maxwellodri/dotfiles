@@ -17,10 +17,6 @@ export EMAILCLIENT='neomutt'
 export EDITOR='vim'
 export VISUAL='vim'
 export BIN="$HOME/bin"
-export PATH="$PATH:$BIN" #add /home/$USER/bin to path
-export PATH="$PATH:$BIN/steam_scripts" #and subfolder for steam scripts
-export PATH="$HOME/bin:$PATH:$HOME/.local/bin"
-export PATH="$HOME/.cargo/bin:$PATH"
 export bin="$BIN"
 export dl="$HOME/Downloads"
 export CARGO_ASC=true
@@ -32,6 +28,7 @@ export SOURCE="$HOME/source"
 export PASSWORD_STORE_GENERATED_LENGTH=30
 export QMK="$SOURCE/qmk_firmware"
 export JUPYTERLAB_DIR="$HOME/.local/share/jupyter/lab"
+export PATH="$BIN:$BIN/steam_scripts:$HOME/.local/share/cargo/bin:$HOME/.local/bin:$PATH"
 command -v systemctl >/dev/null 2>&1 && systemctl --user import-environment PATH HOME USER XDG_CONFIG_HOME BIN
 
 ################
