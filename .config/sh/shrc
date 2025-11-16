@@ -29,6 +29,7 @@ export PASSWORD_STORE_GENERATED_LENGTH=30
 export QMK="$SOURCE/qmk_firmware"
 export JUPYTERLAB_DIR="$HOME/.local/share/jupyter/lab"
 export PATH="$BIN:$BIN/steam_scripts:$HOME/.local/share/cargo/bin:$HOME/.local/bin:$PATH"
+export MANPAGER='nvim +Man!'
 command -v systemctl >/dev/null 2>&1 && systemctl --user import-environment PATH HOME USER XDG_CONFIG_HOME BIN
 
 ################
