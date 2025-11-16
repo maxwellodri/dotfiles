@@ -5,10 +5,6 @@ Opts = {
   capabilities = require("user.lsp.handlers").capabilities,
   config = require("user.lsp.handlers").config,
 }
-require('user.lsp.settings.rust').setup(Opts)
-local mason = require('user.lsp.mason')
-mason.setup()
-
 vim.api.nvim_create_user_command('LspLog', function()
   vim.cmd('tabnew ' .. vim.lsp.get_log_path())
 end, {})
@@ -46,15 +42,7 @@ vim.api.nvim_create_user_command('LspInfo', function()
   vim.bo.bufhidden = 'wipe'
 end, {})
 
-require("crates").setup {
-  lsp = {
-    enabled = true,
-    on_attach =  Opts.on_attach,
-    actions = true,
-    completion = true,
-    hover = true,
-  },
-}
+
 return Opts
 
 -- local godot_cmd = vim.lsp.rpc.connect('127.0.0.1', 6014)

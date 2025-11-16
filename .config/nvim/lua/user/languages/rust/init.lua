@@ -1,7 +1,20 @@
 local M = {}
+M.open_workspace_toml = function() 
+  local git_root = vim.fn.systemlist('git rev-parse --show-toplevel')[1]
+  if vim.v.shell_error ~= 0 then
+    vim.notify("Not in a git repository")
+    return
+  end
 
+  local cargo_toml = git_root .. '/Cargo.toml'
+  if vim.fn.filereadable(cargo_toml) == 1 then
+    vim.cmd('edit ' .. vim.fn.fnameescape(cargo_toml))
+  else
+    vim.notify("Can't find workspace Cargo.toml")
+  end
+end
 M.setup = function(opts)
-  -- Rust-analyzer config
+  -- positionEncodings = { "utf-16", "utf-8" } --TODO integrate by extending opts.capabilities.general
   local config = vim.lsp.config['rust_analyzer']
   vim.lsp.config['rust_analyzer'] = vim.tbl_deep_extend('force', config or {}, {
     cmd = { 'rust-analyzer' },
@@ -10,26 +23,25 @@ M.setup = function(opts)
     capabilities = opts.capabilities,
     on_attach = function(client, bufnr)
       opts.on_attach(client, bufnr)
-      vim.diagnostic.enable(bufnr)
+      vim.diagnostic.enable(true, { bufnr = bufnr })
       vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
 
       local function map(mode, lhs, rhs, desc)
         vim.keymap.set(mode, lhs, rhs, { buffer = bufnr, silent = true, desc = desc })
       end
-      -- Need to override default  goto definition keybinds (gd/gi) to explicitly use rust analyzer
       map("n", "gd", function()
         local clients = vim.lsp.get_clients({bufnr = bufnr, name = 'rust_analyzer'})
         if not clients[1] then return end
 
         local params = vim.lsp.util.make_position_params(0, clients[1].offset_encoding)
-        clients[1].request('textDocument/definition', params, function(err, result)
+        clients[1]:request('textDocument/definition', params, function(err, result)
           if err or not result or vim.tbl_isempty(result) then
             vim.print("Definition not found")
             return
           end
           vim.cmd('silent! w')
           vim.cmd('vsplit')
-          vim.lsp.util.jump_to_location(result[1], clients[1].offset_encoding)
+          vim.lsp.util.show_document(result[1], clients[1].offset_encoding)
         end, bufnr)
       end, "Go to definition in vsplit")
 
@@ -38,18 +50,21 @@ M.setup = function(opts)
         if not clients[1] then return end
 
         local params = vim.lsp.util.make_position_params(0, clients[1].offset_encoding)
-        clients[1].request('textDocument/definition', params, function(err, result)
+        clients[1]:request('textDocument/definition', params, function(err, result)
           if err or not result or vim.tbl_isempty(result) then
             vim.print("Definition not found")
             return
           end
           vim.cmd('silent! w')
-          vim.lsp.util.jump_to_location(result[1], clients[1].offset_encoding)
+          vim.lsp.util.show_document(result[1], clients[1].offset_encoding)
         end, bufnr)
       end, "Go to definition")
       map("n", "<leader>M", function()
-        local params = vim.lsp.util.make_position_params()
-        client.request('rust-analyzer/expandMacro', params, function(err, result)
+        local clients = vim.lsp.get_clients({bufnr = bufnr, name = 'rust_analyzer'})
+        if not clients[1] then return end
+
+        local params = vim.lsp.util.make_position_params(0, clients[1].offset_encoding)
+        clients[1]:request('rust-analyzer/expandMacro', params, function(err, result)
           if err then
             vim.notify("Expand macro failed: " .. vim.inspect(err), vim.log.levels.ERROR)
           elseif result and result.expansion then
@@ -68,66 +83,65 @@ M.setup = function(opts)
       end, "Expand Macro")
 
       map("n", "J", function()
-        local params = vim.lsp.util.make_range_params()
-        client.request('experimental/joinLines', params, function(err, result)
+        local clients = vim.lsp.get_clients({bufnr = bufnr, name = 'rust_analyzer'})
+        if not clients[1] then return end
+
+        local params = vim.lsp.util.make_range_params(0, clients[1].offset_encoding)
+        clients[1]:request('experimental/joinLines', params, function(err, result)
           if err then
             vim.notify("Join lines failed: " .. vim.inspect(err), vim.log.levels.ERROR)
           elseif result then
-            vim.lsp.util.apply_text_edits(result, bufnr, client.offset_encoding)
+            vim.lsp.util.apply_text_edits(result, bufnr, clients[1].offset_encoding)
           end
         end, bufnr)
       end, "Join Lines")
 
       map("n", "<leader>gk", function()
-        local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
-        client.request('experimental/parentModule', params, function(err, result)
+        local clients = vim.lsp.get_clients({bufnr = bufnr, name = 'rust_analyzer'})
+        if not clients[1] then return end
+
+        local params = vim.lsp.util.make_position_params(0, clients[1].offset_encoding)
+        clients[1]:request('experimental/parentModule', params, function(err, result)
           if err then
             vim.notify("Parent module failed: " .. vim.inspect(err), vim.log.levels.ERROR)
           elseif result and result[1] then
-            vim.lsp.util.jump_to_location(result[1], client.offset_encoding)
+            vim.lsp.util.show_document(result[1], clients[1].offset_encoding)
           end
         end, bufnr)
       end, "Open Parent Module")
 
       map("n", "<leader>gb", function()
-        local params = vim.lsp.util.make_position_params()
-        client.request('experimental/externalDocs', params, function(err, result)
+        local clients = vim.lsp.get_clients({bufnr = bufnr, name = 'rust_analyzer'})
+        if not clients[1] then return end
+
+        local params = vim.lsp.util.make_position_params(0, clients[1].offset_encoding)
+        clients[1]:request('experimental/externalDocs', params, function(err, result)
           if err then
             vim.notify("External docs failed: " .. vim.inspect(err), vim.log.levels.ERROR)
           elseif result then
             local url = result.uri or result.url or result
-            require('user.lsp.settings.rust.open_docs').ModifyOpenDocsUrl(url)
+            require('user.languages.rust.open_docs').ModifyOpenDocsUrl(url)
           end
         end, bufnr)
       end, "Open Documentation")
 
       map("n", "<leader>gt", function()
+        local clients = vim.lsp.get_clients({bufnr = bufnr, name = 'rust_analyzer'})
+        if not clients[1] then return end
+
         local params = {
           textDocument = vim.lsp.util.make_text_document_params()
         }
-        client.request('experimental/openCargoToml', params, function(err, result)
+        clients[1]:request('experimental/openCargoToml', params, function(err, result)
           if err then
             vim.notify("Open Cargo.toml failed: " .. vim.inspect(err), vim.log.levels.ERROR)
           elseif result then
-            vim.lsp.util.jump_to_location(result, client.offset_encoding)
+            vim.lsp.util.show_document(result, clients[1].offset_encoding)
           end
         end, bufnr)
       end, "Open Cargo.toml")
 
-      map("n", "<leader>gT", function()
-        local git_root = vim.fn.systemlist('git rev-parse --show-toplevel')[1]
-        if vim.v.shell_error ~= 0 then
-          vim.notify("Not in a git repository")
-          return
-        end
-
-        local cargo_toml = git_root .. '/Cargo.toml'
-        if vim.fn.filereadable(cargo_toml) == 1 then
-          vim.cmd('edit ' .. vim.fn.fnameescape(cargo_toml))
-        else
-          vim.notify("Can't find workspace Cargo.toml")
-        end
-      end, "Open Workspace Cargo.toml")
+      map("n", "<leader>gT", M.open_workspace_toml, "Open Workspace Cargo.toml")
 
       map("n", "<leader>rM", function()
         vim.notify("Restarting rust-analyzer")
@@ -139,7 +153,6 @@ M.setup = function(opts)
     end,
     settings = {
       ['rust-analyzer'] = {
-        -- Disable rust-analyzer diagnostics (bacon-ls handles them)
         diagnostics = { enable = false },
         checkOnSave = { enable = false },
         cargo = {
@@ -172,6 +185,9 @@ M.setup = function(opts)
     root_markers = { 'Cargo.toml' },
     filetypes = { 'rust' },
     capabilities = opts.capabilities,
+    on_init = function(client)
+      client.server_capabilities.codeActionProvider = false
+    end,
     on_attach = opts.on_attach,
     settings = {
       updateOnSave = true,

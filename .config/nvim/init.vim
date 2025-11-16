@@ -1,6 +1,5 @@
 set <S-CR>=^[[13;2u
 set runtimepath^=~/.vim runtimepath+=~/.vim/after
-"lua vim.deprecate = function() end
 runtime! expand('$HOME') + '/.config/nvim/plugin'
 "vim.g.rust_rustfmt_options = ''
 let &packpath=&runtimepath
@@ -39,6 +38,7 @@ let &packpath=&runtimepath
     Plug 'MunifTanjim/nui.nvim' "ui component library
     Plug 'kyazdani42/nvim-web-devicons' "library of icons
     Plug 'lambdalisue/suda.vim' "handle writing files w/ elevated permissions
+    Plug 'folke/snacks.nvim'
     " =================
     " Language Support
     " =================
@@ -130,7 +130,6 @@ let &packpath=&runtimepath
     Plug 'nvim-tree/nvim-web-devicons'
     Plug 'HakonHarnes/img-clip.nvim'
     Plug 'stevearc/dressing.nvim'
-    Plug 'folke/snacks.nvim'
 
     " ===============
     " Color Schemes 
@@ -389,15 +388,21 @@ inoremap <C-z> <Esc>:stop<CR>
 lua << EOF
 function _G.ReloadVimConfig()
     vim.g.suppress_tmux_reload_msg = true
+    vim.g.reloading_config = true  -- Add flag
+    
     vim.cmd('silent! write')
-    vim.cmd('source $MYVIMRC')
-    -- Clear the Lua module cache
+    
+    -- Clear Lua cache first
     for name, _ in pairs(package.loaded) do
-        if name:match('^user') then
+        if name:match('^user') or name:match('^snacks') then
             package.loaded[name] = nil
         end
     end
-    vim.g.suppress_tmux_reload_msg = nil
+    
+    vim.cmd('source $MYVIMRC')
+    
+    vim.g.suppress_tmux_reload_msg = false
+    vim.g.reloading_config = false
     print("Reloaded vimrc and Lua configuration")
 end
 EOF

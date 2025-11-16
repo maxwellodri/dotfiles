@@ -50,6 +50,15 @@ vim.cmd("colorscheme gruvbox")
 --vim.api.nvim_set_hl(0, '@type.qualifier.rust', {fg = gruvbox_red })
 
 -- -- Grab the colors
+vim.api.nvim_set_hl(0, 'DesaturatedOrange', { fg = "#994d0f" })
+vim.api.nvim_set_hl(0, 'DullGreen', { fg = "#a0c050" })
+vim.api.nvim_set_hl(0, 'BurntYellow', { fg = "#917d0e" })
+vim.api.nvim_set_hl(0, 'DullGrey', { fg = "#8d9183" }) 
+
+local dull_grey = vim.api.nvim_get_hl_by_name('DullGrey', 0).foreground
+local burnt_yellow = vim.api.nvim_get_hl_by_name('BurntYellow', 0).foreground
+local dull_green = vim.api.nvim_get_hl_by_name('DullGreen', 0).foreground
+local desaturated_orange = vim.api.nvim_get_hl_by_name('DesaturatedOrange', 0).foreground
 local purple = vim.api.nvim_get_hl_by_name('GruvboxPurple', 0).foreground
 local purple_bold = vim.api.nvim_get_hl_by_name('GruvboxPurpleBold', 0).foreground
 local yellow = vim.api.nvim_get_hl_by_name('GruvboxYellow', 0).foreground
@@ -61,10 +70,13 @@ local orange = vim.api.nvim_get_hl_by_name('GruvboxOrange', 0).foreground
 local custom_purple = '#bb8ffc'
 local custom_white = '#000000'
 -- local custom_green = '#92ef45'
+--b9bfac
 local custom_green = '#9ed841'
 local background = vim.api.nvim_get_hl_by_name('GruvboxBg2', 0).foreground
 local custom_pink = '#f7029d'
 
+vim.api.nvim_set_hl(0, 'LspInlayHint', { fg = dull_grey })
+--vim.api.nvim_set_hl(0, 'LspInlayHint', { fg = desaturated_orange })
 
 vim.api.nvim_set_hl(0, '@keyword.rust', {fg = red})
 vim.api.nvim_set_hl(0, '@keyword.type.rust', { fg = red })
@@ -76,13 +88,13 @@ vim.api.nvim_set_hl(0, '@type.rust', { fg = yellow })
 vim.api.nvim_set_hl(0, '@operator.rust', { fg = white })
 vim.api.nvim_set_hl(0, '@type.builtin.rust', { fg = orange })
 vim.api.nvim_set_hl(0, '@variable.parameter', { fg = white })
-vim.api.nvim_set_hl(0, '@function.macro.rust', { fg = purple })
+vim.api.nvim_set_hl(0, '@function.macro.rust', { fg = green })
 vim.api.nvim_set_hl(0, '@punctuation.bracket.rust', {})
 vim.api.nvim_set_hl(0, '@punctuation.delimiter.rust', { fg = white })
 
 -- These only work with LSP semantic Highlighting
 vim.api.nvim_set_hl(0, '@lsp.type.interface.rust', {fg = custom_purple})
-vim.api.nvim_set_hl(0, '@lsp.type.macro.rust', { fg = purple })
+vim.api.nvim_set_hl(0, '@lsp.type.macro.rust', { fg = dull_green })
 vim.api.nvim_set_hl(0, '@lsp.type.typeAlias.rust', { fg = custom_pink })
 vim.api.nvim_set_hl(0, '@lsp.type.enum.rust', { fg = custom_green })
 vim.api.nvim_set_hl(0, '@lsp.type.decorator.rust', { fg = purple })
