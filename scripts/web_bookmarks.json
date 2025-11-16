@@ -77,6 +77,7 @@
     "1337": "https://1337x.to",
     "skyrimmodmapper": "https://modmapper.com",
     "godot": "https://docs.godotengine.org/en/stable/classes/index.html",
-    "augustus": "https://raw.githubusercontent.com/Keriew/augustus/master/res/manual/augustus_manual_en_4_0.pdf"
+    "augustus": "https://raw.githubusercontent.com/Keriew/augustus/master/res/manual/augustus_manual_en_4_0.pdf",
+    "gemini": "https://aistudio.google.com/prompts/new_chat?model=gemini-2.5-pro"
 }
 
