@@ -8,7 +8,13 @@ rust_analyzer_path=$(rustup which rust-analyzer 2>/dev/null)
 # Check if rustup found rust-analyzer
 if [ $? -eq 0 ] && [ -n "$rust_analyzer_path" ] && [ -x "$rust_analyzer_path" ]; then
     # Execute rust-analyzer with all passed arguments
-    exec "$rust_analyzer_path" "$@"
+    if [[ "$dotfiles_tag" == "pc" ]]; then
+        # Optimization for Ryzen 3700X Workstation
+        exec env RAYON_NUM_THREADS=14 "$rust_analyzer_path" "$@"
+    else
+        # Standard execution for other machines (auto-detect threads)
+        exec "$rust_analyzer_path" "$@"
+    fi
 else
     # Fallback: try to find rust-analyzer in PATH
     if command -v rust-analyzer >/dev/null 2>&1; then

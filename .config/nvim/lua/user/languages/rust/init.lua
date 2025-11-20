@@ -82,7 +82,7 @@ M.setup = function(opts)
         end, bufnr)
       end, "Expand Macro")
 
-      map("n", "J", function()
+      map("v", "J", function()
         local clients = vim.lsp.get_clients({bufnr = bufnr, name = 'rust_analyzer'})
         if not clients[1] then return end
 
