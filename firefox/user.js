@@ -330,3 +330,4 @@ user_pref("toolkit.telemetry.reportingpolicy.firstRun", false);
 user_pref("extensions.activeThemeID", "firefox-compact-dark@mozilla.org");
 user_pref("browser.search.defaultenginename", "DuckDuckGo");
 user_pref("browser.search.order.1", "DuckDuckGo");
+user_pref("browser.tabs.groups.smart.enabled", false);
