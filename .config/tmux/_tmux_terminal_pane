@@ -2,20 +2,17 @@
 session=$(tmux display-message -p "#{session_id}")
 current_window=$(tmux display-message -p "#{window_id}")
 current_pane=$(tmux display-message -p "#{pane_id}")
-
 # Find terminal pane or window in current session
 pane=$(tmux list-panes -t "$session" -F "#{pane_id} #{pane_title}" | awk '$2 == "terminal" {print $1; exit}')
 window=$(tmux list-windows -t "$session" -F "#{window_id} #{window_name}" | awk '$2 == "terminal" {print $1; exit}')
-
-
 if [ "$current_pane" = "$pane" ]; then
   # Focused on terminal pane — hide it as a window
-  tmux break-pane -d -n terminal
+  tmux break-pane -d -n terminal -t :100
 elif [ -n "$pane" ]; then
   # Terminal pane exists elsewhere in session
   pane_window=$(tmux list-panes -t "$session" -F "#{pane_id} #{window_id}" | awk -v p="$pane" '$1 == p {print $2; exit}')
   if [ "$pane_window" = "$current_window" ]; then
-    tmux break-pane -d -s "$pane" -n terminal
+    tmux break-pane -d -s "$pane" -n terminal -t :100
   else
     tmux join-pane -t "$current_pane" -v -l 40% -s "$pane"
   fi

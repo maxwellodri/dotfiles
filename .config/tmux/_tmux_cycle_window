@@ -1,22 +1,68 @@
 #!/bin/sh
 case "$1" in
-  next)
-    tmux next-window
-    count=0
-    while [ "$(tmux display-message -p '#{window_name}')" = "terminal" ] && [ $count -lt 20 ]; do
-      tmux next-window
-      count=$((count+1))
-    done
-    ;;
-  prev)
-    tmux previous-window
-    count=0
-    while [ "$(tmux display-message -p '#{window_name}')" = "terminal" ] && [ $count -lt 20 ]; do
-      tmux previous-window
-      count=$((count+1))
-    done
-    ;;
-  *)
-    exit 1
-    ;;
+    next)
+        tmux next-window
+        count=0
+        while [ "$(tmux display-message -p '#{window_name}')" = "terminal" ] && [ $count -lt 20 ]; do
+            tmux next-window
+            count=$((count+1))
+        done
+        ;;
+    prev)
+        tmux previous-window
+        count=0
+        while [ "$(tmux display-message -p '#{window_name}')" = "terminal" ] && [ $count -lt 20 ]; do
+            tmux previous-window
+            count=$((count+1))
+        done
+        ;;
+    move_next)
+        session=$(tmux display-message -p "#{session_id}")
+        current_window=$(tmux display-message -p "#{window_id}")
+        current_index=$(tmux display-message -p "#{window_index}")
+        
+        # Get all non-terminal windows excluding current
+        non_terminal_windows=$(tmux list-windows -t "$session" -F "#{window_id} #{window_index} #{window_name}" | awk -v cur="$current_window" '$3 != "terminal" && $1 != cur {print $1, $2}')
+        
+        if [ -z "$non_terminal_windows" ]; then
+            # No other non-terminal windows exist, move to new window
+            tmux break-pane -d
+        else
+            # Find next non-terminal window (wrap around if needed)
+            target=$(echo "$non_terminal_windows" | awk -v cur="$current_index" '
+                $2 > cur {print $1; exit}
+            ')
+            if [ -z "$target" ]; then
+                # No window after current, wrap to first
+                target=$(echo "$non_terminal_windows" | awk 'NR==1 {print $1}')
+            fi
+            tmux move-pane -t "$target"
+        fi
+        ;;
+    move_prev)
+        session=$(tmux display-message -p "#{session_id}")
+        current_window=$(tmux display-message -p "#{window_id}")
+        current_index=$(tmux display-message -p "#{window_index}")
+        
+        # Get all non-terminal windows excluding current
+        non_terminal_windows=$(tmux list-windows -t "$session" -F "#{window_id} #{window_index} #{window_name}" | awk -v cur="$current_window" '$3 != "terminal" && $1 != cur {print $1, $2}')
+        
+        if [ -z "$non_terminal_windows" ]; then
+            # No other non-terminal windows exist, move to new window
+            tmux break-pane -d
+        else
+            # Find previous non-terminal window (wrap around if needed)
+            target=$(echo "$non_terminal_windows" | awk -v cur="$current_index" '
+                $2 < cur {prev=$1} END {print prev}
+            ')
+            if [ -z "$target" ]; then
+                # No window before current, wrap to last
+                target=$(echo "$non_terminal_windows" | awk 'END {print $1}')
+            fi
+            tmux move-pane -t "$target"
+        fi
+        ;;
+    *)
+        exit 1
+        ;;
 esac
