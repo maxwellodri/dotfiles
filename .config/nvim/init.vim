@@ -410,8 +410,8 @@ nnoremap <silent><leader>vv :lua ReloadVimConfig()<CR>
 
 
 " gx-extended
-nmap <leader>gx <Plug>(gxext-normal)
-xmap <leader>gx <Plug>(gxext-visual)
+nmap gx <Plug>(gxext-normal)
+xmap gx <Plug>(gxext-visual)
 let g:gxext#opencmd = "sh -c 'xdg-open \"$1\"' _"
 let g:gxext#handlers = {
             \ 'global': ['global#urls', 'global#gx'],
