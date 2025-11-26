@@ -331,3 +331,4 @@ user_pref("extensions.activeThemeID", "firefox-compact-dark@mozilla.org");
 user_pref("browser.search.defaultenginename", "DuckDuckGo");
 user_pref("browser.search.order.1", "DuckDuckGo");
 user_pref("browser.tabs.groups.smart.enabled", false);
+user_pref("browser.urlbar.suggest.quickactions", false);
