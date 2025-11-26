@@ -58,7 +58,7 @@ function chpwd() {
 
 #(cat ~/.cache/wal/sequences &) #pywal
 [ -e ~/.cache/wal/colors-tty.sh ] && source ~/.cache/wal/colors-tty.sh
-[ -e ~/.secrets ] && source ~/.secrets
+#[ -e ~/.secrets ] && source ~/.secrets
 [ -e /etc/profile.d/google-cloud-sdk.sh ] && source /etc/profile.d/google-cloud-sdk.sh
 [ -e ~/.local/share/mdbook_completions.zsh ] && source  ~/.local/share/mdbook_completions.zsh 
 setopt autocd #type name of dir to cd
