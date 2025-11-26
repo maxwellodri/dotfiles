@@ -33,10 +33,13 @@ gtk=".config/gtk-2.0 .config/gtk-3.0 .config/gtk-4.0 .config/gtkrc .config/gtkrc
 qt=".config/Trolltech.conf"
 npm=".config/npm/"
 faucet=".config/faucet/"
+alacritty=".config/alacritty/"
+font=".config/fontconfig/fonts.conf"
+
 
 ########### Meta Variables
 i3=" $i3config $i3statusconfig"
-xfiles=" .config/X11/xinitrc .config/X11/.Xresources .config/X11/.Xmodmap .config/neovide $zathura $picom $dunst $ncmpcpp $sxhkdconfig $rofi $gtk $qt"
+xfiles=" .config/X11/xinitrc .config/X11/.Xresources .config/X11/.Xmodmap .config/neovide $zathura $picom $dunst $ncmpcpp $sxhkdconfig $rofi $gtk $qt $alacritty $font"
 bash=" .bashrc .bashrc_extra .bash_profile $sh $pam"
 zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam" 
 files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $gitconfig $npm $faucet"
@@ -51,33 +54,33 @@ hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles"
 
 case $1 in
     "pc")           tag="$1"
-                    files=$pcfiles$files
-                    mkdir ~/.local/share/dwm/ -p
-                    mkdir -pv "$XDG_CACHE_HOME/dotfiles/{whisper_models,whisper_audio,llama_models}"
-                    ln -sf "$PWD/dwm/startup.sh" "$HOME/.local/share/dwm/autostart.sh"
-                    ;;
+        files=$pcfiles$files
+        mkdir ~/.local/share/dwm/ -p
+        mkdir -pv "$XDG_CACHE_HOME/dotfiles/{whisper_models,whisper_audio,llama_models}"
+        ln -sf "$PWD/dwm/startup.sh" "$HOME/.local/share/dwm/autostart.sh"
+        ;;
     "hackerman")    tag="$1"
-                    files=$hackermanfiles$files
-                    mkdir ~/.local/share/dwm/ -p
-                    ln -sf "$PWD/dwm/startup.sh" "$HOME/.local/share/dwm/autostart.sh"
-		            ;;
+        files=$hackermanfiles$files
+        mkdir ~/.local/share/dwm/ -p
+        ln -sf "$PWD/dwm/startup.sh" "$HOME/.local/share/dwm/autostart.sh"
+        ;;
 
     "clean")        echo "Removing all symlinks..." 
-                    for file in $all; do
-                        [ -L "$HOME/$file" ] && unlink "$HOME/$file" && echo "Unlinked $file"
-                    done
-                    echo "Finished unlinkng"
-                    exit
-                    ;;
+        for file in $all; do
+            [ -L "$HOME/$file" ] && unlink "$HOME/$file" && echo "Unlinked $file"
+        done
+        echo "Finished unlinkng"
+        exit
+        ;;
 
     *)              
-                    echo "Pick a device and pass as first argument" 
-                    exit
-                    ;;
+        echo "Pick a device and pass as first argument" 
+        exit
+        ;;
 
-esac
+    esac
 
-echo "$tag" > "$PWD/.dotfile_tag"
+    echo "$tag" > "$PWD/.dotfile_tag"
 
 # Iterate through files and remove trailing slash if it's a directory
 for file in $files; do
@@ -124,27 +127,32 @@ for file in $files; do
         ".zprofile")            src="$dir/$file.$tag"
             ;;
         "$i3statusconfig")      src="$dir/$file.$tag"
-                                ;;
-        
+            ;;
+
         "$sh")                  src="$dir/.config/sh/shrc"
-                                ;;
+            ;;
 
         "$zathura")             src="$dir/.config/zathura/zathurarc"
-                                ;;
+            ;;
 
         .vimrc)                 src="$dir/$file"
-                                ln -s "$src" "$HOME/.config/nvim/vimrc"
-                                ;;
-
+            ln -s "$src" "$HOME/.config/nvim/vimrc"
+            ;;
         *)                      src="$dir/$file"
-                                ;;
-    
-    esac 
-    echo "Creating symlink from $src to ~/$file."
-    echo " "
-    ln -s "$src" "$HOME/$file"
-done
+            ;;
 
-echo "tag variable used = $tag"
-echo "Script is finished."
+        esac 
+        echo "Creating symlink from $src to ~/$file."
+        echo " "
+        ln -s "$src" "$HOME/$file"
+        case "$file" in
+            "$font")
+                echo "Rebuilding font cache..."
+                fc-cache -fv
+                ;;
+        esac
+    done
+
+    echo "tag variable used = $tag"
+    echo "Script is finished."
 

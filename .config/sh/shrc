@@ -10,7 +10,7 @@
 ################
 #exports:
 ###############
-export TERM='st'
+export TERM='alacritty'
 export WEB='firefox'
 export BROWSER='firefox'
 export EMAILCLIENT='neomutt'
@@ -57,6 +57,7 @@ alias shrc="vim ~/.config/sh/shrc && source ~/.config/sh/shrc"
 alias sxhkdrc="vim ~/.config/sxhkd/sxhkdrc && pkill -USR1 -x sxhkd"
 alias bspwmrc="vim ~/.config/bspwm/bspwmrc && pkill -USR1 -x sxhkd"
 alias faucetrc="vim ~/.config/faucet/faucet.yaml"
+alias alrc="vim ~/.config/alacritty/alacritty.toml"
 #alias lastupdated = "awk 'END{sub(/\[/,""); print $1}' /var/log/pacman.log"
 alias bashrctag="vim ~/.bashrc_extra && source ~/.bashrc"
 alias zshrctag="vim ~/.zshrc_extra && source ~/.zshrc_extra"
