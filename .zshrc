@@ -218,10 +218,29 @@ tmux_attach() {
   CURSOR=0
   zle reset-prompt
   
+  # Get active tmux sessions
   local sessions=$(tmux list-sessions 2>/dev/null)
+  local active_sessions=$(echo "$sessions" | cut -d: -f1)
+  
+  # Build list starting with create option
   local session_list="+ Create new session"
+  
+  # Add active tmux sessions
   if [ -n "$sessions" ]; then
     session_list="$session_list\n$sessions"
+  fi
+  
+  # Add inactive tmuxinator sessions
+  if command -v tmuxinator &>/dev/null; then
+    local tmuxinator_projects=$(tmuxinator list 2>/dev/null | tail -n +2)
+    if [ -n "$tmuxinator_projects" ]; then
+      for project in $tmuxinator_projects; do
+        # Skip if this session is already active
+        if ! echo "$active_sessions" | grep -q "^${project}$"; then
+          session_list="$session_list\n[tmuxinator] $project"
+        fi
+      done
+    fi
   fi
   
   local selected=$(echo "$session_list" | fzf \
@@ -280,7 +299,13 @@ tmux_attach() {
     
     BUFFER="tmux new-session -s '$session_name'"
     zle accept-line
+  elif [[ "$selected" == "[tmuxinator] "* ]]; then
+    # Handle tmuxinator session
+    local project_name=$(echo "$selected" | sed 's/^\[tmuxinator\] //')
+    BUFFER="tmuxinator start '$project_name'"
+    zle accept-line
   else
+    # Handle regular tmux session
     local session_name=$(echo "$selected" | cut -d: -f1)
     BUFFER="tmux attach-session -t '$session_name'"
     zle accept-line
@@ -288,8 +313,7 @@ tmux_attach() {
 }
 zle -N tmux_attach
 bindkey -M viins '^b' tmux_attach
-bindkey -M vicmd '^b' tmux_attach
-  
+bindkey -M vicmd '^b' tmux_attach 
 
 function _rg_fzf_widget() {
   local script_path="$bin/_rg_fzf.sh"  # Adjust path as needed
