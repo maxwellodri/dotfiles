@@ -1,10 +1,9 @@
 name: mykaelium
 root: ~/source/mykaelium
-
 windows:
-  - editor:
+  - dev:
       layout: even-horizontal
       panes:
         - nvim mykaelium/src/main.rs
-        - claude
+        - claude .
   - scratch:
