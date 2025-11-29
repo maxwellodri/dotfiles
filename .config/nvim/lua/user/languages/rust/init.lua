@@ -180,7 +180,6 @@ M.setup = function(opts)
   })
   vim.lsp.enable("rust_analyzer")
   vim.lsp.config['bacon_ls'] = {
-    check = { command = "check" },
     cmd = { 'bacon-ls' },
     root_markers = { 'Cargo.toml' },
     filetypes = { 'rust' },
@@ -189,10 +188,10 @@ M.setup = function(opts)
       client.server_capabilities.codeActionProvider = false
     end,
     on_attach = opts.on_attach,
-    settings = {
+    init_options = {
       updateOnSave = true,
       updateOnSaveWaitMillis = 100,
-    },
+    }
   }
   vim.lsp.enable("bacon_ls")
 end

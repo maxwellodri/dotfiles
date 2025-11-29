@@ -1,6 +1,6 @@
-vim.opt_local.softtabstop = 4
-vim.opt_local.tabstop = 4
-vim.opt_local.shiftwidth = 4
+vim.opt.softtabstop = 4
+vim.opt.tabstop = 4
+vim.opt.shiftwidth = 4
 require('user.snacks')
 require('user.colorscheme')
 require("user.utils")
@@ -30,5 +30,7 @@ require('user.leadercopy')
 local opts = require("user.lsp")
 require('user.languages.rust').setup(opts)
 require('user.languages.toml').setup(opts)
-require('user.languages.pyright')
+require('user.languages.python')
+require('user.languages.make')
+require('user.languages.nix')
 require('user.mason').setup()
