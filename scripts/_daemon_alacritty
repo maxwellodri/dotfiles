@@ -1,0 +1,3 @@
+#!/bin/sh
+trap 'rm "$XDG_RUNTIME_DIR"/alacritty.sock' EXIT
+alacritty --daemon --socket "$XDG_RUNTIME_DIR/alacritty.sock"; rm "$XDG_RUNTIME_DIR/alacritty.sock"
