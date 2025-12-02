@@ -1,29 +1,60 @@
 #!/bin/bash
-# Display help and exit if requested
+
+print_file_content() {
+  local real_path="$1"
+  local display_path="$2"
+
+  if [ -z "$display_path" ]; then
+    display_path="$real_path"
+  fi
+
+  if [ ! -f "$real_path" ]; then
+    return
+  fi
+
+  if file -b "$real_path" | grep -i -q "text\|ascii\|empty\|script"; then
+    echo "#$display_path"
+    cat "$real_path"
+    echo ""
+  fi
+}
+
 if [[ "$1" == "--help" ]]; then
-  echo "Usage: $(basename "$0") DIRECTORY [TARGETS...]"
+  echo "Usage: $(basename "$0") [DIRECTORY] [TARGETS...]"
+  echo "       ... | $(basename "$0")"
   echo ""
-  echo "Searches for text files in the specified directory and prints them with a header."
+  echo "Modes:"
+  echo "  1. Directory Search: Provide a directory and optional targets."
+  echo "  2. Pipe Mode:        Pipe a list of file paths to the script with no arguments."
   echo ""
   echo "Arguments:"
   echo "  DIRECTORY   Directory to search in"
-  echo "  TARGETS     File extensions (without dot), specific files, or 'noext'"
-  echo "              Extensions: sh, py, rs, etc."
-  echo "              Files: script.sh, config, README, etc."
-  echo "              Use 'noext' for files with no extension"
-  echo "              If no targets are specified, all text files will be included"
+  echo "  TARGETS     File extensions (sh, py), specific files (script.sh), or 'noext'"
   echo ""
   echo "Examples:"
-  echo "  $(basename "$0") /path/to/dir sh py           # Only .sh and .py files"
-  echo "  $(basename "$0") \$PWD script.sh config      # Specific files"
-  echo "  $(basename "$0") \$PWD sh README noext       # Mix of extension, file, and no-ext"
-  echo "  $(basename "$0") \$PWD                       # All text files"
+  echo "  $(basename "$0") . rs                 # Search recursive for .rs"
+  echo "  fd -e rs | $(basename "$0")           # Pipe file paths directly"
   exit 0
 fi
 
+# --- PIPE MODE: Check if running with no args and input is piped ---
+if [ $# -eq 0 ] && [ ! -t 0 ]; then
+  # Read file paths from stdin line by line
+  while read -r file_path; do
+    # Strip leading/trailing whitespace if any
+    file_path=$(echo "$file_path" | xargs)
+    if [ -n "$file_path" ]; then
+      print_file_content "$file_path"
+    fi
+  done
+  exit 0
+fi
+
+# --- STANDARD MODE: Logic from original script ---
+
 # Check if directory is provided
 if [ -z "$1" ]; then
-  echo "Error: No directory specified"
+  echo "Error: No directory specified (and no piped input detected)"
   echo "Use --help for usage information"
   exit 1
 fi
@@ -40,11 +71,7 @@ if [ $# -eq 0 ]; then
   echo "Finding all text files..." >&2
   fd --type file --base-directory "$search_dir" | while read -r file; do
     full_path="$search_dir/$file"
-    if file -b "$full_path" | grep -i -q "text\|ascii\|empty\|script"; then
-      echo "#$file"
-      cat "$full_path"
-      echo ""
-    fi
+    print_file_content "$full_path" "$file"
   done
   exit 0
 fi
@@ -56,19 +83,14 @@ for target in "$@"; do
     echo "Looking for files without extension..." >&2
     fd --type file --regex '^[^.]+$' --base-directory "$search_dir" | while read -r file; do
       full_path="$search_dir/$file"
-      if file -b "$full_path" | grep -i -q "text\|ascii\|empty\|script"; then
-        echo "#$file"
-        cat "$full_path"
-        echo ""
-      fi
+      print_file_content "$full_path" "$file"
     done
   elif [ -f "$search_dir/$target" ]; then
     echo "Found specific file: $target" >&2
     full_path="$search_dir/$target"
+    # Logic specific to exact file match: warn if not text, otherwise print
     if file -b "$full_path" | grep -i -q "text\|ascii\|empty\|script"; then
-      echo "#$target"
-      cat "$full_path"
-      echo ""
+      print_file_content "$full_path" "$target"
     else
       echo "Warning: $target is not a text file, skipping" >&2
     fi
@@ -76,11 +98,7 @@ for target in "$@"; do
     echo "Looking for $target files..." >&2
     fd --type file -e "$target" --base-directory "$search_dir" | while read -r file; do
       full_path="$search_dir/$file"
-      if file -b "$full_path" | grep -i -q "text\|ascii\|empty\|script"; then
-        echo "#$file"
-        cat "$full_path"
-        echo ""
-      fi
+      print_file_content "$full_path" "$file"
     done
   fi
 done
