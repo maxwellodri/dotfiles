@@ -35,7 +35,7 @@ elif [ "$action" = "list" ]; then
     tmp="/tmp/remind/active_reminders"
     mkdir /tmp/remind/ 2>/dev/null
     echo "$active" > "$tmp"
-    neovide "$tmp"
+    neovide "$tmp" +"set filetype=text"
     rm "$tmp"
 elif [ "$action" = "stdout" ]; then
     printf '%s' "$active"
