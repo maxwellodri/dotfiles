@@ -4,7 +4,7 @@ if not status_ok then
 end
 
 configs.setup {
-    ensure_installed = {"rust", "python", "bash", "toml"},
+    ensure_installed = {"rust", "python", "bash", "toml", "nix"},
     sync_install = false,
     ignore_install = { "" },
     highlight = {

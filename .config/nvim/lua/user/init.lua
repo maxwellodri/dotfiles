@@ -1,6 +1,7 @@
 vim.opt.softtabstop = 4
 vim.opt.tabstop = 4
 vim.opt.shiftwidth = 4
+require('user.autoformat')
 require('user.snacks')
 require('user.colorscheme')
 require("user.utils")
