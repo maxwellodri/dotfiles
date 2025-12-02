@@ -1,11 +1,11 @@
 #!/bin/zsh
 #
-# _______| |__  _ __ ___ 
+# _______| |__  _ __ ___
 #|_  / __| '_ \| '__/ __|
-# / /\__ \ | | | | | (__ 
+# / /\__ \ | | | | | (__
 #/___|___/_| |_|_|  \___|
-#                        
-# 
+#
+#
 #[ $(( ( RANDOM % 2 )  + 1 )) = 1 ] && echo "i <3 hannah" | figlet || echo "hannah is qt" | figlet
 # History:
 HISTSIZE=5000
@@ -24,8 +24,8 @@ setopt hist_find_no_dups
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
 
 # fg-bg toggle via c-z
-function fg-bg { 
-    if [[ $#BUFFER -eq 0 ]]; then 
+function fg-bg {
+    if [[ $#BUFFER -eq 0 ]]; then
         BUFFER="fg"
         zle accept-line
     else
@@ -60,7 +60,7 @@ function chpwd() {
 [ -e ~/.cache/wal/colors-tty.sh ] && source ~/.cache/wal/colors-tty.sh
 #[ -e ~/.secrets ] && source ~/.secrets
 [ -e /etc/profile.d/google-cloud-sdk.sh ] && source /etc/profile.d/google-cloud-sdk.sh
-[ -e ~/.local/share/mdbook_completions.zsh ] && source  ~/.local/share/mdbook_completions.zsh 
+[ -e ~/.local/share/mdbook_completions.zsh ] && source  ~/.local/share/mdbook_completions.zsh
 setopt autocd #type name of dir to cd
 unsetopt beep #no beep
 bindkey -v #vim keys
@@ -211,38 +211,38 @@ tmux_attach() {
       return 0
     fi
   fi
-  
+
   local saved_buffer="$BUFFER"
   local saved_cursor="$CURSOR"
   BUFFER=""
   CURSOR=0
   zle reset-prompt
-  
+
   # Get active tmux sessions
   local sessions=$(tmux list-sessions 2>/dev/null)
   local active_sessions=$(echo "$sessions" | cut -d: -f1)
-  
+
   # Build list starting with create option
   local session_list="+ Create new session"
-  
+
   # Add active tmux sessions
   if [ -n "$sessions" ]; then
     session_list="$session_list\n$sessions"
   fi
-  
+
   # Add inactive tmuxinator sessions
   if command -v tmuxinator &>/dev/null; then
-    local tmuxinator_projects=$(tmuxinator list 2>/dev/null | tail -n +2)
+    local tmuxinator_projects=$(tmuxinator list -n --skip-active 2>/dev/null | tail -n +2)
     if [ -n "$tmuxinator_projects" ]; then
-      for project in $tmuxinator_projects; do
-        # Skip if this session is already active
-        if ! echo "$active_sessions" | grep -q "^${project}$"; then
+      while IFS= read -r project; do
+        # Skip empty lines
+        if [ -n "$project" ]; then
           session_list="$session_list\n[tmuxinator] $project"
         fi
-      done
+      done <<< "$tmuxinator_projects"
     fi
   fi
-  
+
   local selected=$(echo "$session_list" | fzf \
     --ansi \
     --border=rounded \
@@ -250,29 +250,29 @@ tmux_attach() {
     --color=fg:#cdd6f4,header:#f38ba8,info:#cba6ac,pointer:#f5e0dc \
     --color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6ac,hl+:#f38ba8 \
     --cycle)
-    
+
   if [ -z "$selected" ]; then
     BUFFER="$saved_buffer"
     CURSOR="$saved_cursor"
     zle reset-prompt
     return 0
   fi
-  
+
   if [ "$selected" = "+ Create new session" ]; then
     local tmpfile=$(mktemp /tmp/tmux_session_name_XXXXXX)
     echo "# Enter the new tmux session name on the line below (lines starting with # are ignored)" > "$tmpfile"
     echo "" >> "$tmpfile"
-    
+
     local editor="${EDITOR:-vim}"
     if [[ "$editor" == "nvim" ]] || [[ "$editor" == "vim" ]]; then
       $editor "+normal! 2G" "+startinsert" "$tmpfile"
     else
       $editor "$tmpfile"
     fi
-    
+
     local session_name=$(grep -v '^#' "$tmpfile" | grep -v '^[[:space:]]*$' | head -n1 | xargs)
     rm -f "$tmpfile"
-    
+
     if [ -z "$session_name" ]; then
       echo "No session name provided"
       BUFFER="$saved_buffer"
@@ -280,7 +280,7 @@ tmux_attach() {
       zle reset-prompt
       return 1
     fi
-    
+
     if tmux has-session -t "$session_name" 2>/dev/null; then
       echo "Session '$session_name' already exists"
       BUFFER="$saved_buffer"
@@ -288,7 +288,7 @@ tmux_attach() {
       zle reset-prompt
       return 1
     fi
-    
+
     if [[ "$session_name" =~ [^a-zA-Z0-9_-] ]]; then
       echo "Invalid session name (use only alphanumeric, dash, underscore)"
       BUFFER="$saved_buffer"
@@ -296,7 +296,7 @@ tmux_attach() {
       zle reset-prompt
       return 1
     fi
-    
+
     BUFFER="tmux new-session -s '$session_name'"
     zle accept-line
   elif [[ "$selected" == "[tmuxinator] "* ]]; then
@@ -313,7 +313,7 @@ tmux_attach() {
 }
 zle -N tmux_attach
 bindkey -M viins '^b' tmux_attach
-bindkey -M vicmd '^b' tmux_attach 
+bindkey -M vicmd '^b' tmux_attach
 
 function _rg_fzf_widget() {
   local script_path="$bin/_rg_fzf.sh"  # Adjust path as needed
@@ -347,8 +347,8 @@ compinit
 autoload -U colors && colors
 PS1="%B%{$fg[yellow]%}[%{$fg[magenta]%}%n%{$fg[green]%}@%{$fg[blue]%}%M %{$fg[red]%}%~%{$fg[yellow]%}]%{$reset_color%}$%b "
 
-[ -e "$HOME/.config/sh/shrc" ] && source "$HOME/.config/sh/shrc" #load alias and exports 
-[ -e "$HOME/.zshrc_extra" ] && source "$HOME/.zshrc_extra" #load platform specifcs 
+[ -e "$HOME/.config/sh/shrc" ] && source "$HOME/.config/sh/shrc" #load alias and exports
+[ -e "$HOME/.zshrc_extra" ] && source "$HOME/.zshrc_extra" #load platform specifcs
 [ -e "/usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ] && source "/usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 [ -e "/usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" ] && source "/usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" && bindkey '^ ' autosuggest-accept
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#46ff00,bg=black,bold,underline"

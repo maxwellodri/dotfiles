@@ -1,11 +1,14 @@
-name: mykaelium
-root: ~/source/mykaelium
+name: nix_config
+root: ~/source/nix_config
 windows:
   - dev:
       layout: even-horizontal
       panes:
-        - nvim mykaelium/src/main.rs
+        - nvim flake.nix
         - opencode .
   - notes:
     - nvim notes/index.md
   - scratch:
+  - vibe:
+        - opencode .
+  - deploy:
