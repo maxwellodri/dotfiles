@@ -1,9 +1,9 @@
 #!/bin/sh
 #
-# ____  _   _ _____ _     _          _    ____ _   _  ___  ____ _____ ___ ____ 
+# ____  _   _ _____ _     _          _    ____ _   _  ___  ____ _____ ___ ____
 #/ ___|| | | | ____| |   | |        / \  / ___| \ | |/ _ \/ ___|_   _|_ _/ ___|
-#\___ \| |_| |  _| | |   | |       / _ \| |  _|  \| | | | \___ \ | |  | | |    
-# ___) |  _  | |___| |___| |___   / ___ \ |_| | |\  | |_| |___) || |  | | |___ 
+#\___ \| |_| |  _| | |   | |       / _ \| |  _|  \| | | | \___ \ | |  | | |
+# ___) |  _  | |___| |___| |___   / ___ \ |_| | |\  | |_| |___) || |  | | |___
 #|____/|_| |_|_____|_____|_____| /_/   \_\____|_| \_|\___/|____/ |_| |___\____|
 #
 #command -v todobin > /dev/null && todobin #no
@@ -47,7 +47,7 @@ fi
 ################
 #Aliases:
 ###############
-#type fzf >> /dev/null && type fd >> /dev/null 
+#type fzf >> /dev/null && type fd >> /dev/null
 alias cat='bat'
 alias crontab='VISUAL=vim && crontab'
 alias myip='curl ipinfo.io/ip'
@@ -111,7 +111,7 @@ ytdl () {
     while [ "$#" -gt 0 ]
     do
         case "$1" in
-            --dir) 
+            --dir)
                 if [ "$pwd_flag" = true ]
                 then
                     echo "Error: Cannot use both --pwd and --dir options."
@@ -135,7 +135,7 @@ ytdl () {
                 pwd_flag=true
                 dir="$PWD"
                 shift ;;
-            *) 
+            *)
                 # Add URL to space-separated list
                 urls="${urls:+$urls }$1"
                 shift ;;
@@ -147,7 +147,7 @@ ytdl () {
         return 1
     fi
     [ -z "$dir" ] && dir="$HOME/Downloads/ytdlp"
-    
+
     # Process URLs
     old_IFS="$IFS"
     IFS=" "
@@ -188,8 +188,7 @@ alias mpvw='mpv --pause --no-fullscreen'
 #type exa >/dev/null && alias ls="exa --color=auto -h --group-directories-first"
 #type exa >/dev/null && alias l="exa --color=auto -h --group-directories-first"
 #type exa >/dev/null && alias lsa="exa --color=auto -ha --group-directories-first"
-alias ls="/bin/ls -h --color=auto --group-directories-first"
-alias lls="/bin/ls"
+alias ls="eza"
 alias grep="grep --color=auto"
 alias mv="mv -v"
 alias cp="cp -v"

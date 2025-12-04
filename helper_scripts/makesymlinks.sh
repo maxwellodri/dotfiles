@@ -3,9 +3,9 @@
 # This script creates symlinks from the home directory to any desired dotfiles in ~/dotfiles, set by the variables below
 ############################
 
-########### Fixed Variables (dont change) 
+########### Fixed Variables (dont change)
 dir="$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel)" #dotfiles git root directory
-i3config=.config/i3/config #combines with below to make i3 
+i3config=.config/i3/config #combines with below to make i3
 i3statusconfig=.config/i3status/config
 dotfiles=.config/dotfiles/
 zathura=.config/zathura/zathurarc
@@ -41,10 +41,10 @@ font=".config/fontconfig/fonts.conf"
 i3=" $i3config $i3statusconfig"
 xfiles=" .config/X11/xinitrc .config/X11/.Xresources .config/X11/.Xmodmap .config/neovide $zathura $picom $dunst $ncmpcpp $sxhkdconfig $rofi $gtk $qt $alacritty $font"
 bash=" .bashrc .bashrc_extra .bash_profile $sh $pam"
-zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam" 
+zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam"
 files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $gitconfig $npm $faucet"
 
-########### 
+###########
 pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles" #platform specific dotfiles
 hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles"
 
@@ -65,7 +65,7 @@ case $1 in
         ln -sf "$PWD/dwm/startup.sh" "$HOME/.local/share/dwm/autostart.sh"
         ;;
 
-    "clean")        echo "Removing all symlinks..." 
+    "clean")        echo "Removing all symlinks..."
         for file in $all; do
             [ -L "$HOME/$file" ] && unlink "$HOME/$file" && echo "Unlinked $file"
         done
@@ -73,8 +73,8 @@ case $1 in
         exit
         ;;
 
-    *)              
-        echo "Pick a device and pass as first argument" 
+    *)
+        echo "Pick a device and pass as first argument"
         exit
         ;;
 
@@ -114,7 +114,7 @@ echo "...Done"
 echo ""
 
 
-# move any existing dotfiles in homedir to dotfiles_old directory, then create symlinks 
+# move any existing dotfiles in homedir to dotfiles_old directory, then create symlinks
 for file in $files; do
     dest="$HOME/$file"
     [ -e "$dest" ] && echo "Moving existing $file from $dest to $olddir" && mv "$dest" "$olddir"
@@ -141,7 +141,7 @@ for file in $files; do
         *)                      src="$dir/$file"
             ;;
 
-        esac 
+        esac
         echo "Creating symlink from $src to ~/$file."
         echo " "
         ln -s "$src" "$HOME/$file"
