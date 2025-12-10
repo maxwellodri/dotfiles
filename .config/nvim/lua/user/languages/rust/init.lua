@@ -1,5 +1,5 @@
 local M = {}
-M.open_workspace_toml = function() 
+M.open_workspace_toml = function()
   local git_root = vim.fn.systemlist('git rev-parse --show-toplevel')[1]
   if vim.v.shell_error ~= 0 then
     vim.notify("Not in a git repository")
@@ -86,16 +86,30 @@ M.setup = function(opts)
         local clients = vim.lsp.get_clients({bufnr = bufnr, name = 'rust_analyzer'})
         if not clients[1] then return end
 
-        local params = vim.lsp.util.make_range_params(0, clients[1].offset_encoding)
+        local start_line = vim.fn.line('v') - 1
+        local end_line = vim.fn.line('.') - 1
+        local min_line = math.min(start_line, end_line)
+        local max_line = math.max(start_line, end_line)
+
+        local params = {
+          textDocument = vim.lsp.util.make_text_document_params(bufnr),
+          ranges = {{
+            start = { line = min_line, character = 0 },
+            ["end"] = { line = max_line + 1, character = 0 }
+          }}
+        }
+
         clients[1]:request('experimental/joinLines', params, function(err, result)
           if err then
             vim.notify("Join lines failed: " .. vim.inspect(err), vim.log.levels.ERROR)
           elseif result then
             vim.lsp.util.apply_text_edits(result, bufnr, clients[1].offset_encoding)
+            vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'n', false)
+            vim.api.nvim_win_set_cursor(0, {min_line + 1, 0})
+            vim.cmd('normal! ^')
           end
         end, bufnr)
       end, "Join Lines")
-
       map("n", "<leader>gk", function()
         local clients = vim.lsp.get_clients({bufnr = bufnr, name = 'rust_analyzer'})
         if not clients[1] then return end
