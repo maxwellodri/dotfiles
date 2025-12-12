@@ -14,7 +14,9 @@
         "show_button_convert_local": false,
         "hide_downloaded": false
     },
+    "show_context_menu": false,
     "forget_media_on_tab_close": true,
+    "use_wide_ui": true,
     "use_sidebar": true,
     "open_count_store": 3
 }
