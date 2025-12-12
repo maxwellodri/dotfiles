@@ -33,7 +33,7 @@ let &packpath=&runtimepath
     Plug 'tpope/vim-surround' "adds s vim adjevtive
     Plug 'tpope/vim-eunuch' "unix commands
     Plug 'farmergreg/vim-lastplace' "Keep cursor on quit
-    Plug 'Raimondi/delimitMate' "auto create quotes, bracket pairs 
+    Plug 'Raimondi/delimitMate' "auto create quotes, bracket pairs
     Plug 'nvim-lua/plenary.nvim' "library of functions, used by other modules
     Plug 'MunifTanjim/nui.nvim' "ui component library
     Plug 'kyazdani42/nvim-web-devicons' "library of icons
@@ -42,7 +42,7 @@ let &packpath=&runtimepath
     " =================
     " Language Support
     " =================
-    function! TSCustomInstall(info) 
+    function! TSCustomInstall(info)
         " info is a dictionary with 3 fields
         " - name:   name of the plugin
         " - status: 'installed', 'updated', or 'unchanged'
@@ -63,12 +63,13 @@ let &packpath=&runtimepath
     Plug 'ron-rs/ron.vim'
     Plug 'leafgarland/typescript-vim'
     Plug 'raimon49/requirements.txt.vim' "requirement.txt support
-    Plug 'DingDean/wgsl.vim' 
+    Plug 'DingDean/wgsl.vim'
     Plug 'chrisbra/csv.vim'
     Plug 'mechatroner/rainbow_csv'
     Plug 'elkowar/yuck.vim'
     Plug 'habamax/vim-godot'
-  
+    Plug 'elkowar/yuck.vim'
+
     " ============ "
     " Rust Support "
     " ============ "
@@ -89,7 +90,7 @@ let &packpath=&runtimepath
     Plug 'hrsh7th/cmp-path'
     Plug 'hrsh7th/cmp-cmdline'
     Plug 'hrsh7th/cmp-nvim-lsp'
-    Plug 'saadparwaiz1/cmp_luasnip' 
+    Plug 'saadparwaiz1/cmp_luasnip'
     Plug 'hrsh7th/cmp-nvim-lua'
     Plug 'hrsh7th/cmp-nvim-lsp-document-symbol'
     Plug 'L3MON4D3/LuaSnip' "snippet engine
@@ -123,7 +124,7 @@ let &packpath=&runtimepath
     " ==============
     " Visual / Appearance
     " ==============
-    Plug 'kien/rainbow_parentheses.vim' 
+    Plug 'kien/rainbow_parentheses.vim'
     Plug 'machakann/vim-highlightedyank' "highlight on yank
     Plug 'Yggdroot/indentLine' "depcrecated
     Plug 'nvim-lualine/lualine.nvim'
@@ -132,16 +133,16 @@ let &packpath=&runtimepath
     Plug 'stevearc/dressing.nvim'
 
     " ===============
-    " Color Schemes 
+    " Color Schemes
     " ===============
     Plug 'tomasiser/vim-code-dark'
     Plug 'tomasr/molokai'
     "Plug 'morhetz/gruvbox'
     Plug 'ellisonleao/gruvbox.nvim'
     Plug 'RRethy/nvim-base16'
-    Plug 'ghifarit53/tokyonight-vim' 
+    Plug 'ghifarit53/tokyonight-vim'
     Plug 'savq/melange'
-    Plug 'ajmwagar/vim-deus' 
+    Plug 'ajmwagar/vim-deus'
     Plug 'sainnhe/edge'
     Plug 'jnurmine/Zenburn'
     Plug 'arzg/vim-colors-xcode'
@@ -231,15 +232,15 @@ let &packpath=&runtimepath
     autocmd BufWritePre *.csv silent! RainbowAlign
 
  " Python Options
-    autocmd Filetype python set tabstop=4 
+    autocmd Filetype python set tabstop=4
     autocmd Filetype python set softtabstop=4
     autocmd Filetype python set shiftwidth=4
     autocmd Filetype python set textwidth=79 "pep conformance 🤔
-    autocmd Filetype python set autoindent 
+    autocmd Filetype python set autoindent
     autocmd Filetype python set expandtab
-    autocmd Filetype python set fileformat=unix 
+    autocmd Filetype python set fileformat=unix
     "add #type: ignore to EOL to ignore type warnings for pyright:
-    autocmd Filetype python map <silent>,ignore $a #type: ignore<Esc> 
+    autocmd Filetype python map <silent>,ignore $a #type: ignore<Esc>
     autocmd BufWritePre *.py lua vim.lsp.buf.format()
 "C#
     autocmd BufWritePre *.cs lua vim.lsp.buf.format()
@@ -284,9 +285,9 @@ let &packpath=&runtimepath
         else
             let l:dir_curr = a:1
         endif
-    
+
         let l:dir_last = ""
-    
+
         while l:dir_last != l:dir_curr
             if isdirectory(l:dir_curr . '/src') || filereadable(l:dir_curr . '/src')
                 return l:dir_curr . '/src'
@@ -297,7 +298,7 @@ let &packpath=&runtimepath
         endwhile
         return ""
     endfunction
-    
+
     function! CdSrcDir()
       let g:src_dir = GetSrcDir()
       if strlen(g:src_dir)
@@ -313,7 +314,7 @@ let &packpath=&runtimepath
         echo 'Changed to parent'
       endif
     endfunction
-    
+
     autocmd Filetype rust nnoremap <leader>ds :call CdSrcDir()<CR>
     autocmd Filetype rust nnoremap <leader>dS :call CdParent()<CR>
     let g:rustfmt_autosave = 1
@@ -365,7 +366,7 @@ let &packpath=&runtimepath
     autocmd Filetype rust let g:indentLine_enabled = 1
 " keybinds & utils
 "autocmd Filetype rust map <silent><leader><leader> :w<CR>:!rustfmt %<CR>:!cargo check<CR>
-"nnoremap ,latex :-1read $dotfiles/snippets/assignment.tex<CR>72jo "use <leader>,<CMD> 
+"nnoremap ,latex :-1read $dotfiles/snippets/assignment.tex<CR>72jo "use <leader>,<CMD>
 "nnoremap ,texfig :-1read $dotfiles/snippets/figure.tex<CR><CR>$i
 "" ========================
 "" Tagbar
@@ -389,18 +390,18 @@ lua << EOF
 function _G.ReloadVimConfig()
     vim.g.suppress_tmux_reload_msg = true
     vim.g.reloading_config = true  -- Add flag
-    
+
     vim.cmd('silent! write')
-    
+
     -- Clear Lua cache first
     for name, _ in pairs(package.loaded) do
         if name:match('^user') or name:match('^snacks') then
             package.loaded[name] = nil
         end
     end
-    
+
     vim.cmd('source $MYVIMRC')
-    
+
     vim.g.suppress_tmux_reload_msg = false
     vim.g.reloading_config = false
     print("Reloaded vimrc and Lua configuration")
