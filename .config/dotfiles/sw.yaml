@@ -38,9 +38,13 @@ projects:
     handler_override: "handlers/video_handler.sh"
     handler_pattern: "*"
     on_enter: "mpv_play -m o"
-  vw: 
+  vw:
     path: "/home/maxwell/Documents/notes"
     on_enter: "vw"
+
+  vile:
+    path: "/home/maxwell/source/vile"
+    filter_out: "./target/"
 
 #name: "example_project"
 #  path: "/path/to/example/project" #project dir, must be absolute, if project doesnt exist, will be hidden from list

@@ -1,10 +1,10 @@
 name: vile
-root: ~/source/mykaelium
+root: ~/source/vile
 windows:
   - dev:
       layout: even-horizontal
       panes:
-        - nvim mykaelium/src/main.rs
+        - nvim src/main.rs
         - opencode .
   - notes:
     - nvim notes/index.md
