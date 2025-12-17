@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+
+# Check for --help flag first
+if [ "$1" == "--help" ]; then
+    cat << 'EOF'
+Usage: summarize_youtube.sh [URL]
+
+Summarizes a YouTube video using the fabric-ai tool.
+
+If a URL is provided as the first argument, it will be used.
+Otherwise, the script will attempt to get the URL from the clipboard
+by executing a script named 'clipboard' which must be in your PATH.
+
+The script performs a sanity check to ensure the URL contains the
+characters for 'youtube' (case-insensitive), but not necessarily as a
+contiguous substring, to handle various URL formats.
+
+Options:
+  --help    Display this help message and exit.
+EOF
+    exit 0
+fi
+
+# --- Configuration ---
+# Check if fabric-ai command exists
+if ! command -v fabric-ai &> /dev/null; then
+    echo "Error: 'fabric-ai' command not found. Please ensure it is installed and in your PATH." >&2
+    exit 1
+fi
+
+# --- URL Source Logic ---
+if [ -n "$1" ]; then
+    # Argument is provided, use it as the URL
+    url="$1"
+    echo "Using URL from command line argument."
+else
+    # No argument, try to get URL from clipboard
+    echo "No URL provided as an argument. Attempting to get URL from clipboard..."
+
+    # Check if the 'clipboard' helper script exists and is executable
+    if ! command -v clipboard &> /dev/null; then
+        echo "Error: 'clipboard' script not found in PATH." >&2
+        echo "Please ensure the 'clipboard' script is saved and executable in a directory within your \$PATH." >&2
+        exit 1
+    fi
+
+    url=$(clipboard)
+
+    # Check if clipboard was empty or the command failed
+    if [ -z "$url" ]; then
+        echo "Error: Clipboard is empty or the 'clipboard' script failed to produce output." >&2
+        exit 1
+    fi
+    echo "URL from clipboard: $url"
+fi
+
+# --- URL Sanity Check ---
+# We use grep for a flexible check. The pattern 'y.*o.*u.*t.*u.*b.*e' matches
+# a 'y' followed later by an 'o', followed later by a 'u', etc.
+# The -i flag makes it case-insensitive, and -q suppresses output.
+if ! echo "$url" | grep -iq 'y.*o.*u.*t.*u.*b.*e'; then
+    echo "Error: The provided URL does not appear to be a YouTube URL." >&2
+    echo "It does not contain the characters for 'youtube' in the correct order." >&2
+    exit 1
+fi
+
+echo "URL sanity check passed."
+
+# --- Execute Fabric Command ---
+echo "Fetching transcript and generating summary..."
+echo "---"
+
+# The core command to summarize the video
+fabric-ai -y "$url" --transcript-with-timestamps | fabric-ai --pattern=youtube_summary
+
+echo "---"
+echo "Summary complete."
+
+exit 0
