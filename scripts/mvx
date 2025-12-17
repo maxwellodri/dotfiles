@@ -92,7 +92,7 @@ cd "$working_dir" || { echo "Error: Could not change to directory '$working_dir'
 
 if ! path_is_valid "$file_path"; then
     trimmed_path=$(echo "$file_path" | xargs)
-    
+
     if [ "$trimmed_path" != "$file_path" ] && path_is_valid "$trimmed_path"; then
         file_path="$trimmed_path"
         echo "Note: Trailing/leading whitespace trimmed from clipboard path."
@@ -125,6 +125,7 @@ elif [ -d "$file_path" ]; then
 fi
 
 available_space=$(df --output=avail "$selected_dir" 2>/dev/null | tail -1)
+available_space=$((available_space * 1024))
 # Fallback for macOS/BSD
 if [ -z "$available_space" ]; then
     available_space=$(df -k "$selected_dir" | tail -1 | awk '{print $4}')
@@ -150,7 +151,7 @@ if [ -f "$destination_path" ]; then
     echo "⚠️ WARNING: Destination file already exists:"
     echo "  $destination_path"
     read -r -p "Do you want to overwrite it? (y/N) " response
-    
+
     if [[ "$response" != "y" ]] && [[ "$response" != "Y" ]]; then
         echo "Move cancelled by user. Exiting."
         exit 0
