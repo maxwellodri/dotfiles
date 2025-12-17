@@ -87,7 +87,7 @@ user_pref("browser.uiCustomization.state", "{\"placements\":{\"widget-overflow-f
 user_pref("browser.uidensity", 1);
 user_pref("browser.urlbar.autocomplete.enabled", false);
 user_pref("browser.urlbar.placeholderName", "Heck");
-user_pref("browser.urlbar.placeholderName.private", Heck");
+user_pref("browser.urlbar.placeholderName.private", "Heck");
 user_pref("browser.urlbar.trimURLs", false);
 user_pref("browser.urlbar.trimHttps", false);
 user_pref("browser.urlbar.untrimOnUserInteraction", false);
