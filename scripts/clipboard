@@ -1,24 +1,43 @@
 #!/bin/sh
 
-if [ "$XDG_SESSION_TYPE" = "wayland" ] || [ -n "$WAYLAND_DISPLAY" ]; then
-    # Wayland
-    if command -v wl-copy >/dev/null 2>&1; then
-        wl-copy
+if [ -t 0 ]; then
+    if [ "$XDG_SESSION_TYPE" = "wayland" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+        if command -v wl-paste >/dev/null 2>&1; then
+            wl-paste
+        else
+            echo "Error: wl-paste not found. Please install wl-clipboard." >&2
+            exit 1
+        fi
     else
-        echo "wl-copy not found" >&2
-        exit 1
+        if command -v xclip >/dev/null 2>&1; then
+            xclip -selection clipboard -o
+        else
+            echo "Error: xclip not found. Please install xclip." >&2
+            exit 1
+        fi
     fi
+
 else
-    # X11 - copy to both primary and clipboard
-    if command -v xclip >/dev/null 2>&1; then
-        # Use a temporary file since sh doesn't have process substitution
-        temp_file=$(mktemp)
-        cat > "$temp_file"
-        xclip -selection primary < "$temp_file"
-        xclip -selection clipboard < "$temp_file"
-        rm "$temp_file"
+    temp_file=$(mktemp)
+    trap 'rm -f "$temp_file"' EXIT
+
+    cat > "$temp_file"
+
+    if [ "$XDG_SESSION_TYPE" = "wayland" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+        # Wayland
+        if command -v wl-copy >/dev/null 2>&1; then
+            wl-copy < "$temp_file"
+        else
+            echo "Error: wl-copy not found. Please install wl-clipboard." >&2
+            exit 1
+        fi
     else
-        echo "xclip not found" >&2
-        exit 1
+        if command -v xclip >/dev/null 2>&1; then
+            xclip -selection primary < "$temp_file"
+            xclip -selection clipboard < "$temp_file"
+        else
+            echo "Error: xclip not found. Please install xclip." >&2
+            exit 1
+        fi
     fi
 fi
