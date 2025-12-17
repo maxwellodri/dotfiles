@@ -58,7 +58,7 @@ let &packpath=&runtimepath
     Plug 'nvim-treesitter/nvim-treesitter-context'
     Plug 'tikhomirov/vim-glsl'
     Plug 'JuliaEditorSupport/julia-vim'
-    Plug 'kevinoid/vim-jsonc'
+    "Plug 'kevinoid/vim-jsonc'
     Plug 'lervag/vimtex'
     Plug 'ron-rs/ron.vim'
     Plug 'leafgarland/typescript-vim'
