@@ -1,23 +1,24 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 if [ -z "$1" ]; then
     echo "Usage: $0 <youtube-channel-url>"
     exit 1
 fi
-
 url="$1"
-
 # Fetch page and extract RSS feed URL
 rss_url=$(curl -s "$url" | grep -oP 'type="application/rss\+xml"[^>]*href="\K[^"]+')
-
 if [ -n "$rss_url" ]; then
     if [[ -n $WAYLAND_DISPLAY ]]; then
         echo "$rss_url" | wl-copy
-        notify-send "RSS Feed Found" "Copied to clipboard"
+        notify-send "RSS Feed Found"
+        sed -i "1i\\$rss_url" ~/.config/newsboat/urls
+        nohup alacritty --hold -e sh -c 'nvim ~/.config/newsboat/urls; exec zsh' > /dev/null 2>&1 &
     elif [[ -n $DISPLAY ]]; then
         echo "$rss_url" | xclip -selection clipboard
-        notify-send "RSS Feed Found" "Copied to clipboard"
+        notify-send "RSS Feed Found"
+        sed -i "1i\\$rss_url" ~/.config/newsboat/urls
+        nohup alacritty --hold -e sh -c 'nvim ~/.config/newsboat/urls; exec zsh' > /dev/null 2>&1 &
     else
+        sed -i "1i\\$rss_url" ~/.config/newsboat/urls
         echo "$rss_url"
     fi
 else
