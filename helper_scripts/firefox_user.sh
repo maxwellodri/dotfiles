@@ -1,23 +1,16 @@
 #!/bin/bash
 
-# Path to the profiles.ini file
 profiles_ini="$HOME/.mozilla/firefox/profiles.ini"
-
-# Path to the user.js and userChrome.css files
 user_js_path="$PWD/firefox/user.js"
 user_chrome_css_path="$PWD/firefox/userChrome.css"
 user_content_css_path="$PWD/firefox/userContent.css"
-
-# Directory for backups
 backup_dir=$(mktemp -d)
 
-# Check if user.js file exists
 if [ ! -f "$user_js_path" ]; then
     echo "Error: $user_js_path does not exist."
     exit 1
 fi
 
-# Check if userChrome.css file exists
 if [ ! -f "$user_chrome_css_path" ]; then
     echo "Error: $user_chrome_css_path does not exist."
     exit 1
@@ -59,13 +52,11 @@ if [ -n "$default_profile" ]; then
         mv "$profile_user_js" "$backup_dir/user.js"
         echo "Backup created at $backup_dir/user.js"
     fi
-
-    # Link the user.js file to the profile directory
     ln -s "$user_js_path" "$profile_user_js"
     echo "user.js linked to $profile_user_js"
 
     # Handle existing userChrome.css
-    mkdir -p "$profile_chrome_dir"  # Ensure chrome directory exists
+    mkdir -p "$profile_chrome_dir"
     if [ -L "$profile_user_chrome_css" ]; then
         if [ "$(readlink -- "$profile_user_chrome_css")" == "$user_chrome_css_path" ]; then
             echo "userChrome.css is already linked correctly."
@@ -79,7 +70,6 @@ if [ -n "$default_profile" ]; then
         echo "Backup created at $backup_dir/userChrome.css"
     fi
 
-    # Link the userChrome.css file to the profile directory
     ln -s "$user_chrome_css_path" "$profile_user_chrome_css"
     echo "userChrome.css linked to $profile_user_chrome_css"
 
@@ -96,9 +86,8 @@ if [ -n "$default_profile" ]; then
         echo "Backup created at $backup_dir/userContent.css"
     fi
 
-# Link the userContent.css file to the profile directory
-ln -s "$user_content_css_path" "$profile_user_content_css"
-echo "userContent.css linked to $profile_user_content_css"
+    ln -s "$user_content_css_path" "$profile_user_content_css"
+    echo "userContent.css linked to $profile_user_content_css"
 else
     echo "No default profile found."
     exit 1
