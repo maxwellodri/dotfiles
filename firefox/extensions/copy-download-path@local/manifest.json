@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Copy Download Path",
+  "version": "1.1",
+  "description": "Adds a context menu to copy download file paths.",
+  "permissions": ["downloads", "clipboardWrite", "contextMenus"],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+  "icons": { "16": "icons/clipboard.svg" },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "copy-download-path@local",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  }
+}
