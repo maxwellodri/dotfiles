@@ -1,8 +1,8 @@
 #!/bin/sh
 if ! ps -e -o args | grep -q '^emacs --daemon$'; then
-	[ ! "$1" = "startup" ] && notify-send -t 1250 "Starting emacs daemon 🤗"
-	emacs --daemon 
-	[ ! "$1" = "startup" ] && emacsclient -c &
+    [ ! "$1" = "startup" ] && notify-send -t 1250 "Starting emacs daemon 🤗"
+    emacs --daemon
+    [ ! "$1" = "startup" ] && emacsclient -c &
 else
-	emacsclient -c &
+    emacsclient -c &
 fi

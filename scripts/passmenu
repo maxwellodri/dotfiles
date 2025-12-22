@@ -3,21 +3,21 @@ shopt -s nullglob globstar
 
 typeit=0
 if [[ $1 == "--type" ]]; then
-	typeit=1
-	shift
+    typeit=1
+    shift
 fi
 
 if [[ -n $WAYLAND_DISPLAY ]]; then
-	dmenu=dmenu-wl
-	xdotool="ydotool type --file -"
-	display="WL"
+    dmenu=dmenu-wl
+    xdotool="ydotool type --file -"
+    display="WL"
 elif [[ -n $DISPLAY ]]; then
-	dmenu=dmenu
-	xdotool="xdotool type --clearmodifiers --file -"
-	display="X11"
+    dmenu=dmenu
+    xdotool="xdotool type --clearmodifiers --file -"
+    display="X11"
 else
-	echo "Error: No Wayland or X11 display detected" >&2
-	exit 1
+    echo "Error: No Wayland or X11 display detected" >&2
+    exit 1
 fi
 
 prefix=${PASSWORD_STORE_DIR-~/.password-store}
@@ -41,7 +41,7 @@ if [[ $typeit -eq 0 ]]; then
         password_text=$(pass $show_subcommand "$password" | head -n1)
         echo -n "$password_text" | xclip -selection clipboard 2>/dev/null
         echo -n "$password_text" | xclip -selection primary 2>/dev/null
-        
+
         password_hash=$(echo -n "$password_text" | sha256sum | cut -d' ' -f1) #keep in sync with _pass_clear_clip hashing
         [ -n "$bin" ] && nohup "$bin/_pass_clear_clip" "$password_hash" >/dev/null 2>&1 &
     else

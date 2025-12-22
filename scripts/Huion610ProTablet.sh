@@ -18,6 +18,6 @@ case "$1" in
                 ;;
 esac
 
-#HUION Huion Tablet Pen stylus   	id: xx	type: STYLUS    
-#HUION Huion Tablet Pad pad      	id: yy	type: PAD       
+#HUION Huion Tablet Pen stylus      id: xx  type: STYLUS
+#HUION Huion Tablet Pad pad         id: yy  type: PAD
 

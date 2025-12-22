@@ -1,44 +1,44 @@
-#           _     _       _          
-#  _____  _| |__ | | ____| |_ __ ___ 
+#           _     _       _
+#  _____  _| |__ | | ____| |_ __ ___
 # / __\ \/ / '_ \| |/ / _` | '__/ __|
-# \__ \>  <| | | |   < (_| | | | (__ 
+# \__ \>  <| | | |   < (_| | | | (__
 # |___/_/\_\_| |_|_|\_\__,_|_|  \___|
-#                                    
-#  ____                                          
-# |  _ \ _ __ ___   __ _ _ __ __ _ _ __ ___  ___ 
+#
+#  ____
+# |  _ \ _ __ ___   __ _ _ __ __ _ _ __ ___  ___
 # | |_) | '__/ _ \ / _` | '__/ _` | '_ ` _ \/ __|
 # |  __/| | | (_) | (_| | | | (_| | | | | | \__ \
 # |_|   |_|  \___/ \__, |_|  \__,_|_| |_| |_|___/
-#                  |___/                         
+#                  |___/
 super + Return
-	alacritty msg --socket "$XDG_RUNTIME_DIR/alacritty.sock" create-window #$dotfiles/dwm/startup.sh spawns daemon, $XDG_RUNTIME_DIR cleaned up on logout 
+    alacritty msg --socket "$XDG_RUNTIME_DIR/alacritty.sock" create-window #$dotfiles/dwm/startup.sh spawns daemon, $XDG_RUNTIME_DIR cleaned up on logout
 super + d
-	dmenu_run 
+    dmenu_run
 super + e
-	emojis
+    emojis
 super + shift + Tab
-	lockme
+    lockme
 super + shift + a
-	appender
+    appender
 super + Insert
-	bash -e passmenu
+    bash -e passmenu
 super + shift + Insert
-	bash -e qrpass
+    bash -e qrpass
 super + shift + b
-	bookmarks
+    bookmarks
 super + shift + alt + s
-	colorpicker
+    colorpicker
 super + End
     /home/maxwell/bin/interactive_bookmarks.sh
 
 super + shift + Escape
-	set_kb_map && notify-send -t 1000 "Correctly Set Capslock => Escape 😍"
+    set_kb_map && notify-send -t 1000 "Correctly Set Capslock => Escape 😍"
 super + shift + w
     $bin/wg_switcher.sh
 super + w
     wallpaper-shader
 super + shift + t
-	faucet
+    faucet
 super + shift + s
     screenshot
 super + shift + q
@@ -50,38 +50,38 @@ super + shift + m
     mp_queue_song
 
 
-#  _                    _      
-# | |_ ___   __ _  __ _| | ___ 
+#  _                    _
+# | |_ ___   __ _  __ _| | ___
 # | __/ _ \ / _` |/ _` | |/ _ \
 # | || (_) | (_| | (_| | |  __/
 #  \__\___/ \__, |\__, |_|\___|
-#           |___/ |___/        
+#           |___/ |___/
 #Programs:
 super + F13
-	pkill -USR1 -x sxhkd && notify-send "🤔 sxhkd reloaded 🤔"
+    pkill -USR1 -x sxhkd && notify-send "🤔 sxhkd reloaded 🤔"
 super + F1
     _mpc_toggle
 super + F2
-	_mpc_volume +5
+    _mpc_volume +5
 super + F3
-	_mpc_volume -5
+    _mpc_volume -5
 
 super + shift + F2
-	_pactl_volume +5%
+    _pactl_volume +5%
 super + shift + F3
-	_pactl_volume -5%
+    _pactl_volume -5%
 super + q
-    [ timew ] && timew stop | timew start 
+    [ timew ] && timew stop | timew start
 #Media:
 XF86AudioPlay
-	mpc toggle
+    mpc toggle
 XF86AudioNext
-	mpc next
+    mpc next
 XF86AudioPrev
-	mpc prev
+    mpc prev
 XF86Tools
-	notify-send -t 2000 "Now Playing" "$(mpc --format '%title% \n%artist% - %album%' current)"
+    notify-send -t 2000 "Now Playing" "$(mpc --format '%title% \n%artist% - %album%' current)"
 XF86AudioRaiseVolume
-	pactl set-sink-volume @DEFAULT_SINK@ +5%
+    pactl set-sink-volume @DEFAULT_SINK@ +5%
 XF86AudioLowerVolume
-	pactl set-sink-volume @DEFAULT_SINK@ -5%
+    pactl set-sink-volume @DEFAULT_SINK@ -5%

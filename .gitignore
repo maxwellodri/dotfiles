@@ -1,4 +1,4 @@
-#ignore normal i3-config file, for reference they are created by shell script with cat from base i3 config + device specific config file, check ~/.bashrc for aliases 
+#ignore normal i3-config file, for reference they are created by shell script with cat from base i3 config + device specific config file, check ~/.bashrc for aliases
 .config/i3/config
  #its just a symlink:
 .config/i3/config.extra
@@ -17,9 +17,10 @@ dwm/nohup.out
 .\#*
 dwm/network_touch.txt
 dwm/package_file.txt
-.config/gtk-3.0/bookmarks  
+.config/gtk-3.0/bookmarks
 .dotfile_tag
 ai/llama.cpp/models/*
 ai/whisper.cpp/models/*
 ai/whisper.cpp/audio/*
 rust/*/target/*
+firefox/zipped_extensions/
