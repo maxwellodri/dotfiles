@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+ZAI_MCP_API_KEY=$(pass zai_mcp_api_key) $HOME/source/opencode/bin/opencode
