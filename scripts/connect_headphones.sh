@@ -8,29 +8,46 @@ bluetoothctl agent on >/dev/null 2>&1
 
 # Handle --pair flag
 if [ "$1" = "--pair" ]; then
-    bluetoothctl pairable on >/dev/null 2>&1
-    bluetoothctl discoverable on >/dev/null 2>&1
     echo "Removing device..."
     bluetoothctl remove "$MAC" 2>/dev/null
+
     echo "Scanning for device (put headphones in pairing mode)..."
-    bluetoothctl scan on >/dev/null 2>&1 &
+
+    (
+        bluetoothctl <<EOF
+power on
+agent on
+pairable on
+discoverable on
+scan on
+EOF
+    ) &
     SCAN_PID=$!
-    
-    # Wait for device to appear
+
+    DEVICE_FOUND=0
     for i in {1..30}; do
-        if bluetoothctl devices | grep -q "$MAC"; then
+        if bluetoothctl devices 2>/dev/null | grep -q "$MAC"; then
+            DEVICE_FOUND=1
+            echo "Device found!"
             break
         fi
         sleep 1
     done
-    
+
     kill $SCAN_PID 2>/dev/null
-    bluetoothctl scan off >/dev/null 2>&1
-    
+    wait $SCAN_PID 2>/dev/null
+
+    if [ $DEVICE_FOUND -eq 0 ]; then
+        echo "Device not found. Please ensure headphones are in pairing mode."
+        exit 1
+    fi
+
     echo "Pairing..."
     bluetoothctl pair "$MAC"
     bluetoothctl trust "$MAC"
     bluetoothctl connect "$MAC"
+
+    echo "Pairing complete."
     exit 0
 fi
 
