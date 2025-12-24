@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+set -e
+
+tmpfile=$(mktemp /tmp/skill_name_XXXXXX)
+echo "# Enter a skill name" > "$tmpfile"
+echo "" >> "$tmpfile"
+echo "#" >> "$tmpfile"
+
+nvim "+normal! 2G" "+startinsert" "$tmpfile"
+
+skill_name=$(grep -v '^#' "$tmpfile" | grep -v '^[[:space:]]*$' | head -n1 | xargs)
+rm -f "$tmpfile"
+
+if [ -z "$skill_name" ]; then
+    echo "No skill name provided"
+    exit 1
+fi
+
+if [[ ! "$skill_name" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+    echo "Invalid skill name '$skill_name'. Must match: ^[a-z0-9]+(-[a-z0-9]+)*$"
+    echo "Must be 1-64 characters, lowercase alphanumeric with single hyphen separators"
+    echo "Cannot start or end with '-', no consecutive '--'"
+    exit 1
+fi
+
+git_root=$(git rev-parse --show-toplevel 2>/dev/null)
+
+if [ -z "$git_root" ]; then
+    echo "Not in a git repository"
+    exit 1
+fi
+
+skill_dir="$git_root/.opencode/skill/$skill_name"
+skill_file="$skill_dir/SKILL.md"
+
+mkdir -p "$skill_dir"
+
+cat > "$skill_file" << EOF
+---
+name: $skill_name
+description:
+---
+EOF
+
+nvim "+normal! 3G^13l" "+startinsert" "$skill_file"
