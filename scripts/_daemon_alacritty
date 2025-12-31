@@ -1,4 +1,5 @@
 #!/bin/sh
+cd "$HOME"
 SOCKET="$XDG_RUNTIME_DIR/alacritty.sock"
 [ -e "$SOCKET" ] && rm -f "$SOCKET"
 pkill -f 'alacritty --daemon' 2>/dev/null || true
