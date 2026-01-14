@@ -35,7 +35,7 @@ npm=".config/npm/"
 faucet=".config/faucet/"
 alacritty=".config/alacritty/"
 font=".config/fontconfig/fonts.conf"
-opencode=".config/opencode/opencode.json"
+opencode=".config/opencode/opencode.json .config/opencode/skill/"
 
 
 ########### Meta Variables

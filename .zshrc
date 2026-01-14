@@ -33,6 +33,10 @@ function fg-bg {
     fi
 }
 
+autoload -Uz edit-command-line
+zle -N edit-command-line
+bindkey '^x^e' edit-command-line
+
 zle -N fg-bg
 bindkey '^z' fg-bg
 
@@ -191,12 +195,12 @@ bindkey -M viins '^F' sw_widget
 stty -ixon
 
 zle -N sw_find
-bindkey -M vicmd '^S' sw_find
-bindkey -M viins '^S' sw_find
+bindkey -M vicmd '^x^s' sw_find
+bindkey -M viins '^x^s' sw_find
 
 zle -N _vim_in_dir
-bindkey -M viins '^X' _vim_in_dir
-bindkey -M vicmd '^X' _vim_in_dir
+bindkey -M viins '^x^x' _vim_in_dir
+bindkey -M vicmd '^x^x' _vim_in_dir
 
 #zle -N _git_root
 #bindkey -M viins '^G' _git_root
@@ -454,3 +458,4 @@ do
 done
 
 command -v direnv >/dev/null 2>&1 && eval "$(direnv hook zsh)"
+

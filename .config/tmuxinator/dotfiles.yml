@@ -1,4 +1,4 @@
-name: mykaelium
+name: dotfiles
 root: ~/source/dotfiles/
 windows:
   - dev:

@@ -95,7 +95,7 @@ M.setup = function(opts)
           textDocument = vim.lsp.util.make_text_document_params(bufnr),
           ranges = {{
             start = { line = min_line, character = 0 },
-            ["end"] = { line = max_line + 1, character = 0 }
+            ["end"] = { line = max_line, character = 0 }
           }}
         }
 
