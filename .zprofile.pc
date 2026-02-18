@@ -5,7 +5,7 @@ export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_DATA_HOME="$HOME/.local/share"
 export XDG_CACHE_HOME="$HOME/.cache"
 export XDG_STATE_HOME="$HOME/.local/state"
-[ -e "$HOME/.config/sh/shrc" ] && source "$HOME/.config/sh/shrc" #load alias and exports 
+[ -e "$HOME/.config/sh/shrc" ] && source "$HOME/.config/sh/shrc" #load alias and exports
 source "$XDG_CONFIG_HOME/zsh/xdg.zsh"
 
 export PATH=$HOME/bin:/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl
@@ -17,8 +17,8 @@ export npm_config_prefix="$HOME/.local"
 export GTK_THEME=Arc-Dark
 export XCURSOR_THEME=Arc-Dark
 
-unset beep 
-[ -f /usr/share/vulkan/icd.d/nvidia_icd.json ] && export VK_ICO_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json 
+unset beep
+[ -f /usr/share/vulkan/icd.d/nvidia_icd.json ] && export VK_ICO_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
 
 WM=''  #override for cases below
 export dotfiles="$HOME/source/dotfiles"
@@ -36,6 +36,8 @@ eval "$(command ssh-agent)" > /dev/null
 if [ -z "$WM" ] ; then
     case $XDG_VTNR in
             1)      WM='/usr/local/bin/dwm'
+                    ;;
+            2)      WM='sddm'
                     ;;
             *)      WM=''
                     ;;

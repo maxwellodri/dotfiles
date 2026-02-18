@@ -1,13 +1,21 @@
 #!/usr/bin/env bash
 
-# Check for --help flag first
-if [ "$1" == "--help" ]; then
-    cat << 'EOF'
-Usage: summarize_youtube.sh [URL]
+# Parse flags
+NO_SUMMARY=false
+URL=""
+
+for arg in "$@"; do
+    case "$arg" in
+        --help)
+            cat << 'EOF'
+Usage: yts [OPTIONS] [URL]
 
 Summarizes a YouTube video using the fabric-ai tool.
 
-If a URL is provided as the first argument, it will be used.
+By default, generates a summarized transcript of the video content.
+Use --no-summary to output the raw transcript instead.
+
+If a URL is provided as an argument, it will be used.
 Otherwise, the script will attempt to get the URL from the clipboard
 by executing a script named 'clipboard' which must be in your PATH.
 
@@ -16,10 +24,15 @@ characters for 'youtube' (case-insensitive), but not necessarily as a
 contiguous substring, to handle various URL formats.
 
 Options:
-  --help    Display this help message and exit.
+  --help       Display this help message and exit.
+  --no-summary Print the raw transcript instead of generating a summary.
 EOF
-    exit 0
-fi
+            exit 0
+            ;;
+        --no-summary) NO_SUMMARY=true ;;
+        *) URL="$arg" ;;
+    esac
+done
 
 # --- Configuration ---
 # Check if fabric-ai command exists
@@ -29,9 +42,9 @@ if ! command -v fabric-ai &> /dev/null; then
 fi
 
 # --- URL Source Logic ---
-if [ -n "$1" ]; then
+if [ -n "$URL" ]; then
     # Argument is provided, use it as the URL
-    url="$1"
+    url="$URL"
     echo "Using URL from command line argument."
 else
     # No argument, try to get URL from clipboard
@@ -67,13 +80,27 @@ fi
 echo "URL sanity check passed."
 
 # --- Execute Fabric Command ---
-echo "Fetching transcript and generating summary..."
+if [ "$NO_SUMMARY" = true ]; then
+    echo "Fetching raw transcript..."
+else
+    echo "Fetching transcript and generating summary..."
+fi
 echo "---"
 
 # The core command to summarize the video
-fabric-ai -y "$url" --transcript-with-timestamps | fabric-ai --pattern=youtube_summary
+transcript=$(fabric-ai -y "$url" --transcript-with-timestamps)
+if [ $? -ne 0 ] || [ -z "$transcript" ]; then
+    echo "Error: Failed to fetch transcript." >&2
+    exit 1
+fi
+
+if [ "$NO_SUMMARY" = true ]; then
+    echo "$transcript"
+else
+    echo "$transcript" | fabric-ai --pattern=youtube_summary
+fi
 
 echo "---"
-echo "Summary complete."
+echo "Done."
 
 exit 0
