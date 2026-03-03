@@ -36,7 +36,7 @@ projects:
     path: "/home/maxwell/Videos/youtube"
     filter_out: "(.*part|.*json)"
     handler_override: "handlers/video_handler.sh"
-    handler_pattern: "*"
+    handler_pattern: ".*"
     on_enter: "mpv_play -m o"
   vw:
     path: "/home/maxwell/Documents/notes"

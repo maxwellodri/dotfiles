@@ -192,9 +192,9 @@ let &packpath=&runtimepath
     \ ['red',         'firebrick3'],
     \ ]
     au VimEnter * RainbowParenthesesToggle
-    au Syntax * RainbowParenthesesLoadRound
-    au Syntax * RainbowParenthesesLoadSquare
-    au Syntax * RainbowParenthesesLoadBraces
+    au VimEnter * RainbowParenthesesLoadRound
+    au VimEnter * RainbowParenthesesLoadSquare
+    au VimEnter * RainbowParenthesesLoadBraces
 
     let g:did_load_filetypes = 0
     let g:do_filetype_lua = 0

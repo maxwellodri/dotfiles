@@ -22,5 +22,6 @@ dwm/package_file.txt
 ai/llama.cpp/models/*
 ai/whisper.cpp/models/*
 ai/whisper.cpp/audio/*
+docker/transcribe/models/
 rust/*/target/*
 firefox/zipped_extensions/

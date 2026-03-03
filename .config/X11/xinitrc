@@ -3,7 +3,7 @@ userresources=$XDG_CONFIG_HOME/X11/.Xresources
 usermodmap=$XDG_CONFIG_HOME/X11/.Xmodmap
 sysresources=/etc/X11/xinit/.Xresources
 sysmodmap=/etc/X11/xinit/.Xmodmap
-export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.x86_64.json
+#export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.x86_64.json
 export LUTRIS_SKIP_INIT
 
 # merge in defaults and keymaps
@@ -48,6 +48,6 @@ if [ "$(basename "$WM")" = "dwm" ]; then
     wait $startdwm_pid
     #sleep 10000
     #while [[ true ]]; do
-    #    sleep 1 
+    #    sleep 1
     #done
-fi 
+fi

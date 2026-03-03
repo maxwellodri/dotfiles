@@ -1,0 +1,11 @@
+services:
+  whisper:
+    build: .
+    container_name: whisper-transcribe
+    restart: unless-stopped
+    volumes:
+      - ./models:/models
+      - /tmp/whisper:/transcribe/input:ro
+    environment:
+      - WHISPER_MODEL=base
+      - CT2_VERBOSE=0

@@ -333,7 +333,10 @@ def switch_project(path_only: bool = False, use_gui = False):
                     for name, path, tmux_session in projects:
                         if name == selected_name:
                             if path_only:
-                                print(f"{path}")
+                                print(f"cd '{path}'")
+                                on_enter_cmd = config.get('projects', {}).get(name, {}).get('on_enter')
+                                if on_enter_cmd:
+                                    print(on_enter_cmd)
                             elif tmux_session:
                                 os.chdir(path)
                                 if project_exists(tmux_session):
@@ -384,7 +387,10 @@ def switch_project(path_only: bool = False, use_gui = False):
                     name, path, tmux_session = parts[0], Path(parts[1]), parts[2] if len(parts) > 2 else ''
                     
                     if path_only:
-                        print(f"{path}")
+                        print(f"cd '{path}'")
+                        on_enter_cmd = config.get('projects', {}).get(name, {}).get('on_enter')
+                        if on_enter_cmd:
+                            print(on_enter_cmd)
                     elif tmux_session:
                         os.chdir(path)
                         if project_exists(tmux_session):

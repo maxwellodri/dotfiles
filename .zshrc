@@ -179,7 +179,7 @@ sw_find() {
 sw_switch() {
    local output
    output=$(sw --path)
-   [[ -n "$output" ]] && cd "$output" && zle reset-prompt
+   [[ -n "$output" ]] && eval "$output" && zle reset-prompt
 }
 
 zle -N sw_switch

@@ -60,6 +60,7 @@ detox
 xdo
 python
 python-yaml
+python-requests
 python-qtconsole
 python-pynvim
 python-xlib

@@ -54,21 +54,28 @@ require('mkdnflow').setup({
         conceal = true,
         cursor = true,
         folds = true,
+        foldtext = true,
         links = true,
         lists = true,
         maps = true,
         paths = true,
         tables = true,
+        templates = true,
+        to_do = true,
+        yaml = false,
         cmp = true,
+        notebook = true,
     },
-    filetypes = {md = true, rmd = true, markdown = true},
+    -- OLD: filetypes = {md = true, rmd = true, markdown = true}
+    filetypes = { markdown = true, rmd = true },
     create_dirs = true,
-    perspective = {
-        priority = 'first',
-        fallback = 'current',
-        root_tell = false,
-        nvim_wd_heel = false,
-        update = false
+    -- RENAMED: perspective → path_resolution
+    path_resolution = {
+        primary = 'first',       -- was perspective.priority
+        fallback = 'current',    -- was perspective.fallback
+        root_marker = false,     -- was perspective.root_tell
+        sync_cwd = false,        -- was perspective.nvim_wd_heel
+        update_on_navigate = false,  -- was perspective.update
     },
     wrap = false,
     bib = {
@@ -81,57 +88,72 @@ require('mkdnflow').setup({
     },
     links = {
         style = 'markdown',
-        name_is_source = true,
+        compact = false,            -- RENAMED from name_is_source (inverted: true → false)
         conceal = false,
-        context = 0,
+        search_range = 0,           -- RENAMED from context
         implicit_extension = nil,
-        transform_implicit = false,
-        transform_explicit = function(text)
+        transform_on_follow = false,    -- RENAMED from transform_implicit
+        transform_on_create = function(text)  -- RENAMED from transform_explicit
             text = text:gsub(" ", "-")
             text = text:lower()
-            --text = os.date('%Y-%m-%d_')..text
-            return(text)
+            return text
         end,
-        create_on_follow_failure = true
+        auto_create = true,         -- RENAMED from create_on_follow_failure
     },
     new_file_template = {
-        use_template = true,
-        placeholders = {
-            before = {
-                title = "link_title",
-                date = "os_date"
-            },
-            after = {}
+        enabled = true,  -- RENAMED from use_template
+        placeholders = {  -- FLATTENED (was nested before/after)
+            title = "link_title",
+            date = "os_date",
         },
         template = "{{ title }}"
     },
+    -- RESTRUCTURED: to_do now uses statuses dict + status_order
     to_do = {
-        symbols = {' ', '-', 'X'},
-        update_parents = true,
-        not_started = ' ',
-        in_progress = '-',
-        complete = 'X'
+        highlight = false,
+        statuses = {
+            not_started = { marker = ' ' },
+            in_progress = { marker = '-' },
+            complete = { marker = 'X' },
+        },
+        status_order = { 'not_started', 'in_progress', 'complete' },
+        status_propagation = {
+            up = true,    -- was update_parents = true
+            down = true,  -- NEW
+        },
+        sort = {
+            on_status_change = false,
+            recursive = false,
+            cursor_behavior = { track = true },
+        },
     },
     foldtext = {
         object_count = true,
-        object_count_icons = 'emoji',
+        object_count_icon_set = 'emoji',  -- RENAMED from object_count_icons
         object_count_opts = function()
             return require('mkdnflow').foldtext.default_count_opts()
         end,
         line_count = true,
         line_percentage = true,
         word_count = false,
-        title_transformer = nil,
-        separator = ' · ',
+        title_transformer = function()
+            return function(text) return text end
+        end,
         fill_chars = {
-            left_edge = '⢾',
-            right_edge = '⡷',
+            left_edge = '⢾⣿⣿',
+            right_edge = '⣿⣿⡷',
+            item_separator = ' · ',       -- was separator (top-level)
+            section_separator = ' ⣹⣿⣏ ',
             left_inside = ' ⣹',
             right_inside = '⣏ ',
             middle = '⣿',
+            -- OLD (single-char, uncomment to restore):
+            -- left_edge = '⢾',
+            -- right_edge = '⡷',
         },
     },
     tables = {
+        type = 'pipe',
         trim_whitespace = true,
         format_on_move = true,
         auto_extend_rows = false,
@@ -140,47 +162,17 @@ require('mkdnflow').setup({
             cell_padding = 1,
             separator_padding = 1,
             outer_pipes = true,
-            mimic_alignment = true
+            apply_alignment = true  -- RENAMED from mimic_alignment
         }
     },
     yaml = {
         bib = { override = false }
     },
-     mappings  = {
+    mappings = {
         MkdnEnter = {{'n', 'v'}, '<CR>'},
-    --     MkdnTab = {'i', '<Tab>'},
-    --     MkdnSTab = {'i', '<S-Tab>'},
-    --     MkdnNextLink = {'n', '<Tab>'},
-    --     MkdnPrevLink = {'n', '<S-Tab>'},
-    --     MkdnNextHeading = {'n', ']]'},
-    --     MkdnPrevHeading = {'n', '[['},
-    --     MkdnGoBack = {'n', '<BS>'},
-    --     MkdnGoForward = {'n', '<Del>'},
-    --     MkdnCreateLink = false, -- see MkdnEnter
-    --     MkdnCreateLinkFromClipboard = false,
-           MkdnFollowLink = {'n', '<CR>'}, -- see MkdnEnter
-    --     MkdnDestroyLink = {'n', '<M-CR>'},
-    --     MkdnTagSpan = {'v', '<M-CR>'},
-    --     MkdnMoveSource = {'n', '<F2>'},
-    --     MkdnYankAnchorLink = {'n', 'yaa'},
-    --     MkdnYankFileAnchorLink = {'n', 'yfa'},
-    --     MkdnIncreaseHeading = {'n', '+'},
-    --     MkdnDecreaseHeading = {'n', '-'},
-    --     MkdnToggleToDo = {{'n', 'v'}, '<C-Space>'},
-           MkdnNewListItemBelowInsert = {'n', 'o'},
-            MkdnNewListItemAboveInsert = false, -- {'n', 'O'},
-           --MkdnExtendList = {'i', '<CR>'},
-    --     MkdnUpdateNumbering = {'n', '<leader>nn'},
-    --     MkdnTableNextCell = {'i', '<Tab>'},
-    --     MkdnTablePrevCell = {'i', '<S-Tab>'},
-    --     MkdnTableNextRow = false,
-    --     MkdnTablePrevRow = {'i', '<M-CR>'},
-    --     MkdnTableNewRowBelow = {'n', '<leader>ir'},
-    --     MkdnTableNewRowAbove = {'n', '<leader>iR'},
-    --     MkdnTableNewColAfter = {'n', '<leader>ic'},
-    --     MkdnTableNewColBefore = {'n', '<leader>iC'},
-    --     MkdnFoldSection = {'n', '<leader>f'},
-    --     MkdnUnfoldSection = {'n', '<leader>F'}
+        MkdnFollowLink = {'n', '<CR>'},
+        MkdnNewListItemBelowInsert = {'n', 'o'},
+        MkdnNewListItemAboveInsert = false,
     }
 })
 

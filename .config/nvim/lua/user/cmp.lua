@@ -153,7 +153,7 @@ cmp.setup {
      -- { name = "codeium" },
   },
   confirm_opts = {
-    beavior = cmp.ConfirmBehavior.Replace,
+    behavior = cmp.ConfirmBehavior.Replace,
     select = false,
   },
   color =  {

@@ -36,7 +36,7 @@ M.settings = {
     },
 
     -- The directory in which to install packages.
-    install_root_dir = vim.fn.stdpath("data").."mason",
+    install_root_dir = vim.fn.stdpath("data").."/mason",
 
     pip = {
         -- These args will be added to `pip install` calls. Note that setting extra args might impact intended behavior

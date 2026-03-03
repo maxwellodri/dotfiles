@@ -11,10 +11,10 @@ commands:
     command: firefox --new-window "$TEXT"
   tsp_ytdlp:
     display: "⬇️ Download with tsp_ytdlp"
-    command: tsp_ytdlp "$TEXT"
+    command: tsp_ytdlp add "$TEXT"
   tsp_ytdlp_batch:
     display: "⬇️ Batch Download with tsp_ytdlp"
-    command: 'echo "$TEXT" | while IFS= read -r url; do [ -n "$url" ] && tsp_ytdlp "$url"; done'
+    command: 'echo "$TEXT" | while IFS= read -r url; do [ -n "$url" ] && tsp_ytdlp add "$url"; done'
   mvx:
     display: "🚚 mv file 🐻"
     command: st -g 100x20+2000+720 -c "stfuzzy" -e sh -c 'mvx --notify-send --dir "$HOME" --file "$TEXT"; exit 0'

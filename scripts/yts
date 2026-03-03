@@ -1,106 +1,198 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
 
-# Parse flags
-NO_SUMMARY=false
-URL=""
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
 
-for arg in "$@"; do
-    case "$arg" in
-        --help)
-            cat << 'EOF'
-Usage: yts [OPTIONS] [URL]
+AUDIO_EXTENSIONS = {'.mp3', '.wav', '.m4a', '.flac', '.ogg', '.aac', '.wma'}
+VIDEO_EXTENSIONS = {'.mp4', '.mkv', '.webm', '.avi', '.mov', '.wmv', '.flv', '.ts'}
+CONTAINER_NAME = "whisper-transcribe"
+WHISPER_MODEL = "base"
+LAST_USED_FILE = "/tmp/.whisper_last_used"
 
-Summarizes a YouTube video using the fabric-ai tool.
 
-By default, generates a summarized transcript of the video content.
-Use --no-summary to output the raw transcript instead.
+def is_youtube_url(s: str) -> bool:
+    pattern = r'y.*o.*u.*t.*u.*b.*e'
+    return bool(re.search(pattern, s, re.IGNORECASE))
 
-If a URL is provided as an argument, it will be used.
-Otherwise, the script will attempt to get the URL from the clipboard
-by executing a script named 'clipboard' which must be in your PATH.
 
-The script performs a sanity check to ensure the URL contains the
-characters for 'youtube' (case-insensitive), but not necessarily as a
-contiguous substring, to handle various URL formats.
+def get_media_extension(path: str) -> str | None:
+    return Path(path).suffix.lower()
 
-Options:
-  --help       Display this help message and exit.
-  --no-summary Print the raw transcript instead of generating a summary.
-EOF
-            exit 0
-            ;;
-        --no-summary) NO_SUMMARY=true ;;
-        *) URL="$arg" ;;
-    esac
-done
 
-# --- Configuration ---
-# Check if fabric-ai command exists
-if ! command -v fabric-ai &> /dev/null; then
-    echo "Error: 'fabric-ai' command not found. Please ensure it is installed and in your PATH." >&2
-    exit 1
-fi
+def is_audio_file(path: str) -> bool:
+    ext = get_media_extension(path)
+    return ext in AUDIO_EXTENSIONS
 
-# --- URL Source Logic ---
-if [ -n "$URL" ]; then
-    # Argument is provided, use it as the URL
-    url="$URL"
-    echo "Using URL from command line argument."
-else
-    # No argument, try to get URL from clipboard
-    echo "No URL provided as an argument. Attempting to get URL from clipboard..."
 
-    # Check if the 'clipboard' helper script exists and is executable
-    if ! command -v clipboard &> /dev/null; then
-        echo "Error: 'clipboard' script not found in PATH." >&2
-        echo "Please ensure the 'clipboard' script is saved and executable in a directory within your \$PATH." >&2
-        exit 1
-    fi
+def is_video_file(path: str) -> bool:
+    ext = get_media_extension(path)
+    return ext in VIDEO_EXTENSIONS
 
-    url=$(clipboard)
 
-    # Check if clipboard was empty or the command failed
-    if [ -z "$url" ]; then
-        echo "Error: Clipboard is empty or the 'clipboard' script failed to produce output." >&2
-        exit 1
-    fi
-    echo "URL from clipboard: $url"
-fi
+def run_cmd(cmd: list[str], check: bool = True, cwd: str | None = None) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, check=check, capture_output=True, text=True, cwd=cwd)
 
-# --- URL Sanity Check ---
-# We use grep for a flexible check. The pattern 'y.*o.*u.*t.*u.*b.*e' matches
-# a 'y' followed later by an 'o', followed later by a 'u', etc.
-# The -i flag makes it case-insensitive, and -q suppresses output.
-if ! echo "$url" | grep -iq 'y.*o.*u.*t.*u.*b.*e'; then
-    echo "Error: The provided URL does not appear to be a YouTube URL." >&2
-    echo "It does not contain the characters for 'youtube' in the correct order." >&2
-    exit 1
-fi
 
-echo "URL sanity check passed."
+def ensure_container_running() -> None:
+    result = run_cmd(["docker", "ps", "-q", "-f", f"name={CONTAINER_NAME}"], check=False)
+    if result.stdout.strip():
+        return
+    
+    dotfiles = os.environ.get("dotfiles")
+    if not dotfiles:
+        print("Error: $dotfiles environment variable not set.", file=sys.stderr)
+        sys.exit(1)
+    compose_dir = Path(dotfiles) / "docker" / "transcribe"
+    if not compose_dir.exists():
+        print(f"Error: Docker compose directory not found at {compose_dir}", file=sys.stderr)
+        sys.exit(1)
+    
+    image_result = run_cmd(["docker", "images", "-q", "transcribe-whisper"], check=False)
+    if not image_result.stdout.strip():
+        print("Building whisper container (first time setup, may take a few minutes)...")
+        build_result = run_cmd(["docker", "compose", "build"], check=False, cwd=str(compose_dir))
+        if build_result.returncode != 0:
+            print(f"Error building container:\n{build_result.stderr}", file=sys.stderr)
+            sys.exit(1)
+    
+    print("Starting whisper container...")
+    run_cmd(["docker", "compose", "up", "-d"], check=True, cwd=str(compose_dir))
+    print("Container started.")
 
-# --- Execute Fabric Command ---
-if [ "$NO_SUMMARY" = true ]; then
-    echo "Fetching raw transcript..."
-else
-    echo "Fetching transcript and generating summary..."
-fi
-echo "---"
 
-# The core command to summarize the video
-transcript=$(fabric-ai -y "$url" --transcript-with-timestamps)
-if [ $? -ne 0 ] || [ -z "$transcript" ]; then
-    echo "Error: Failed to fetch transcript." >&2
-    exit 1
-fi
+def extract_audio(video_path: str, output_path: str) -> None:
+    print(f"Extracting audio from {video_path}...")
+    cmd = [
+        "ffmpeg", "-y", "-i", video_path,
+        "-vn", "-acodec", "libmp3lame", "-q:a", "2",
+        output_path
+    ]
+    run_cmd(cmd)
+    print("Audio extracted.")
 
-if [ "$NO_SUMMARY" = true ]; then
-    echo "$transcript"
-else
-    echo "$transcript" | fabric-ai --pattern=youtube_summary
-fi
 
-echo "---"
-echo "Done."
+def transcribe_file(file_path: str) -> str:
+    ensure_container_running()
+    
+    input_dir = "/tmp/whisper"
+    os.makedirs(input_dir, exist_ok=True)
+    
+    filename = Path(file_path).stem + ".mp3"
+    container_input = f"/transcribe/input/{filename}"
+    local_input = os.path.join(input_dir, filename)
+    
+    if is_video_file(file_path):
+        extract_audio(file_path, local_input)
+    else:
+        shutil.copy2(file_path, local_input)
+    
+    print(f"Transcribing with faster-whisper ({WHISPER_MODEL})...")
+    
+    script = f'''
+import sys
+from faster_whisper import WhisperModel
+model = WhisperModel("{WHISPER_MODEL}", device="cpu", compute_type="int8", download_root="/models")
+segments, info = model.transcribe("{container_input}", beam_size=5)
+for segment in segments:
+    print(segment.text, flush=True)
+'''
+    
+    cmd = ["docker", "exec", CONTAINER_NAME, "python", "-c", script]
+    result = run_cmd(cmd)
+    
+    transcript = result.stdout.strip()
+    
+    Path(LAST_USED_FILE).touch()
+    
+    return transcript
 
-exit 0
+
+def transcribe_youtube(url: str) -> str:
+    print(f"Fetching transcript from YouTube: {url}")
+    result = run_cmd(["fabric-ai", "-y", url, "--transcript-with-timestamps"])
+    return result.stdout.strip()
+
+
+def summarize(text: str) -> str:
+    print("Generating summary...")
+    result = subprocess.run(
+        ["fabric-ai", "--pattern=youtube_summary"],
+        input=text,
+        capture_output=True,
+        text=True
+    )
+    return result.stdout.strip()
+
+
+def get_clipboard() -> str:
+    result = run_cmd(["clipboard"], check=False)
+    return result.stdout.strip()
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Transcribe and summarize YouTube videos or local audio/video files.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  yts https://youtube.com/watch?v=...
+  yts video.mp4
+  yts --no-summary podcast.mp3
+"""
+    )
+    parser.add_argument("input", nargs="?", help="YouTube URL or path to audio/video file")
+    parser.add_argument("--no-summary", action="store_true", help="Output raw transcript without summary")
+    args = parser.parse_args()
+    
+    if not shutil.which("fabric-ai"):
+        print("Error: 'fabric-ai' not found in PATH.", file=sys.stderr)
+        sys.exit(1)
+    
+    input_val = args.input
+    if not input_val:
+        if not shutil.which("clipboard"):
+            print("Error: No input provided and 'clipboard' command not found.", file=sys.stderr)
+            sys.exit(1)
+        print("No input provided. Reading from clipboard...")
+        input_val = get_clipboard()
+        if not input_val:
+            print("Error: Clipboard is empty.", file=sys.stderr)
+            sys.exit(1)
+        print(f"Using: {input_val}")
+    
+    if os.path.isfile(input_val):
+        if not is_audio_file(input_val) and not is_video_file(input_val):
+            print(f"Error: Unsupported file type. Supported: {AUDIO_EXTENSIONS | VIDEO_EXTENSIONS}", file=sys.stderr)
+            sys.exit(1)
+        transcript = transcribe_file(input_val)
+    elif is_youtube_url(input_val):
+        transcript = transcribe_youtube(input_val)
+    else:
+        print(f"Error: Not a YouTube URL or existing file: {input_val}", file=sys.stderr)
+        sys.exit(1)
+    
+    if not transcript:
+        print("Error: Failed to get transcript.", file=sys.stderr)
+        sys.exit(1)
+    
+    print("---")
+    
+    if args.no_summary:
+        print(transcript)
+    else:
+        result = summarize(transcript)
+        print(result)
+    
+    print("---")
+    print("Done.")
+
+
+if __name__ == "__main__":
+    main()

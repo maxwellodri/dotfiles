@@ -1,6 +1,6 @@
 vim.lsp.set_log_level("ERROR")
 require("user.lsp.handlers").setup()
-Opts = {
+local Opts = {
   on_attach = require("user.lsp.handlers").on_attach,
   capabilities = require("user.lsp.handlers").capabilities,
   config = require("user.lsp.handlers").config,
@@ -9,12 +9,48 @@ vim.api.nvim_create_user_command('LspLog', function()
   vim.cmd('tabnew ' .. vim.lsp.get_log_path())
 end, {})
 
-vim.api.nvim_create_user_command('LspRestart', function()
-  vim.lsp.stop_client(vim.lsp.get_clients())
-  vim.defer_fn(function()
-    vim.cmd('edit')
-  end, 500)
+vim.api.nvim_create_user_command('LspStart', function()
+  vim.cmd('doautocmd FileType')
 end, {})
+
+vim.api.nvim_create_user_command('LspStop', function(opts)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local clients = vim.lsp.get_clients({ bufnr = bufnr })
+  if #clients == 0 then
+    vim.notify("No LSP clients attached to current buffer", vim.log.levels.WARN)
+    return
+  end
+  for _, client in ipairs(clients) do
+    vim.lsp.buf_detach_client(bufnr, client.id)
+    if opts.bang then
+      vim.lsp.stop_client(client.id)
+    end
+  end
+  vim.notify("Stopped " .. #clients .. " LSP client(s)", vim.log.levels.INFO)
+end, { bang = true })
+
+vim.api.nvim_create_user_command('LspRestart', function(opts)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local clients = vim.lsp.get_clients({ bufnr = bufnr })
+  if #clients == 0 then
+    vim.notify("No LSP clients attached to current buffer", vim.log.levels.WARN)
+    return
+  end
+  
+  local client_names = {}
+  for _, client in ipairs(clients) do
+    table.insert(client_names, client.name)
+    vim.lsp.buf_detach_client(bufnr, client.id)
+    if opts.bang then
+      vim.lsp.stop_client(client.id)
+    end
+  end
+  
+  vim.defer_fn(function()
+    vim.cmd('doautocmd FileType')
+    vim.notify("Restarted LSP: " .. table.concat(client_names, ", "), vim.log.levels.INFO)
+  end, 100)
+end, { bang = true })
 
 vim.api.nvim_create_user_command('LspInfo', function()
   local bufnr = vim.api.nvim_get_current_buf()

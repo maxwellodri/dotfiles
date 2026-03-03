@@ -115,9 +115,7 @@ local function lsp_keymaps(bufnr)
   vim.keymap.set('n', '<leader>gc', function()
     vim.lsp.buf.code_action()
   end, { buffer = bufnr, desc = "LSP Code Actions", noremap = true, silent = true })
-  vim.keymap.set('n', 'gr', function()
-    vim.lsp.buf.references()
-  end, { buffer = bufnr, desc = "LSP References", noremap = true, silent = true })
+
   vim.keymap.set('n', '<leader>rD', function()
     local d = vim.diagnostic.get(0)
     local l = {}
