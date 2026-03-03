@@ -64,7 +64,7 @@ M.settings = {
     },
 }
 
-M.ensure_installed_servers = {"vimls", "pyright", "bashls", "nil_ls", "bacon-ls" }
+M.ensure_installed_servers = {"vimls", "pyright", "bashls", "nil_ls" }
 M.automatic_enable_exclude_servers = { "rust_analyzer" }
 M.get_auto_enable_servers = function ()
     -- Diff  of ensure_installed_servers - automatic_enable_exclude_servers
@@ -85,8 +85,16 @@ M.get_auto_enable_servers = function ()
 end
 
 M.check_bacon_installed = function()
+    local mason_path = vim.fn.stdpath("data") .. "/mason/packages"
+    
     if vim.fn.executable("bacon") == 0 then
-        vim.notify("bacon is not installed. Install it with :MasonInstall bacon", vim.log.levels.WARN)
+        if vim.fn.isdirectory(mason_path .. "/bacon") == 0 then
+            vim.notify("bacon is not installed. Install it with :MasonInstall bacon", vim.log.levels.WARN)
+        end
+    end
+    
+    if vim.fn.isdirectory(mason_path .. "/bacon-ls") == 0 then
+        vim.notify("bacon-ls is not installed. Install it with :MasonInstall bacon-ls", vim.log.levels.WARN)
     end
 end
 
