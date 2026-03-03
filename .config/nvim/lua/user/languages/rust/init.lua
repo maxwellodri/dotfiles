@@ -204,7 +204,7 @@ M.setup = function(opts)
     on_attach = opts.on_attach,
     init_options = {
       updateOnSave = true,
-      updateOnSaveWaitMillis = 100,
+      updateOnSaveWaitMillis = 1000,
     }
   }
   vim.lsp.enable("bacon_ls")
