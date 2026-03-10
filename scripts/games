@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+
+if [[ -n $WAYLAND_DISPLAY ]]; then
+    dmenu=dmenu-wl
+elif [[ -n $DISPLAY ]]; then
+    dmenu=dmenu
+else
+    echo "Error: No Wayland or X11 display detected" >&2
+    exit 1
+fi
+
+declare -A games
+games["Age of Empires 2"]=813780
+games["Arma 3"]=107410
+games["Counter-Strike: GO"]=730
+games["Cyberpunk 2077"]=1091500
+games["Deadfire: Pillars of Eternity"]=560130
+games["Dishonoured"]=205100
+games["Divinity Original Sin EE"]=373420
+games["Dota 2"]=570
+games["DOOM"]=379720
+games["Garry's Mod"]=4000
+games["Insurgency"]=222880
+games["Mark of the Ninja"]=310210
+games["Metro 2033"]=286690
+games["Metro Last Light"]=287390
+games["Mordhau"]=629760
+games["Northgard"]=466560
+games["Oxygen Not Included"]=457140
+games["Pillars of Eternity"]=291650
+games["Portal 2"]=620
+games["Rocket League"]=252950
+games["Slay the Spire 2"]=2868840
+games["Slay the Spire"]=646570
+games["Stanley Parable"]=33201
+games["Starbound"]=211820
+games["Stardew Valley"]=82712
+games["Stellaris"]=281990
+games["Terraria"]=105600
+games["Titan Quest"]=475150
+games["Town of Salem"]=334230
+games["The Witcher 3"]=499450
+games["Wyrmsun"]=370072
+games["Battle.net"]="script:$dotfiles/game/battlenet.sh"
+
+declare -A pinned
+pinned["Slay the Spire 2"]=1
+
+pinned_list=""
+unpinned_list=""
+for game in "${!games[@]}"; do
+    if [[ -n "${pinned[$game]}" ]]; then
+        pinned_list+="$game"$'\n'
+    else
+        unpinned_list+="$game"$'\n'
+    fi
+done
+
+pinned_sorted=$(printf '%b' "$pinned_list" | sort)
+unpinned_sorted=$(printf '%b' "$unpinned_list" | sort)
+
+selection=$(printf '%s\n%s\n' "$pinned_sorted" "$unpinned_sorted" | grep -v '^$' | "$dmenu" -i -l 30 -c --class "games" -p "Game")
+
+[[ -n $selection ]] || exit
+
+appid="${games[$selection]}"
+if [[ "$appid" == script:* ]]; then
+    script="${appid#script:}"
+    alacritty -T "$selection" -e "$script"
+else
+    steam -applaunch "$appid"
+fi
