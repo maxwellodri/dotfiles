@@ -30,6 +30,11 @@
             "extensions": [".rs"]
         }
     },
+    "lsp": {
+        "rust-analyzer": {
+            "disabled": true
+        }
+    },
     "mcp": {
         "web-search-prime": {
             "type": "remote",
