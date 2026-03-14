@@ -1,18 +1,14 @@
 #!/bin/bash
-
 MAC="5A:4D:2A:E8:7A:57"
 
 # Initialize bluetooth
 bluetoothctl power on >/dev/null 2>&1
 bluetoothctl agent on >/dev/null 2>&1
 
-# Handle --pair flag
-if [ "$1" = "--pair" ]; then
+do_pair() {
     echo "Removing device..."
     bluetoothctl remove "$MAC" 2>/dev/null
-
     echo "Scanning for device (put headphones in pairing mode)..."
-
     (
         bluetoothctl <<EOF
 power on
@@ -23,7 +19,6 @@ scan on
 EOF
     ) &
     SCAN_PID=$!
-
     DEVICE_FOUND=0
     for i in {1..30}; do
         if bluetoothctl devices 2>/dev/null | grep -q "$MAC"; then
@@ -33,21 +28,23 @@ EOF
         fi
         sleep 1
     done
-
     kill $SCAN_PID 2>/dev/null
     wait $SCAN_PID 2>/dev/null
-
+    bluetoothctl scan off 2>/dev/null
     if [ $DEVICE_FOUND -eq 0 ]; then
         echo "Device not found. Please ensure headphones are in pairing mode."
         exit 1
     fi
-
     echo "Pairing..."
     bluetoothctl pair "$MAC"
     bluetoothctl trust "$MAC"
     bluetoothctl connect "$MAC"
-
     echo "Pairing complete."
+}
+
+# Handle --pair flag
+if [ "$1" = "--pair" ]; then
+    do_pair
     exit 0
 fi
 
@@ -58,12 +55,21 @@ if bluetoothctl info "$MAC" 2>/dev/null | grep -q "Connected: yes"; then
     STATUS="Disconnected"
 else
     echo "Connecting..."
-    bluetoothctl connect "$MAC"
+    OUTPUT=$(bluetoothctl connect "$MAC" 2>&1)
+    echo "$OUTPUT"
+    # br-connection-key-missing means the stored pairing key is stale or gone —
+    # typically happens when the headphones were connected to another device
+    # (e.g. a phone), which clears the key on the headphone side. Re-pairing
+    # generates a fresh key. Headphones must be in pairing mode for this to work.
+    if echo "$OUTPUT" | grep -q "br-connection-key-missing"; then
+        echo "Stale key detected (probably switched from another device). Re-pairing..."
+        do_pair
+    fi
     STATUS="Connected"
 fi
 
 # Get battery level
-BATTERY=$(bluetoothctl info "$MAC" 2>/dev/null | grep "Battery Percentage" | awk '{print $4}' | tr -d '()')
+BATTERY=$(bluetoothctl info "$MAC" 2>/dev/null | grep "Battery Percentage" | grep -oP '\(\K[0-9]+(?=\))')
 
 # Show status
 if [ -n "$BATTERY" ]; then
