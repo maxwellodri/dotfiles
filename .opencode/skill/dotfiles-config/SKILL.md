@@ -38,7 +38,40 @@ The symlink structure means:
 
 Editing the symlinked location edits the repo file, but it's clearer to work directly in the repo.
 
-### 3. Symlink System Overview
+### 3. Editing Existing Configs
+
+**For content changes to existing configs:**
+1. Locate the source file in this repo
+2. Edit the file using Edit or Write tool
+3. Changes are immediately active (symlink points to edited file)
+4. No need to re-run any installation scripts
+
+### 4. Adding New Configs
+
+**For adding NEW configs to the system:**
+1. Add/modify files in the repo
+2. Rerun `./install.sh "$dotfile_tag"` to reinstall everything
+
+Or run specific script if you know which one:
+- `./helper_scripts/makesymlinks.sh "$dotfile_tag"` - dotfile symlinks
+- `./helper_scripts/custom_bin_scripts.sh` - user scripts
+- `./helper_scripts/firefox_user.sh` - firefox configs
+- `./helper_scripts/install_system_configs.sh` - system configs
+
+### 5. After Completion
+
+Suggest a kernel-style commit message (not conventional commits):
+
+Examples:
+- "makesymlinks: add support for alacritty config"
+- "zsh: enable autosuggestions plugin"
+- "nvim: add lsp configuration for rust-analyzer"
+
+---
+
+## Configuration Categories
+
+### Dotfiles (Symlinked)
 
 The `helper_scripts/makesymlinks.sh` script manages symlinks:
 
@@ -51,9 +84,11 @@ The `helper_scripts/makesymlinks.sh` script manages symlinks:
 | `gitconfig` | `~/.config/git/` | `.config/git/` |
 | `opencode` | `~/.config/opencode/opencode.json`, etc. | `.config/opencode/opencode.json`, etc. |
 
-### 4. Tag/Platform System
+**Tag/Platform System:**
 
-Some configs are platform-specific. The tag is set by the first argument to makesymlinks.sh (`pc` or `hackerman`).
+Some configs are platform-specific. The current platform is available via the `$dotfile_tag` environment variable (set in `.zprofile`).
+
+Available tags: `pc` or `hackerman`
 
 **Files that get tag suffixes:**
 
@@ -66,63 +101,101 @@ Some configs are platform-specific. The tag is set by the first argument to make
 | `.config/sh/shrc` | `.config/sh/shrc` (always, no suffix but mapped) |
 | `.config/zathura/zathurarc` | `.config/zathura/zathurarc` (always, no suffix but mapped) |
 
-**All other configs are shared across platforms.**
+All other configs are shared across platforms.
 
-### 5. Adding a New Config
+**To add a new dotfile:**
 
-To add a new dotfile to the system:
+1. Add a variable in the "Fixed Variables" section of `makesymlinks.sh`
+2. Add to appropriate meta variable (`xfiles`, `bash`, `zsh`, `files`, or `pcfiles`/`hackermanfiles`)
+3. If platform-specific, add a case in the symlink loop (around line 122)
+4. Run `./helper_scripts/makesymlinks.sh "$dotfile_tag"`
 
-1. **Add a variable** in the "Fixed Variables" section of `makesymlinks.sh`:
-   ```sh
-   mynewconfig=.config/myapp/config
-   ```
+### User Scripts (Symlinked to `$bin`)
 
-2. **Add to appropriate meta variable** (or create new one):
-   - `xfiles` - X11/GUI apps
-   - `bash` - Bash-related
-   - `zsh` - Zsh-related
-   - `files` - General/CLI tools
-   - Or add directly to `pcfiles`/`hackermanfiles`
+The `scripts/` directory contains utility scripts symlinked to `$bin` (typically `~/bin/`).
 
-3. **If platform-specific**, add a case in the symlink loop (around line 122):
-   ```sh
-   "$mynewconfig")  src="$dir/$file.$tag"
-       ;;
-   ```
+**Managed by:** `helper_scripts/custom_bin_scripts.sh`
 
-4. **Run the script** to create the symlink:
-   ```sh
-   ./helper_scripts/makesymlinks.sh pc  # or hackerman
-   ```
+**Requirements:**
+- `$bin` and `$dotfiles` env vars must be set (from shell rc)
+- Run `./helper_scripts/custom_bin_scripts.sh` after adding new scripts
 
-### 6. Editing Existing Configs
+**To add a new script:**
+1. Add script file to `scripts/` directory
+2. Run `./helper_scripts/custom_bin_scripts.sh`
 
-1. Locate the source file in this repo (see table in section 3)
-2. Edit the file using Edit or Write tool
-3. Changes are immediately active (symlink points to edited file)
-4. No need to re-run makesymlinks.sh for content changes
+### Firefox (Symlinked to profile)
 
-### 7. Applying Symlink Changes
+The `firefox/` directory contains Firefox customization files.
 
-After modifying `makesymlinks.sh` itself (adding/removing configs):
+**Files:**
+- `user.js` - Firefox preferences
+- `userChrome.css` - Browser UI styling
+- `userContent.css` - Page content styling
+
+**Managed by:** `helper_scripts/firefox_user.sh`
+
+The script finds the default profile from `~/.mozilla/firefox/profiles.ini` and symlinks configs there.
+
+**To modify Firefox configs:**
+1. Edit files in `firefox/` directory
+2. Changes are immediate (symlinked)
+3. Run `./helper_scripts/firefox_user.sh` only if setting up on a new system
+
+### System Configs (Copied, not symlinked)
+
+Global system files are **copied** (not symlinked) because they require system-level permissions.
+
+**Managed by:** `helper_scripts/install_system_configs.sh`
+
+**Mappings:**
+
+| Source | Destination | Notes |
+|--------|-------------|-------|
+| `udev-rules/` | `/etc/udev/rules.d` | Requires sudo |
+| `systemd-services/system/` | `/etc/systemd/system` | Requires sudo, auto-manages services |
+| `systemd-services/user/` | `~/.config/systemd/user` | No sudo, auto-manages services |
+| `system_configs/etc/` | `/etc/` | Requires sudo |
+
+**Service Management:**
+- Automatically enables/starts/restarts affected services
+- Backs up existing files before overwriting
+- Requires `.dotfile_tag` file to exist (created by makesymlinks.sh)
+
+**To modify system configs:**
+1. Edit files in appropriate directory (`udev-rules/`, `systemd-services/`, `system_configs/`)
+2. Run `./helper_scripts/install_system_configs.sh`
+
+### Arch Linux Packages
+
+Track required packages in `archlinux_x86_64_packages`.
+
+**To install packages:**
+- Use `pacman` directly: `sudo pacman -S <package>`
+- The package list is for reference/automated reinstallation only
+
+### Source Code Repositories
+
+Store source code repositories in `$SOURCE` (typically `~/source`):
+- This dotfiles repo: `~/source/dotfiles`
+- Open source projects: `~/source/<project>`
+- Personal projects: as appropriate
+
+---
+
+## Full Installation
+
+To reinstall everything (e.g., on a new system):
 
 ```sh
-./helper_scripts/makesymlinks.sh pc        # for pc platform
-./helper_scripts/makesymlinks.sh hackerman # for hackerman platform
-./helper_scripts/makesymlinks.sh clean     # remove all symlinks
+./install.sh "$dotfile_tag"
 ```
 
-The script:
-- Creates backup of existing files in a temp directory
-- Removes trailing slashes from directory paths
-- Creates parent directories as needed
-- Handles special cases with tag suffixes
-
-### 8. After Completion
-
-Suggest a kernel-style commit message (not conventional commits):
-
-Examples:
-- "makesymlinks: add support for alacritty config"
-- "zsh: enable autosuggestions plugin"
-- "nvim: add lsp configuration for rust-analyzer"
+**Installation order:**
+1. `arch_package_install.sh` - Install packages
+2. `makesymlinks.sh` - Dotfile symlinks
+3. `custom_bin_scripts.sh` - Scripts to `$bin`
+4. `firefox_user.sh` - Firefox profile setup
+5. `rust/install.sh` - Rust toolchain
+6. `install_system_configs.sh` - System configs (needs `.dotfile_tag`)
+7. `download_suckless.sh` - Suckless tools (last, may prompt for SSH)
