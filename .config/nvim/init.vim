@@ -33,7 +33,7 @@ let &packpath=&runtimepath
     Plug 'tpope/vim-surround' "adds s vim adjevtive
     Plug 'tpope/vim-eunuch' "unix commands
     Plug 'farmergreg/vim-lastplace' "Keep cursor on quit
-    Plug 'Raimondi/delimitMate' "auto create quotes, bracket pairs
+    Plug 'windwp/nvim-autopairs'
     Plug 'nvim-lua/plenary.nvim' "library of functions, used by other modules
     Plug 'MunifTanjim/nui.nvim' "ui component library
     Plug 'kyazdani42/nvim-web-devicons' "library of icons

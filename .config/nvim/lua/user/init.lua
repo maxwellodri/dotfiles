@@ -2,6 +2,7 @@ vim.env.PATH = vim.fn.stdpath("data") .. "/mason/bin:" .. vim.env.PATH
 vim.opt.softtabstop = 4
 vim.opt.tabstop = 4
 vim.opt.shiftwidth = 4
+require('user.autopair')
 require('user.autoformat')
 require('user.snacks')
 require('user.colorscheme')
