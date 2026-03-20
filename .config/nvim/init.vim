@@ -20,7 +20,6 @@ let &packpath=&runtimepath
     "Plug 'airblade/vim-gitgutter'
     "Plug 'vim-scripts/grep.vim'
     "Plug 'vim-scripts/CSApprox'
-    "Plug 'Raimondi/delimitMate'
     "Plug 'majutsushi/tagbar'
     "Plug 'Yggdroot/indentLine'
     "Plug 'editor-bootstrap/vim-bootstrap-updater'
