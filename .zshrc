@@ -316,8 +316,10 @@ tmux_attach() {
   fi
 }
 zle -N tmux_attach
-bindkey -M viins '^b' tmux_attach
-bindkey -M vicmd '^b' tmux_attach
+if [ -z "$TMUX" ]; then
+  bindkey -M viins '^b' tmux_attach
+  bindkey -M vicmd '^b' tmux_attach
+fi
 
 function _rg_fzf_widget() {
   local script_path="$bin/_rg_fzf.sh"  # Adjust path as needed
