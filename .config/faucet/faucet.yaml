@@ -12,9 +12,12 @@ commands:
   tsp_ytdlp:
     display: "⬇️ Download with tsp_ytdlp"
     command: tsp_ytdlp add "$TEXT"
+  tsp_ytdlp_dir:
+    display: "⬇️ Download with tsp_ytdlp in directory"
+    command: _tsp_ytdlp_with_dir "$TEXT"
   tsp_ytdlp_batch:
     display: "⬇️ Batch Download with tsp_ytdlp"
-    command: 'echo "$TEXT" | while IFS= read -r url; do [ -n "$url" ] && tsp_ytdlp add "$url"; done'
+    command: '_tsp_ytdlp_with_dir --batch "$TEXT"'
   mvx:
     display: "🚚 mv file 🐻"
     command: st -g 100x20+2000+720 -c "stfuzzy" -e sh -c 'mvx --notify-send --dir "$HOME" --file "$TEXT"; exit 0'
@@ -75,18 +78,28 @@ scorers:
   - regex: '^https?://.*'
     command_label: tsp_ytdlp
     score_change: 1
+  - regex: '^https?://.*'
+    command_label: tsp_ytdlp_dir
+    score_change: 1
   - regex: '^https?://.*(?:video|view).*'
     command_label: tsp_ytdlp
+    score_change: 20
+  - regex: '^https?://.*(?:video|view).*'
+    command_label: tsp_ytdlp_dir
     score_change: 20
   - regex: '^(?:https?://.*(?:\n|$)){2,}$'
     scores:
       - ["tsp_ytdlp_batch", 30]
       - ["tsp_ytdlp", -100]
+      - ["tsp_ytdlp_dir", -100]
   - regex: '^https?://.*'
     command_label: ff_window
     score_change: 10
   - regex: 'youtube\.com|youtu\.be|twitch\.tv'
     command_label: tsp_ytdlp
+    score_change: 20
+  - regex: 'youtube\.com|youtu\.be|twitch\.tv'
+    command_label: tsp_ytdlp_dir
     score_change: 20
   - regex: 'instagram\.com|twitter\.com|x\.com'
     command_label: gallery-dl
@@ -105,6 +118,9 @@ scorers:
     command_label: nvim_text
   - regex: ^https?://www\.youtube\.com/watch
     command_label: tsp_ytdlp
+    score_change: 10
+  - regex: ^https?://www\.youtube\.com/watch
+    command_label: tsp_ytdlp_dir
     score_change: 10
   - regex: '^\S+$'
     command_label: qr_code
