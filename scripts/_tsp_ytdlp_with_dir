@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-DOWNLOAD_DIRS=("$HOME/Downloads/asmr/")
+DOWNLOAD_DIRS=("$HOME/Downloads/asm/")
 
 batch_mode=0
 if [[ $1 == "--batch" ]]; then

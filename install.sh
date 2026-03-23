@@ -3,6 +3,7 @@
 cd $(dirname $(realpath "$0")) #cd to dotfiles dir
 sh helper_scripts/arch_package_install.sh $1
 sh helper_scripts/makesymlinks.sh "$1"
+sh helper_scripts/fontconfig.sh
 sh helper_scripts/custom_bin_scripts.sh
 sh helper_scripts/firefox_user.sh
 sh rust/install.sh
