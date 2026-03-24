@@ -5,7 +5,7 @@ options:
 commands:
   ff_tab:
     display: "🌐 Open in Firefox Tab"
-    command: firefox --new-tab "$TEXT"
+    command: 'while IFS= read -r url; do firefox --new-tab "$url"; done <<< "$TEXT"'
   ff_window:
     display: "🗔 Open in New Firefox Window"
     command: firefox --new-window "$TEXT"
