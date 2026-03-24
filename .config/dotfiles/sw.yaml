@@ -38,6 +38,12 @@ projects:
     handler_override: "handlers/video_handler.sh"
     handler_pattern: ".*"
     on_enter: "mpv_play -m o"
+  asm:
+    path: "/home/maxwell/Downloads/asm"
+    filter_out: "(.*part|.*json)"
+    handler_override: "handlers/video_handler.sh"
+    handler_pattern: ".*"
+    on_enter: "mpv_play -m o"
   vw:
     path: "/home/maxwell/Documents/notes"
     on_enter: "vw"
