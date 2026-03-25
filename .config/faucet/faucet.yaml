@@ -17,7 +17,7 @@ commands:
     command: _tsp_ytdlp_with_dir "$TEXT"
   tsp_ytdlp_batch:
     display: "⬇️ Batch Download with tsp_ytdlp"
-    command: '_tsp_ytdlp_with_dir --batch "$TEXT"'
+    command: '_tsp_ytdlp_with_dir --batch $TEXT'
   mvx:
     display: "🚚 mv file 🐻"
     command: st -g 100x20+2000+720 -c "stfuzzy" -e sh -c 'mvx --notify-send --dir "$HOME" --file "$TEXT"; exit 0'
@@ -87,7 +87,7 @@ scorers:
   - regex: '^https?://.*(?:video|view).*'
     command_label: tsp_ytdlp_dir
     score_change: 20
-  - regex: '^(?:https?://.*(?:\n|$)){2,}$'
+  - regex: '^(?:https?://\S+(?:\s|$)){2,}$'
     scores:
       - ["tsp_ytdlp_batch", 30]
       - ["tsp_ytdlp", -100]
