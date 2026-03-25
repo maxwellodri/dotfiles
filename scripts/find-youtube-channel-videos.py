@@ -130,10 +130,14 @@ def main():
     parser = argparse.ArgumentParser(
         description="Queue videos from a YouTube channel not already downloaded locally"
     )
-    parser.add_argument(
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument(
         "--example-video",
-        required=True,
         help="Example video file to extract channel from",
+    )
+    group.add_argument(
+        "--example-url",
+        help="Example YouTube video URL to extract channel from",
     )
     parser.add_argument(
         "--dir",
@@ -148,15 +152,19 @@ def main():
     )
     args = parser.parse_args()
 
-    example_video = Path(args.example_video).expanduser()
-    if not example_video.is_file():
-        print(f"Example video not found: {example_video}", file=sys.stderr)
-        sys.exit(1)
-
-    example_url = get_video_url_from_file(example_video)
-    if not example_url:
-        print(f"No YouTube URL found in metadata of {example_video}", file=sys.stderr)
-        sys.exit(1)
+    if args.example_video:
+        example_video = Path(args.example_video).expanduser()
+        if not example_video.is_file():
+            print(f"Example video not found: {example_video}", file=sys.stderr)
+            sys.exit(1)
+        example_url = get_video_url_from_file(example_video)
+        if not example_url:
+            print(
+                f"No YouTube URL found in metadata of {example_video}", file=sys.stderr
+            )
+            sys.exit(1)
+    else:
+        example_url = args.example_url
 
     channel_id = get_channel_id_from_video_url(example_url)
     if not channel_id:
