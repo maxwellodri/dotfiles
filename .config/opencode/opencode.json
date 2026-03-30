@@ -1,7 +1,7 @@
 {
     "$schema": "https://opencode.ai/config.json",
     "disabled_providers": ["openai", "gemini", "anthropic"],
-    "model": "zai-coding-plan/glm-5",
+    "model": "zai-coding-plan/glm-5.1",
     "username": "maxwell",
     "permission": {
         "edit": "allow",
@@ -12,7 +12,7 @@
     },
     "agent": {
         "plan": {
-            "model": "zai-coding-plan/glm-5",
+            "model": "zai-coding-plan/glm-5.1",
             "tools": {
                 "web_search_prime": true
             },
@@ -21,7 +21,7 @@
             }
         },
         "build": {
-            "model": "zai-coding-plan/glm-5"
+            "model": "zai-coding-plan/glm-5.1"
         }
     },
     "formatter": {
