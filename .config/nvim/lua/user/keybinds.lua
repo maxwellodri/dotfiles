@@ -48,12 +48,27 @@ local function find_files_from_git_root()
             cwd = git_root
         end
     end
-    require('telescope.builtin').find_files({
+    local find_opts = {
         hidden = true,
         file_ignore_patterns = { "^%.git/" },
         prompt_prefix = '🔍🥺',
-        cwd = cwd
-    })
+        cwd = cwd,
+    }
+
+    local extra_paths = {}
+    if vim.fn.isdirectory(cwd .. "/notes") == 1 then
+        table.insert(extra_paths, "fd --hidden --type f --no-ignore-vcs . notes/")
+    end
+    if vim.fn.isdirectory(cwd .. "/.opencode") == 1 then
+        table.insert(extra_paths, "fd --hidden --type f --no-ignore-vcs . .opencode/ --exclude bun.lock --exclude node_modules --exclude package.json --exclude .gitignore")
+    end
+
+    if #extra_paths > 0 and vim.fn.executable("fd") == 1 then
+        local cmd = "{ fd --hidden --type f --exclude .git; " .. table.concat(extra_paths, "; ") .. "; } | sort -u"
+        find_opts.find_command = { "bash", "-c", cmd }
+    end
+
+    require('telescope.builtin').find_files(find_opts)
 end
 vim.keymap.set('n', '<leader>fo', find_files_from_git_root)
 vim.keymap.set('n', '<leader>fb', require('telescope.builtin').buffers, { desc = 'Telescope buffers' })
