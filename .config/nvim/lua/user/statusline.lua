@@ -1,3 +1,61 @@
+local C = require('user.colorscheme').colors
+
+local git_diff_cache = {
+  result = nil,
+  timestamp = 0,
+  cache_ttl = 5,
+}
+
+vim.api.nvim_create_autocmd({ "BufWritePost", "FileChangedShell", "FocusGained" }, {
+  callback = function()
+    git_diff_cache.timestamp = 0
+  end,
+})
+
+local function git_diff_stat()
+  local now = os.time()
+  if git_diff_cache.result and (now - git_diff_cache.timestamp) < git_diff_cache.cache_ttl then
+    return git_diff_cache.result
+  end
+
+  local git_dir = vim.fn.system("git rev-parse --git-dir 2>/dev/null"):gsub("\n", "")
+  if git_dir == "" then
+    git_diff_cache.result = nil
+    git_diff_cache.timestamp = now
+    return nil
+  end
+
+  local stat = vim.fn.system("git diff --shortstat 2>/dev/null"):gsub("\n", "")
+  local files, lines = 0, 0
+
+  if stat ~= "" then
+    local f = stat:match("(%d+) files? changed")
+    if f then files = tonumber(f) end
+    local ins = stat:match("(%d+) insertion")
+    local dels = stat:match("(%d+) deletion")
+    lines = (ins and tonumber(ins) or 0) + (dels and tonumber(dels) or 0)
+  end
+
+  git_diff_cache.result = { lines = lines, files = files }
+  git_diff_cache.timestamp = now
+  return git_diff_cache.result
+end
+
+local function git_diff_component()
+  local diff = git_diff_stat()
+  if diff == nil then return "" end
+  return string.format(" %d edits across %d files", diff.lines, diff.files)
+end
+
+local function git_diff_color()
+  local diff = git_diff_stat()
+  if diff == nil then return nil end
+  if diff.files >= 5 or diff.lines >= 50 then
+    return { fg = C.faded_red, gui = "bold" }
+  end
+  return nil
+end
+
 require('lualine').setup {
   options = {
     icons_enabled = true,
@@ -31,7 +89,7 @@ require('lualine').setup {
     lualine_c = {
       {
         'filename',
-        color = { fg = 'white', bg = '#223355', gui = 'bold' },
+        color = { fg = C.white, bg = C.dark_navy, gui = 'bold' },
         separator = { left = ' ', right = ' ' },
       }
     },
@@ -65,10 +123,10 @@ require('lualine').setup {
         end,
         color = function(section)
           if section and section.value and string.find(section.value, "✓") then
-            return { fg = "#00FF00" } -- Green for checkmark (fixed the missing # in your code)
+            return { fg = C.bright_green } -- Green for checkmark (fixed the missing # in your code)
           else
             --return { fg = "#D4B95E" } -- Soft amber/gold for spinner
-            return { fg = "#00FF00" } -- Green for checkmark (fixed the missing # in your code)
+            return { fg = C.bright_green } -- Green for checkmark (fixed the missing # in your code)
           end
         end,
       },
@@ -77,15 +135,68 @@ require('lualine').setup {
       'filetype'
     },
     lualine_y = {'progress'},
-    lualine_z = {'location', 'branch'}
+    lualine_z = {
+      'location',
+      {
+        git_diff_component,
+        icon = '',
+        color = git_diff_color,
+      },
+      'branch'
+    }
   },
   inactive_sections = {
     lualine_a = {},
     lualine_b = {},
     lualine_c = {'filename'},
-    lualine_x = {'location'},
-    lualine_y = {},
-    lualine_z = {}
+    lualine_x = {
+      'diagnostics',
+      {
+        'lsp_status',
+        icon = '',
+        symbols = {
+          spinner = { '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'},
+          done = '✓',
+          separator = ' ',
+        },
+        fmt = function(str)
+          if str and str ~= "" then
+            if string.find(str, "✓") then
+              return "✓"
+            else
+              local spinner_chars = { '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'}
+              for _, char in ipairs(spinner_chars) do
+                if string.find(str, char) then
+                  return char
+                end
+              end
+              return "~"
+            end
+          end
+          return ""
+        end,
+        color = function(section)
+          if section and section.value and string.find(section.value, "✓") then
+            return { fg = C.bright_green }
+          else
+            return { fg = C.bright_green }
+          end
+        end,
+      },
+      'encoding',
+      'fileformat',
+      'filetype'
+    },
+    lualine_y = {'progress'},
+    lualine_z = {
+      'location',
+      {
+        git_diff_component,
+        icon = '',
+        color = git_diff_color,
+      },
+      'branch'
+    }
   },
   -- Configuring winbar (equivalent to your components_top)
   winbar = {
