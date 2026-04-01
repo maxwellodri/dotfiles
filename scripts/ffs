@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+import json
+import os
+import subprocess
+import sys
+
+
+def get_dmenu():
+    if os.environ.get("WAYLAND_DISPLAY"):
+        return "dmenu-wl"
+    if os.environ.get("DISPLAY"):
+        return "dmenu"
+    subprocess.run(["notify-send", "Error", "No Wayland or X11 display detected"])
+    sys.exit(1)
+
+
+def load_bookmarks():
+    bin_path = os.environ.get("BIN")
+    if bin_path:
+        path = os.path.join(bin_path, "web_bookmarks.json")
+    else:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web_bookmarks.json")
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        subprocess.run(["notify-send", "Error", f"{path} not found"])
+        sys.exit(1)
+    except json.JSONDecodeError:
+        subprocess.run(["notify-send", "Error", f"{path} couldn't be parsed"])
+        sys.exit(1)
+
+
+def main():
+    dmenu = get_dmenu()
+    bookmarks = load_bookmarks()
+    keys = sorted(bookmarks.keys())
+
+    dmenu_input = "\n".join(keys)
+    result = subprocess.run(
+        [dmenu, "-i", "-l", "30", "-c", "--class", "ffs", "-p", "Bookmark"],
+        input=dmenu_input,
+        capture_output=True,
+        text=True,
+    )
+
+    selected = result.stdout.strip()
+    if not selected:
+        return
+
+    subprocess.run(["ff", selected])
+
+
+if __name__ == "__main__":
+    main()
