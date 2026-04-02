@@ -110,6 +110,72 @@ All other configs are shared across platforms.
 3. If platform-specific, add a case in the symlink loop (around line 122)
 4. Run `./helper_scripts/makesymlinks.sh "$dotfile_tag"`
 
+### Neovim
+
+**Config location:** `.config/nvim/`
+
+**Entrypoints:**
+- `init.vim` — main entrypoint. Manages plugins via vim-plug (`call plug#begin`/`call plug#end`), general vim settings, autocmds, and keybinds. Sources `lua/user/init.lua` at the end.
+- `lua/user/init.lua` — Lua entrypoint. Requires all Lua modules (`lua/user/*.lua`) for LSP, cmp, treesitter, telescope, dap, etc.
+
+**Plugin manager:** vim-plug (not lazy.nvim or packer). Plugins are declared in `init.vim`.
+
+**Reading help docs from the CLI (for agents):**
+
+Agents cannot interact with the nvim TUI. Use headless mode to print help to stdout:
+
+```sh
+# General pattern: print first N lines of a help topic
+nvim --headless -c "help <topic>" -c "let lines=getline(1,80)" -c "echo join(lines,'\n')" -c "qa!"
+```
+
+- Adjust `80` to read more or fewer lines.
+- Output contains escape sequences and help tags (`*tag*`, `|link|`) — these are normal vim help formatting.
+- Use `grep`/`rg` on the output to find specific sections.
+
+**Help topics for installed plugins:**
+
+| Plugin | Help topic | Notes |
+|--------|-----------|-------|
+| Nvim built-in | `help`, `lsp`, `options`, `builtin`, `lua-guide` | Core Neovim help |
+| mason.nvim | `mason.nvim` | LSP/DAP/linter/formatter manager |
+| mason-lspconfig.nvim | `mason-lspconfig.nvim` | Bridges mason ↔ lspconfig |
+| nvim-cmp | `nvim-cmp` | Autocompletion |
+| LuaSnip | `luasnip` | Snippet engine |
+| telescope.nvim | `telescope.nvim` | Fuzzy finder; also `telescope.builtin` |
+| nvim-treesitter | `nvim-treesitter` | Parser/highlighting; also `nvim-treesitter-queries` |
+| nvim-dap | `dap.txt` | Debug Adapter Protocol client |
+| nvim-dap-ui | `dapui.txt` | DAP UI |
+| oil.nvim | `oil.nvim` | File browser |
+| nvim-tree | `nvim-tree` | File explorer |
+| fugitive | `fugitive` | Git integration |
+| lazygit | `lazygit.nvim` | LazyGit floating window |
+| vim-surround | `surround` | Surrounding text objects |
+| vim-eunuch | `eunuch` | Unix shell commands |
+| lualine | `lualine` | Statusline |
+| render-markdown | `render-markdown.nvim` | Markdown rendering |
+| mkdnflow | `mkdnflow` | Markdown navigation |
+| nvim-autopairs | `nvim-autopairs` | Auto-close brackets |
+| none-ls | `none-ls` | Diagnostics/formatting via external tools |
+| snacks.nvim | `snacks.nvim` | Utility plugin |
+| vimtex | `vimtex` | LaTeX support |
+| crates.nvim | `crates.nvim` | Cargo.toml crate management |
+| lspkind | `lspkind` | LSP completion icons |
+| dressing.nvim | `dressing.nvim` | UI improvements for vim.ui |
+| img-clip | `img-clip.nvim` | Image clipboard/paste |
+| nvim-treesitter-context | `nvim-treesitter-context` | Sticky context |
+
+**Finding help topics:** If the topic name is unknown, try searching help tags:
+```sh
+# List all help tags matching a pattern
+nvim --headless -c "helpgrep <pattern>" -c "let lines=getline(1,30)" -c "echo join(lines,'\n')" -c "qa!"
+```
+
+**Refreshing help tags** (after adding/removing plugins):
+```sh
+nvim --headless -c "helptags ALL" -c "qa!"
+```
+
 ### User Scripts (Symlinked to `$bin`)
 
 The `scripts/` directory contains utility scripts symlinked to `$bin` (typically `~/bin/`).
