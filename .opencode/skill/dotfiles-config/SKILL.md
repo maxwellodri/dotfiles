@@ -246,6 +246,7 @@ Store source code repositories in `$SOURCE` (typically `~/source`):
 - This dotfiles repo: `~/source/dotfiles`
 - Open source projects: `~/source/<project>`
 - Personal projects: as appropriate
+- Rust/Cargo projects: `~/source/tsp_ytdlp`, `~/source/faucet`
 
 ---
 
