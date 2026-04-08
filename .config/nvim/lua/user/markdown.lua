@@ -6,7 +6,7 @@ vim.api.nvim_create_autocmd('FileType', {
         vim.opt_local.softtabstop = 2
         vim.opt_local.tabstop = 2
         vim.opt_local.shiftwidth = 2
-        vim.api.nvim_set_hl(0, '@error', { link = 'Normal' })
+        vim.api.nvim_set_hl(0, 'markdownError', { link = 'Normal' })
     end,
 })
 require('render-markdown').setup({
