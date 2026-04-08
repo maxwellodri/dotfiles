@@ -1,27 +1,16 @@
 #!/bin/bash
 
-IDLE_THRESHOLD=$(( ${1:-30} * 60000 ))  # minutes to ms, default 30
+IDLE_THRESHOLD=$(( ${1:-120} * 60000 ))
 
 trap 'exit 1' INT
 POLL_INTERVAL=${POLL_INTERVAL:-60}        # seconds between checks
 
-audio_playing() {
-  pactl list sinks | grep -q "RUNNING"
-}
-
-idle_time_ms() {
-  xprintidle
-}
-
 while true; do
-  if [ "$(idle_time_ms)" -gt "$IDLE_THRESHOLD" ] && ! audio_playing; then
-    notify-send "AFK detected" "Idle for $(( $(idle_time_ms) / 1000 ))s"
+  idle=$(xprintidle)
+  if [ "$idle" -gt "$IDLE_THRESHOLD" ]; then
+    notify-send "AFK detected" "Idle for $(( idle / 1000 ))s"
     sleep 5
-    if [ "$(idle_time_ms)" -gt "$IDLE_THRESHOLD" ] && ! audio_playing; then
-      exit 0
-    else
-      exit 1
-    fi
+    [ "$(xprintidle)" -gt "$IDLE_THRESHOLD" ] && exit 0 || exit 1
   fi
   sleep "$POLL_INTERVAL"
 done
