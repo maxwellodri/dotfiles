@@ -1,4 +1,4 @@
-vim.lsp.set_log_level("ERROR")
+vim.lsp.log.set_level("ERROR")
 require("user.lsp.handlers").setup()
 local Opts = {
   on_attach = require("user.lsp.handlers").on_attach,

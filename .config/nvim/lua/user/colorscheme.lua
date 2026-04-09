@@ -19,6 +19,8 @@ end
 
 set_terminal_colors()
 
+vim.opt.background = "dark"
+
 require("gruvbox").setup({
   terminal_colors = true, -- add neovim terminal colors
   undercurl = true,

@@ -64,7 +64,7 @@ require('mkdnflow').setup({
         templates = true,
         to_do = true,
         yaml = false,
-        cmp = true,
+        completion = true,
         notebook = true,
     },
     -- OLD: filetypes = {md = true, rmd = true, markdown = true}

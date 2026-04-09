@@ -63,9 +63,10 @@ M.setup = function()
   --  border = "rounded",
   --})
 
-  vim.lsp.handlers["textDocument/signatureHelp"] = vim.lsp.with(vim.lsp.handlers.signature_help, {
-    border = "rounded",
-  })
+  vim.lsp.handlers["textDocument/signatureHelp"] = function(err, result, ctx, config)
+    config = vim.tbl_deep_extend("force", config or {}, { border = "rounded" })
+    return vim.lsp.handlers.signature_help(err, result, ctx, config)
+  end
   vim.lsp.handlers["textDocument/definition"] = goto_definition('e')
 end
 

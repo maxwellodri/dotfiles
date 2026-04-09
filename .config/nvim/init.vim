@@ -10,6 +10,8 @@ let &packpath=&runtimepath
                    autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
     endif
 
+let g:plug_threads = 1
+
 " Plugins
     call plug#begin(data_dir . '/plugins')
     "TODO
