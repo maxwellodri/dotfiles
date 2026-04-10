@@ -73,10 +73,10 @@ else
     alias vimrc='vim ~/.vimrc'
 fi
 #alias vw='PREV_DIR=$(pwd) && cd ~/Documents/notes && nvim index.md && cd $PREV_DIR'
-alias swrc='$EDITOR "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/sw.yaml"'
+alias qzrc='$EDITOR "${XDG_CONFIG_HOME:-$HOME/.config}/qz/config.yaml"'
 tmuxrc() {
     local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
-    nvim "$config_dir/tmux/tmux.conf" -c "vsplit $config_dir/tmuxinator/" && \
+    nvim "$config_dir/tmux/tmux.conf" && \
     tmux source-file "$config_dir/tmux/tmux.conf" 2>/dev/null
 }
 alias emacsrc="vim ~/.emacs.d/init.el"
