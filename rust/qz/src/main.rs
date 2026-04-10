@@ -38,7 +38,14 @@ enum Commands {
     #[command(visible_alias = "se")]
     Sessions,
     #[command(visible_alias = "l")]
-    List,
+    List {
+        #[arg(long, help = "Print absolute paths only, no formatting")]
+        clean: bool,
+        #[arg(long, help = "Only include tmux projects (requires --clean)")]
+        tmux: bool,
+        #[arg(long, help = "Exclude tmux projects (requires --clean)")]
+        notmux: bool,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -541,25 +548,51 @@ fn cmd_sessions(gui: bool) -> Result<()> {
     Ok(())
 }
 
-fn cmd_list() -> Result<()> {
+fn cmd_list(clean: bool, tmux: bool, notmux: bool) -> Result<()> {
+    if tmux && notmux {
+        bail!("--tmux and --notmux are mutually exclusive");
+    }
+    if (tmux || notmux) && !clean {
+        bail!("--tmux and --notmux require --clean");
+    }
+
     let config = load_config()?;
-    println!("Projects:");
-    for (name, project) in &config.projects {
-        let path = expand_path(&project.path);
-        if !path.is_dir() {
-            continue;
+
+    if clean {
+        for (_, project) in &config.projects {
+            let path = expand_path(&project.path);
+            if !path.is_dir() {
+                continue;
+            }
+            let has_tmux = !project.tmux_windows.is_empty();
+            if tmux && !has_tmux {
+                continue;
+            }
+            if notmux && has_tmux {
+                continue;
+            }
+            println!("{}", path.display());
         }
-        if !project.tmux_windows.is_empty() {
-            let status = if tmux_session_exists(name) {
-                "\u{2713}"
+    } else {
+        println!("Projects:");
+        for (name, project) in &config.projects {
+            let path = expand_path(&project.path);
+            if !path.is_dir() {
+                continue;
+            }
+            if !project.tmux_windows.is_empty() {
+                let status = if tmux_session_exists(name) {
+                    "\u{2713}"
+                } else {
+                    "\u{2717}"
+                };
+                println!("  {} {}", status, name);
             } else {
-                "\u{2717}"
-            };
-            println!("  {} {}", status, name);
-        } else {
-            println!("  \u{1f4c1} {}", name);
+                println!("  \u{1f4c1} {}", name);
+            }
         }
     }
+
     Ok(())
 }
 
@@ -570,7 +603,11 @@ fn main() -> Result<()> {
         Commands::Switch { path } => cmd_switch(cli.gui, path)?,
         Commands::Find { path } => cmd_find(cli.gui, path)?,
         Commands::Sessions => cmd_sessions(cli.gui)?,
-        Commands::List => cmd_list()?,
+        Commands::List {
+            clean,
+            tmux,
+            notmux,
+        } => cmd_list(clean, tmux, notmux)?,
     }
 
     Ok(())
