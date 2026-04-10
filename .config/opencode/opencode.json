@@ -5,7 +5,10 @@
     "username": "maxwell",
     "permission": {
         "edit": "allow",
-        "bash": "ask",
+        "bash": {
+            "default": "ask",
+            "allow": ["gh"]
+        },
         "webfetch": "ask",
         "doom_loop": "ask",
         "external_directory": "ask"
