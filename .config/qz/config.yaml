@@ -20,7 +20,7 @@ projects:
         layout: even-horizontal
         panes:
           - nvim .
-          - pi .
+          - opencode .
       scratch:
 
   pi:
@@ -110,10 +110,19 @@ projects:
   faucet 🌊:
     path: ~/source/faucet
     filter_out: "./target/"
+    tmux_windows:
+      dev:
+        layout: even-horizontal
+        panes:
+          - nvim .
+          - opencode .
+      scratch:
 
   Games:
     path: ~/Games
     filter_for: '\.sh$'
+    filter_opts:
+      max_depth: 5
     handler_override: handlers/game_script_handler.sh
     handler_pattern: '\.sh$'
 

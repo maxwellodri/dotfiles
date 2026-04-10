@@ -45,6 +45,11 @@ struct Config {
     projects: HashMap<String, Project>,
 }
 
+#[derive(Debug, Default, Deserialize)]
+struct FilterOpts {
+    max_depth: Option<usize>,
+}
+
 #[derive(Debug, Deserialize)]
 struct Project {
     path: String,
@@ -52,6 +57,8 @@ struct Project {
     filter_for: Option<String>,
     #[serde(default)]
     filter_out: Option<String>,
+    #[serde(default)]
+    filter_opts: Option<FilterOpts>,
     #[serde(default)]
     handler_pattern: Option<String>,
     #[serde(default)]
@@ -87,7 +94,7 @@ fn load_config() -> Result<Config> {
     }
     let contents = std::fs::read_to_string(&path)
         .with_context(|| format!("Reading config at {}", path.display()))?;
-    let config: Config = serde_yml::from_str(&contents)
+    let config: Config = serde_norway::from_str(&contents)
         .with_context(|| format!("Parsing YAML config at {}", path.display()))?;
     Ok(config)
 }
@@ -168,6 +175,11 @@ fn tmux_create_session(name: &str, project: &Project) -> Result<()> {
         setup_window_panes(name, win_name, win, &path);
     }
 
+    Command::new("tmux")
+        .args(["select-window", "-t", &format!("{}:{}", name, first.0)])
+        .status()
+        .ok();
+
     Ok(())
 }
 
@@ -198,20 +210,6 @@ fn setup_window_panes(session: &str, window: &str, win: &Window, path: &Path) {
             .status()
             .ok();
     }
-}
-
-fn get_git_root() -> Option<PathBuf> {
-    let output = Command::new("git")
-        .args(["rev-parse", "--show-toplevel"])
-        .output()
-        .ok()?;
-    if output.status.success() {
-        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if !path.is_empty() {
-            return Some(PathBuf::from(path));
-        }
-    }
-    None
 }
 
 fn is_text_file(path: &Path) -> bool {
@@ -288,7 +286,7 @@ fn cmd_switch(gui: bool, path_only: bool) -> Result<()> {
     let projects: Vec<(&String, &Project)> = config
         .projects
         .iter()
-        .filter(|(_, p)| expand_path(&p.path).is_dir())
+        .filter(|(_, p)| expand_path(&p.path).is_dir() && p.tmux_windows.is_empty())
         .collect();
 
     if projects.is_empty() {
@@ -335,38 +333,77 @@ fn cmd_switch(gui: bool, path_only: bool) -> Result<()> {
 }
 
 fn cmd_find(gui: bool, path_only: bool) -> Result<()> {
-    let search_dir = get_git_root().unwrap_or_else(|| env::current_dir().unwrap_or_default());
+    let cwd = env::current_dir().unwrap_or_default();
     let config = load_config().ok();
     let cfg_dir = config_dir();
 
-    let fd_output = Command::new("fd")
-        .args([
-            "--base-directory",
-            &search_dir.to_string_lossy(),
-            "--type",
-            "f",
-            "--hidden",
-            "--follow",
-            "--exclude",
-            ".git",
-            "--color=always",
-        ])
-        .stdout(Stdio::piped())
-        .output()
-        .context("Running fd")?;
-
-    let files = String::from_utf8_lossy(&fd_output.stdout);
-    if files.trim().is_empty() {
-        return Ok(());
-    }
-
     let project = config.as_ref().and_then(|c| {
-        let cwd = env::current_dir().unwrap_or_default();
         c.projects.iter().find(|(_, p)| {
             let ppath = expand_path(&p.path);
             cwd.starts_with(&ppath) || cwd == ppath
         })
     });
+
+    let search_dir = if let Some((_, proj)) = &project {
+        expand_path(&proj.path)
+    } else {
+        cwd
+    };
+
+    let mut fd_args: Vec<String> = vec![
+        "--base-directory".into(),
+        search_dir.to_string_lossy().into(),
+        "--type".into(),
+        "f".into(),
+        "--hidden".into(),
+        "--follow".into(),
+        "--exclude".into(),
+        ".git".into(),
+        "--color=always".into(),
+    ];
+
+    if let Some((_, proj)) = &project {
+        if let Some(opts) = &proj.filter_opts {
+            if let Some(depth) = opts.max_depth {
+                fd_args.push("--max-depth".into());
+                fd_args.push(depth.to_string());
+            }
+        }
+    }
+
+    let fd_output = Command::new("fd")
+        .args(&fd_args)
+        .stdout(Stdio::piped())
+        .output()
+        .context("Running fd")?;
+
+    let files = String::from_utf8_lossy(&fd_output.stdout).into_owned();
+    if files.trim().is_empty() {
+        return Ok(());
+    }
+
+    let files = if let Some((_, project)) = &project {
+        files
+            .lines()
+            .filter(|line| {
+                project
+                    .filter_out
+                    .as_ref()
+                    .map(|pat| Regex::new(pat).map(|re| !re.is_match(line)).unwrap_or(true))
+                    .unwrap_or(true)
+            })
+            .filter(|line| {
+                project
+                    .filter_for
+                    .as_ref()
+                    .map(|pat| Regex::new(pat).map(|re| re.is_match(line)).unwrap_or(true))
+                    .unwrap_or(true)
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    } else {
+        files
+    };
 
     let selected = if gui {
         run_dmenu(&files, "File")
