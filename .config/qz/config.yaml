@@ -30,7 +30,7 @@ projects:
         layout: even-horizontal
         panes:
           - nvim .
-          - pi .
+          - sudo -u pi zsh -lc "pi"
       scratch:
 
   rwm:

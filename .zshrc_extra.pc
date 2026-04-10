@@ -11,3 +11,5 @@ export SWAP="$HOME/media/drive_swappy/swapfile"
 hash -d yt=~/Videos/youtube/
 hash -d df=~/source/dotfiles/
 hash -d myk=~/source/mykaelium/
+
+command -v systemctl >/dev/null 2>&1 && systemctl --user import-environment PATH HOME USER XDG_CONFIG_HOME BIN

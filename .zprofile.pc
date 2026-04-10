@@ -31,7 +31,6 @@ export AI_GPU=AMD
 #command transmission-daemon --no-auth
 eval "$(command ssh-agent)" > /dev/null
 #command xfce-polkit
-[ ! -s ~/.config/mpd/pid ] && [ -f "$(which mpd)" ] && mpd &
 
 if [ -z "$WM" ] ; then
     case $XDG_VTNR in
@@ -47,4 +46,5 @@ export WM
 export WMNAME="$(basename "$WM")"
 [ ! "$DISPLAY" ] && [ -n "$WM" ] && startx
 
-[[ -x "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/sw.autostart.sh" ]] && "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/sw.autostart.sh"
+[ -e "$HOME/.zshrc_extra" ] && source "$HOME/.zshrc_extra" #load platform-specific overrides (last, so it wins)
+[ "$IS_USER_LLM_AGENT" != 1 ] && [ ! -s ~/.config/mpd/pid ] && [ -f "$(which mpd)" ] && mpd &

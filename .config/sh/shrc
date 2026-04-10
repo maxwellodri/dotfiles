@@ -20,7 +20,6 @@ export BIN="$HOME/bin"
 export bin="$BIN"
 export dl="$HOME/Downloads"
 export CARGO_ASC=true
-export GDUSER="$HOME/.local/share/godot/app_userdata/Mykaelium/"
 export GTK_THEME=Arc-Dark
 export XCURSOR_THEME=Arc-Dark
 export GODOT4_BIN=/bin/godot-mono-bin
@@ -31,7 +30,7 @@ export QMK="$SOURCE/qmk_firmware"
 export JUPYTERLAB_DIR="$HOME/.local/share/jupyter/lab"
 export PATH="$BIN:$BIN/steam_scripts:$HOME/.local/share/cargo/bin:$HOME/.local/bin:$PATH"
 export MANPAGER='nvim +Man!'
-command -v systemctl >/dev/null 2>&1 && systemctl --user import-environment PATH HOME USER XDG_CONFIG_HOME BIN
+# systemctl --user import-environment moved to .zshrc_extra.<tag> (per-platform, not for agent users)
 
 ################
 #Functions:
