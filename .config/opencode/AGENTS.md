@@ -16,20 +16,23 @@ If no or no response: proceed directly to implementation without persisting.
 Plans must follow this exact structure:
 
 ```markdown
-# Plan Title
+# Context (READ-ONLY SECTION)
+[Freeform markdown — all background, architecture decisions, relevant APIs, types,
+conventions, crate location, dependencies, design rationale. Everything gathered
+during planning that a junior engineer would need to understand the feature.]
 
-## Objective
-[Required] What we're accomplishing - 1-2 sentences.
+# Tasks
+[
+  {
+    "task": "Short description of the task",
+    "completed": false,
+    "steps": "Step 1: ...\nStep 2: ..."
+  }
+]
 
-## Context
-[Required] Key decisions, clarifications, and constraints discovered during planning.
-
-## Steps
-[Required] Ordered implementation steps as a markdown numbered list:
-1. First step
-2. Second step
-3. ...
-
-## Notes
-[Optional] Any relevant information for future reference.
+# Progress
 ```
+
+- **`# Context (READ-ONLY SECTION)`** — All background information required to understand and implement the feature.
+- **`# Tasks`** — A JSON array of task objects. Each task has `task` (description), `completed` (boolean), and `steps` (detailed sub-steps).
+- **`# Progress`** — Left empty. Appended to during implementation as a diary of findings.
