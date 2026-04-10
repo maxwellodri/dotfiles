@@ -7,7 +7,7 @@
         "edit": "allow",
         "bash": {
             "default": "ask",
-            "allow": ["gh"]
+            "gh": "allow"
         },
         "webfetch": "ask",
         "doom_loop": "ask",

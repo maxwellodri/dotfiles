@@ -25,6 +25,7 @@ export GTK_THEME=Arc-Dark
 export XCURSOR_THEME=Arc-Dark
 export GODOT4_BIN=/bin/godot-mono-bin
 export SOURCE="$HOME/source"
+export PI_CODING_AGENT_DIR="$SOURCE/pi"
 export PASSWORD_STORE_GENERATED_LENGTH=30
 export QMK="$SOURCE/qmk_firmware"
 export JUPYTERLAB_DIR="$HOME/.local/share/jupyter/lab"
