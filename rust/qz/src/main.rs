@@ -59,7 +59,7 @@ struct Project {
     #[serde(default)]
     on_enter: Option<String>,
     #[serde(default)]
-    windows: HashMap<String, Window>,
+    tmux_windows: HashMap<String, Window>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -117,7 +117,7 @@ fn tmux_create_session(name: &str, project: &Project) -> Result<()> {
         return Ok(());
     }
 
-    if project.windows.is_empty() {
+    if project.tmux_windows.is_empty() {
         Command::new("tmux")
             .args([
                 "new-session",
@@ -132,8 +132,8 @@ fn tmux_create_session(name: &str, project: &Project) -> Result<()> {
         return Ok(());
     }
 
-    let mut windows: Vec<(&String, &Window)> = project.windows.iter().collect();
-    let first = windows.swap_remove(0);
+    let mut tmux_windows: Vec<(&String, &Window)> = project.tmux_windows.iter().collect();
+    let first = tmux_windows.swap_remove(0);
 
     Command::new("tmux")
         .args([
@@ -151,7 +151,7 @@ fn tmux_create_session(name: &str, project: &Project) -> Result<()> {
 
     setup_window_panes(name, first.0, first.1, &path);
 
-    for (win_name, win) in windows {
+    for (win_name, win) in tmux_windows {
         Command::new("tmux")
             .args([
                 "new-window",
@@ -314,7 +314,7 @@ fn cmd_switch(gui: bool, path_only: bool) -> Result<()> {
     if let Some(name) = selected {
         if let Some(project) = config.projects.get(&name) {
             let dir = expand_path(&project.path);
-            if path_only || project.windows.is_empty() {
+            if path_only || project.tmux_windows.is_empty() {
                 println!("cd '{}'", dir.display());
                 if let Some(on_enter) = &project.on_enter {
                     println!("{}", on_enter);
@@ -448,7 +448,7 @@ fn cmd_sessions(gui: bool) -> Result<()> {
 
     if let Some(config) = &config {
         for (name, project) in &config.projects {
-            if !project.windows.is_empty() && !active_sessions.contains(name) {
+            if !project.tmux_windows.is_empty() && !active_sessions.contains(name) {
                 entries.push(format!("[layout] {}", name));
             }
         }
@@ -511,7 +511,7 @@ fn cmd_list() -> Result<()> {
         if !path.is_dir() {
             continue;
         }
-        if !project.windows.is_empty() {
+        if !project.tmux_windows.is_empty() {
             let status = if tmux_session_exists(name) {
                 "\u{2713}"
             } else {

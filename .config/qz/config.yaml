@@ -2,7 +2,7 @@ projects:
   mykaelium:
     path: ~/source/mykaelium
     filter_out: "./target/"
-    windows:
+    tmux_windows:
       dev:
         layout: even-horizontal
         panes:
@@ -15,7 +15,7 @@ projects:
 
   dotfiles:
     path: ~/source/dotfiles
-    windows:
+    tmux_windows:
       dev:
         layout: even-horizontal
         panes:
@@ -25,7 +25,7 @@ projects:
 
   rwm:
     path: ~/source/rwm
-    windows:
+    tmux_windows:
       dev:
         layout: even-horizontal
         panes:
@@ -36,7 +36,7 @@ projects:
   vile:
     path: ~/source/vile
     filter_out: "./target/"
-    windows:
+    tmux_windows:
       dev:
         layout: even-horizontal
         panes:
@@ -50,7 +50,7 @@ projects:
   tsp_ytdlp:
     path: ~/source/tsp_ytdlp
     filter_out: "./target/"
-    windows:
+    tmux_windows:
       dev:
         layout: even-horizontal
         panes:
@@ -60,7 +60,7 @@ projects:
 
   nix_config:
     path: ~/source/nix_config
-    windows:
+    tmux_windows:
       dev:
         layout: even-horizontal
         panes:
