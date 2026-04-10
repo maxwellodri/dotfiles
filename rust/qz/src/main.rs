@@ -1,5 +1,6 @@
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
+use indexmap::IndexMap;
 use regex::Regex;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -66,7 +67,7 @@ struct Project {
     #[serde(default)]
     on_enter: Option<String>,
     #[serde(default)]
-    tmux_windows: HashMap<String, Window>,
+    tmux_windows: IndexMap<String, Window>,
 }
 
 #[derive(Debug, Deserialize)]
