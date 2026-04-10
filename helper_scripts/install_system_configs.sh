@@ -41,7 +41,7 @@ find_git_root() {
 
 # Check if user is in wheel group
 check_wheel_membership() {
-    if ! groups | grep -q '\bwheel\b'; then
+    if ! groups | grep -qw wheel; then
         echo -e "${RED}Error: You must be a member of the 'wheel' group to run this script.${NC}"
         echo -e "${YELLOW}Current groups: $(groups)${NC}"
         exit 1
@@ -173,6 +173,8 @@ copy_files() {
     dst_dir="${dst_dir%/}"
     local needs_sudo="${3:-false}"
     local is_user_service="${4:-false}"
+    local file_perms="${5:-644}"
+    local file_group="${6:-root}"
     
     # Ensure the destination directory exists
     if [ "$needs_sudo" = "true" ]; then
@@ -226,10 +228,12 @@ copy_files() {
                 # Copy the file
                 if [ "$needs_sudo" = "true" ]; then
                     sudo cp "$src" "$dst"
-                    sudo chmod 644 "$dst"
+                    sudo chmod "$file_perms" "$dst"
+                    sudo chgrp "$file_group" "$dst"
                 else
                     cp "$src" "$dst"
-                    chmod 644 "$dst"
+                    chmod "$file_perms" "$dst"
+                    chgrp "$file_group" "$dst"
                 fi
                 echo -e "${GREEN}↻ Updated${NC} $filename"
                 UPDATED_FILES+=("$dst")
@@ -258,10 +262,12 @@ copy_files() {
             # Destination file does not exist, so copy source file
             if [ "$needs_sudo" = "true" ]; then
                 sudo cp "$src" "$dst"
-                sudo chmod 644 "$dst"
+                sudo chmod "$file_perms" "$dst"
+                sudo chgrp "$file_group" "$dst"
             else
                 cp "$src" "$dst"
-                chmod 644 "$dst"
+                chmod "$file_perms" "$dst"
+                chgrp "$file_group" "$dst"
             fi
             echo -e "${GREEN}+ Copied${NC} $filename ${GREEN}(new)${NC}"
             COPIED_FILES+=("$dst")
@@ -329,6 +335,8 @@ print_header "Installing System Configuration Files"
 # Copy dotfile tag (requires sudo)
 echo -e "${CYAN}Copying $GIT_ROOT/.dotfile_tag to /etc/dotfile_tag${NC}"
 sudo cp "$GIT_ROOT/.dotfile_tag" "/etc/dotfile_tag"
+sudo chmod 664 "/etc/dotfile_tag"
+sudo chgrp wheel "/etc/dotfile_tag"
 
 # Copy udev rules (requires sudo)
 print_header "Installing udev Rules"
@@ -348,7 +356,9 @@ copy_files "systemd-services/user" "$USER_CONFIG_HOME/systemd/user" false
 print_header "Installing System Configurations"
 copy_files "system_configs/etc/tlp.conf" "/etc" true
 copy_files "system_configs/etc/pacman.d/hooks" "/etc/pacman.d/hooks" true
-copy_files "system_configs/etc/polkit-1/rules.d/" "/etc/polkit-1/rules.d" true
+copy_files "system_configs/etc/polkit-1/rules.d/" "/etc/polkit-1/rules.d" true false "640" "wheel"
+copy_files "system_configs/etc/sudoers.d" "/etc/sudoers.d" true false "440"
+# $dotfile_tag is exported by .zprofile.<machine> at login
 if [ "$dotfile_tag" = "pc" ]; then
     #copy_files "system_configs/etc/systemd/zram-generator.conf" "/etc/systemd/zram-generator.conf" true
     copy_files "system_configs/etc/systemd/" "/etc/systemd/" true
