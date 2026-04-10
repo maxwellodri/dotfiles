@@ -7,6 +7,8 @@
 *.AppImage
 org/*.el$
 .opencode/package-lock.json
+.opencode/plans/
+.opencode/completed_plans/
 dwm/nohup.out
 !org/$
 !org/*.org$
