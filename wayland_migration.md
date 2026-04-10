@@ -139,9 +139,6 @@ These configs are fundamentally X11 constructs — they need Wayland equivalents
 | Path | X11-ism | Wayland equivalent |
 |---|---|---|
 | `scripts/set_kb_map` | `setxkbmap` | `xkb_options` in compositor config or `swaymsg` |
-| `scripts/keyboard_set_capslock_to_escape` | `setxkbmap` | compositor config |
-| `scripts/watch_keyboard.sh` | `xmodmap` | compositor config / `interception-tools` |
-| `user/keyboard-remap.service` | `xmodmap` systemd service | `interception-tools` or compositor config |
 | `scripts/Huion610ProTablet.sh` | `xsetwacom` | `swaymsg input` / tablet config in compositor |
 | `scripts/toggle_rotation.sh` | `xrandr` | `wlr-randr` or compositor-specific |
 

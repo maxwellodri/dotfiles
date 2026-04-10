@@ -41,7 +41,7 @@ games["Titan Quest"]=475150
 games["Town of Salem"]=334230
 games["The Witcher 3"]=499450
 games["Wyrmsun"]=370072
-games["Battle.net"]="script:$dotfiles/game/battlenet.sh"
+games["Lutris"]="lutris"
 
 declare -A pinned
 pinned["Slay the Spire 2"]=1
@@ -64,9 +64,8 @@ selection=$(printf '%s\n%s\n' "$pinned_sorted" "$unpinned_sorted" | grep -v '^$'
 [[ -n $selection ]] || exit
 
 appid="${games[$selection]}"
-if [[ "$appid" == script:* ]]; then
-    script="${appid#script:}"
-    alacritty -T "$selection" -e "$script"
+if [[ "$appid" == lutris ]]; then
+    UMU_RUNTIME_UPDATE=0 lutris
 else
     steam -applaunch "$appid"
 fi

@@ -30,7 +30,6 @@ super + shift + alt + s
     colorpicker
 super + End
     /home/maxwell/bin/interactive_bookmarks.sh
-
 super + shift + Escape
     set_kb_map && notify-send -t 1000 "Correctly Set Capslock => Escape 😍"
 super + shift + w

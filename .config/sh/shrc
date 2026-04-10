@@ -204,4 +204,3 @@ alias screensave="xclip -selection clipboard -target image/png -out > out.png"
 
 command -v ytop > /dev/null && alias htop="ytop -asm -c monokai"
 
-alias USB="/home/maxwell/media/usb"

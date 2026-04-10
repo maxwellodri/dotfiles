@@ -2,8 +2,7 @@
 ################
 #exports:
 ################
-export src='/home/maxwell/source'
-export dotfiles="$src/dotfiles"
+export dotfiles='/home/maxwell/source/dotfiles'
 export SWAP="$HOME/media/drive_swappy/swapfile"
 ################
 #aliases:

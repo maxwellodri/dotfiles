@@ -1,1 +1,0 @@
-ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="320f", ATTRS{idProduct}=="5064", TAG+="systemd", ENV{SYSTEMD_WANTS}+="keyboard-remap.service"

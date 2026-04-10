@@ -1,9 +1,0 @@
-[Unit]
-Description=Remap keyboard keys
-
-[Service]
-Type=simple
-ExecStart=/home/maxwell/bin/_udev_apply_xmodmap.sh
-
-[Install]
-WantedBy=default.target
