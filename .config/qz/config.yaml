@@ -1,0 +1,123 @@
+projects:
+  mykaelium:
+    path: ~/source/mykaelium
+    filter_out: "./target/"
+    windows:
+      dev:
+        layout: even-horizontal
+        panes:
+          - nvim mykaelium/src/lib.rs
+          - opencode .
+      notes:
+        panes:
+          - nvim notes/index.md
+      scratch:
+
+  dotfiles:
+    path: ~/source/dotfiles
+    windows:
+      dev:
+        layout: even-horizontal
+        panes:
+          - nvim .
+          - opencode .
+      scratch:
+
+  rwm:
+    path: ~/source/rwm
+    windows:
+      dev:
+        layout: even-horizontal
+        panes:
+          - nvim rwm/src/lib.rs
+          - opencode .
+      scratch:
+
+  vile:
+    path: ~/source/vile
+    filter_out: "./target/"
+    windows:
+      dev:
+        layout: even-horizontal
+        panes:
+          - nvim src/main.rs
+          - opencode .
+      notes:
+        panes:
+          - nvim notes/index.md
+      scratch:
+
+  tsp_ytdlp:
+    path: ~/source/tsp_ytdlp
+    filter_out: "./target/"
+    windows:
+      dev:
+        layout: even-horizontal
+        panes:
+          - nvim src/main.rs
+          - opencode .
+      scratch:
+
+  nix_config:
+    path: ~/source/nix_config
+    windows:
+      dev:
+        layout: even-horizontal
+        panes:
+          - nvim flake.nix
+          - opencode .
+      notes:
+        panes:
+          - nvim notes/index.md
+      scratch:
+      vibe:
+        panes:
+          - opencode .
+      deploy:
+
+  dwm:
+    path: ~/source/dwm
+
+  st:
+    path: ~/source/st
+
+  dmenu:
+    path: ~/source/dmenu
+
+  agentcoder:
+    path: ~/source/agent_coder
+
+  gltf_animation-blender-plugin:
+    path: ~/source/gltf_animation_layerer
+
+  private:
+    path: ~/source/private
+
+  "TofuBerry🍓🍇":
+    path: ~/source/tofuberry
+    filter_out: "./target/"
+
+  faucet 🌊:
+    path: ~/source/faucet
+    filter_out: "./target/"
+
+  Games:
+    path: ~/Games
+    filter_for: '\.sh$'
+    handler_override: handlers/game_script_handler.sh
+    handler_pattern: '\.sh$'
+
+  videos:
+    path: ~/Videos/youtube
+    filter_out: "(.*part|.*json)"
+    handler_override: handlers/video_handler_handler.sh
+    handler_pattern: ".*"
+    on_enter: "mpv_play -m o"
+
+  asm:
+    path: ~/Videos/asm
+    filter_out: "(.*part|.*json)"
+
+  vw:
+    path: ~/Documents/notes
+    on_enter: "vw"

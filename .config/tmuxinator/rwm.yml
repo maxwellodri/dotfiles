@@ -1,9 +1,0 @@
-name: rwm
-root: ~/source/rwm
-windows:
-  - dev:
-      layout: even-horizontal
-      panes:
-        - nvim rwm/src/lib.rs
-        - opencode .
-  - scratch:

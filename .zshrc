@@ -164,162 +164,44 @@ function _git_root {
     zle accept-line
 }
 
-sw_widget() {
-   local output
-   output=$(sw)
-   [[ -n "$output" ]] && eval "$output" && zle reset-prompt
+qz_switch() {
+   local o; o=$(qz switch)
+   [[ -n "$o" ]] && BUFFER="$o" && zle accept-line
+}
+qz_find() {
+   local o; o=$(qz find)
+   [[ -n "$o" ]] && BUFFER="$o" && zle accept-line
+}
+qz_sessions() {
+   if [ -n "$TMUX" ]; then
+     local pane_title=$(tmux display-message -p "#{pane_title}")
+     if [ "$pane_title" = "terminal" ]; then
+       "$XDG_CONFIG_HOME/tmux/_tmux_terminal_pane"
+       return 0
+     fi
+   fi
+   local o; o=$(qz sessions)
+   [[ -n "$o" ]] && BUFFER="$o" && zle accept-line
 }
 
-sw_find() {
-   local output
-   output=$(sw find)
-   [[ -n "$output" ]] && eval "$output" && zle reset-prompt
-}
+zle -N qz_switch
+zle -N qz_find
+zle -N qz_sessions
 
-sw_switch() {
-   local output
-   output=$(sw --path)
-   [[ -n "$output" ]] && eval "$output" && zle reset-prompt
-}
-
-zle -N sw_switch
-bindkey -M vicmd '^[^F' sw_switch
-bindkey -M viins '^[^F' sw_switch
-
-
-
-zle -N sw_widget
-bindkey -M vicmd '^F' sw_widget
-bindkey -M viins '^F' sw_widget
+bindkey -M vicmd '^F' qz_switch
+bindkey -M viins '^F' qz_switch
+bindkey -M vicmd '^[^F' qz_find
+bindkey -M viins '^[^F' qz_find
+if [ -z "$TMUX" ]; then
+  bindkey -M viins '^b' qz_sessions
+  bindkey -M vicmd '^b' qz_sessions
+fi
 
 stty -ixon
-
-zle -N sw_find
-bindkey -M vicmd '^x^s' sw_find
-bindkey -M viins '^x^s' sw_find
 
 zle -N _vim_in_dir
 bindkey -M viins '^x^x' _vim_in_dir
 bindkey -M vicmd '^x^x' _vim_in_dir
-
-#zle -N _git_root
-#bindkey -M viins '^G' _git_root
-#bindkey -M vicmd '^G' _git_root
-
-tmux_attach() {
-  # Check if we're in tmux and in the terminal pane
-  if [ -n "$TMUX" ]; then
-    local pane_title=$(tmux display-message -p "#{pane_title}")
-    if [ "$pane_title" = "terminal" ]; then
-      "$XDG_CONFIG_HOME/tmux/_tmux_terminal_pane"
-      return 0
-    fi
-  fi
-
-  local saved_buffer="$BUFFER"
-  local saved_cursor="$CURSOR"
-  BUFFER=""
-  CURSOR=0
-  zle reset-prompt
-
-  # Get active tmux sessions
-  local sessions=$(tmux list-sessions 2>/dev/null)
-  local active_sessions=$(echo "$sessions" | cut -d: -f1)
-
-  # Build list starting with create option
-  local session_list="+ Create new session"
-
-  # Add active tmux sessions
-  if [ -n "$sessions" ]; then
-    session_list="$session_list\n$sessions"
-  fi
-
-  # Add inactive tmuxinator sessions
-  if command -v tmuxinator &>/dev/null; then
-    local tmuxinator_projects=$(tmuxinator list -n --skip-active 2>/dev/null | tail -n +2)
-    if [ -n "$tmuxinator_projects" ]; then
-      while IFS= read -r project; do
-        # Skip empty lines
-        if [ -n "$project" ]; then
-          session_list="$session_list\n[tmuxinator] $project"
-        fi
-      done <<< "$tmuxinator_projects"
-    fi
-  fi
-
-  local selected=$(echo "$session_list" | fzf \
-    --ansi \
-    --border=rounded \
-    --color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8 \
-    --color=fg:#cdd6f4,header:#f38ba8,info:#cba6ac,pointer:#f5e0dc \
-    --color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6ac,hl+:#f38ba8 \
-    --cycle)
-
-  if [ -z "$selected" ]; then
-    BUFFER="$saved_buffer"
-    CURSOR="$saved_cursor"
-    zle reset-prompt
-    return 0
-  fi
-
-  if [ "$selected" = "+ Create new session" ]; then
-    local tmpfile=$(mktemp /tmp/tmux_session_name_XXXXXX)
-    echo "# Enter the new tmux session name on the line below (lines starting with # are ignored)" > "$tmpfile"
-    echo "" >> "$tmpfile"
-
-    local editor="${EDITOR:-vim}"
-    if [[ "$editor" == "nvim" ]] || [[ "$editor" == "vim" ]]; then
-      $editor "+normal! 2G" "+startinsert" "$tmpfile"
-    else
-      $editor "$tmpfile"
-    fi
-
-    local session_name=$(grep -v '^#' "$tmpfile" | grep -v '^[[:space:]]*$' | head -n1 | xargs)
-    rm -f "$tmpfile"
-
-    if [ -z "$session_name" ]; then
-      echo "No session name provided"
-      BUFFER="$saved_buffer"
-      CURSOR="$saved_cursor"
-      zle reset-prompt
-      return 1
-    fi
-
-    if tmux has-session -t "$session_name" 2>/dev/null; then
-      echo "Session '$session_name' already exists"
-      BUFFER="$saved_buffer"
-      CURSOR="$saved_cursor"
-      zle reset-prompt
-      return 1
-    fi
-
-    if [[ "$session_name" =~ [^a-zA-Z0-9_-] ]]; then
-      echo "Invalid session name (use only alphanumeric, dash, underscore)"
-      BUFFER="$saved_buffer"
-      CURSOR="$saved_cursor"
-      zle reset-prompt
-      return 1
-    fi
-
-    BUFFER="tmux new-session -s '$session_name'"
-    zle accept-line
-  elif [[ "$selected" == "[tmuxinator] "* ]]; then
-    # Handle tmuxinator session
-    local project_name=$(echo "$selected" | sed 's/^\[tmuxinator\] //')
-    BUFFER="tmuxinator start '$project_name'"
-    zle accept-line
-  else
-    # Handle regular tmux session
-    local session_name=$(echo "$selected" | cut -d: -f1)
-    BUFFER="tmux attach-session -t '$session_name'"
-    zle accept-line
-  fi
-}
-zle -N tmux_attach
-if [ -z "$TMUX" ]; then
-  bindkey -M viins '^b' tmux_attach
-  bindkey -M vicmd '^b' tmux_attach
-fi
 
 function _rg_fzf_widget() {
   local script_path="$bin/_rg_fzf.sh"  # Adjust path as needed

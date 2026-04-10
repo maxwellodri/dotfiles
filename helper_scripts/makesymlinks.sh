@@ -8,6 +8,7 @@ dir="$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel)" #do
 i3config=.config/i3/config #combines with below to make i3
 i3statusconfig=.config/i3status/config
 dotfiles=.config/dotfiles/
+qz=.config/qz/
 zathura=.config/zathura/zathurarc
 terminator=.config/terminator/config
 sh=.config/sh/shrc
@@ -17,7 +18,7 @@ dunst=.config/dunst/dunstrc
 pactl=.config/pulseaudio-ctl/config
 newsboat=".config/newsboat/urls .config/newsboat/config"
 ytdl=.config/youtube-dl/config
-tmux=".config/tmux/ .config/tmuxinator/"
+tmux=".config/tmux/"
 gpg=.gnupg/gpg-agent.conf
 emacs=".emacs.d/init.el"
 mpd=" .config/mpd/mpd.conf"
@@ -45,8 +46,8 @@ zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam"
 files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $gitconfig $npm $faucet"
 
 ###########
-pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $opencode" #platform specific dotfiles
-hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $opencode"
+pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $opencode" #platform specific dotfiles
+hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $qz $opencode"
 
 ##########
 

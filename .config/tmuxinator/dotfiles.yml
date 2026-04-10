@@ -1,9 +1,0 @@
-name: dotfiles
-root: ~/source/dotfiles/
-windows:
-  - dev:
-      layout: even-horizontal
-      panes:
-        - nvim .
-        - opencode .
-  - scratch:
