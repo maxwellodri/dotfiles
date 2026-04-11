@@ -11,7 +11,9 @@
         },
         "webfetch": "ask",
         "doom_loop": "ask",
-        "external_directory": "ask"
+        "external_directory": {
+            "~/.local/share/cargo": "allow"
+        }
     },
     "agent": {
         "plan": {
