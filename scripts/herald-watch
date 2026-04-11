@@ -1,0 +1,9 @@
+#!/bin/sh
+# herald-watch — used by eww deflisten widgets to reactively update the sidebar.
+# Outputs `herald eww` JSON on startup and whenever the store file changes (via inotifywait).
+STORE="$HOME/.local/share/herald/messages.json"
+
+herald eww
+while inotifywait -q -e modify "$STORE" 2>/dev/null; do
+    herald eww
+done

@@ -94,3 +94,4 @@ polkit-gnome
 #yt-dlp-ejs
 deno
 alacritty
+inotify-tools

@@ -84,3 +84,7 @@ XF86AudioRaiseVolume
     pactl set-sink-volume @DEFAULT_SINK@ +5%
 XF86AudioLowerVolume
     pactl set-sink-volume @DEFAULT_SINK@ -5%
+
+# Toggle notification sidebar
+super + grave
+    eww active-windows | grep -q herald_sidebar && eww close herald_sidebar || eww open herald_sidebar

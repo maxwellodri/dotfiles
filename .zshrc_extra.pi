@@ -2,3 +2,5 @@
 export IS_USER_LLM_AGENT=1
 export dotfiles="/home/maxwell/source/dotfiles"
 export PI_CODING_AGENT_DIR="/home/maxwell/source/pi"  # override shrc's default ($SOURCE/pi → /home/pi/source/pi) so pi reads from maxwell's tree
+export RUSTUP_HOME="/home/maxwell/.local/share/rustup"
+export CARGO_HOME="/home/maxwell/.local/share/cargo"
