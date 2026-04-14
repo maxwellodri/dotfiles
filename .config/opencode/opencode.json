@@ -12,7 +12,8 @@
         "webfetch": "ask",
         "doom_loop": "ask",
         "external_directory": {
-            "~/.local/share/cargo": "allow"
+            "~/.local/share/cargo/*": "allow",
+            "~/.local/share/nvim/*": "allow"
         }
     },
     "agent": {
