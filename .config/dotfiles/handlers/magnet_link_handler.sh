@@ -17,7 +17,7 @@ selected_dir=$(printf '%s\n' "Default Dir" "Manual Directory" "${DOWNLOAD_DIRS[@
 
 if [[ $selected_dir == "Manual Directory" ]]; then
     temp_file=$(mktemp)
-    st -g 100x20+2000+720 -c "stfuzzy" -e sh -c "cd '$HOME' && fd --type directory | fzf --prompt='Select directory: ' --ansi --border=rounded --color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8 --color=fg:#cdd6f4,header:#f38ba8,info:#cba6ac,pointer:#f5e0dc --color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6ac,hl+:#f38ba8 --bind=ctrl-u:preview-page-up,ctrl-d:preview-page-down --cycle > '$temp_file'"
+    wezfuzzy "cd '$HOME' && fd --type directory | fzf --prompt='Select directory: ' --ansi --border=rounded --color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8 --color=fg:#cdd6f4,header:#f38ba8,info:#cba6ac,pointer:#f5e0dc --color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6ac,hl+:#f38ba8 --bind=ctrl-u:preview-page-up,ctrl-d:preview-page-down --cycle > '$temp_file'"
     selected_dir=$(cat "$temp_file")
     rm -f "$temp_file"
     if [[ -n $selected_dir && "$selected_dir" != /* ]]; then

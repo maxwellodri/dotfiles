@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+wezterm --config initial_cols=100 \
+    --config initial_rows=30 \
+    start --always-new-process \
+    --class wezfuzzy \
+    --position 2000,360 \
+    -- "$SHELL" -c "printf '\033]0;wezfuzzy\007'; $*"
