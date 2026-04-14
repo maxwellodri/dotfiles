@@ -21,8 +21,15 @@ Files needing changes before moving from X11 to Wayland. Target: avoid XWayland 
 | `.config/mpv/scripts/copy_file_path.lua` | Checks `$WAYLAND_DISPLAY` |
 | `.config/mpv/scripts/copy-url.lua` | Checks `$WAYLAND_DISPLAY` |
 | `.config/nvim/lua/user/utils.lua` | Checks `$WAYLAND_DISPLAY` |
-| `.config/dotfiles/handlers/magnet_link_handler.sh` | dmenu is Wayland-aware (but `st` is not — see below) |
+| `.config/dotfiles/handlers/magnet_link_handler.sh` | Fully Wayland-aware (dmenu + wezfuzzy) |
 | `.config/dunst/dunstrc` | Has `force_xwayland = false` |
+| `scripts/qrpass` | Fully Wayland-aware (dmenu + imv/feh image viewer) |
+| `scripts/_tsp_ytdlp_with_dir` | Fully Wayland-aware (dmenu + wezfuzzy) |
+| `scripts/mp_queue_song` | Fully Wayland-aware (wezfuzzy) |
+| `scripts/handler` | Removed — was dead code |
+| `scripts/togglerc` | Removed — X11-only |
+| `.config/qz/handlers/magnet_link_handler.sh` | Removed — duplicate of dotfiles version |
+| `penrose/` | Removed |
 
 ---
 
@@ -43,22 +50,20 @@ Files needing changes before moving from X11 to Wayland. Target: avoid XWayland 
 | `scripts/system_diagnostics.sh` | 303–310 | `xclip` then `xsel` fallback | Add `wl-copy` as first option |
 | `.config/dotfiles/dwm_faucet.sh` | 8 | `xclip -selection primary -o` | Add Wayland branch with `wl-paste -p` |
 
-### dmenu without Wayland fallback
+---
 
-| File | Line(s) | Fix |
+## Partially Wayland-Aware (needs completing)
+
+| File | Status | What's missing |
 |---|---|---|
-| `scripts/handler` | 2 | Add Wayland check, use `dmenu-wl` |
-| `scripts/text_handler.sh` | 21, 69, 85 | Add Wayland check, use `dmenu-wl` |
-| `scripts/qrpass` | 22 | Add Wayland check, use `dmenu-wl` |
-| `scripts/emojis` | 10, 12 | Add Wayland check, use `dmenu-wl` |
+| `scripts/text_handler.sh` | dmenu is Wayland-aware | `xclip` (lines 114, 117) and `st` terminal references still X11-only |
+| `scripts/emojis` | dmenu + clipboard clear are Wayland-aware | Clipboard set on line 20 uses `xclip` unconditionally |
 
 ---
 
 ## Needs Rethinking (terminal, image viewer, etc.)
 
-### `st` terminal — pick a Wayland-native replacement first
-
-All of these hardcode `st` and need updating once a replacement is chosen (e.g. foot, alacritty, wezterm, kitty):
+### `st` terminal — remaining uses still need updating
 
 | File | Line(s) | Context |
 |---|---|---|
@@ -66,38 +71,23 @@ All of these hardcode `st` and need updating once a replacement is chosen (e.g. 
 | `scripts/open_reminders.rem.sh` | 3 | `st -f ... -e nvim` |
 | `scripts/open_project.sh` | 11, 13 | `st -d ... -e sh -c` |
 | `scripts/stcmd` | 26 | `st -e zsh` |
-| `scripts/mp_queue_song` | 7 | `st -g ... -e sh -c` |
-| `scripts/_tsp_ytdlp_with_dir` | 25 | `st -g ... -e sh -c` |
 | `.zshrc` | 158 | `_sterm` function uses `st -d .` |
 | `.config/nvim/init.vim` | 323 | `st -d` terminal opener |
-| `.config/faucet/faucet.yaml` | 23, 41 | `st` in faucet commands |
-| `.config/dotfiles/handlers/magnet_link_handler.sh` | 20 | `st -g ... -e sh -c` |
+| `.config/faucet/faucet.yaml` | 41 | `st -e sh -c` in st_dir command |
 | `.pam_environment` | 1 | `TERM='st'` |
 | `scripts/nvim` | 2 | Sets terminal title to `st` (cosmetic) |
 
-### `feh` — pick a Wayland-native image viewer first
+### `feh` — remaining uses need Wayland fallback
 
-(e.g. imv, swaybg for wallpapers, loupe)
+Using `imv` on Wayland, `feh` on X11. `swaybg` for wallpapers.
 
 | File | Line(s) | Context |
 |---|---|---|
-| `scripts/handler` | 9 | Image display |
-| `scripts/qrpass` | 36 | QR code display |
 | `scripts/as_qr` | 25 | QR code display |
 | `scripts/screenrecord.sh` | 24 | Screenshot preview |
-| `scripts/background_set.sh` | 4 | Wallpaper setter (`feh --bg-fill`) |
+| `scripts/background_set.sh` | 4 | Wallpaper setter (`feh --bg-fill` → `swaybg`) |
 | `.config/mimeapps.list` | 24–29 | Default image handler is `feh.desktop` |
 | `.config/faucet/faucet.yaml` | 56, 67 | Image/QR display commands |
-
----
-
-## Partially Wayland-Aware (needs completing)
-
-| File | Status | What's missing |
-|---|---|---|
-| `scripts/emojis` | Clipboard clear (lines 3–7) is Wayland-aware | Clipboard set on line 15 uses `xclip` unconditionally |
-| `scripts/_tsp_ytdlp_with_dir` | dmenu is Wayland-aware | `st` terminal for manual dir selection is not |
-| `.config/dotfiles/handlers/magnet_link_handler.sh` | dmenu is Wayland-aware | `st` terminal is not |
 
 ---
 
@@ -116,10 +106,9 @@ These configs are fundamentally X11 constructs — they need Wayland equivalents
 | `.config/i3/config.thinkpad` | i3 thinkpad config | sway config |
 | `.config/i3/config.pc` | i3 PC config | sway config |
 | `.config/i3/config.chromebook` | i3 chromebook config | sway config |
-| `.config/sxhkd/sxhkdrc` | X11 key daemon | WM-native keybinds |
+| `.config/sxhkd/sxhkdrc` | X11 key daemon | swhkd / xremap / compositor-native keybinds |
 | `.config/picom/picom.conf` | X11 compositor | Wayland compositor handles this natively |
 | `dwm/` (entire dir) | dwm WM + statusbar scripts | sway/hyprland + waybar |
-| `penrose/startup.sh` | penrose WM startup | N/A |
 | `lemonbar/bar.sh` | X11 bar | waybar / eww |
 
 ### Display/session management
@@ -153,7 +142,6 @@ These configs are fundamentally X11 constructs — they need Wayland equivalents
 | Path | X11-ism | Wayland equivalent |
 |---|---|---|
 | `scripts/killx` | `xdotool windowkill` | `swaymsg kill` / compositor-specific |
-| `scripts/togglerc` | `xdotool search` + `st` | compositor-specific |
 
 ### Shell aliases in `.config/sh/shrc`
 

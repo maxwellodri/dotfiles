@@ -12,6 +12,7 @@ pcp
 mold
 man
 xdotool
+ydotool
 ctags
 npm
 jq
@@ -26,7 +27,10 @@ nodejs
 neovim
 imagemagick
 xclip
+wl-clipboard
 shotgun
+grim
+slurp
 hacksaw
 arc-icon-theme
 arc-gtk-theme
@@ -44,6 +48,8 @@ eza
 newsboat
 git
 feh
+imv
+swaybg
 sxiv
 neofetch
 noto-fonts-emoji
@@ -56,6 +62,11 @@ ttf-joypixels
 cronie
 rustup
 xsel
+dmenu-wl
+wezterm
+hyprpicker
+wf-recorder
+wlr-randr
 detox
 #htop
 xdo
