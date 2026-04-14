@@ -2,6 +2,9 @@ local wezterm = require("wezterm")
 
 local config = {}
 
+config.front_end = "Software"
+config.max_fps = 60
+
 -- Disable multiplexer — we use tmux
 config.unix_domains = {}
 config.skip_close_confirmation_for_processes_named = { "*" }
