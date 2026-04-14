@@ -80,6 +80,7 @@
     "augustus": "https://raw.githubusercontent.com/Keriew/augustus/master/res/manual/augustus_manual_en_4_0.pdf",
     "gemini": "https://aistudio.google.com/prompts/new_chat?model=gemini-3-pro-preview",
     "t3": "https://t3.chat/",
-    "c_is_not_low_level": "https://queue.acm.org/detail.cfm?id=3212479"
+    "c_is_not_low_level": "https://queue.acm.org/detail.cfm?id=3212479",
+    "zai": "https://z.ai/manage-apikey/subscription"
 }
 
