@@ -43,20 +43,6 @@ projects:
           - opencode .
       scratch:
 
-  vile:
-    path: ~/source/vile
-    filter_out: "./target/"
-    tmux_windows:
-      dev:
-        layout: even-horizontal
-        panes:
-          - nvim src/main.rs
-          - opencode .
-      notes:
-        panes:
-          - nvim notes/index.md
-      scratch:
-
   tsp_ytdlp:
     path: ~/source/tsp_ytdlp
     filter_out: "./target/"
