@@ -11,7 +11,7 @@ use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
 const SOCKET_PATH: &str = "/tmp/herald.sock";
-const TMUX_SESSION: &str = "herald";
+const TMUX_SESSION: &str = "herald_daemon";
 
 // ── Wire protocol ────────────────────────────────────────────
 
@@ -39,6 +39,8 @@ enum Message {
     Kill { sender_pid: u32 },
     #[serde(rename = "get_messages")]
     GetMessages {},
+    #[serde(rename = "get_count")]
+    GetCount {},
 }
 
 /// Responses sent back from the daemon over the socket
@@ -49,6 +51,8 @@ enum Response {
     Ok { msg: String },
     #[serde(rename = "messages")]
     Messages { messages: Vec<StoredMessage> },
+    #[serde(rename = "count")]
+    Count { count: usize },
 }
 
 /// A message stored in the daemon's memory, with metadata
@@ -139,6 +143,10 @@ impl Store {
         self.next_id += 1;
         let id = msg.id;
         self.messages.insert(id, msg);
+        // Cap at 100 messages — remove oldest entries
+        while self.messages.len() > 100 {
+            self.messages.shift_remove_index(0);
+        }
         self.save();
         id
     }
@@ -222,6 +230,9 @@ enum Commands {
         /// Ping: play sound, notify with tmux session name, don't store
         #[arg(long, conflicts_with = "body", conflicts_with = "title")]
         ping: bool,
+        /// Don't persist to store
+        #[arg(long)]
+        no_store: bool,
         /// The message body
         body: Vec<String>,
     },
@@ -243,6 +254,8 @@ enum Commands {
     Kill,
     /// Output messages as JSON array for eww widgets
     Eww,
+    /// Print notification count
+    Count,
 }
 
 // ── Entry ────────────────────────────────────────────────────
@@ -262,7 +275,7 @@ fn main() -> io::Result<()> {
                 .build()?
                 .block_on(run_daemon())
         }
-        Commands::Message { title, sound, ping, body } => {
+        Commands::Message { title, sound, ping, no_store, body } => {
             if ping {
                 let body = std::env::var("TMUX")
                     .ok()
@@ -299,7 +312,7 @@ fn main() -> io::Result<()> {
                     body,
                     notify_send: title,
                     paplay: sound,
-                    store: has_content,
+                    store: has_content && !no_store,
                     ping: false,
                 })
             }
@@ -343,7 +356,19 @@ fn main() -> io::Result<()> {
                         }
                     }
                     Response::Ok { msg } => println!("{msg}"),
+                    Response::Count { count } => println!("{count}"),
                 }
+            }
+            Ok(())
+        }
+        Commands::Count => {
+            let raw = send_and_recv(Message::GetCount {})?;
+            let resp: Response = serde_json::from_str(&raw)
+                .expect("failed to parse daemon response");
+            match resp {
+                Response::Count { count } => println!("{count}"),
+                Response::Ok { msg } => println!("{msg}"),
+                _ => println!("unexpected response"),
             }
             Ok(())
         }
@@ -552,6 +577,11 @@ async fn handle_client(
             Response::Ok {
                 msg: format!("cleared {count} messages"),
             }
+        }
+        Message::GetCount {} => {
+            let count = store.lock().unwrap().messages.len();
+            info!(count, "sending count");
+            Response::Count { count }
         }
         Message::GetMessages {} => {
             let messages: Vec<StoredMessage> =
