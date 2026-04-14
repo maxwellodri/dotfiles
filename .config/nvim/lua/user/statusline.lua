@@ -59,10 +59,31 @@ local function git_diff_color()
   return bold_color
 end
 
+local upstream_result = nil
+
+vim.api.nvim_create_autocmd({ "BufWritePost", "BufEnter", "FileChangedShell", "FocusGained" }, {
+  callback = function()
+    local output = vim.fn.system("git rev-list --count --left-right @{upstream}...HEAD 2>/dev/null"):gsub("\n", "")
+    if output == "" or vim.v.shell_error ~= 0 then upstream_result = nil return end
+    local behind_str, ahead_str = output:match("^(%d+)%s+(%d+)$")
+    if not behind_str or not ahead_str then upstream_result = nil return end
+    local behind, ahead = tonumber(behind_str), tonumber(ahead_str)
+    if behind == 0 and ahead == 0 then upstream_result = nil return end
+    upstream_result = { behind = behind, ahead = ahead }
+  end,
+})
+
+local function upstream_component()
+  if upstream_result == nil then return "" end
+  local parts = {}
+  if upstream_result.ahead > 0 then table.insert(parts, upstream_result.ahead .. "↑") end
+  if upstream_result.behind > 0 then table.insert(parts, upstream_result.behind .. "↓") end
+  return "(" .. table.concat(parts, " ") .. ")"
+end
+
 local function upstream_color()
-  local stat = upstream_stat()
-  if stat == nil then return nil end
-  if stat.ahead >= 4 then
+  if upstream_result == nil then return nil end
+  if upstream_result.ahead >= 4 then
     return bold_red_color
   end
   return bold_color
