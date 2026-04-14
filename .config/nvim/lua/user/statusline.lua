@@ -1,5 +1,8 @@
 local C = require('user.colorscheme').colors
 
+local bold_color = { gui = 'bold' }
+local bold_red_color = { fg = C.faded_red, gui = 'bold' }
+
 local git_diff_cache = {
   result = nil,
   timestamp = 0,
@@ -49,11 +52,20 @@ end
 
 local function git_diff_color()
   local diff = git_diff_stat()
-  if diff == nil then return nil end
+  if diff == nil then return bold_color end
   if diff.files >= 5 or diff.lines >= 50 then
-    return { fg = C.faded_red, gui = "bold" }
+    return bold_red_color
   end
-  return nil
+  return bold_color
+end
+
+local function upstream_color()
+  local stat = upstream_stat()
+  if stat == nil then return nil end
+  if stat.ahead >= 4 then
+    return bold_red_color
+  end
+  return bold_color
 end
 
 require('lualine').setup {
@@ -142,7 +154,11 @@ require('lualine').setup {
         icon = '',
         color = git_diff_color,
       },
-      'branch'
+      'branch',
+      {
+        upstream_component,
+        color = upstream_color,
+      }
     }
   },
   inactive_sections = {
@@ -195,7 +211,11 @@ require('lualine').setup {
         icon = '',
         color = git_diff_color,
       },
-      'branch'
+      'branch',
+      {
+        upstream_component,
+        color = upstream_color,
+      }
     }
   },
   -- Configuring winbar (equivalent to your components_top)
