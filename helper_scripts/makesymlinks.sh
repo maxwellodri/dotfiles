@@ -35,7 +35,7 @@ qt=".config/Trolltech.conf"
 npm=".config/npm/"
 faucet=".config/faucet/"
 alacritty=".config/alacritty/"
-opencode=".config/opencode/opencode.json .config/opencode/skill/ .config/opencode/AGENTS.md .config/opencode/agents"
+opencode=".config/opencode/opencode.json .config/opencode/skill/ .config/opencode/AGENTS.md .config/opencode/agents .config/opencode/plugins"
 
 
 ########### Meta Variables
