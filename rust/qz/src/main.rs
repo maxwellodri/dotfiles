@@ -3,7 +3,6 @@ use clap::{Parser, Subcommand};
 use indexmap::IndexMap;
 use regex::Regex;
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::env;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -26,17 +25,12 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     #[command(visible_alias = "s")]
-    Switch {
-        #[arg(short, long, help = "Output path only, no tmux")]
-        path: bool,
-    },
+    Switch,
     #[command(visible_alias = "f")]
     Find {
         #[arg(short, long, help = "Output path only")]
         path: bool,
     },
-    #[command(visible_alias = "se")]
-    Sessions,
     #[command(visible_alias = "l")]
     List {
         #[arg(long, help = "Print absolute paths only, no formatting")]
@@ -50,7 +44,7 @@ enum Commands {
 
 #[derive(Debug, Deserialize)]
 struct Config {
-    projects: HashMap<String, Project>,
+    projects: IndexMap<String, Project>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -83,6 +77,25 @@ struct Window {
     layout: Option<String>,
     #[serde(default)]
     panes: Vec<Option<String>>,
+}
+
+const SOH: char = '\x01';
+
+enum Action {
+    Cd {
+        path: PathBuf,
+        on_enter: Option<String>,
+    },
+    Eval(Vec<String>),
+    TmuxCreateAndAttach {
+        name: String,
+    },
+    NewSession,
+}
+
+struct Entry {
+    label: String,
+    action: Action,
 }
 
 fn config_dir() -> PathBuf {
@@ -289,21 +302,86 @@ const FZF_BINDS: &[&str] = &[
     "--cycle",
 ];
 
-fn cmd_switch(gui: bool, path_only: bool) -> Result<()> {
+fn cmd_switch(gui: bool) -> Result<()> {
     let config = load_config()?;
-    let projects: Vec<(&String, &Project)> = config
-        .projects
-        .iter()
-        .filter(|(_, p)| expand_path(&p.path).is_dir() && p.tmux_windows.is_empty())
-        .collect();
+    let in_tmux = env::var("TMUX").is_ok();
 
-    if projects.is_empty() {
+    let active_sessions: Vec<String> = if !in_tmux {
+        Command::new("tmux")
+            .args(["list-sessions"])
+            .output()
+            .ok()
+            .map(|o| {
+                String::from_utf8_lossy(&o.stdout)
+                    .lines()
+                    .filter_map(|line| line.split(':').next().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default()
+    } else {
+        vec![]
+    };
+
+    let mut entries: Vec<Entry> = Vec::new();
+
+    if !in_tmux {
+        let project_names: Vec<&String> = config.projects.keys().collect();
+        let mut adhoc: Vec<&String> = active_sessions
+            .iter()
+            .filter(|s| !project_names.contains(s))
+            .collect();
+        adhoc.sort();
+        for session in adhoc {
+            entries.push(Entry {
+                label: format!("{} 🖥👻", session),
+                action: Action::Eval(vec![format!("tmux attach-session -t '{}'", session)]),
+            });
+        }
+    }
+
+    for (name, project) in &config.projects {
+        let dir = expand_path(&project.path);
+        if !dir.is_dir() {
+            continue;
+        }
+
+        if !in_tmux && !project.tmux_windows.is_empty() {
+            if active_sessions.contains(name) {
+                entries.push(Entry {
+                    label: format!("{} 🧐🤔", name),
+                    action: Action::Eval(vec![format!("tmux attach-session -t '{}'", name)]),
+                });
+            } else {
+                entries.push(Entry {
+                    label: format!("{} 😠😇", name),
+                    action: Action::TmuxCreateAndAttach { name: name.clone() },
+                });
+            }
+        } else {
+            entries.push(Entry {
+                label: format!("{} 🖥📁", name),
+                action: Action::Cd {
+                    path: dir,
+                    on_enter: project.on_enter.clone(),
+                },
+            });
+        }
+    }
+
+    if !in_tmux {
+        entries.push(Entry {
+            label: "+ Create new session".into(),
+            action: Action::NewSession,
+        });
+    }
+
+    if entries.is_empty() {
         bail!("No projects found");
     }
 
-    let input = projects
+    let input = entries
         .iter()
-        .map(|(name, _)| name.as_str())
+        .map(|e| e.label.as_str())
         .collect::<Vec<_>>()
         .join("\n");
 
@@ -311,28 +389,48 @@ fn cmd_switch(gui: bool, path_only: bool) -> Result<()> {
         run_dmenu(&input, "Project")
     } else {
         let mut args: Vec<&str> = Vec::new();
+        args.push("--no-sort");
         args.push("--border=rounded");
         args.extend(FZF_COLORS);
         args.extend(FZF_BINDS);
         run_fzf(&input, &args)
     };
 
-    if let Some(name) = selected {
-        if let Some(project) = config.projects.get(&name) {
-            let dir = expand_path(&project.path);
-            if path_only || project.tmux_windows.is_empty() {
-                println!("cd '{}'", dir.display());
-                if let Some(on_enter) = &project.on_enter {
-                    println!("{}", on_enter);
+    if let Some(label) = selected {
+        if let Some(entry) = entries.iter().find(|e| e.label == label) {
+            match &entry.action {
+                Action::Cd { path, on_enter } => {
+                    println!("{}cd '{}'", SOH, path.display());
+                    if let Some(cmd) = on_enter {
+                        println!("{}", cmd);
+                    }
                 }
-            } else {
-                if !tmux_session_exists(&name) {
-                    tmux_create_session(&name, project)?;
+                Action::Eval(commands) => {
+                    for cmd in commands {
+                        println!("{}", cmd);
+                    }
                 }
-                if env::var("TMUX").is_ok() {
-                    println!("tmux detach-client");
+                Action::TmuxCreateAndAttach { name } => {
+                    if let Some(project) = config.projects.get(name) {
+                        tmux_create_session(name, project)?;
+                    }
+                    println!("tmux attach-session -t '{}'", name);
                 }
-                println!("tmux attach-session -t '{}'", name);
+                Action::NewSession => {
+                    let name_input = if gui {
+                        run_dmenu("", "Session name")
+                    } else {
+                        let tmp_args: Vec<&str> =
+                            vec!["--prompt=Session name: ", "--border=rounded"];
+                        run_fzf("\n", &tmp_args)
+                    };
+                    if let Some(name) = name_input {
+                        let name = name.trim().to_string();
+                        if !name.is_empty() {
+                            println!("tmux new-session -s '{}'", name);
+                        }
+                    }
+                }
             }
         }
     }
@@ -421,12 +519,13 @@ fn cmd_find(gui: bool, path_only: bool) -> Result<()> {
             search_dir.display(),
             cfg_dir.join("fzf_preview.sh").display()
         );
-        let mut args: Vec<&str> = Vec::new();
-        args.push("--ansi");
-        args.push("--preview");
-        args.push(&preview_arg);
-        args.push("--preview-window=right:50%:border-left:noinfo");
-        args.push("--border=rounded");
+        let mut args: Vec<&str> = vec![
+            "--ansi",
+            "--preview",
+            &preview_arg,
+            "--preview-window=right:50%:border-left:noinfo",
+            "--border=rounded",
+        ];
         args.extend(FZF_COLORS);
         args.extend(FZF_BINDS);
         run_fzf(&files, &args)
@@ -464,84 +563,6 @@ fn cmd_find(gui: bool, path_only: bool) -> Result<()> {
             println!("{} '{}'", editor, file_path.display());
         } else {
             println!("xdg-open '{}'", file_path.display());
-        }
-    }
-
-    Ok(())
-}
-
-fn cmd_sessions(gui: bool) -> Result<()> {
-    let config = load_config().ok();
-
-    let tmux_list = Command::new("tmux").args(["list-sessions"]).output().ok();
-
-    let active_sessions: Vec<String> = tmux_list
-        .as_ref()
-        .map(|o| {
-            String::from_utf8_lossy(&o.stdout)
-                .lines()
-                .filter_map(|line| line.split(':').next().map(String::from))
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let mut entries: Vec<String> = vec!["+ Create new session".into()];
-
-    for session in &active_sessions {
-        entries.push(session.clone());
-    }
-
-    if let Some(config) = &config {
-        for (name, project) in &config.projects {
-            if !project.tmux_windows.is_empty() && !active_sessions.contains(name) {
-                entries.push(format!("[layout] {}", name));
-            }
-        }
-    }
-
-    let input = entries.join("\n");
-
-    let selected = if gui {
-        run_dmenu(&input, "Session")
-    } else {
-        let mut args: Vec<&str> = Vec::new();
-        args.push("--ansi");
-        args.push("--border=rounded");
-        args.push("--algo=v2");
-        args.extend(FZF_COLORS);
-        args.extend(FZF_BINDS);
-        run_fzf(&input, &args)
-    };
-
-    if let Some(sel) = selected {
-        if sel == "+ Create new session" {
-            let name_input = if gui {
-                run_dmenu("", "Session name")
-            } else {
-                let tmp_args: Vec<&str> = vec!["--prompt=Session name: ", "--border=rounded"];
-                run_fzf("\n", &tmp_args)
-            };
-            if let Some(name) = name_input {
-                let name = name.trim().to_string();
-                if !name.is_empty() {
-                    println!("tmux new-session -s '{}'", name);
-                }
-            }
-        } else if let Some(layout_name) = sel.strip_prefix("[layout] ") {
-            if let Some(config) = &config {
-                if let Some(project) = config.projects.get(layout_name) {
-                    tmux_create_session(layout_name, project)?;
-                    if env::var("TMUX").is_ok() {
-                        println!("tmux detach-client");
-                    }
-                    println!("tmux attach-session -t '{}'", layout_name);
-                }
-            }
-        } else {
-            if env::var("TMUX").is_ok() {
-                println!("tmux detach-client");
-            }
-            println!("tmux attach-session -t '{}'", sel);
         }
     }
 
@@ -599,15 +620,17 @@ fn cmd_list(clean: bool, tmux: bool, notmux: bool) -> Result<()> {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    match cli.command.unwrap_or(Commands::Switch { path: false }) {
-        Commands::Switch { path } => cmd_switch(cli.gui, path)?,
-        Commands::Find { path } => cmd_find(cli.gui, path)?,
-        Commands::Sessions => cmd_sessions(cli.gui)?,
-        Commands::List {
+    match cli.command {
+        Some(Commands::Switch) => cmd_switch(cli.gui)?,
+        Some(Commands::Find { path }) => cmd_find(cli.gui, path)?,
+        Some(Commands::List {
             clean,
             tmux,
             notmux,
-        } => cmd_list(clean, tmux, notmux)?,
+        }) => cmd_list(clean, tmux, notmux)?,
+        None => {
+            Cli::parse_from(["qz", "--help"]);
+        }
     }
 
     Ok(())

@@ -164,38 +164,48 @@ function _git_root {
     zle accept-line
 }
 
+# qz switch outputs two line types:
+#   \x01cd '/path'\non_enter_cmd  — \x01 prefix means "cd to path, eval rest"
+#   tmux_cmd1\ntmux_cmd2           — no prefix means "put in BUFFER and accept"
 qz_switch() {
-   local o; o=$(qz switch)
-   [[ -n "$o" ]] && BUFFER="$o" && zle accept-line
+   local output; output=$(qz switch)
+   [[ -n "$output" ]] || return
+   # Split on first newline: first_line is the action, remaining is the rest
+   local first_line remaining
+   first_line="${output%%$'\n'*}"
+   remaining="${output#*$'\n'}"
+   [[ "$remaining" == "$output" ]] && remaining=""
+   if [[ "$first_line" == $'\x01'* ]]; then
+     # \x01 prefix: cd to path (strip prefix), optionally eval remaining as on_enter
+     eval "${first_line#$'\x01'}"
+     if [[ -n "$remaining" ]]; then
+       BUFFER="$remaining"
+       zle accept-line
+     else
+       BUFFER=""
+       zle reset-prompt
+     fi
+   else
+     # No prefix: tmux commands — put in BUFFER so they run with a real TTY
+     BUFFER="$output"
+     zle accept-line
+   fi
 }
 qz_find() {
-   local o; o=$(qz find)
-   [[ -n "$o" ]] && BUFFER="$o" && zle accept-line
-}
-qz_sessions() {
-   if [ -n "$TMUX" ]; then
-     local pane_title=$(tmux display-message -p "#{pane_title}")
-     if [ "$pane_title" = "terminal" ]; then
-       "$XDG_CONFIG_HOME/tmux/_tmux_terminal_pane"
-       return 0
-     fi
-   fi
-   local o; o=$(qz sessions)
-   [[ -n "$o" ]] && BUFFER="$o" && zle accept-line
+   local output; output=$(qz find)
+   [[ -n "$output" ]] || return
+   # Space prefix prevents history persistence (hist_ignore_space)
+   BUFFER=" $output"
+   zle accept-line
 }
 
 zle -N qz_switch
 zle -N qz_find
-zle -N qz_sessions
 
-bindkey -M vicmd '^F' qz_switch
-bindkey -M viins '^F' qz_switch
-bindkey -M vicmd '^[^F' qz_find
-bindkey -M viins '^[^F' qz_find
-if [ -z "$TMUX" ]; then
-  bindkey -M viins '^b' qz_sessions
-  bindkey -M vicmd '^b' qz_sessions
-fi
+bindkey -M vicmd '^f' qz_find
+bindkey -M viins '^f' qz_find
+bindkey -M vicmd '^b' qz_switch
+bindkey -M viins '^b' qz_switch
 
 stty -ixon
 
