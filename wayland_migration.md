@@ -52,15 +52,6 @@ Files needing changes before moving from X11 to Wayland. Target: avoid XWayland 
 
 ---
 
-## Partially Wayland-Aware (needs completing)
-
-| File | Status | What's missing |
-|---|---|---|
-| `scripts/text_handler.sh` | dmenu is Wayland-aware | `xclip` (lines 114, 117) and `st` terminal references still X11-only |
-| `scripts/emojis` | dmenu + clipboard clear are Wayland-aware | Clipboard set on line 20 uses `xclip` unconditionally |
-
----
-
 ## Needs Rethinking (terminal, image viewer, etc.)
 
 ### `st` terminal — remaining uses still need updating
