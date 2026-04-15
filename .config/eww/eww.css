@@ -1,0 +1,122 @@
+/* ── Gruvbox Dark ── */
+* {
+  font-family: "Fira Code", monospace;
+}
+
+.herald-sidebar {
+  background-color: #282828;
+  border-left: 2px solid #3c3836;
+  min-width: 320px;
+}
+
+.herald-header {
+  background-color: #3c3836;
+  padding: 4px 14px;
+  min-height: 32px;
+  border-bottom: 2px solid #504945;
+}
+
+.herald-title {
+  color: #d79921;
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.herald-title-offline {
+  color: #cc241d;
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.herald-clear-btn {
+  color: #d5c4a1;
+  font-size: 14px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.herald-clear-btn:hover {
+  background-color: #cc241d;
+  color: #282828;
+}
+
+.herald-scroll {
+  min-height: 1380px;
+  min-width: 320px;
+}
+
+.herald-list {
+  padding: 10px 12px;
+}
+
+.herald-item {
+  background-color: #3c3836;
+  border-radius: 6px;
+  min-height: 32px;
+  margin-bottom: 6px;
+  padding: 4px 12px;
+  border: 1px solid #504945;
+  font-size: 11px;
+}
+
+.herald-item:hover {
+  background-color: #504945;
+  border-color: #689d6a;
+}
+
+.herald-item-inner {
+  min-height: 40px;
+  padding: 8px 12px;
+}
+
+.herald-item-title {
+  color: #d65d0e;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.herald-item-time {
+  color: #d5c4a1;
+  font-size: 11px;
+}
+
+.herald-item-body {
+  color: #ebdbb2;
+  font-size: 12px;
+}
+
+.herald-item-close {
+  color: #504945;
+  font-size: 13px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.herald-item-close:hover {
+  background-color: #cc241d;
+  color: #282828;
+}
+
+.herald-status {
+  background-color: #cc241d;
+  padding: 8px 14px;
+}
+
+.herald-status-hidden {
+  padding: 0;
+}
+
+.herald-status-text {
+  color: #282828;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.herald-empty {
+  color: #d5c4a1;
+  font-size: 12px;
+  padding: 20px 4px;
+  font-style: italic;
+}

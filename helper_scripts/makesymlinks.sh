@@ -46,8 +46,8 @@ zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam"
 files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $gitconfig $npm $faucet"
 
 ###########
-pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $opencode" #platform specific dotfiles
-hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $qz $opencode"
+pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $eww $opencode" #platform specific dotfiles
+hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $qz $eww $opencode"
 
 ##########
 

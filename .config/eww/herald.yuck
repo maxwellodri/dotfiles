@@ -1,0 +1,52 @@
+; ── Herald notification sidebar ──────────────────────────────
+
+(deflisten herald_data :initial '{"alive":false,"messages":[]}'
+  "herald-watch")
+
+(defwidget herald_sidebar []
+  (centerbox :orientation "v" :class "herald-sidebar"
+    (box :class "herald-header" :orientation "h"
+      (label :text { herald_data.alive ? " Notifications" : " Notifications (offline)" }
+             :class { herald_data.alive ? "herald-title" : "herald-title-offline" }))
+    (scroll :vscroll true :hscroll false :class "herald-scroll" :vexpand true :valign "start"
+      (box :orientation "v" :spacing 6 :class "herald-list" :space-evenly false :valign "start"
+        (for msg in {herald_data.messages}
+          (herald_item
+            :id {msg.id}
+            :title {msg.title ?: ""}
+            :body {msg.body}
+            :full_body {msg.full_body}
+            :time {msg.time}))
+        (label :text { arraylength(herald_data.messages) == 0 ? "  No notifications" : "" }
+               :class "herald-empty"
+               :visible { arraylength(herald_data.messages) == 0 })
+      ))
+    (box :class { herald_data.alive ? "herald-status-hidden" : "herald-status" }
+      (label :text " Herald daemon is offline" :class "herald-status-text"))))
+
+(defwidget herald_item [id title body full_body time]
+  (eventbox :class "herald-item" :vexpand false
+    :onclick "echo '${full_body}' | clipboard"
+    :onmiddleclick "herald remove ${id}"
+    (box :orientation "h" :spacing 6 :class "herald-item-inner" :valign "center" :vexpand false :width 290
+      (label :text { title != "" ? title : "" }
+             :class "herald-item-title"
+             :wrap false :xalign 0 :ellipsize "end" :max-width-chars 10)
+      (label :text body
+             :class "herald-item-body"
+             :wrap false :xalign 0 :ellipsize "end" :max-width-chars 25)
+      (label :text time
+             :class "herald-item-time"
+             :wrap false :xalign 1))))
+
+(defwindow herald_sidebar
+  :monitor "DisplayPort-0"
+  :geometry (geometry :x "0%"
+                      :y "20px"
+                      :width "320px"
+                      :height "1420px"
+                      :anchor "center right")
+  :stacking "fg"
+  :windowtype "dock"
+  :wm-ignore true
+  (herald_sidebar))
