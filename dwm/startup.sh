@@ -4,7 +4,7 @@
 /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
 systemctl --user import-environment DISPLAY XAUTHORITY #non-xorg vars defined in shrc
 _daemon_alacritty
-#pgrep -xf "transmission-daemon --no-auth" || ( echo "Starting transmission-daemon" && transmission-daemon --no-auth )
+pgrep -xf "transmission-daemon --no-auth" || ( echo "Starting transmission-daemon" && transmission-daemon --no-auth )
 
 
 [ -n "$dotfiles" ] && "$dotfiles/dwm/neovim-server-runner.py" --cleanup

@@ -168,6 +168,7 @@ function _git_root {
 #   \x01cd '/path'\non_enter_cmd  — \x01 prefix means "cd to path, eval rest"
 #   tmux_cmd1\ntmux_cmd2           — no prefix means "put in BUFFER and accept"
 qz_switch() {
+   zle -I
    local output; output=$(qz switch)
    [[ -n "$output" ]] || return
    # Split on first newline: first_line is the action, remaining is the rest
@@ -192,6 +193,7 @@ qz_switch() {
    fi
 }
 qz_find() {
+   zle -I
    local output; output=$(qz find)
    [[ -n "$output" ]] || return
    # Space prefix prevents history persistence (hist_ignore_space)

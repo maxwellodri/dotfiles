@@ -27,7 +27,6 @@ export dotfiles_tag="pc"
 export dotfile_tag="pc"
 export AI_GPU=AMD
 
-[ -f "$(which transmission-daemon)" ] && transmission-daemon --no-auth
 #command transmission-daemon --no-auth
 eval "$(command ssh-agent)" > /dev/null
 #command xfce-polkit

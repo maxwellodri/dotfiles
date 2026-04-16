@@ -11,7 +11,7 @@
 # |_|   |_|  \___/ \__, |_|  \__,_|_| |_| |_|___/
 #                  |___/
 super + Return
-    wezterm
+    wezterm start --always-new-process
     #alacritty msg --socket "$XDG_RUNTIME_DIR/alacritty.sock" create-window #$dotfiles/dwm/startup.sh spawns daemon, $XDG_RUNTIME_DIR cleaned up on logout
 super + d
     dmenu_run

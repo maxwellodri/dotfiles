@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Spawn wezterm with a unique class for per-window swallow matching
+CLASS_ID="wezterm-$(head -c 8 /dev/urandom | xxd -p)"
+export WEZTERM_CLASS_ID="$CLASS_ID"
+exec wezterm --class "$CLASS_ID" "$@"

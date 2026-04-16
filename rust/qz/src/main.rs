@@ -438,6 +438,21 @@ fn cmd_switch(gui: bool) -> Result<()> {
     Ok(())
 }
 
+fn git_root(path: &Path) -> Option<PathBuf> {
+    Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .current_dir(path)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| {
+            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            PathBuf::from(s)
+        })
+}
+
 fn cmd_find(gui: bool, path_only: bool) -> Result<()> {
     let cwd = env::current_dir().unwrap_or_default();
     let config = load_config().ok();
@@ -450,17 +465,17 @@ fn cmd_find(gui: bool, path_only: bool) -> Result<()> {
         })
     });
 
-    let search_dir = if let Some((_, proj)) = &project {
-        expand_path(&proj.path)
+    let (search_dir, fallback_max_depth) = if let Some((_, proj)) = &project {
+        (expand_path(&proj.path), None)
+    } else if let Some(root) = git_root(&cwd) {
+        (root, None)
     } else {
-        cwd
+        (cwd.clone(), Some(1))
     };
 
     let mut fd_args: Vec<String> = vec![
         "--base-directory".into(),
         search_dir.to_string_lossy().into(),
-        "--type".into(),
-        "f".into(),
         "--hidden".into(),
         "--follow".into(),
         "--exclude".into(),
@@ -469,12 +484,20 @@ fn cmd_find(gui: bool, path_only: bool) -> Result<()> {
     ];
 
     if let Some((_, proj)) = &project {
+        fd_args.push("--type".into());
+        fd_args.push("f".into());
         if let Some(opts) = &proj.filter_opts {
             if let Some(depth) = opts.max_depth {
                 fd_args.push("--max-depth".into());
                 fd_args.push(depth.to_string());
             }
         }
+    } else if fallback_max_depth.is_none() {
+        fd_args.push("--type".into());
+        fd_args.push("f".into());
+    } else if let Some(depth) = fallback_max_depth {
+        fd_args.push("--max-depth".into());
+        fd_args.push(depth.to_string());
     }
 
     let fd_output = Command::new("fd")
