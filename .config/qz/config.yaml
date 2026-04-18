@@ -23,6 +23,16 @@ projects:
           - opencode .
       scratch:
 
+  llm-config:
+    path: ~/source/llm-config
+    tmux_windows:
+      dev:
+        layout: even-horizontal
+        panes:
+          - nvim .
+          - opencode .
+      scratch:
+
   pi:
     path: ~/source/pi
     tmux_windows:
