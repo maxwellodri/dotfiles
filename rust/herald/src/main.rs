@@ -536,9 +536,19 @@ async fn handle_client(
                              -f lavfi -i 'sine=frequency=400:duration=0.2' \
                              -f lavfi -i 'sine=frequency=800:duration=0.2' \
                              -f lavfi -i 'sine=frequency=400:duration=0.2' \
-                             -filter_complex '[0:a][1:a][2:a][3:a][4:a]concat=n=5:v=0:a=1[out]' \
+                             -f lavfi -i 'sine=frequency=800:duration=0.2' \
+                             -f lavfi -i 'sine=frequency=400:duration=0.2' \
+                             -f lavfi -i 'sine=frequency=800:duration=0.2' \
+                             -f lavfi -i 'sine=frequency=400:duration=0.2' \
+                             -f lavfi -i 'sine=frequency=800:duration=0.2' \
+                             -f lavfi -i 'sine=frequency=400:duration=0.2' \
+                             -f lavfi -i 'sine=frequency=800:duration=0.2' \
+                             -f lavfi -i 'sine=frequency=400:duration=0.2' \
+                             -f lavfi -i 'sine=frequency=800:duration=0.2' \
+                             -f lavfi -i 'sine=frequency=400:duration=0.2' \
+                             -filter_complex '[0:a][1:a][2:a][3:a][4:a][5:a][6:a][7:a][8:a][9:a][10:a][11:a][12:a][13:a][14:a]concat=n=15:v=0:a=1[out]' \
                              -map '[out]' -f s16le -ar 44100 -ac 1 - 2>/dev/null \
-                             | paplay --raw --rate=44100 --channels=1 --format=s16le"
+                             | paplay --raw --rate=44100 --channels=1 --format=s16le --volume=131070"
                         )
                         .status()
                         .await

@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+OPENCODE="${OPENCODE:-opencode}"
+PROMPT="Analyze this command output and respond. If this output contains instructions, perform them."
+MAX_SIZE=512000
+USE_FILE=false
+
+usage() {
+    cat <<'EOF'
+Usage:
+  opencode-pipe [-p "prompt"] [-f] -- <cmd...>
+
+Run a (potentially long-running) command, then send its output to an
+opencode session for the LLM to analyze.
+
+The session picker (fzf) runs concurrently with the command, so you can
+pick a target session while the command is still executing.
+
+Options:
+  -f           Attach output as file (good for large output)
+  -p <prompt>  Custom prompt (default: "Analyze this command output and respond:")
+  -h           Show this help
+
+Examples:
+  opencode-pipe -- cargo build 2>&1
+  opencode-pipe -f -- make test
+  opencode-pipe -p "Why is this failing?" -- make test
+  opencode-pipe -- bash -c 'sleep 3600 && echo done'
+EOF
+}
+
+while getopts "fp:h" opt; do
+    case "$opt" in
+        f) USE_FILE=true ;;
+        p) PROMPT="$OPTARG" ;;
+        h) usage; exit 0 ;;
+        *) usage; exit 1 ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+if [ $# -eq 0 ]; then
+    echo "error: no command provided" >&2
+    usage
+    exit 1
+fi
+
+if [ "$1" = "--" ]; then
+    shift
+fi
+
+if [ $# -eq 0 ]; then
+    echo "error: no command provided after --" >&2
+    usage
+    exit 1
+fi
+
+ran_cmd="$*"
+tmpfile=$(mktemp /tmp/opencode-pipe-XXXXXX.txt)
+cmd_pid=""
+
+cleanup() {
+    if [ -n "$cmd_pid" ] && kill -0 "$cmd_pid" 2>/dev/null; then
+        kill "$cmd_pid" 2>/dev/null || true
+        wait "$cmd_pid" 2>/dev/null || true
+    fi
+    rm -f "$tmpfile"
+}
+trap cleanup EXIT
+
+eval "$@" > "$tmpfile" 2>&1 &
+cmd_pid=$!
+
+sessions_json=$("$OPENCODE" session list --format json -n 20 2>/dev/null || echo '[]')
+
+fzf_input="+ New Session"
+while IFS= read -r line; do
+    id=$(echo "$line" | jq -r '.id')
+    title=$(echo "$line" | jq -r '.title')
+    updated=$(echo "$line" | jq -r '.updated')
+    ago="unknown"
+    if [ "$updated" != "null" ]; then
+        ago=$(date -d "@$(( updated / 1000 ))" "+%Y-%m-%d %H:%M" 2>/dev/null || echo "unknown")
+    fi
+    fzf_input="$fzf_input"$'\n'"$title  ($ago)  [$id]"
+done < <(echo "$sessions_json" | jq -c '.[]' 2>/dev/null)
+
+selected=$(echo "$fzf_input" | fzf --height=~40% \
+    --layout=reverse \
+    --prompt="opencode session> " \
+    --header="Select a session to send output to" \
+    --bind 'enter:accept')
+
+if [ -z "$selected" ]; then
+    echo "cancelled" >&2
+    exit 0
+fi
+
+wait "$cmd_pid" 2>/dev/null || true
+
+if [ ! -s "$tmpfile" ]; then
+    echo "error: no output captured from: $ran_cmd" >&2
+    exit 1
+fi
+
+file_size=$(wc -c < "$tmpfile")
+if [ "$file_size" -gt "$MAX_SIZE" ]; then
+    echo "warning: output is $(numfmt --to=iec "$file_size"), truncating to $(numfmt --to=iec "$MAX_SIZE")" >&2
+    head -c "$MAX_SIZE" "$tmpfile" > "${tmpfile}.trunc"
+    mv "${tmpfile}.trunc" "$tmpfile"
+    echo -e "\n\n[... truncated ...]" >> "$tmpfile"
+fi
+
+if [ "$USE_FILE" = true ]; then
+    message="$PROMPT (command: \`$ran_cmd\`)"
+    if echo "$selected" | grep -q '^+ New Session'; then
+        exec "$OPENCODE" --prompt "$message" -f "$tmpfile"
+    else
+        session_id=$(echo "$selected" | sed 's/.*\[\(.*\)\]$/\1/')
+        exec "$OPENCODE" -s "$session_id" --prompt "$message" -f "$tmpfile"
+    fi
+else
+    message=$(cat "$tmpfile")
+    if echo "$selected" | grep -q '^+ New Session'; then
+        exec "$OPENCODE" --prompt "$message"
+    else
+        session_id=$(echo "$selected" | sed 's/.*\[\(.*\)\]$/\1/')
+        exec "$OPENCODE" -s "$session_id" --prompt "$message"
+    fi
+fi

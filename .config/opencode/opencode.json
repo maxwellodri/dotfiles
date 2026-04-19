@@ -13,6 +13,8 @@
         "webfetch": "ask",
         "doom_loop": "ask",
         "external_directory": {
+            "/tmp/*": "allow",
+            "~/.cache/repositories/*": "allow",
             "~/.local/share/cargo/*": "allow",
             "~/.local/share/nvim/*": "allow"
         }
