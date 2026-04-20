@@ -68,6 +68,8 @@ struct Project {
     #[serde(default)]
     on_enter: Option<String>,
     #[serde(default)]
+    find_override: Option<String>,
+    #[serde(default)]
     tmux_windows: IndexMap<String, Window>,
 }
 
@@ -464,6 +466,13 @@ fn cmd_find(gui: bool, path_only: bool) -> Result<()> {
             cwd.starts_with(&ppath) || cwd == ppath
         })
     });
+
+    if let Some((_, proj)) = &project {
+        if let Some(cmd) = &proj.find_override {
+            println!("{}", cmd);
+            return Ok(());
+        }
+    }
 
     let (search_dir, fallback_max_depth) = if let Some((_, proj)) = &project {
         (expand_path(&proj.path), None)

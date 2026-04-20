@@ -128,6 +128,7 @@ projects:
     handler_override: handlers/video_handler_handler.sh
     handler_pattern: ".*"
     on_enter: "mpv_play -m o"
+    find_override: "mpv_play -m o"
 
   asm:
     path: ~/Videos/asm
