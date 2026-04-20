@@ -164,7 +164,7 @@ let g:plug_threads = 1
     " ===============
     " LLM
     " ===============
-    "Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': 'make' }
+    Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': 'make' }
     "
     call plug#end()
     source ~/.config/vim/vimrc "vimrc is effectively a plugin lmao

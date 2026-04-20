@@ -7,6 +7,10 @@ projects:
         layout: even-horizontal
         panes:
           - nvim mykaelium/src/lib.rs
+      slop:
+        layout: even-horizontal
+        panes:
+          - nvim .
           - opencode .
       notes:
         panes:

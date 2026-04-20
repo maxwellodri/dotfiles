@@ -11,8 +11,9 @@ vim.api.nvim_create_autocmd('FileType', {
 })
 require('render-markdown').setup({
     heading = {
-        position = 'inline',  -- or 'right'
+        position = 'inline',
     },
+    file_types = { "markdown", "Avante" },
 })
 
 vim.api.nvim_set_hl(0, 'RenderMarkdownH1', { link = 'GruvboxGreenBold' })
