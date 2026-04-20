@@ -76,14 +76,29 @@ export const HeraldNotifications: Plugin = async ({ $, client }) => {
       }
 
       if (event.type === "session.idle") {
+        const sessionID = (event as any).properties?.sessionID as string | undefined
+        let isSubagent = false
+        if (sessionID) {
+          try {
+            const res = await client.session.get({ path: { id: sessionID } })
+            if ((res as any)?.data?.parentID) {
+              isSubagent = true
+            }
+          } catch {
+            // if lookup fails, proceed — worst case is an extra notification
+          }
+        }
         await client.app.log({
           body: {
             service: "herald-notifications",
             level: "info",
-            message: `session.idle fired`,
-            extra: { timedOut: lastUserMessageTime != null && Date.now() - lastUserMessageTime > THRESHOLD, usedSubagent, usedTodowrite, userAborted, lastUserMessageTime },
+            message: `session.idle fired (isSubagent=${isSubagent})`,
+            extra: { sessionID, timedOut: lastUserMessageTime != null && Date.now() - lastUserMessageTime > THRESHOLD, usedSubagent, usedTodowrite, userAborted, lastUserMessageTime },
           },
         })
+        if (isSubagent) {
+          return
+        }
         const timedOut =
           lastUserMessageTime != null &&
           Date.now() - lastUserMessageTime > THRESHOLD
