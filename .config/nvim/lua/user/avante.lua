@@ -1,3 +1,4 @@
+-- TODO: disable tools except: read file,write file (?), glob, bash, create_file
 require('avante').setup({
   acp_providers = {
     ["opencode"] = {
