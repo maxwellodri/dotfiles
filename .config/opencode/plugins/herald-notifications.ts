@@ -28,12 +28,33 @@ export const HeraldNotifications: Plugin = async ({ $, client }) => {
 
   async function getTmuxInfo(): Promise<string> {
     try {
-      const result = await $`tmux display-message -p #S`.quiet()
-      if (result.stdout.trim()) {
-        return ` in tmux session \`${result.stdout.trim()}\``
+      const envText = await $`echo $TMUX`.env({ ...process.env }).quiet().text()
+      await client.app.log({
+        body: {
+          service: "herald-notifications",
+          level: "info",
+          message: `TMUX env: ${envText.trim() || "(empty)"}`,
+        },
+      })
+      const tmuxOut = await $`tmux display-message -p '#S'`.env({ ...process.env }).quiet().text()
+      await client.app.log({
+        body: {
+          service: "herald-notifications",
+          level: "info",
+          message: `tmux output: ${tmuxOut.trim()}`,
+        },
+      })
+      if (tmuxOut.trim()) {
+        return ` in tmux session \`${tmuxOut.trim()}\``
       }
-    } catch {
-      // not in tmux
+    } catch (e: any) {
+      await client.app.log({
+        body: {
+          service: "herald-notifications",
+          level: "info",
+          message: `tmux catch: ${e?.message ?? e}`,
+        },
+      })
     }
     return ", opencode"
   }
@@ -66,6 +87,10 @@ export const HeraldNotifications: Plugin = async ({ $, client }) => {
         if (part.type === "tool" && part.tool === "todowrite") {
           usedTodowrite = true
         }
+      }
+
+      if (event.type === "question.replied" || event.type === "question.rejected") {
+        lastUserMessageTime = Date.now()
       }
 
       if (event.type === "session.error") {
