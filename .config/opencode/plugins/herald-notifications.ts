@@ -12,7 +12,6 @@ export const HeraldNotifications: Plugin = async ({ $, client }) => {
   let lastUserMessageTime: number | null = null
   let usedSubagent = false
   let usedTodowrite = false
-  let userAborted = false
   const THRESHOLD = 2 * 60 * 1000
 
   function formatDuration(ms: number): string {
@@ -24,6 +23,25 @@ export const HeraldNotifications: Plugin = async ({ $, client }) => {
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
     return `${hours}h ${mins}m`
+  }
+
+  function resetState() {
+    lastUserMessageTime = null
+    usedSubagent = false
+    usedTodowrite = false
+  }
+
+  function resetAndSetTime() {
+    usedSubagent = false
+    usedTodowrite = false
+    lastUserMessageTime = Date.now()
+  }
+
+  function checkConditions(): boolean {
+    const timedOut =
+      lastUserMessageTime != null &&
+      Date.now() - lastUserMessageTime > THRESHOLD
+    return timedOut || usedSubagent || usedTodowrite
   }
 
   async function getTmuxInfo(): Promise<string> {
@@ -59,13 +77,38 @@ export const HeraldNotifications: Plugin = async ({ $, client }) => {
     return ", opencode"
   }
 
+  async function notifyAndReset(title: string) {
+    const duration = lastUserMessageTime
+      ? formatDuration(Date.now() - lastUserMessageTime)
+      : ""
+    const tmuxInfo = await getTmuxInfo()
+    const body = `Done${tmuxInfo} (${duration})`
+    try {
+      await $`herald message --title ${title} --sound --no-store ${body}`
+    } catch (e: any) {
+      await client.app.log({
+        body: {
+          service: "herald-notifications",
+          level: "error",
+          message: `herald failed: ${e?.message ?? e}`,
+        },
+      })
+    }
+    resetState()
+  }
+
   return {
     event: async ({ event }) => {
-      if (event.type === "message.updated") {
-        const props = (event as any).properties
-        const info = props?.info
-        const role = info?.role
-        if (role === "user") {
+      if (event.type === "session.status") {
+        const status = (event as any).properties?.status
+        await client.app.log({
+          body: {
+            service: "herald-notifications",
+            level: "info",
+            message: `session.status: ${JSON.stringify(status)}`,
+          },
+        })
+        if (status?.type === "busy") {
           lastUserMessageTime = Date.now()
         }
       }
@@ -89,15 +132,28 @@ export const HeraldNotifications: Plugin = async ({ $, client }) => {
         }
       }
 
-      if (event.type === "question.replied" || event.type === "question.rejected") {
-        lastUserMessageTime = Date.now()
-      }
-
       if (event.type === "session.error") {
         const error = (event as any).error ?? (event as any).properties?.error
         if (error?.name === "MessageAbortedError") {
-          userAborted = true
+          await client.app.log({
+            body: {
+              service: "herald-notifications",
+              level: "info",
+              message: "session aborted by user, resetting state",
+            },
+          })
+          resetState()
         }
+      }
+
+      if (event.type === "question.asked" || event.type === "permission.asked") {
+        if (checkConditions()) {
+          await notifyAndReset("Human, I am done 🥹")
+        }
+      }
+
+      if (event.type === "question.replied" || event.type === "question.rejected" || event.type === "permission.replied") {
+        resetAndSetTime()
       }
 
       if (event.type === "session.idle") {
@@ -118,37 +174,15 @@ export const HeraldNotifications: Plugin = async ({ $, client }) => {
             service: "herald-notifications",
             level: "info",
             message: `session.idle fired (isSubagent=${isSubagent})`,
-            extra: { sessionID, timedOut: lastUserMessageTime != null && Date.now() - lastUserMessageTime > THRESHOLD, usedSubagent, usedTodowrite, userAborted, lastUserMessageTime },
+            extra: { sessionID, timedOut: lastUserMessageTime != null && Date.now() - lastUserMessageTime > THRESHOLD, usedSubagent, usedTodowrite, lastUserMessageTime },
           },
         })
         if (isSubagent) {
           return
         }
-        const timedOut =
-          lastUserMessageTime != null &&
-          Date.now() - lastUserMessageTime > THRESHOLD
-        if (!userAborted && (timedOut || usedSubagent || usedTodowrite)) {
-          const duration = lastUserMessageTime
-            ? formatDuration(Date.now() - lastUserMessageTime)
-            : ""
-          const tmuxInfo = await getTmuxInfo()
-          const body = `Done${tmuxInfo} (${duration})`
-          try {
-            await $`herald message --title ${"Human, I am done 🥹"} --sound --no-store ${body}`
-          } catch (e: any) {
-            await client.app.log({
-              body: {
-                service: "herald-notifications",
-                level: "error",
-                message: `herald failed: ${e?.message ?? e}`,
-              },
-            })
-          }
+        if (checkConditions()) {
+          await notifyAndReset("Human, I am done 🥹")
         }
-        lastUserMessageTime = null
-        usedSubagent = false
-        usedTodowrite = false
-        userAborted = false
       }
     },
   }
