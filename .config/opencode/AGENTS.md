@@ -26,7 +26,10 @@ during planning that a junior engineer would need to understand the feature.]
   {
     "task": "Short description of the task",
     "completed": false,
-    "steps": "Step 1: ...\nStep 2: ..."
+    "steps": [
+      "Step 1: ...",
+      "Step 2: ..."
+    ]
   }
 ]
 
