@@ -156,7 +156,49 @@ vim.api.nvim_set_hl(0, '@lsp.type.parameter.rust', { fg = white })
 --      base0C = '#ffffff', base0D = '#ffffff', base0E = '#ffffff', base0F = '#ffffff'
 -- })
 
+local function dim_color(hex, factor)
+  hex = hex:gsub("#", "")
+  local r = tonumber(hex:sub(1, 2), 16) / 255
+  local g = tonumber(hex:sub(3, 4), 16) / 255
+  local b = tonumber(hex:sub(5, 6), 16) / 255
+  local max = math.max(r, g, b)
+  local min = math.min(r, g, b)
+  local d = max - min
+  local h = 0
+  if d ~= 0 then
+    if max == r then
+      h = ((g - b) / d) % 6
+    elseif max == g then
+      h = (b - r) / d + 2
+    else
+      h = (r - g) / d + 4
+    end
+    h = h / 6
+  end
+  local s = max == 0 and 0 or d / max
+  local v = max * factor
+  if s == 0 then
+    return string.format("#%02x%02x%02x", math.floor(v * 255), math.floor(v * 255), math.floor(v * 255))
+  end
+  local i = math.floor(h * 6)
+  local f = h * 6 - i
+  local p = v * (1 - s)
+  local q = v * (1 - s * f)
+  local t = v * (1 - s * (1 - f))
+  i = i % 6
+  local rr, gg, bb
+  if i == 0 then rr, gg, bb = v, t, p
+  elseif i == 1 then rr, gg, bb = q, v, p
+  elseif i == 2 then rr, gg, bb = p, v, t
+  elseif i == 3 then rr, gg, bb = p, q, v
+  elseif i == 4 then rr, gg, bb = t, p, v
+  else rr, gg, bb = v, p, q
+  end
+  return string.format("#%02x%02x%02x", math.floor(rr * 255), math.floor(gg * 255), math.floor(bb * 255))
+end
+
 local M = {}
+M.dim_color = dim_color
 M.colors = {
   dull_grey = dull_grey,
   burnt_yellow = burnt_yellow,

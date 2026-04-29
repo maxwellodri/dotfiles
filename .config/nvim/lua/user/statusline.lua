@@ -1,4 +1,5 @@
-local C = require('user.colorscheme').colors
+local CS = require('user.colorscheme')
+local C = CS.colors
 
 local bold_color = { gui = 'bold' }
 local bold_red_color = { fg = C.faded_red, gui = 'bold' }
@@ -230,12 +231,12 @@ require('lualine').setup {
       {
         git_diff_component,
         icon = '',
-        color = git_diff_color,
+        color = { fg = require("gruvbox").palette.light4 },
       },
       'branch',
       {
         upstream_component,
-        color = upstream_color,
+        color = { fg = require("gruvbox").palette.light4 },
       }
     }
   },
