@@ -10,7 +10,7 @@ end
 
 local lspkind = require('lspkind')
 
-require("luasnip/loaders/from_vscode").lazy_load()
+
 
 local check_backspace = function()
   local col = vim.fn.col "." - 1

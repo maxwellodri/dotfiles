@@ -43,19 +43,7 @@ let g:plug_threads = 1
     " =================
     " Language Support
     " =================
-    function! TSCustomInstall(info)
-        " info is a dictionary with 3 fields
-        " - name:   name of the plugin
-        " - status: 'installed', 'updated', or 'unchanged'
-        " - force:  set on PlugInstall! or PlugUpdate!
-        if a:info.status == 'installed'
-            TSInstall rust python toml
-        endif
-        if a:info.status == 'updated'
-            TSUpdate
-        endif
-    endfunction
-    Plug 'nvim-treesitter/nvim-treesitter', {'do': function('TSCustomInstall') }
+    Plug 'nvim-treesitter/nvim-treesitter'
     Plug 'nvim-treesitter/nvim-treesitter-context'
     Plug 'tikhomirov/vim-glsl'
     Plug 'JuliaEditorSupport/julia-vim'
@@ -95,7 +83,7 @@ let g:plug_threads = 1
     Plug 'hrsh7th/cmp-nvim-lua'
     Plug 'hrsh7th/cmp-nvim-lsp-document-symbol'
     Plug 'L3MON4D3/LuaSnip' "snippet engine
-    Plug 'rafamadriz/friendly-snippets' "a bunch of snippets to use
+
     Plug 'mfussenegger/nvim-dap'
     Plug 'rcarriga/nvim-dap-ui'
     Plug 'theHamsta/nvim-dap-virtual-text'

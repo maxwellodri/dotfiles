@@ -4,8 +4,8 @@ if not status_ok then
 end
 
 configs.setup {
-    ensure_installed = {"rust", "python", "bash", "toml", "nix"},
-    sync_install = false,
+    ensure_installed = {"rust", "python", "bash", "toml", "nix", "markdown", "markdown_inline"},
+    sync_install = true,
     ignore_install = { "" },
     highlight = {
         enable = { "markdown", "markdown_inline" },

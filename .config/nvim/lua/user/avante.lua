@@ -1,12 +1,26 @@
--- TODO: disable tools except: read file,write file (?), glob, bash, create_file
+-- TODO: disable tools except: read file, write_to_file, str_replace, glob, bash, create_file
 require('avante').setup({
-  acp_providers = {
-    ["opencode"] = {
-      command = "opencode",
-      args = { "acp" },
+  provider = "zai",
+  providers = {
+    ["zai"] = {
+      __inherited_from = "openai",
+      endpoint = "https://api.z.ai/api/coding/paas/v4",
+      model = "glm-5.1",
+      api_key_name = "cmd:pass zai_nvim_api_key",
     },
   },
-  provider = "opencode",
+  disabled_tools = {
+    "git_diff", "git_commit",
+    "copy_path", "move_path", "delete_path",
+    "create_dir",
+    "grep", "ls",
+    "insert",
+    "run_python",
+    "read_todos", "write_todos",
+    "get_diagnostics",
+    "read_file_toplevel_symbols", "read_definitions",
+    "web_search",
+  },
   mode = "agentic",
   selection = {
     enabled = false,
