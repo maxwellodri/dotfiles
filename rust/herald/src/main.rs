@@ -3,8 +3,8 @@ use std::io::{self, Read, Write};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use clap::{Parser, Subcommand};
 use chrono::{Local, TimeZone};
+use clap::{Parser, Subcommand};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
@@ -105,7 +105,10 @@ impl Store {
                             messages.insert(msg.id, msg);
                         }
                         info!(count = messages.len(), "loaded store from disk");
-                        return Self { next_id: max_id, messages };
+                        return Self {
+                            next_id: max_id,
+                            messages,
+                        };
                     }
                     Err(e) => error!(%e, "failed to parse store, starting fresh"),
                 },
@@ -176,7 +179,10 @@ fn data_dir() -> std::path::PathBuf {
 
 fn format_time(epoch: &str) -> String {
     let secs: i64 = epoch.parse().unwrap_or(0);
-    let dt = Local.timestamp_opt(secs, 0).single().unwrap_or_else(Local::now);
+    let dt = Local
+        .timestamp_opt(secs, 0)
+        .single()
+        .unwrap_or_else(Local::now);
     let now = Local::now();
     let time = dt.format("%-I:%M%P").to_string(); // e.g. 5:03pm
 
@@ -275,7 +281,13 @@ fn main() -> io::Result<()> {
                 .build()?
                 .block_on(run_daemon())
         }
-        Commands::Message { title, sound, ping, no_store, body } => {
+        Commands::Message {
+            title,
+            sound,
+            ping,
+            no_store,
+            body,
+        } => {
             if ping {
                 let body = std::env::var("TMUX")
                     .ok()
@@ -303,7 +315,9 @@ fn main() -> io::Result<()> {
                 })
             } else {
                 if title.is_none() && !sound && body.is_empty() {
-                    eprintln!("error: message requires at least one of --title, --sound, --ping, or a body");
+                    eprintln!(
+                        "error: message requires at least one of --title, --sound, --ping, or a body"
+                    );
                     std::process::exit(1);
                 }
                 let body = body.join(" ");
@@ -321,7 +335,9 @@ fn main() -> io::Result<()> {
             if all {
                 send_message(Message::Clear {})
             } else {
-                let id = id.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "provide an id or --all"))?;
+                let id = id.ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidInput, "provide an id or --all")
+                })?;
                 send_message(Message::Remove { id: Some(id) })
             }
         }
@@ -333,8 +349,8 @@ fn main() -> io::Result<()> {
             if json {
                 println!("{raw}");
             } else {
-                let resp: Response = serde_json::from_str(&raw)
-                    .expect("failed to parse daemon response");
+                let resp: Response =
+                    serde_json::from_str(&raw).expect("failed to parse daemon response");
                 match resp {
                     Response::Messages { messages } => {
                         if messages.is_empty() {
@@ -351,7 +367,13 @@ fn main() -> io::Result<()> {
                                     Message::Notification { body, .. } => body.as_str(),
                                     _ => "-",
                                 };
-                                println!("{}\t{}\t{}\t{}", m.id, format_time(&m.received_at), title, body);
+                                println!(
+                                    "{}\t{}\t{}\t{}",
+                                    m.id,
+                                    format_time(&m.received_at),
+                                    title,
+                                    body
+                                );
                             }
                         }
                     }
@@ -363,8 +385,8 @@ fn main() -> io::Result<()> {
         }
         Commands::Count => {
             let raw = send_and_recv(Message::GetCount {})?;
-            let resp: Response = serde_json::from_str(&raw)
-                .expect("failed to parse daemon response");
+            let resp: Response =
+                serde_json::from_str(&raw).expect("failed to parse daemon response");
             match resp {
                 Response::Count { count } => println!("{count}"),
                 Response::Ok { msg } => println!("{msg}"),
@@ -375,34 +397,41 @@ fn main() -> io::Result<()> {
         Commands::Eww => {
             let alive = std::os::unix::net::UnixStream::connect(SOCKET_PATH).is_ok();
             let store = Store::load();
-            let eww_msgs: Vec<EwwMessage> = store.messages.values().map(|m| {
-                let (body, title) = match &m.message {
-                    Message::Notification { body, notify_send, .. } => {
-                        (body.clone(), notify_send.clone())
-                    }
-                    _ => ("-".to_string(), None),
-                };
-                let truncated = if body.len() > 30 {
-                    format!("{}...", &body[..30])
-                } else {
-                    body.clone()
-                };
-                let truncated_title = title.map(|t| {
-                    if t.len() > 15 {
-                        format!("{}...", &t[..15])
+            let eww_msgs: Vec<EwwMessage> = store
+                .messages
+                .values()
+                .map(|m| {
+                    let (body, title) = match &m.message {
+                        Message::Notification {
+                            body, notify_send, ..
+                        } => (body.clone(), notify_send.clone()),
+                        _ => ("-".to_string(), None),
+                    };
+                    let truncated = if body.len() > 30 {
+                        format!("{}...", &body[..30])
                     } else {
-                        t
+                        body.clone()
+                    };
+                    let truncated_title = title.map(|t| {
+                        if t.len() > 15 {
+                            format!("{}...", &t[..15])
+                        } else {
+                            t
+                        }
+                    });
+                    EwwMessage {
+                        id: m.id,
+                        title: truncated_title,
+                        body: truncated,
+                        full_body: body,
+                        time: format_time(&m.received_at),
                     }
-                });
-                EwwMessage {
-                    id: m.id,
-                    title: truncated_title,
-                    body: truncated,
-                    full_body: body,
-                    time: format_time(&m.received_at),
-                }
-            }).collect();
-            let resp = EwwResponse { alive, messages: eww_msgs };
+                })
+                .collect();
+            let resp = EwwResponse {
+                alive,
+                messages: eww_msgs,
+            };
             println!("{}", serde_json::to_string(&resp).unwrap());
             Ok(())
         }
@@ -449,10 +478,7 @@ async fn run_daemon() -> io::Result<()> {
     }
 }
 
-async fn handle_client(
-    stream: tokio::net::UnixStream,
-    store: Arc<Mutex<Store>>,
-) -> io::Result<()> {
+async fn handle_client(stream: tokio::net::UnixStream, store: Arc<Mutex<Store>>) -> io::Result<()> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     let mut buf = String::new();
@@ -540,13 +566,7 @@ async fn handle_client(
                              -f lavfi -i 'sine=frequency=400:duration=0.2' \
                              -f lavfi -i 'sine=frequency=800:duration=0.2' \
                              -f lavfi -i 'sine=frequency=400:duration=0.2' \
-                             -f lavfi -i 'sine=frequency=800:duration=0.2' \
-                             -f lavfi -i 'sine=frequency=400:duration=0.2' \
-                             -f lavfi -i 'sine=frequency=800:duration=0.2' \
-                             -f lavfi -i 'sine=frequency=400:duration=0.2' \
-                             -f lavfi -i 'sine=frequency=800:duration=0.2' \
-                             -f lavfi -i 'sine=frequency=400:duration=0.2' \
-                             -filter_complex '[0:a][1:a][2:a][3:a][4:a][5:a][6:a][7:a][8:a][9:a][10:a][11:a][12:a][13:a][14:a]concat=n=15:v=0:a=1[out]' \
+                             -filter_complex '[0:a][1:a][2:a][3:a][4:a][5:a][6:a][7:a][8:a]concat=n=9:v=0:a=1[out]' \
                              -map '[out]' -f s16le -ar 44100 -ac 1 - 2>/dev/null \
                              | paplay --raw --rate=44100 --channels=1 --format=s16le --volume=131070"
                         )
