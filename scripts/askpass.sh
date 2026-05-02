@@ -1,4 +1,2 @@
-#!/bin/bash
-echo "Password:"
-read -rs PASSWORD
-echo "$PASSWORD"
+#!/bin/sh
+zenity --password --title="sudo authentication"

@@ -52,7 +52,7 @@ if [ -n "$default_profile" ]; then
         mv "$profile_user_js" "$backup_dir/user.js"
         echo "Backup created at $backup_dir/user.js"
     fi
-    ln -s "$user_js_path" "$profile_user_js"
+    ln -sf "$user_js_path" "$profile_user_js"
     echo "user.js linked to $profile_user_js"
 
     # Handle existing userChrome.css
@@ -70,7 +70,7 @@ if [ -n "$default_profile" ]; then
         echo "Backup created at $backup_dir/userChrome.css"
     fi
 
-    ln -s "$user_chrome_css_path" "$profile_user_chrome_css"
+    ln -sf "$user_chrome_css_path" "$profile_user_chrome_css"
     echo "userChrome.css linked to $profile_user_chrome_css"
 
     if [ -L "$profile_user_content_css" ]; then
@@ -86,7 +86,7 @@ if [ -n "$default_profile" ]; then
         echo "Backup created at $backup_dir/userContent.css"
     fi
 
-    ln -s "$user_content_css_path" "$profile_user_content_css"
+    ln -sf "$user_content_css_path" "$profile_user_content_css"
     echo "userContent.css linked to $profile_user_content_css"
 else
     echo "No default profile found."

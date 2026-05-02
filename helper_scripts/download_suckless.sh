@@ -32,11 +32,17 @@ GENERATE_KEY=-1
 KEY_FILE=~/.ssh/id_ed25519
 
 if [ ! -f "$KEY_FILE" ]; then
-    ssh-keygen -t rsa -f "$KEY_FILE"
-    GENERATE_KEY=1
+	if [ "$DOTFILES_GUI" = "1" ]; then
+		key_passphrase="$(zenity --password --title='SSH key passphrase' 2>/dev/null)" || key_passphrase=""
+		ssh-keygen -t rsa -f "$KEY_FILE" -N "$key_passphrase"
+		unset key_passphrase
+	else
+		ssh-keygen -t rsa -f "$KEY_FILE"
+	fi
+	GENERATE_KEY=1
 else
-    echo "Skipping ssh-keygen as $KEY_FILE appears to exist."
-    GENERATE_KEY=0
+	echo "Skipping ssh-keygen as $KEY_FILE appears to exist."
+	GENERATE_KEY=0
 fi
 
 if [ "$GENERATE_KEY" -eq 1 ]; then

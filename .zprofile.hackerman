@@ -1,12 +1,11 @@
 #!/bin/sh
 
 
-[ -e "$HOME/.config/sh/shrc" ] && source "$HOME/.config/sh/shrc" #load alias and exports 
-
 export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_DATA_HOME="$HOME/.local/share"
 export XDG_CACHE_HOME="$HOME/.cache"
 export XDG_STATE_HOME="$HOME/.local/state"
+[ -e "$HOME/.config/sh/shrc" ] && source "$HOME/.config/sh/shrc" #load alias and exports
 source "$XDG_CONFIG_HOME/zsh/xdg.zsh"
 
 export PATH=$HOME/bin:/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl
@@ -17,8 +16,7 @@ export LUTRIS_SKIP_INIT=1
 export GTK_THEME=Arc-Dark
 export XCURSOR_THEME=Arc-Dark
 
-unset beep 
-[ -f /usr/share/vulkan/icd.d/nvidia_icd.json ] && export VK_ICO_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json 
+unset beep
 
 WM=''  #override for cases below
 export dotfiles="$HOME/source/dotfiles"
@@ -27,23 +25,23 @@ export dotfiles_tag="hackerman"
 export dotfile_tag="hackerman"
 
 [ -f "$(which transmission-daemon)" ] && transmission-daemon --no-auth
-#command transmission-daemon --no-auth
-command ssh-agent
+eval "$(command ssh-agent)" > /dev/null
 #command xfce-polkit
-[ ! -s ~/.config/mpd/pid ] && [ -f "$(which mpd)" ] && mpd
 
 if [ -z "$WM" ] ; then
-    case $XDG_VTNR in
-        1)      WM='/usr/local/bin/dwm'
-            ;;
-        *)      echo "Not starting X in this TTY, $XDG_VTNR"
-            WM=''
-            ;;
-    esac
+	case $XDG_VTNR in
+		1)	WM='/usr/local/bin/dwm'
+			;;
+		*)	echo "Not starting X in this TTY, $XDG_VTNR"
+			WM=''
+			;;
+	esac
 fi
 export WM
 export WMNAME="$(basename "$WM")"
-[ ! "$DISPLAY" ] && [ -n "$WM" ] && startx || echo "$WM failed?"
+[ ! "$DISPLAY" ] && [ -n "$WM" ] && startx
 
+[ -e "$HOME/.zshrc_extra" ] && source "$HOME/.zshrc_extra" #load platform-specific overrides (last, so it wins)
+[ "$IS_USER_LLM_AGENT" != 1 ] && [ ! -s ~/.config/mpd/pid ] && [ -f "$(which mpd)" ] && mpd &
 
 eval "$(direnv hook zsh)"

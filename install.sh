@@ -7,11 +7,16 @@
 
 other_user=""
 tag=""
+gui_prompt=false
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--other-user)
 			other_user="$2"
 			shift 2
+			;;
+		--gui)
+			gui_prompt=true
+			shift
 			;;
 		*)
 			tag="$1"
@@ -21,6 +26,12 @@ while [ $# -gt 0 ]; do
 done
 
 cd $(dirname $(realpath "$0")) #cd to dotfiles dir
+
+if [ "$gui_prompt" = true ]; then
+	export SUDO_ASKPASS="$PWD/scripts/askpass.sh"
+	sudo -A -v || exit 1
+	export DOTFILES_GUI=1
+fi
 
 if [ -n "$other_user" ]; then
 	sh helper_scripts/makesymlinks.sh "$tag"

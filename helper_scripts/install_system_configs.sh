@@ -319,9 +319,8 @@ if [ ! -f "$GIT_ROOT/.dotfile_tag" ]; then
     exit 1
 fi
 
-# Check if the required directories exist
-if [ ! -d "udev-rules" ] || [ ! -d "systemd-services" ] || [ ! -d "system_configs" ]; then
-    echo -e "${RED}Error: Required directories 'udev-rules', 'systemd-services', and 'system_configs' do not exist.${NC}"
+if [ ! -d "systemd-services" ] && [ ! -d "system_configs" ]; then
+    echo -e "${RED}Error: Required directories 'systemd-services' and 'system_configs' do not exist.${NC}"
     exit 1
 fi
 
@@ -337,10 +336,6 @@ echo -e "${CYAN}Copying $GIT_ROOT/.dotfile_tag to /etc/dotfile_tag${NC}"
 sudo cp "$GIT_ROOT/.dotfile_tag" "/etc/dotfile_tag"
 sudo chmod 664 "/etc/dotfile_tag"
 sudo chgrp wheel "/etc/dotfile_tag"
-
-# Copy udev rules (requires sudo)
-print_header "Installing udev Rules"
-copy_files "udev-rules" "/etc/udev/rules.d" true
 
 # Copy system systemd services (requires sudo)
 print_header "Installing System Services"
