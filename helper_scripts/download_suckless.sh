@@ -32,7 +32,7 @@ GENERATE_KEY=-1
 KEY_FILE=~/.ssh/id_ed25519
 
 if [ ! -f "$KEY_FILE" ]; then
-	if [ "$DOTFILES_GUI" = "1" ]; then
+	if [ -n "${SHUTIL_PREFER_GUI:-}" ]; then
 		key_passphrase="$(zenity --password --title='SSH key passphrase' 2>/dev/null)" || key_passphrase=""
 		ssh-keygen -t rsa -f "$KEY_FILE" -N "$key_passphrase"
 		unset key_passphrase

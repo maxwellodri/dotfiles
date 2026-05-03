@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. "$(dirname "$(realpath "$0")")/.config/sh/shutil.sh"
+
 # --other-user <name>: minimal install for a non-primary user (e.g. pi)
 #   Runs makesymlinks + custom_bin_scripts only.
 #   Skips pacman, system configs, firefox, rust, suckless, fontconfig.
@@ -16,6 +18,7 @@ while [ $# -gt 0 ]; do
 			;;
 		--gui)
 			gui_prompt=true
+			export SHUTIL_PREFER_GUI=1
 			shift
 			;;
 		*)
@@ -25,13 +28,15 @@ while [ $# -gt 0 ]; do
 	esac
 done
 
-cd $(dirname $(realpath "$0")) #cd to dotfiles dir
+cd "$(dirname "$(realpath "$0")")"
 
-if [ "$gui_prompt" = true ]; then
-	export SUDO_ASKPASS="$PWD/scripts/askpass.sh"
-	sudo -A -v || exit 1
-	export DOTFILES_GUI=1
+check_kernel
+
+if [ -n "$tag" ]; then
+	echo "$tag" > .dotfile_tag
 fi
+
+run_elevated_init || exit 1
 
 if [ -n "$other_user" ]; then
 	sh helper_scripts/makesymlinks.sh "$tag"

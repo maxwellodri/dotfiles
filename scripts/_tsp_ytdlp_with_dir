@@ -7,14 +7,9 @@ if [[ $1 == "--batch" ]]; then
     shift
 fi
 
-if [[ -n $WAYLAND_DISPLAY ]]; then
-    dmenu=dmenu-wl
-elif [[ -n $DISPLAY ]]; then
-    dmenu=dmenu
-else
-    echo "Error: No Wayland or X11 display detected" >&2
-    exit 1
-fi
+. "${XDG_CONFIG_HOME:-$HOME/.config}/sh/shutil.sh"
+
+dmenu=$(get_dmenu)
 
 selected_dir=$(printf '%s\n' "Keep Default Dir" "Manual Directory" "${DOWNLOAD_DIRS[@]}" | "$dmenu" -l 30 -c --class "tsp_ytdlp_dir" -p "Download Directory:")
 

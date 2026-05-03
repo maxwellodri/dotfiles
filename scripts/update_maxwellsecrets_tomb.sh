@@ -1,5 +1,6 @@
 #!/bin/env bash
 
+. "${XDG_CONFIG_HOME:-$HOME/.config}/sh/shutil.sh"
 
 cd "$HOME/Documents/backup/" || { echo "no $HOME/Documents/backup/ directory"; exit 1;}
 
@@ -13,31 +14,7 @@ if [ ! -f "maxwellsecrets.tomb.key" ]; then
     exit 1
 fi
 
-check_kernel() {
-    if command -v pacman >/dev/null 2>&1; then
-        running_kernel=$(uname -r)
-        installed_kernel=$(pacman -Qi linux | grep Version | awk '{print $3}')
-        
-        # Normalize version strings (handle hyphen vs period differences)
-        running_normalized=$(echo "$running_kernel" | sed 's/\.arch/-arch/')
-        installed_normalized=$(echo "$installed_kernel" | sed 's/\.arch/-arch/')
-        
-        if [ "$running_normalized" != "$installed_normalized" ]; then
-            echo "Kernel version mismatch detected:"
-            echo "Running kernel:    $running_kernel"
-            echo "Installed kernel:  $installed_kernel"
-            echo "Please reboot your system to use the new kernel."
-            echo "This may cause tomb/device-mapper issues."
-            return 1
-        fi
-    fi
-    return 0
-}
-
-if [ $? -ne 0 ]; then
-    check_kernel
-    exit 1
-fi
+check_kernel || exit 1
 
 update() {
     

@@ -1,17 +1,10 @@
 #!/bin/bash
 
-if [[ -n $WAYLAND_DISPLAY ]]; then
-    dmenu=dmenu-wl
-    imgviewer=imv
-elif [[ -n $DISPLAY ]]; then
-    dmenu=dmenu
-    imgviewer=feh
-else
-    echo "Error: No Wayland or X11 display detected" >&2
-    exit 1
-fi
+. "${XDG_CONFIG_HOME:-$HOME/.config}/sh/shutil.sh"
 
-# Check for required commands
+dmenu=$(get_dmenu)
+imgviewer=$(get_imgviewer) || exit 1
+
 for cmd in pass qrencode "$dmenu" "$imgviewer"; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
         echo "Error: $cmd is not installed"

@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. "$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel)/.config/sh/shutil.sh"
+
 # Initialize an empty variable to store the packages
 packages=""
 
@@ -12,4 +14,4 @@ fi
 packages="$packages$(grep -o '^[^#]*' archlinux_x86_64_packages)"
 
 # Install all the combined packages
-echo "$packages" | xargs sudo pacman -S --noconfirm --needed
+echo "$packages" | xargs run_elevated pacman -S --noconfirm --needed

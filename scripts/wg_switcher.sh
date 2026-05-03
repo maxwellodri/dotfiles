@@ -1,15 +1,37 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-NOTIFY_SEND=false
+. "${XDG_CONFIG_HOME:-$HOME/.config}/sh/shutil.sh"
+
 NOTIFY_TIMEOUT=2000
+WG_DIR="/etc/wireguard"
+
+dmenu=$(get_dmenu)
+has_display=false
+[[ "$dmenu" != "fzf" ]] && has_display=true
+
+check_kernel
+
+if ! command -v wg >/dev/null 2>&1; then
+    notify network-vpn-error "WireGuard" "wireguard-tools not installed"
+    exit 1
+fi
 
 get_active_interfaces() {
-    wg show interfaces 2>/dev/null | tr ' ' '\n' | grep -v '^ '|| true
+    wg show interfaces 2>/dev/null | tr ' ' '\n' || true
 }
 
-if [ "$1" = "--query" ]; then
-    active_interfaces=$(get_active_interfaces)
-    if [ -n "$active_interfaces" ]; then
+notify() {
+    local icon="$1" title="$2" body="${3:-}"
+    if [[ "$has_display" == true ]]; then
+        notify-send -r 9901 -t "$NOTIFY_TIMEOUT" -i "$icon" "$title" "$body" 2>/dev/null || true
+    else
+        echo "$title${body:+: $body}" >&2
+    fi
+}
+
+if [[ ${1:-} == "--query" ]]; then
+    if [[ -n $(get_active_interfaces) ]]; then
         echo "Wireguard is on"
         exit 0
     else
@@ -18,56 +40,80 @@ if [ "$1" = "--query" ]; then
     fi
 fi
 
-if ! pacman -Qi wireguard-tools >/dev/null 2>&1; then
-    exit 0
-fi
+action_connect=""
+action_disconnect=false
+case "${1:-}" in
+    --connect)
+        action_connect="${2:-}"
+        if [[ -z "$action_connect" ]]; then
+            echo "Usage: $0 --connect <interface>" >&2
+            exit 1
+        fi
+        ;;
+    --disconnect)
+        action_disconnect=true
+        ;;
+esac
 
-get_interface_label() {
-    local config_path="$1"
-    local label
-    label=$(run_elevated awk '/^#Label:/ && !/PrivateKey/ && !/PreSharedKey/ && !/[A-Za-z0-9+\/]{43}=/ {print; exit}' "$config_path" 2>/dev/null | sed 's/^#Label:[[:space:]]*//')
-    echo "$label"
-}
-
-run_elevated() {
-    if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
-        pkexec "$@"
-    else
-        sudo "$@"
-    fi
-}
-
-available_output=$(run_elevated find /etc/wireguard -maxdepth 1 -name "*.conf" -type f)
-discovery_exit_code=$?
-
-if [ $discovery_exit_code -ne 0 ]; then
-    notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn-error "No WireGuard configs found" "/etc/wireguard directory access failed"
-    exit 1
-fi
+config_output=$(run_elevated bash -c '
+    for f in /etc/wireguard/*.conf; do
+        [ -f "$f" ] || continue
+        iface=$(basename "$f" .conf)
+        label=$(grep "^#Label:" "$f" 2>/dev/null | head -1 | sed "s/^#Label:[[:space:]]*//")
+        if [ -n "$label" ]; then
+            echo "$iface|$label"
+        else
+            echo "$iface|"
+        fi
+    done
+') || true
 
 declare -A interface_labels
 available_interfaces=()
-while IFS= read -r config_path; do
-    if [ -n "$config_path" ]; then
-        interface=$(basename "$config_path" .conf)
-        label=$(get_interface_label "$config_path")
-        available_interfaces+=("$interface")
-        if [ -n "$label" ]; then
-            interface_labels["$interface"]="$label"
-        fi
+while IFS='|' read -r iface label; do
+    [[ -z "$iface" ]] && continue
+    available_interfaces+=("$iface")
+    if [[ -n "$label" ]]; then
+        interface_labels["$iface"]="$label"
     fi
-done <<< "$available_output"
+done <<< "$config_output"
 
-if [ ${#available_interfaces[@]} -eq 0 ]; then
-    notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn-error "No WireGuard configs found" "No .conf files in /etc/wireguard/"
+if [[ ${#available_interfaces[@]} -eq 0 ]]; then
+    notify network-vpn-error "No WireGuard configs found" "No .conf files in $WG_DIR/"
     exit 1
 fi
 
 active_interfaces=$(get_active_interfaces)
 
+disconnect_all() {
+    local active="$1"
+    [[ -z "$active" ]] && return 0
+    while IFS= read -r iface; do
+        [[ -z "$iface" ]] && continue
+        run_elevated wg-quick down "$iface" || \
+            notify network-vpn-offline "WireGuard failed to disconnect" "Interface: $iface"
+    done <<< "$active"
+}
+
+if [[ "$action_disconnect" == true ]]; then
+    disconnect_all "$active_interfaces"
+    exit 0
+fi
+
+if [[ -n "$action_connect" ]]; then
+    disconnect_all "$active_interfaces"
+    if run_elevated wg-quick up "$action_connect"; then
+        notify network-vpn "WireGuard connected" "Interface: $action_connect"
+    else
+        notify network-vpn-error "WireGuard failed to connect" "Interface: $action_connect"
+        exit 1
+    fi
+    exit 0
+fi
+
 none="none"
 options=()
-if [ -z "$active_interfaces" ]; then
+if [[ -z "$active_interfaces" ]]; then
     options+=("$none (active)")
 else
     options+=("$none")
@@ -75,70 +121,38 @@ fi
 
 for interface in "${available_interfaces[@]}"; do
     display_name="$interface"
-    if [ -n "${interface_labels[$interface]}" ]; then
+    if [[ -n "${interface_labels[$interface]:-}" ]]; then
         display_name="$interface [${interface_labels[$interface]}]"
     fi
-    
-    if echo "$active_interfaces" | grep -q "^$interface$"; then
+    if echo "$active_interfaces" | grep -q "^${interface}$"; then
         options+=("$display_name (active)")
     else
         options+=("$display_name")
     fi
 done
 
-selected=$(printf '%s\n' "${options[@]}" | dmenu -c -l 10 -i -p "Select WireGuard interface:" | awk '{print $1}')
-
-if [ -z "$selected" ]; then
-    exit 0
-fi
-
-if [ "$selected" = "$none" ]; then
-    if [ -n "$active_interfaces" ]; then
-        success_count=0
-        for interface in $active_interfaces; do
-            echo "Disconnecting interface: $interface"
-            if run_elevated wg-quick down "$interface"; then
-                if [ "$NOTIFY_SEND" = "true" ]; then
-                    notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn "WireGuard disconnected" "Interface: $interface"
-                fi
-                ((success_count++))
-            else
-                echo "Failed to disconnect $interface"
-                notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn-offline "WireGuard failed to disconnect" "Interface: $interface"
-            fi
-        done
-    else
-        if [ "$NOTIFY_SEND" = "true" ]; then
-            notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn "WireGuard" "No active interfaces to disconnect"
-        fi
-    fi
-    exit 0
-fi
-
-interface="$selected"
-
-if echo "$active_interfaces" | grep -q "^$interface$"; then
-    echo "Interface $interface is already active"
-    if [ "$NOTIFY_SEND" = "true" ]; then
-        notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn "WireGuard" "Interface $interface is already active"
-    fi
-    exit 0
-fi
-
-if [ -n "$active_interfaces" ]; then
-    for active_interface in $active_interfaces; do
-        echo "Disconnecting active interface: $active_interface"
-        run_elevated wg-quick down "$active_interface" || true
-    done
-fi
-
-echo "Connecting to interface: $interface"
-if run_elevated wg-quick up "$interface"; then
-    echo "Successfully connected to $interface"
-    if [ "$NOTIFY_SEND" = "true" ]; then
-        notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn "WireGuard connected" "Interface: $interface"
-    fi
+if [[ "$dmenu" == "fzf" ]]; then
+    selected=$(printf '%s\n' "${options[@]}" | fzf --prompt="WireGuard interface: " | awk '{print $1}')
 else
-    echo "Failed to connect to $interface"
-    notify-send -r 9901 -t $NOTIFY_TIMEOUT -i network-vpn-error "WireGuard failed to connect" "Interface: $interface - Check system logs"
+    selected=$(printf '%s\n' "${options[@]}" | "$dmenu" -c -l 10 -i -p "Select WireGuard interface:" | awk '{print $1}')
+fi
+[[ -z "$selected" ]] && exit 0
+
+if [[ "$selected" == "$none" ]]; then
+    disconnect_all "$active_interfaces"
+    exit 0
+fi
+
+if echo "$active_interfaces" | grep -q "^${selected}$"; then
+    notify network-vpn "WireGuard" "Interface $selected is already active"
+    exit 0
+fi
+
+disconnect_all "$active_interfaces"
+
+if run_elevated wg-quick up "$selected"; then
+    notify network-vpn "WireGuard connected" "Interface: $selected"
+else
+    notify network-vpn-error "WireGuard failed to connect" "Interface: $selected - Check system logs"
+    exit 1
 fi

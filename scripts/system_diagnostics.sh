@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# System Diagnostic Script for RX 6900 XT crash investigation
-# Gathers logs and system info, copies to X11 clipboard
+. "${XDG_CONFIG_HOME:-$HOME/.config}/sh/shutil.sh"
 
 OUTPUT_FILE="/tmp/system_diagnostics_$(date +%Y%m%d_%H%M%S).txt"
 
@@ -35,7 +34,7 @@ echo "=========================================" | tee -a "$OUTPUT_FILE"
     echo ""
 
     echo "--- Recent Boot History ---"
-    sudo journalctl --list-boots | head -15
+    run_elevated journalctl --list-boots | head -15
     echo ""
 
 } | tee -a "$OUTPUT_FILE"
@@ -59,8 +58,8 @@ echo "=========================================" | tee -a "$OUTPUT_FILE"
     echo ""
 
     echo "--- Motherboard/Chipset ---"
-    sudo dmidecode -s baseboard-product-name 2>/dev/null || echo "DMIDECODE unavailable"
-    sudo dmidecode -s baseboard-manufacturer 2>/dev/null
+    run_elevated dmidecode -s baseboard-product-name 2>/dev/null || echo "DMIDECODE unavailable"
+    run_elevated dmidecode -s baseboard-manufacturer 2>/dev/null
     echo ""
 
     echo "--- PCIe Devices ---"
@@ -150,27 +149,27 @@ echo "=========================================" | tee -a "$OUTPUT_FILE"
 
 {
     echo "--- Last 50 lines ---"
-    sudo journalctl -k -b -1 --no-pager | tail -50
+    run_elevated journalctl -k -b -1 --no-pager | tail -50
     echo ""
 
     echo "--- AMDGPU/GPU errors ---"
-    sudo journalctl -k -b -1 --no-pager | grep -i "amdgpu\|gpu\|drm.*error" | tail -20
+    run_elevated journalctl -k -b -1 --no-pager | grep -i "amdgpu\|gpu\|drm.*error" | tail -20
     echo ""
 
     echo "--- PCIe/IOMMU errors ---"
-    sudo journalctl -k -b -1 --no-pager | grep -i "pcie\|iommu\|aer\|amd-vi" | tail -20
+    run_elevated journalctl -k -b -1 --no-pager | grep -i "pcie\|iommu\|aer\|amd-vi" | tail -20
     echo ""
 
     echo "--- Machine Check Exceptions (Hardware Errors) ---"
-    sudo journalctl -k -b -1 --no-pager | grep -i "mce\|machine check\|hardware error" | tail -20
+    run_elevated journalctl -k -b -1 --no-pager | grep -i "mce\|machine check\|hardware error" | tail -20
     echo ""
 
     echo "--- Thermal warnings ---"
-    sudo journalctl -k -b -1 --no-pager | grep -i "thermal\|temperature\|overheat" | tail -20
+    run_elevated journalctl -k -b -1 --no-pager | grep -i "thermal\|temperature\|overheat" | tail -20
     echo ""
 
     echo "--- Critical/Emergency errors ---"
-    sudo journalctl -b -1 -p crit..emerg --no-pager | tail -20
+    run_elevated journalctl -b -1 -p crit..emerg --no-pager | tail -20
     echo ""
 
 } | tee -a "$OUTPUT_FILE"
@@ -181,15 +180,15 @@ echo "=========================================" | tee -a "$OUTPUT_FILE"
 
 {
     echo "--- Last 100 error/warning lines ---"
-    sudo journalctl -b -p err..warn --no-pager | tail -100
+    run_elevated journalctl -b -p err..warn --no-pager | tail -100
     echo ""
 
     echo "--- Segmentation faults ---"
-    sudo journalctl -b --no-pager | grep -i "segfault" | tail -20
+    run_elevated journalctl -b --no-pager | grep -i "segfault" | tail -20
     echo ""
 
     echo "--- Kernel panics/oops ---"
-    sudo journalctl -b --no-pager | grep -i "panic\|oops" | tail -20
+    run_elevated journalctl -b --no-pager | grep -i "panic\|oops" | tail -20
     echo ""
 
 } | tee -a "$OUTPUT_FILE"
@@ -200,11 +199,11 @@ echo "=========================================" | tee -a "$OUTPUT_FILE"
 
 {
     echo "--- Recent suspend/resume events ---"
-    sudo journalctl -b --no-pager | grep -i "suspend\|resume\|sleep\|wake" | tail -30
+    run_elevated journalctl -b --no-pager | grep -i "suspend\|resume\|sleep\|wake" | tail -30
     echo ""
 
     echo "--- Time jumps (system instability indicator) ---"
-    sudo journalctl -b --no-pager | grep -i "time jumped\|time.*backwards" | tail -10
+    run_elevated journalctl -b --no-pager | grep -i "time jumped\|time.*backwards" | tail -10
     echo ""
 
 } | tee -a "$OUTPUT_FILE"
@@ -215,7 +214,7 @@ echo "=========================================" | tee -a "$OUTPUT_FILE"
 
 {
     echo "--- AMD PState errors (from logs) ---"
-    sudo journalctl -k -b --no-pager | grep -i "amd_pstate" | tail -10
+    run_elevated journalctl -k -b --no-pager | grep -i "amd_pstate" | tail -10
     echo ""
 
     echo "--- CPU frequency scaling ---"
@@ -287,7 +286,7 @@ echo "=========================================" | tee -a "$OUTPUT_FILE"
     echo ""
 
     echo "--- Recent coredump events ---"
-    sudo journalctl -b --no-pager | grep -i "coredump\|Process.*dumped core" | tail -10
+    run_elevated journalctl -b --no-pager | grep -i "coredump\|Process.*dumped core" | tail -10
     echo ""
 
 } | tee -a "$OUTPUT_FILE"
@@ -308,7 +307,7 @@ elif command -v xsel &> /dev/null; then
     echo "✓ Successfully copied to clipboard using xsel"
 else
     echo "✗ Neither xclip nor xsel found. Install one of them for clipboard support."
-    echo "  sudo pacman -S xclip   # or xsel"
+    echo "  run_elevated pacman -S xclip   # or xsel"
 fi
 
 echo ""

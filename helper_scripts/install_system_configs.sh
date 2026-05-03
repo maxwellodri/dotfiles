@@ -1,20 +1,15 @@
 #!/bin/bash
 
-# Enhanced System Configuration Installer with Service Management
-# This script installs system configurations, udev rules, and systemd services
-# with proper tracking and service management - runs as normal user with sudo
+. "$(cd "$(dirname "$(readlink -f "$0")")" && git rev-parse --show-toplevel)/.config/sh/shutil.sh"
 
-# Color codes for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-# PURPLE='\033[0;35m'  # Uncomment if needed later
 CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 BOLD='\033[1m'
 
-# Tracking arrays for changes
 declare -a COPIED_FILES=()
 declare -a UPDATED_FILES=()
 declare -a SKIPPED_FILES=()
@@ -24,49 +19,6 @@ declare -a STARTED_SERVICES=()
 declare -a RESTARTED_SERVICES=()
 
 
-# Function to find git root
-find_git_root() {
-    local current_dir
-    current_dir="$(dirname "$(readlink -f "$0")")"
-    while [ "$current_dir" != "/" ]; do
-        if [ -d "$current_dir/.git" ]; then
-            echo "$current_dir"
-            return 0
-        fi
-        current_dir="$(dirname "$current_dir")"
-    done
-    echo -e "${RED}Error: Not in a git repository${NC}" >&2
-    return 1
-}
-
-# Check if user is in wheel group
-check_wheel_membership() {
-    if ! groups | grep -qw wheel; then
-        echo -e "${RED}Error: You must be a member of the 'wheel' group to run this script.${NC}"
-        echo -e "${YELLOW}Current groups: $(groups)${NC}"
-        exit 1
-    fi
-}
-
-# Function to validate sudo access
-validate_sudo() {
-    echo -e "${CYAN}This script requires sudo access for system-level operations.${NC}"
-    
-    # Test sudo access
-    if ! sudo -v; then
-        echo -e "${RED}Error: Failed to obtain sudo privileges.${NC}"
-        exit 1
-    fi
-    
-    # Keep sudo alive during script execution
-    (while true; do sudo -n true; sleep 50; done) &
-    SUDO_KEEPALIVE_PID=$!
-    
-    # Ensure we kill the keepalive process on exit
-    trap 'kill $SUDO_KEEPALIVE_PID 2>/dev/null' EXIT
-}
-
-# Function to print section headers
 print_header() {
     echo -e "\n${BOLD}${BLUE}=== $1 ===${NC}\n"
 }
@@ -82,7 +34,7 @@ is_systemd_service() {
     [[ "$file" == *.service ]] || [[ "$file" == *.timer ]] || [[ "$file" == *.socket ]] || [[ "$file" == *.path ]]
 }
 
-# Function to manage system services (requires sudo)
+# Function to manage system services (requires elevation)
 manage_system_service() {
     local service_file="$1"
     local service_name
@@ -96,26 +48,26 @@ manage_system_service() {
     
     # Check if service was already active
     local was_active=false
-    if sudo systemctl is-active --quiet "$service_name"; then
+    if run_elevated systemctl is-active --quiet "$service_name"; then
         was_active=true
     fi
     
     # Enable the service
-    if sudo systemctl enable "$service_name" 2>/dev/null; then
+    if run_elevated systemctl enable "$service_name" 2>/dev/null; then
         ENABLED_SERVICES+=("$service_name")
         echo -e "  ${GREEN}✓ Enabled${NC}"
     fi
     
     # Start or restart the service
     if [ "$was_active" = true ]; then
-        if sudo systemctl restart "$service_name" 2>/dev/null; then
+        if run_elevated systemctl restart "$service_name" 2>/dev/null; then
             RESTARTED_SERVICES+=("$service_name")
             echo -e "  ${GREEN}✓ Restarted${NC}"
         else
             echo -e "  ${YELLOW}⚠ Failed to restart (may require reboot)${NC}"
         fi
     else
-        if sudo systemctl start "$service_name" 2>/dev/null; then
+        if run_elevated systemctl start "$service_name" 2>/dev/null; then
             STARTED_SERVICES+=("$service_name")
             echo -e "  ${GREEN}✓ Started${NC}"
         else
@@ -124,7 +76,7 @@ manage_system_service() {
     fi
 }
 
-# Function to manage user services (no sudo needed)
+# Function to manage user services (no elevation needed)
 manage_user_service() {
     local service_file="$1"
     local service_name
@@ -178,7 +130,7 @@ copy_files() {
     
     # Ensure the destination directory exists
     if [ "$needs_sudo" = "true" ]; then
-        sudo mkdir -p "$dst_dir"
+        run_elevated mkdir -p "$dst_dir"
     else
         mkdir -p "$dst_dir"
     fi
@@ -192,7 +144,7 @@ copy_files() {
         # Check if the destination file exists
         local file_exists=false
         if [ "$needs_sudo" = "true" ]; then
-            sudo test -e "$dst" && file_exists=true
+            run_elevated test -e "$dst" && file_exists=true
         else
             test -e "$dst" && file_exists=true
         fi
@@ -201,7 +153,7 @@ copy_files() {
             # If contents are the same, skip
             local files_identical=false
             if [ "$needs_sudo" = "true" ]; then
-                sudo cmp -s "$src" "$dst" && files_identical=true
+                run_elevated cmp -s "$src" "$dst" && files_identical=true
             else
                 cmp -s "$src" "$dst" && files_identical=true
             fi
@@ -218,7 +170,7 @@ copy_files() {
                 # Get timestamps for comparison
                 local src_time dst_time
                 src_time=$(stat -c %Y "$src" 2>/dev/null)
-                dst_time=$(sudo stat -c %Y "$dst" 2>/dev/null)
+                dst_time=$(run_elevated stat -c %Y "$dst" 2>/dev/null)
                 [ "$src_time" -gt "$dst_time" ] && src_is_newer=true
             else
                 [ "$src" -nt "$dst" ] && src_is_newer=true
@@ -227,9 +179,9 @@ copy_files() {
             if [ "$src_is_newer" = true ]; then
                 # Copy the file
                 if [ "$needs_sudo" = "true" ]; then
-                    sudo cp "$src" "$dst"
-                    sudo chmod "$file_perms" "$dst"
-                    sudo chgrp "$file_group" "$dst"
+                    run_elevated cp "$src" "$dst"
+                    run_elevated chmod "$file_perms" "$dst"
+                    run_elevated chgrp "$file_group" "$dst"
                 else
                     cp "$src" "$dst"
                     chmod "$file_perms" "$dst"
@@ -248,7 +200,7 @@ copy_files() {
                 # Get timestamps for error message
                 local dst_date_modified src_date_modified
                 if [ "$needs_sudo" = "true" ]; then
-                    dst_date_modified=$(sudo stat -c "%Y-%m-%d %H:%M:%S" "$dst" 2>/dev/null)
+                    dst_date_modified=$(run_elevated stat -c "%Y-%m-%d %H:%M:%S" "$dst" 2>/dev/null)
                     src_date_modified=$(stat -c "%Y-%m-%d %H:%M:%S" "$src" 2>/dev/null)
                 else
                     dst_date_modified=$(date -r "$dst" +"%Y-%m-%d %H:%M:%S" 2>/dev/null)
@@ -261,9 +213,9 @@ copy_files() {
         else
             # Destination file does not exist, so copy source file
             if [ "$needs_sudo" = "true" ]; then
-                sudo cp "$src" "$dst"
-                sudo chmod "$file_perms" "$dst"
-                sudo chgrp "$file_group" "$dst"
+                run_elevated cp "$src" "$dst"
+                run_elevated chmod "$file_perms" "$dst"
+                run_elevated chgrp "$file_group" "$dst"
             else
                 cp "$src" "$dst"
                 chmod "$file_perms" "$dst"
@@ -293,27 +245,18 @@ copy_files() {
 
 # Main script execution starts here
 
-# Check if running as root - should run as normal user
 if [ "$EUID" -eq 0 ]; then
     echo -e "${RED}Error: This script should not be run as root.${NC}"
     echo -e "${YELLOW}Please run as a normal user who is a member of the wheel group.${NC}"
     exit 1
 fi
 
-# Check wheel group membership
-check_wheel_membership
-
-# Find git root
-if ! GIT_ROOT=$(find_git_root); then
-    exit 1
-fi
+GIT_ROOT="$(cd "$(dirname "$(readlink -f "$0")")" && git rev-parse --show-toplevel)"
 
 echo -e "${CYAN}Git root found at: ${GIT_ROOT}${NC}"
 
-# Change to git root
 cd "$GIT_ROOT" || exit
 
-# Check for dotfile tag
 if [ ! -f "$GIT_ROOT/.dotfile_tag" ]; then
     echo -e "${RED}No $GIT_ROOT/.dotfile_tag found. Make sure to run installer_main.sh -> helper_scripts/makesymlinks.sh before this!${NC}"
     exit 1
@@ -324,24 +267,22 @@ if [ ! -d "systemd-services" ] && [ ! -d "system_configs" ]; then
     exit 1
 fi
 
-
-# Validate sudo access
-validate_sudo
+run_elevated_init || exit 1
 
 # Main installation process
 print_header "Installing System Configuration Files"
 
-# Copy dotfile tag (requires sudo)
+# Copy dotfile tag (requires elevation)
 echo -e "${CYAN}Copying $GIT_ROOT/.dotfile_tag to /etc/dotfile_tag${NC}"
-sudo cp "$GIT_ROOT/.dotfile_tag" "/etc/dotfile_tag"
-sudo chmod 664 "/etc/dotfile_tag"
-sudo chgrp wheel "/etc/dotfile_tag"
+run_elevated cp "$GIT_ROOT/.dotfile_tag" "/etc/dotfile_tag"
+run_elevated chmod 664 "/etc/dotfile_tag"
+run_elevated chgrp wheel "/etc/dotfile_tag"
 
-# Copy system systemd services (requires sudo)
+# Copy system systemd services (requires elevation)
 print_header "Installing System Services"
 copy_files "systemd-services/system" "/etc/systemd/system" true
 
-# Copy user systemd services (no sudo needed)
+# Copy user systemd services (no elevation needed)
 print_header "Installing User Services"
 USER_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 mkdir -p "$USER_CONFIG_HOME/systemd/user"
@@ -363,23 +304,23 @@ fi
 print_header "Reloading System Configurations"
 
 echo -e "${CYAN}Setting systemd stop timeout to 15s...${NC}"
-sudo mkdir -p /etc/systemd/system.conf.d && \
-echo -e "[Manager]\nDefaultTimeoutStopSec=15s" | sudo tee /etc/systemd/system.conf.d/timeout.conf > /dev/null
+run_elevated mkdir -p /etc/systemd/system.conf.d && \
+echo -e "[Manager]\nDefaultTimeoutStopSec=15s" | run_elevated tee /etc/systemd/system.conf.d/timeout.conf > /dev/null
 
 echo -e "${CYAN}Reloading polkit...${NC}"
-sudo systemctl reload polkit
+run_elevated systemctl reload polkit
 
 echo -e "${CYAN}Reloading system daemon...${NC}"
-sudo systemctl daemon-reload
+run_elevated systemctl daemon-reload
 
 echo -e "${CYAN}Reloading user daemon...${NC}"
 systemctl --user daemon-reload
 
 echo -e "${CYAN}Reloading udev rules...${NC}"
-sudo udevadm control --reload-rules && sudo udevadm trigger
+run_elevated udevadm control --reload-rules && run_elevated udevadm trigger
 
-sudo systemctl enable atd
-sudo systemctl start atd
+run_elevated systemctl enable atd
+run_elevated systemctl start atd
 
 # Print summary
 print_header "Installation Summary"
@@ -426,5 +367,4 @@ if [ "${VERBOSE:-0}" -eq 0 ] && [ $((${#COPIED_FILES[@]} + ${#UPDATED_FILES[@]})
     echo -e "\n${CYAN}Tip: Run with VERBOSE=1 to see detailed file lists${NC}"
 fi
 
-# Kill sudo keepalive process
-kill $SUDO_KEEPALIVE_PID 2>/dev/null
+run_elevated_cleanup
