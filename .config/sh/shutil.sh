@@ -31,7 +31,8 @@ check_kernel() {
         return 0
     fi
 
-    running_normalized=$(echo "$running_kernel" | sed 's/\.arch/-arch/')
+    running_base=$(echo "$running_kernel" | sed "s/${suffix}$//")
+    running_normalized=$(echo "$running_base" | sed 's/\.arch/-arch/')
     installed_normalized=$(echo "$installed_kernel" | sed 's/\.arch/-arch/')
 
     if [ "$running_normalized" != "$installed_normalized" ]; then

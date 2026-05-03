@@ -6,6 +6,7 @@ set -euo pipefail
 NOTIFY_TIMEOUT=2000
 WG_DIR="/etc/wireguard"
 
+SHUTIL_PREFER_GUI=1
 dmenu=$(get_dmenu)
 has_display=false
 [[ "$dmenu" != "fzf" ]] && has_display=true
@@ -61,18 +62,7 @@ case "${1:-}" in
         ;;
 esac
 
-config_output=$(run_elevated bash -c '
-    for f in /etc/wireguard/*.conf; do
-        [ -f "$f" ] || continue
-        iface=$(basename "$f" .conf)
-        label=$(grep "^#Label:" "$f" 2>/dev/null | head -1 | sed "s/^#Label:[[:space:]]*//")
-        if [ -n "$label" ]; then
-            echo "$iface|$label"
-        else
-            echo "$iface|"
-        fi
-    done
-') || true
+config_output=$(run_elevated "$(dirname "$(readlink -f "$0")")/_wg_list_configs.sh") || true
 
 declare -A interface_labels
 available_interfaces=()
@@ -146,6 +136,7 @@ fi
 
 if [[ "$selected" == "$none" ]]; then
     disconnect_all "$active_interfaces"
+    notify network-vpn-offline "WireGuard disconnected"
     exit 0
 fi
 

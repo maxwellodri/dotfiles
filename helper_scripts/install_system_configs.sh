@@ -126,7 +126,7 @@ copy_files() {
     local needs_sudo="${3:-false}"
     local is_user_service="${4:-false}"
     local file_perms="${5:-644}"
-    local file_group="${6:-root}"
+    local file_group="${6:-}"
     
     # Ensure the destination directory exists
     if [ "$needs_sudo" = "true" ]; then
@@ -159,8 +159,33 @@ copy_files() {
             fi
             
             if [ "$files_identical" = true ]; then
-                echo -e "${YELLOW}↔ Skipping${NC} $filename ${YELLOW}(identical)${NC}"
-                SKIPPED_FILES+=("$dst")
+                local current_mode current_group needs_perm_update=false
+                if [ "$needs_sudo" = "true" ]; then
+                    current_mode=$(run_elevated stat -c '%a' "$dst")
+                    current_group=$(run_elevated stat -c '%G' "$dst")
+                else
+                    current_mode=$(stat -c '%a' "$dst")
+                    current_group=$(stat -c '%G' "$dst")
+                fi
+                if [ "$current_mode" != "$file_perms" ] || { [[ -n "$file_group" ]] && [ "$current_group" != "$file_group" ]; }; then
+                    needs_perm_update=true
+                fi
+
+                if [ "$needs_perm_update" = false ]; then
+                    echo -e "${YELLOW}↔ Skipping${NC} $filename ${YELLOW}(identical)${NC}"
+                    SKIPPED_FILES+=("$dst")
+                    return 0
+                fi
+
+                if [ "$needs_sudo" = "true" ]; then
+                    run_elevated chmod "$file_perms" "$dst"
+                    [[ -n "$file_group" ]] && run_elevated chgrp "$file_group" "$dst"
+                else
+                    chmod "$file_perms" "$dst"
+                    [[ -n "$file_group" ]] && chgrp "$file_group" "$dst"
+                fi
+                echo -e "${GREEN}↻ Updated${NC} $filename ${GREEN}(permissions)${NC}"
+                UPDATED_FILES+=("$dst")
                 return 0
             fi
             
@@ -181,11 +206,11 @@ copy_files() {
                 if [ "$needs_sudo" = "true" ]; then
                     run_elevated cp "$src" "$dst"
                     run_elevated chmod "$file_perms" "$dst"
-                    run_elevated chgrp "$file_group" "$dst"
+                    [[ -n "$file_group" ]] && run_elevated chgrp "$file_group" "$dst"
                 else
                     cp "$src" "$dst"
                     chmod "$file_perms" "$dst"
-                    chgrp "$file_group" "$dst"
+                    [[ -n "$file_group" ]] && chgrp "$file_group" "$dst"
                 fi
                 echo -e "${GREEN}↻ Updated${NC} $filename"
                 UPDATED_FILES+=("$dst")
@@ -215,11 +240,11 @@ copy_files() {
             if [ "$needs_sudo" = "true" ]; then
                 run_elevated cp "$src" "$dst"
                 run_elevated chmod "$file_perms" "$dst"
-                run_elevated chgrp "$file_group" "$dst"
+                [[ -n "$file_group" ]] && run_elevated chgrp "$file_group" "$dst"
             else
                 cp "$src" "$dst"
                 chmod "$file_perms" "$dst"
-                chgrp "$file_group" "$dst"
+                [[ -n "$file_group" ]] && chgrp "$file_group" "$dst"
             fi
             echo -e "${GREEN}+ Copied${NC} $filename ${GREEN}(new)${NC}"
             COPIED_FILES+=("$dst")
@@ -238,7 +263,11 @@ copy_files() {
     if [ -d "$src" ]; then
         for file in "$src"/*; do
             [ -e "$file" ] || continue  # Skip if no files match
-            copy_files "$file" "$dst_dir" "$needs_sudo" "$is_user_service"
+            if [ -d "$file" ]; then
+                copy_files "$file" "$dst_dir/$(basename "$file")" "$needs_sudo" "$is_user_service" "$file_perms" "$file_group"
+            else
+                copy_files "$file" "$dst_dir" "$needs_sudo" "$is_user_service" "$file_perms" "$file_group"
+            fi
         done
     fi
 }
@@ -280,7 +309,7 @@ run_elevated chgrp wheel "/etc/dotfile_tag"
 
 # Copy system systemd services (requires elevation)
 print_header "Installing System Services"
-copy_files "systemd-services/system" "/etc/systemd/system" true
+copy_files "systemd-services/system" "/etc/systemd/system" true false "644" "root"
 
 # Copy user systemd services (no elevation needed)
 print_header "Installing User Services"
@@ -290,14 +319,15 @@ copy_files "systemd-services/user" "$USER_CONFIG_HOME/systemd/user" false
 
 # Handle individual files in system_configs/etc
 print_header "Installing System Configurations"
-copy_files "system_configs/etc/tlp.conf" "/etc" true
-copy_files "system_configs/etc/pacman.d/hooks" "/etc/pacman.d/hooks" true
-copy_files "system_configs/etc/polkit-1/rules.d/" "/etc/polkit-1/rules.d" true false "640" "wheel"
-copy_files "system_configs/etc/sudoers.d" "/etc/sudoers.d" true false "440"
+copy_files "system_configs/etc/NetworkManager" "/etc/NetworkManager" true false "644" "root"
+copy_files "system_configs/etc/tlp.conf" "/etc" true false "644" "root"
+copy_files "system_configs/etc/pacman.d/hooks" "/etc/pacman.d/hooks" true false "644" "root"
+copy_files "system_configs/etc/polkit-1/rules.d/" "/etc/polkit-1/rules.d" true false "644" "root"
+copy_files "system_configs/etc/sudoers.d" "/etc/sudoers.d" true false "440" "root"
 # $dotfile_tag is exported by .zprofile.<machine> at login
 if [ "$dotfile_tag" = "pc" ]; then
     #copy_files "system_configs/etc/systemd/zram-generator.conf" "/etc/systemd/zram-generator.conf" true
-    copy_files "system_configs/etc/systemd/" "/etc/systemd/" true
+    copy_files "system_configs/etc/systemd/" "/etc/systemd/" true false "644" "root"
 fi
 
 # Reload configurations
@@ -360,11 +390,6 @@ if [ ${#ERROR_FILES[@]} -eq 0 ]; then
     echo -e "${GREEN}${BOLD}✓ Configuration applied successfully!${NC}"
 else
     echo -e "${YELLOW}${BOLD}⚠ Configuration applied with warnings. Check error messages above.${NC}"
-fi
-
-# Hint about verbose mode
-if [ "${VERBOSE:-0}" -eq 0 ] && [ $((${#COPIED_FILES[@]} + ${#UPDATED_FILES[@]})) -gt 0 ]; then
-    echo -e "\n${CYAN}Tip: Run with VERBOSE=1 to see detailed file lists${NC}"
 fi
 
 run_elevated_cleanup

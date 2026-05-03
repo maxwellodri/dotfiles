@@ -17,6 +17,11 @@ polkit.addRule(function(action, subject) {
             return polkit.Result.YES;
         }
         
+        // Allow wg_list_configs helper for reading wireguard config labels
+        if (command_line && command_line.indexOf("_wg_list_configs.sh") != -1) {
+            return polkit.Result.YES;
+        }
+        
         // Allow find/test for wireguard directory access
         if ((program == "/usr/bin/find" || program == "/bin/find") &&
             command_line && command_line.indexOf("/etc/wireguard") != -1) {
