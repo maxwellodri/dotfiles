@@ -16,7 +16,16 @@ check_kernel() {
     fi
 
     running_kernel=$(uname -r)
-    installed_kernel=$(pacman -Qi linux 2>/dev/null | grep '^Version' | awk '{print $3}')
+    suffix=$(echo "$running_kernel" | sed 's/[0-9]\+\.[0-9]\+\.[0-9]\+-[0-9]\+//')
+    case "$suffix" in
+        -lts) pkg="linux-lts" ;;
+        -zen) pkg="linux-zen" ;;
+        -hardened) pkg="linux-hardened" ;;
+        -rt) pkg="linux-rt" ;;
+        *) pkg="linux" ;;
+    esac
+
+    installed_kernel=$(pacman -Qi "$pkg" 2>/dev/null | grep '^Version' | awk '{print $3}')
 
     if [ -z "$installed_kernel" ]; then
         return 0
@@ -26,7 +35,7 @@ check_kernel() {
     installed_normalized=$(echo "$installed_kernel" | sed 's/\.arch/-arch/')
 
     if [ "$running_normalized" != "$installed_normalized" ]; then
-        echo "Kernel version mismatch detected:" >&2
+        echo "Kernel version mismatch detected ($pkg):" >&2
         echo "  Running:   $running_kernel" >&2
         echo "  Installed: $installed_kernel" >&2
         echo "Reboot required." >&2
