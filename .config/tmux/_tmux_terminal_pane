@@ -6,8 +6,13 @@ current_pane=$(tmux display-message -p "#{pane_id}")
 pane=$(tmux list-panes -t "$session" -F "#{pane_id} #{@scratch}" | awk '$2 == "1" {print $1; exit}')
 window=$(tmux list-windows -t "$session" -F "#{window_id} #{window_name}" | awk '$2 == "terminal" {print $1; exit}')
 if [ "$current_pane" = "$pane" ]; then
-  # Focused on terminal pane — hide it as a window
-  tmux break-pane -d -n terminal -t :100
+  pane_count=$(tmux list-panes -t "$current_window" | wc -l)
+  if [ "$pane_count" -eq 1 ]; then
+    tmux set-option -p -u @scratch
+    tmux display-message "Scratch tag removed"
+  else
+    tmux break-pane -d -n terminal -t :100
+  fi
 elif [ -n "$pane" ]; then
   # Terminal pane exists elsewhere in session
   pane_window=$(tmux list-panes -t "$session" -F "#{pane_id} #{window_id}" | awk -v p="$pane" '$1 == p {print $2; exit}')
