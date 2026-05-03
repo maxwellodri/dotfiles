@@ -10,12 +10,6 @@ dmenu=$(get_dmenu)
 has_display=false
 [[ "$dmenu" != "fzf" ]] && has_display=true
 
-check_kernel
-
-if ! command -v wg >/dev/null 2>&1; then
-    notify network-vpn-error "WireGuard" "wireguard-tools not installed"
-    exit 1
-fi
 
 get_active_interfaces() {
     wg show interfaces 2>/dev/null | tr ' ' '\n' || true
@@ -38,6 +32,18 @@ if [[ ${1:-} == "--query" ]]; then
         echo "Wireguard is off"
         exit 1
     fi
+fi
+
+if ! check_kernel; then
+    if [[ "$has_display" == true ]]; then
+    notify dialog-warning "Kernel Version Mismatch" "Reboot required"
+    fi
+    exit 1
+fi
+
+if ! command -v wg >/dev/null 2>&1; then
+    notify network-vpn-error "WireGuard" "wireguard-tools not installed"
+    exit 1
 fi
 
 action_connect=""
