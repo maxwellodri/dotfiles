@@ -3,7 +3,7 @@ session=$(tmux display-message -p "#{session_id}")
 current_window=$(tmux display-message -p "#{window_id}")
 current_pane=$(tmux display-message -p "#{pane_id}")
 # Find terminal pane or window in current session
-pane=$(tmux list-panes -t "$session" -F "#{pane_id} #{pane_title}" | awk '$2 == "terminal" {print $1; exit}')
+pane=$(tmux list-panes -t "$session" -F "#{pane_id} #{@scratch}" | awk '$2 == "1" {print $1; exit}')
 window=$(tmux list-windows -t "$session" -F "#{window_id} #{window_name}" | awk '$2 == "terminal" {print $1; exit}')
 if [ "$current_pane" = "$pane" ]; then
   # Focused on terminal pane — hide it as a window
@@ -22,5 +22,6 @@ elif [ -n "$window" ]; then
 else
   # No terminal exists — create a new one
   tmux split-window -v -l 30% -c "#{pane_current_path}"
+  tmux set-option -p @scratch 1
   tmux select-pane -T terminal
 fi
