@@ -5,11 +5,88 @@ import json
 import os
 import urllib.parse
 
+
+FZF_COLORS = [
+    "--color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8",
+    "--color=fg:#cdd6f4,header:#f38ba8,info:#cba6ac,pointer:#f5e0dc",
+    "--color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6ac,hl+:#f38ba8",
+]
+
+FZF_BINDS = [
+    "--bind=ctrl-u:preview-page-up,ctrl-d:preview-page-down",
+    "--cycle",
+]
+
+
+def get_picker():
+    if os.environ.get("WAYLAND_DISPLAY"):
+        return "dmenu-wl"
+    if os.environ.get("DISPLAY"):
+        return "dmenu"
+    return "fzf"
+
+
+def load_bookmarks():
+    bin_path = os.environ.get("BIN")
+    if bin_path:
+        path = os.path.join(bin_path, "web_bookmarks.json")
+    else:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web_bookmarks.json")
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        subprocess.run(["notify-send", "Error", f"{path} not found"])
+        sys.exit(1)
+    except json.JSONDecodeError:
+        subprocess.run(["notify-send", "Error", f"{path} couldn't be parsed"])
+        sys.exit(1)
+
+
+OPEN_FIREFOX = "Open Firefox"
+
+
+def run_picker():
+    picker = get_picker()
+    bookmarks = load_bookmarks()
+    keys = sorted(bookmarks.keys())
+
+    entries = [OPEN_FIREFOX] + keys
+    picker_input = "\n".join(entries)
+
+    if picker == "fzf":
+        args = ["fzf", "--no-sort", "--border=rounded"] + FZF_COLORS + FZF_BINDS
+        result = subprocess.run(
+            args,
+            input=picker_input,
+            capture_output=True,
+            text=True,
+        )
+    else:
+        result = subprocess.run(
+            [picker, "-i", "-l", "30", "-c", "--class", "ff", "-p", "Firefox"],
+            input=picker_input,
+            capture_output=True,
+            text=True,
+        )
+
+    selected = result.stdout.strip()
+    if not selected:
+        return
+
+    if selected == OPEN_FIREFOX:
+        subprocess.run(["firefox", "-new-tab"])
+        return
+
+    url = bookmarks[selected]
+    subprocess.run(["firefox", "-new-tab", url])
+
+
 def rust_docs(query):
     if len(query) > 0:
         search_term = " ".join(query)
         if "::" in search_term:
-            if "~" in search_term: #~ changes it to be search rather than exact
+            if "~" in search_term:
                 clean_search_term = search_term.replace("~", "")
                 return f"https://docs.rs/{urllib.parse.quote(clean_search_term)}"
             else:
@@ -20,7 +97,6 @@ def rust_docs(query):
                 search_terms = " ".join(query[1:])
                 return f"https://docs.rs/{urllib.parse.quote(crate_name)}/latest/?search={urllib.parse.quote_plus(search_terms)}"
             else:
-                # Just crate
                 return f"https://docs.rs/{urllib.parse.quote(query[0])}/latest/"
     else:
         return "https://docs.rs/"
@@ -39,13 +115,13 @@ class ParsedArgs:
 def parse_arguments(args):
     bang = None
     search = []
-    new_tab = True  
+    new_tab = True
     for arg in args:
         if bang == "!":
             new_tab = False
         else:
             search.append(arg)
-            
+
     return ParsedArgs(bang, search, new_tab)
 
 def search_local_bangs(parsed_args):
@@ -84,7 +160,7 @@ def open_bookmarks_as_json(bookmarks_file, parsed_args):
     except Exception as e:
         subprocess.run(["notify-send", "Error", f"An error occurred: {e}"])
         sys.exit(1)
-    
+
     if parsed_args.search[0] in bookmarks:
         return bookmarks[parsed_args.search[0]]
     else:
@@ -94,25 +170,23 @@ fallback_web_bookmarks_path = "/home/maxwell/bin/web_bookmarks.json"
 
 def main():
     if len(sys.argv) == 1:
+        run_picker()
+        return
+
+    if sys.argv[1] == "open":
         subprocess.run(["firefox", "-new-tab"])
         return
-    
-    # Print args for debugging
-    print(f"Debug - Arguments received: {sys.argv[1:]}")
-    
+
     parsed_args = parse_arguments(sys.argv[1:])
-    print(f"Debug - Parsed: Bang={parsed_args.bang}, Search={parsed_args.search}, NewTab={parsed_args.new_tab}")
-    
-    # For standalone bang "!" with no search terms, just open Firefox in a new window
+
     if parsed_args.bang == "!" and not parsed_args.search:
         subprocess.run(["firefox", "-new-window"])
         return
-    
+
     url = None
     if parsed_args.bang is not None:
         url = search_local_bangs(parsed_args)
-    
-    # If no local bang is found, proceed to search
+
     if url is None:
         if parsed_args.bang:
             url = search_duckduckgo(parsed_args)
@@ -122,20 +196,16 @@ def main():
                 web_bookmarks_path = os.path.join(bin_path, "web_bookmarks.json")
             else:
                 web_bookmarks_path = fallback_web_bookmarks_path
-            
+
             url = open_bookmarks_as_json(web_bookmarks_path, parsed_args)
-    
+
     if url is None:
-        # If we still don't have a URL and there are no search terms,
-        # just open a new tab/window based on the new_tab flag
         if not parsed_args.search:
             firefox_flag = "-new-tab" if parsed_args.new_tab else "-new-window"
             subprocess.run(["firefox", firefox_flag])
             return
-        # Otherwise, search DuckDuckGo
         url = search_duckduckgo(parsed_args)
-    
-    # Use either -new-tab or -new-window based on the new_tab flag
+
     firefox_flag = "-new-tab" if parsed_args.new_tab else "-new-window"
     subprocess.run(["firefox", firefox_flag, url])
 

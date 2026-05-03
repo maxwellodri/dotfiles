@@ -22,7 +22,7 @@ case "$1" in
                 mkdir -p "$HOME/.cache/dotfiles"
                 cd "$dscripts" || exit
                 echo "bin path: $bin"
-                find "$PWD" ! -name "$(printf "*\n*")" > tmpfile
+                find "$PWD" ! -name "$(printf "*\n*")" ! -name "__pycache__" ! -path "*/__pycache__/*" > tmpfile
                 while IFS= read -r file
                 do
                     if [ "$file" != "$dscripts" ]; then

@@ -28,3 +28,4 @@ ai/whisper.cpp/audio/*
 docker/transcribe/models/
 rust/*/target/*
 firefox/zipped_extensions/
+__pycache__/
