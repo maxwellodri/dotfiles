@@ -422,9 +422,9 @@ fn cmd_switch(gui: bool) -> Result<()> {
                     let name_input = if gui {
                         run_dmenu("", "Session name")
                     } else {
-                        let tmp_args: Vec<&str> =
-                            vec!["--prompt=Session name: ", "--border=rounded"];
-                        run_fzf("\n", &tmp_args)
+                        eprint!("Session name: ");
+                        let mut buf = String::new();
+                        std::io::stdin().read_line(&mut buf).ok().map(|_| buf)
                     };
                     if let Some(name) = name_input {
                         let name = name.trim().to_string();
