@@ -1,17 +1,18 @@
 ---
-name: flow
-description: Clone a git repository and search through it to answer questions.
+name: scout
+description: "Clone a remote git repository and search through it to answer questions about its code, architecture, or behavior. Use when the user asks to 'search the X repo', 'explore the X repo', 'look at the X repo', 'scout the X repo', 'what does X repo do', pastes a GitHub/repository URL (with or without a question), or mentions cloning and searching a repository. Supports GitHub owner/repo shorthand, bare names, and full git URLs."
 ---
 
-# Flow — Clone & Search Repositories
+# Scout — Clone & Explore Repositories
 
 ## Workflow
 
-When the user invokes `/skill:flow <repo> <question>` or asks to clone and search a repo, follow these steps **in order**:
+When the user asks to scout a repo, or pastes a repo URL with a question, follow these steps **in order**:
 
 ### 1. Resolve the Repository URL
 
 - If the input is already a git URL (contains `://` or starts with `git@`), use it as-is.
+- If the input is a GitHub page URL (e.g. `https://github.com/owner/repo`), convert to a clone URL by appending `.git`.
 - Otherwise treat the input as a `<owner>/<repo>` or bare `<repo>` shorthand:
   - Bare name like `pi` → resolve to `https://github.com/badlogic/pi-mono.git` using `gh repo view <name> --json url` or ask the user for the owner.
   - `owner/repo` → `https://github.com/<owner>/<repo>.git`
@@ -29,17 +30,15 @@ Local base directory: `~/.cache/repositories/`
 ### 3. Clone or Reuse
 
 ```bash
-# Check if repo already exists
 if [ -d "$HOME/.cache/repositories/<derived-name>/.git" ]; then
   echo "Repository already cloned at ~/.cache/repositories/<derived-name>"
 else
-  # Ensure parent dirs exist
   mkdir -p "$HOME/.cache/repositories"
-  git clone <repo-url> "$HOME/.cache/repositories/<derived-name>"
+  git clone --depth 1 <repo-url> "$HOME/.cache/repositories/<derived-name>"
 fi
 ```
 
-If the repo exists `git pull` to update it.
+If the repo already exists, `git pull` to update it.
 
 ### 4. Search & Answer
 
@@ -51,12 +50,14 @@ With the repo cloned, answer the user's question by:
 
 **Always show the local path** to the repo so the user knows where it lives.
 
-## Example Usage
+## Example Triggers
 
 ```
-/skill:flow badlogic/pi-mono How does the agent handle tool calls?
-/skill:flow https://github.com/modelcontextprotocol/servers.git What servers are available?
-/skill:flow pi What's the project structure?
+scout the mattpocock/skills repo — how does triage work?
+search the vercel/ai repo for streaming patterns
+explore badlogic/pi-mono — what's the project structure?
+https://github.com/bevyengine/bevy — how does the ECS scheduler work?
+what does the honojs/hono repo do for routing?
 ```
 
 ## Notes
