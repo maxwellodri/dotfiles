@@ -1,6 +1,8 @@
 ---
 name: Dotfiles Configuration
-description: Guides modification of dotfiles configuration files managed via makesymlinks.sh
+description: >
+  Guides editing and managing files in this dotfiles repository. Invoke whenever
+  modifying any file in the dotfiles repo — configs, scripts, Rust tools, etc.
 license: MIT
 compatibility: opencode
 metadata:
@@ -45,6 +47,10 @@ Editing the symlinked location edits the repo file, but it's clearer to work dir
 2. Edit the file using Edit or Write tool
 3. Changes are immediately active (symlink points to edited file)
 4. No need to re-run any installation scripts
+
+### 3.5. Rust Build & Install
+
+**After completing edits to any file under `rust/`**, run `bash rust/install.sh` as the verification step (equivalent to running lint/typecheck in other projects). This replaces `cargo build` / `cargo check` — it builds all crates in release mode and symlinks them to `$bin`.
 
 ### 4. Adding New Configs
 
@@ -175,6 +181,24 @@ nvim --headless -c "helpgrep <pattern>" -c "let lines=getline(1,30)" -c "echo jo
 ```sh
 nvim --headless -c "helptags ALL" -c "qa!"
 ```
+
+### Rust Projects (Build Required)
+
+Rust tools in `rust/` are compiled and symlinked to `$bin`.
+
+**Managed by:** `rust/install.sh`
+
+| Crate | Description |
+|-------|-------------|
+| `rust/dirsort` | Directory sorting tool |
+| `rust/qz` | Project switcher & tmux session manager |
+| `rust/herald` | Notification/message daemon |
+
+**After editing ANY file under `rust/`:**
+1. Run `bash rust/install.sh` — this builds all crates in release mode and symlinks them to `$bin`
+2. Verify the build succeeded before proceeding
+
+This is mandatory — edits to Rust source are not live until installed.
 
 ### User Scripts (Symlinked to `$bin`)
 
