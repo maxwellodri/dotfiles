@@ -84,7 +84,7 @@ export const HeraldNotifications: Plugin = async ({ $, client }) => {
     const tmuxInfo = await getTmuxInfo()
     const body = `Done${tmuxInfo} (${duration})`
     try {
-      await $`herald message --title ${title} --sound --no-store ${body}`
+      await $`herald message --title ${title} --sound ${body}`
     } catch (e: any) {
       await client.app.log({
         body: {

@@ -21,14 +21,11 @@ const TMUX_SESSION: &str = "herald_daemon";
 enum Message {
     #[serde(rename = "notification")]
     Notification {
+        header: String,
         body: String,
-        /// Header for notify-send. None = skip notify-send.
-        notify_send: Option<String>,
-        /// If true, call paplay after notification.
-        paplay: bool,
-        /// If true, persist to store.
+        notify: bool,
+        play_sound: bool,
         store: bool,
-        /// If true, use a fixed notify-send hint so pings replace each other.
         ping: bool,
     },
     #[serde(rename = "remove")]
@@ -230,15 +227,18 @@ enum Commands {
         /// Header for notify-send (omit to skip notify-send)
         #[arg(short, long)]
         title: Option<String>,
-        /// Play a sound via paplay
+        /// Play a sound
         #[arg(long)]
         sound: bool,
-        /// Ping: play sound, notify with tmux session name, don't store
-        #[arg(long, conflicts_with = "body", conflicts_with = "title")]
-        ping: bool,
-        /// Don't persist to store
+        /// Suppress sound (overrides --ping's implied sound)
         #[arg(long)]
-        no_store: bool,
+        no_sound: bool,
+        /// Ping: notify with tmux session name, don't store
+        #[arg(long, conflicts_with = "title")]
+        ping: bool,
+        /// Persist to store
+        #[arg(long, conflicts_with = "ping")]
+        store: bool,
         /// The message body
         body: Vec<String>,
     },
@@ -284,19 +284,18 @@ fn main() -> io::Result<()> {
         Commands::Message {
             title,
             sound,
+            no_sound,
             ping,
-            no_store,
+            store,
             body,
         } => {
+            let play_sound = if ping { !no_sound } else { sound };
+
             if ping {
-                let body = std::env::var("TMUX")
+                let header = std::env::var("TMUX")
                     .ok()
-                    .and_then(|v| {
-                        // TMUX=/tmp/tmux-1000/default,1234 — extract session from tmux list-sessions
-                        v.split(',').next().map(|s| s.to_string())
-                    })
+                    .and_then(|v| v.split(',').next().map(|s| s.to_string()))
                     .map(|_| {
-                        // We have TMUX, get the session name
                         std::process::Command::new("tmux")
                             .args(["display-message", "-p", "#S"])
                             .output()
@@ -306,10 +305,18 @@ fn main() -> io::Result<()> {
                             .unwrap_or_else(|| "Ping!".to_string())
                     })
                     .unwrap_or_else(|| "Ping!".to_string());
+
+                let body = if body.is_empty() {
+                    String::new()
+                } else {
+                    body.join(" ")
+                };
+
                 send_message(Message::Notification {
+                    header,
                     body,
-                    notify_send: None,
-                    paplay: true,
+                    notify: true,
+                    play_sound,
                     store: false,
                     ping: true,
                 })
@@ -321,12 +328,14 @@ fn main() -> io::Result<()> {
                     std::process::exit(1);
                 }
                 let body = body.join(" ");
-                let has_content = title.is_some() || !body.is_empty();
+                let has_title = title.is_some();
+                let has_content = has_title || !body.is_empty();
                 send_message(Message::Notification {
+                    header: title.unwrap_or_default(),
                     body,
-                    notify_send: title,
-                    paplay: sound,
-                    store: has_content && !no_store,
+                    notify: has_title,
+                    play_sound,
+                    store: store && has_content,
                     ping: false,
                 })
             }
@@ -358,8 +367,12 @@ fn main() -> io::Result<()> {
                         } else {
                             for m in &messages {
                                 let title = match &m.message {
-                                    Message::Notification { notify_send, .. } => {
-                                        notify_send.as_deref().unwrap_or("-")
+                                    Message::Notification { header, .. } => {
+                                        if header.is_empty() {
+                                            "-"
+                                        } else {
+                                            header.as_str()
+                                        }
                                     }
                                     _ => "-",
                                 };
@@ -402,23 +415,23 @@ fn main() -> io::Result<()> {
                 .values()
                 .map(|m| {
                     let (body, title) = match &m.message {
-                        Message::Notification {
-                            body, notify_send, ..
-                        } => (body.clone(), notify_send.clone()),
-                        _ => ("-".to_string(), None),
+                        Message::Notification { body, header, .. } => {
+                            (body.clone(), header.clone())
+                        }
+                        _ => ("-".to_string(), String::new()),
                     };
                     let truncated = if body.len() > 30 {
                         format!("{}...", &body[..30])
                     } else {
                         body.clone()
                     };
-                    let truncated_title = title.map(|t| {
-                        if t.len() > 15 {
-                            format!("{}...", &t[..15])
-                        } else {
-                            t
-                        }
-                    });
+                    let truncated_title = if title.is_empty() {
+                        None
+                    } else if title.len() > 15 {
+                        Some(format!("{}...", &title[..15]))
+                    } else {
+                        Some(title)
+                    };
                     EwwMessage {
                         id: m.id,
                         title: truncated_title,
@@ -506,9 +519,10 @@ async fn handle_client(stream: tokio::net::UnixStream, store: Arc<Mutex<Store>>)
             std::process::exit(0);
         }
         Message::Notification {
+            header,
             body,
-            notify_send,
-            paplay,
+            notify,
+            play_sound,
             store: should_store,
             ping,
         } => {
@@ -520,22 +534,23 @@ async fn handle_client(stream: tokio::net::UnixStream, store: Arc<Mutex<Store>>)
                 };
                 store.lock().unwrap().insert(stored)
             } else {
-                // Don't persist, use a dummy id for notify-send hint
                 0
             };
 
-            info!(id, body, notify_send = ?notify_send, paplay, ping, "received notification");
+            info!(
+                id,
+                header, body, notify, play_sound, ping, "received notification"
+            );
 
-            // Pings always get a notify-send with body as header, fixed hint
-            // Regular notifications use title as header, per-id hint
-            let (header, hint_id) = if *ping {
-                (Some(body.clone()), "ping".to_string())
+            let hint_id = if *ping {
+                "ping".to_string()
             } else {
-                (notify_send.clone(), format!("{id}"))
+                format!("{id}")
             };
 
-            if let Some(header) = header {
-                let body_for_notify = if *ping { "".to_string() } else { body.clone() };
+            if *notify {
+                let header = header.clone();
+                let body = body.clone();
                 tokio::spawn(async move {
                     match tokio::process::Command::new("notify-send")
                         .arg("--hint")
@@ -543,7 +558,7 @@ async fn handle_client(stream: tokio::net::UnixStream, store: Arc<Mutex<Store>>)
                             "string:x-canonical-private-synchronous:herald-{hint_id}"
                         ))
                         .arg(&header)
-                        .arg(&body_for_notify)
+                        .arg(&body)
                         .status()
                         .await
                     {
@@ -552,7 +567,7 @@ async fn handle_client(stream: tokio::net::UnixStream, store: Arc<Mutex<Store>>)
                     }
                 });
             }
-            if *paplay {
+            if *play_sound {
                 tokio::spawn(async move {
                     match tokio::process::Command::new("sh")
                         .arg("-c")
