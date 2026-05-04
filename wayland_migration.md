@@ -97,3 +97,7 @@ Already added alongside X11 counterparts — no removals needed for dual-support
 - `hyprpicker` (alongside `xcolor`)
 - `wf-recorder` (alongside `x11grab`)
 - `wlr-randr` (alongside `xrandr`)
+
+## Browser Window Management
+
+- ungoogled-chromium — used by the capitalism shopping skill via Playwright MCP. Configure compositor window rules to toggle visibility of the shopping browser window (e.g. move to hidden workspace, minimize, or set opacity to 0). This lets the agent browse in the background while user intervention (CAPTCHA/login) is only needed when pinged.

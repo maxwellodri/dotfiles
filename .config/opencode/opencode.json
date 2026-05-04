@@ -10,7 +10,7 @@
             "default": "ask",
             "gh": "allow"
         },
-        "webfetch": "ask",
+        "webfetch": "allow",
         "doom_loop": "ask",
         "external_directory": {
             "/tmp/*": "allow",
@@ -25,9 +25,6 @@
             "model": "zai-coding-plan/glm-5.1",
             "tools": {
                 "web_search_prime": true
-            },
-            "permission": {
-                "webfetch": "allow"
             }
         },
         "build": {
@@ -53,6 +50,16 @@
             "headers": {
                 "Authorization": "Bearer {env:ZAI_MCP_API_KEY}"
             }
+        },
+        "playwright": {
+            "type": "local",
+            "command": [
+                "npx",
+                "@playwright/mcp@latest",
+                "--executable-path",
+                "/usr/bin/ungoogled-chromium"
+            ],
+            "enabled": false
         }
     }
 }
