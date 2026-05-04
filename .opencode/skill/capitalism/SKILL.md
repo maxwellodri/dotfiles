@@ -29,6 +29,14 @@ description: Search for products, compare prices across stores, check availabili
 
 ## Workflow
 
+### 0. Plan mode gate
+
+If you are NOT in plan mode, REFUSE to continue. Tell the user:
+
+> Capitalism skill requires plan mode. Re-invoke with plan mode enabled so I can structure research, compare deals, and present findings properly.
+
+Do not proceed with any browsing or research outside plan mode.
+
 ### 1. Pre-flight
 
 ```bash
@@ -47,9 +55,10 @@ Identify the product category and pick appropriate stores from [REFERENCE.md](RE
 
 Core loop:
 1. `browser_navigate` to store search URL
-2. `browser_snapshot` to read page structure
-3. `browser_evaluate` to extract structured product data
-4. Repeat across stores
+2. `browser_wait_for` — wait for content to load (especially Scorptec, PCCG — JS-heavy)
+3. `browser_snapshot` or `browser_evaluate` to extract structured product data
+4. If extraction fails, follow the [fallback hierarchy](REFERENCE.md) (selectors → innerText → snapshot → webfetch)
+5. Repeat across stores
 
 **Free shipping:** If an item's price meets a store's free shipping threshold, treat shipping as free. Do not assume any paid membership (e.g. Amazon Prime).
 

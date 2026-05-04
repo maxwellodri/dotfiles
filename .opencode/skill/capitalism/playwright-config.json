@@ -1,0 +1,10 @@
+{
+  "outputDir": "/home/maxwell/.cache/playwright-mcp",
+  "browser": {
+    "launchOptions": {
+      "headless": false,
+      "executablePath": "/usr/bin/chromium",
+      "args": ["--disable-gpu", "--disable-dev-shm-usage"]
+    }
+  }
+}

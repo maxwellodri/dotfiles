@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BINARY="/usr/bin/ungoogled-chromium"
+BINARY="/usr/bin/chromium"
 ERRORS=()
 
-if ! command -v "$BINARY" &>/dev/null; then
-    ERRORS+=("ungoogled-chromium not found at $BINARY — install with: paru -S ungoogled-chromium")
+if ! test -x "$BINARY"; then
+    ERRORS+=("chromium not found at $BINARY — install with: paru -S ungoogled-chromium-bin")
 fi
 
-if pgrep -f "$BINARY" &>/dev/null; then
+if pgrep -f chromium &>/dev/null; then
     echo "NOTE: ungoogled-chromium is already running (session may be reusable)"
 else
     echo "OK: ungoogled-chromium is not running (Playwright MCP will spawn it)"
@@ -29,13 +29,13 @@ fi
 echo "PASS: ungoogled-chromium ready"
 echo ""
 echo "NOTE: Playwright MCP must be enabled in opencode.json."
-echo "  If browser tools are not available, add the playwright MCP config"
-echo "  to .config/opencode/opencode.json and restart opencode."
+echo "  If browser tools are not available, enable the playwright MCP"
+echo "  in .config/opencode/opencode.json and restart opencode."
 echo ""
-echo "Config to add:"
+echo "Config uses a dedicated config file:"
 echo '  "playwright": {'
 echo '    "type": "local",'
 echo '    "command": ["npx", "@playwright/mcp@latest",'
-echo '      "--executable-path", "/usr/bin/ungoogled-chromium"],'
+echo '      "--config", "~/.opencode/skill/capitalism/playwright-config.json"],'
 echo '    "enabled": true'
 echo '  }'

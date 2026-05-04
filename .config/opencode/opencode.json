@@ -56,8 +56,8 @@
             "command": [
                 "npx",
                 "@playwright/mcp@latest",
-                "--executable-path",
-                "/usr/bin/ungoogled-chromium"
+                "--config",
+                "/home/maxwell/source/dotfiles/.opencode/skill/capitalism/playwright-config.json"
             ],
             "enabled": false
         }
