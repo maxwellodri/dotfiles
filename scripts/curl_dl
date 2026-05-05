@@ -13,4 +13,22 @@ if [[ -z "$FILE" ]] || [[ -z "$URL" ]]; then
   exit 1
 fi
 
+START=$(date +%s)
 until curl -L -C - -o "$FILE" "$URL"; do echo "Retrying..."; sleep 2; done
+ELAPSED=$(( $(date +%s) - START ))
+
+format_duration() {
+  local s=$1
+  if (( s < 60 )); then printf "%ds" "$s"
+  elif (( s < 3600 )); then printf "%dm %ds" "$((s / 60))" "$((s % 60))"
+  else printf "%dh %dm" "$((s / 3600))" "$(( (s % 3600) / 60 ))"
+  fi
+}
+
+BODY="Downloaded in ($(format_duration $ELAPSED))"
+if [[ -n "$TMUX" ]]; then
+  SESSION=$(tmux display-message -p '#S')
+  BODY="$BODY in tmux session '$SESSION'"
+fi
+
+herald message --title "Download complete" --sound "$BODY"
