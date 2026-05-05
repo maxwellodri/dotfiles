@@ -54,16 +54,21 @@ export const HeraldNotifications: Plugin = async ({ $, client }) => {
           message: `TMUX env: ${envText.trim() || "(empty)"}`,
         },
       })
-      const tmuxOut = await $`tmux display-message -p '#S'`.env({ ...process.env }).quiet().text()
+      const tmuxSession = await $`tmux display-message -p '#S'`.env({ ...process.env }).quiet().text()
+      const tmuxWindow = await $`tmux display-message -p '#W'`.env({ ...process.env }).quiet().text()
       await client.app.log({
         body: {
           service: "herald-notifications",
           level: "info",
-          message: `tmux output: ${tmuxOut.trim()}`,
+          message: `tmux output: session=${tmuxSession.trim()} window=${tmuxWindow.trim()}`,
         },
       })
-      if (tmuxOut.trim()) {
-        return ` in tmux session \`${tmuxOut.trim()}\``
+      if (tmuxSession.trim()) {
+        let info = ` in tmux session \`${tmuxSession.trim()}\``
+        if (tmuxWindow.trim()) {
+          info += `, at window \`${tmuxWindow.trim()}\``
+        }
+        return info
       }
     } catch (e: any) {
       await client.app.log({
