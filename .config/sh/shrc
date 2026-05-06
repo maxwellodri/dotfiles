@@ -48,7 +48,7 @@ fi
 #Aliases:
 ###############
 #type fzf >> /dev/null && type fd >> /dev/null
-alias cat='bat'
+alias cat='bat -p'
 alias crontab='VISUAL=vim && crontab'
 alias myip='curl ipinfo.io/ip'
 alias zshrc="vim ~/.zshrc && source ~/.zshrc"
