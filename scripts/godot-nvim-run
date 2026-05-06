@@ -1,2 +1,0 @@
-#!/usr/bin/env bash
-$dotfiles/dwm/godot-server-runner.py $1 $2 $3
