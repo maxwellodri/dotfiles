@@ -19,8 +19,12 @@ declare -a STARTED_SERVICES=()
 declare -a RESTARTED_SERVICES=()
 
 
+log_verbose() {
+    [ "${VERBOSE:-0}" -eq 1 ] && echo -e "$@"
+}
+
 print_header() {
-    echo -e "\n${BOLD}${BLUE}=== $1 ===${NC}\n"
+    [ "${VERBOSE:-0}" -eq 1 ] && echo -e "\n${BOLD}${BLUE}=== $1 ===${NC}\n"
 }
 
 # Function to extract service name from path
@@ -39,25 +43,25 @@ manage_system_service() {
     local service_file="$1"
     local service_name
     service_name=$(get_service_name "$service_file")
-    
+
     if ! is_systemd_service "$service_file"; then
         return 0
     fi
-    
-    echo -e "${CYAN}Managing system service: ${service_name}${NC}"
-    
+
+    log_verbose "${CYAN}Managing system service: ${service_name}${NC}"
+
     # Check if service was already active
     local was_active=false
     if run_elevated systemctl is-active --quiet "$service_name"; then
         was_active=true
     fi
-    
+
     # Enable the service
     if run_elevated systemctl enable "$service_name" 2>/dev/null; then
         ENABLED_SERVICES+=("$service_name")
         echo -e "  ${GREEN}✓ Enabled${NC}"
     fi
-    
+
     # Start or restart the service
     if [ "$was_active" = true ]; then
         if run_elevated systemctl restart "$service_name" 2>/dev/null; then
@@ -81,25 +85,25 @@ manage_user_service() {
     local service_file="$1"
     local service_name
     service_name=$(get_service_name "$service_file")
-    
+
     if ! is_systemd_service "$service_file"; then
         return 0
     fi
-    
-    echo -e "${CYAN}Managing user service: ${service_name}${NC}"
-    
+
+    log_verbose "${CYAN}Managing user service: ${service_name}${NC}"
+
     # Check if service was already active
     local was_active=false
     if systemctl --user is-active --quiet "$service_name" 2>/dev/null; then
         was_active=true
     fi
-    
+
     # Enable the service
     if systemctl --user enable "$service_name" 2>/dev/null; then
         ENABLED_SERVICES+=("user:$service_name")
         echo -e "  ${GREEN}✓ Enabled${NC}"
     fi
-    
+
     # Start or restart the service
     if [ "$was_active" = true ]; then
         if systemctl --user restart "$service_name" 2>/dev/null; then
@@ -133,20 +137,20 @@ copy_files() {
     local is_user_service="${4:-false}"
     local file_perms="${5:-644}"
     local file_group="${6:-}"
-    
+
     # Ensure the destination directory exists
     if [ "$needs_sudo" = "true" ]; then
         run_elevated mkdir -p "$dst_dir"
     else
         mkdir -p "$dst_dir"
     fi
-    
+
     # Check if the source is a file
     if [ -f "$src" ]; then
         local filename
         filename=$(basename "$src")
         local dst="$dst_dir/$filename"
-        
+
         # Check if the destination file exists
         local file_exists=false
         if [ "$needs_sudo" = "true" ]; then
@@ -154,7 +158,7 @@ copy_files() {
         else
             test -e "$dst" && file_exists=true
         fi
-        
+
         if [ "$file_exists" = true ]; then
             # If contents are the same, skip
             local files_identical=false
@@ -163,7 +167,7 @@ copy_files() {
             else
                 cmp -s "$src" "$dst" && files_identical=true
             fi
-            
+
             if [ "$files_identical" = true ]; then
                 local current_mode current_group needs_perm_update=false
                 if [ "$needs_sudo" = "true" ]; then
@@ -178,7 +182,7 @@ copy_files() {
                 fi
 
                 if [ "$needs_perm_update" = false ]; then
-                    echo -e "${YELLOW}↔ Skipping${NC} $filename ${YELLOW}(identical)${NC}"
+                    echo -e "${YELLOW}↔ Skipping${NC} $dst ${YELLOW}(identical)${NC}"
                     SKIPPED_FILES+=("$dst")
                     return 0
                 fi
@@ -190,11 +194,11 @@ copy_files() {
                     chmod "$file_perms" "$dst"
                     [[ -n "$file_group" ]] && chgrp "$file_group" "$dst"
                 fi
-                echo -e "${GREEN}↻ Updated${NC} $filename ${GREEN}(permissions)${NC}"
+                echo -e "${GREEN}↻ Updated${NC} $dst ${GREEN}(permissions)${NC}"
                 UPDATED_FILES+=("$dst")
                 return 0
             fi
-            
+
             # Check if source is newer
             local src_is_newer=false
             if [ "$needs_sudo" = "true" ]; then
@@ -206,7 +210,7 @@ copy_files() {
             else
                 [ "$src" -nt "$dst" ] && src_is_newer=true
             fi
-            
+
             if [ "$src_is_newer" = true ]; then
                 # Copy the file
                 if [ "$needs_sudo" = "true" ]; then
@@ -218,9 +222,9 @@ copy_files() {
                     chmod "$file_perms" "$dst"
                     [[ -n "$file_group" ]] && chgrp "$file_group" "$dst"
                 fi
-                echo -e "${GREEN}↻ Updated${NC} $filename"
+                echo -e "${GREEN}↻ Updated${NC} $dst"
                 UPDATED_FILES+=("$dst")
-                
+
                 # Manage service if it's a systemd service file
                 if [ "$is_user_service" = "true" ]; then
                     manage_user_service "$dst"
@@ -252,9 +256,9 @@ copy_files() {
                 chmod "$file_perms" "$dst"
                 [[ -n "$file_group" ]] && chgrp "$file_group" "$dst"
             fi
-            echo -e "${GREEN}+ Copied${NC} $filename ${GREEN}(new)${NC}"
+            echo -e "${GREEN}+ Copied${NC} $dst ${GREEN}(new)${NC}"
             COPIED_FILES+=("$dst")
-            
+
             # Manage service if it's a systemd service file
             if [ "$is_user_service" = "true" ]; then
                 manage_user_service "$dst"
@@ -264,7 +268,7 @@ copy_files() {
         fi
         return 0
     fi
-    
+
     # If the source is a directory, iterate through the files
     if [ -d "$src" ]; then
         for file in "$src"/*; do
@@ -288,7 +292,7 @@ fi
 
 GIT_ROOT="$(cd "$(dirname "$(readlink -f "$0")")" && git rev-parse --show-toplevel)"
 
-echo -e "${CYAN}Git root found at: ${GIT_ROOT}${NC}"
+log_verbose "${CYAN}Git root found at: ${GIT_ROOT}${NC}"
 
 cd "$GIT_ROOT" || exit
 
@@ -308,7 +312,7 @@ run_elevated_init || exit 1
 print_header "Installing System Configuration Files"
 
 # Copy dotfile tag (requires elevation)
-echo -e "${CYAN}Copying $GIT_ROOT/.dotfile_tag to /etc/dotfile_tag${NC}"
+log_verbose "${CYAN}Copying $GIT_ROOT/.dotfile_tag to /etc/dotfile_tag${NC}"
 run_elevated cp "$GIT_ROOT/.dotfile_tag" "/etc/dotfile_tag"
 run_elevated chmod 664 "/etc/dotfile_tag"
 run_elevated chgrp wheel "/etc/dotfile_tag"
@@ -342,51 +346,49 @@ copy_files "system_configs/etc/polkit-1/rules.d/" "/etc/polkit-1/rules.d" true f
 # Reload configurations
 print_header "Reloading System Configurations"
 
-echo -e "${CYAN}Setting systemd stop timeout to 15s...${NC}"
+log_verbose "${CYAN}Setting systemd stop timeout to 15s...${NC}"
 run_elevated mkdir -p /etc/systemd/system.conf.d && \
 echo -e "[Manager]\nDefaultTimeoutStopSec=15s" | run_elevated tee /etc/systemd/system.conf.d/timeout.conf > /dev/null
 
-echo -e "${CYAN}Reloading polkit...${NC}"
+log_verbose "${CYAN}Reloading polkit...${NC}"
 run_elevated systemctl reload polkit
 
-echo -e "${CYAN}Reloading system daemon...${NC}"
+log_verbose "${CYAN}Reloading system daemon...${NC}"
 run_elevated systemctl daemon-reload
 
-echo -e "${CYAN}Reloading user daemon...${NC}"
+log_verbose "${CYAN}Reloading user daemon...${NC}"
 systemctl --user daemon-reload
 
-echo -e "${CYAN}Reloading udev rules...${NC}"
+log_verbose "${CYAN}Reloading udev rules...${NC}"
 run_elevated udevadm control --reload-rules && run_elevated udevadm trigger
 
 run_elevated systemctl enable atd
 run_elevated systemctl start atd
 
-# Print summary
-print_header "Installation Summary"
-
-echo -e "${BOLD}File Operations:${NC}"
-echo -e "  ${GREEN}+ New files:${NC} ${#COPIED_FILES[@]}"
-echo -e "  ${GREEN}↻ Updated files:${NC} ${#UPDATED_FILES[@]}"
-echo -e "  ${YELLOW}↔ Skipped files:${NC} ${#SKIPPED_FILES[@]}"
-echo -e "  ${RED}✗ Errors:${NC} ${#ERROR_FILES[@]}"
-
-echo -e "\n${BOLD}Service Operations:${NC}"
-echo -e "  ${GREEN}✓ Enabled services:${NC} ${#ENABLED_SERVICES[@]}"
-echo -e "  ${GREEN}▶ Started services:${NC} ${#STARTED_SERVICES[@]}"
-echo -e "  ${GREEN}↻ Restarted services:${NC} ${#RESTARTED_SERVICES[@]}"
-
-# Show detailed lists if requested
 if [ "${VERBOSE:-0}" -eq 1 ]; then
+    print_header "Installation Summary"
+
+    echo -e "${BOLD}File Operations:${NC}"
+    echo -e "  ${GREEN}+ New files:${NC} ${#COPIED_FILES[@]}"
+    echo -e "  ${GREEN}↻ Updated files:${NC} ${#UPDATED_FILES[@]}"
+    echo -e "  ${YELLOW}↔ Skipped files:${NC} ${#SKIPPED_FILES[@]}"
+    echo -e "  ${RED}✗ Errors:${NC} ${#ERROR_FILES[@]}"
+
+    echo -e "\n${BOLD}Service Operations:${NC}"
+    echo -e "  ${GREEN}✓ Enabled services:${NC} ${#ENABLED_SERVICES[@]}"
+    echo -e "  ${GREEN}▶ Started services:${NC} ${#STARTED_SERVICES[@]}"
+    echo -e "  ${GREEN}↻ Restarted services:${NC} ${#RESTARTED_SERVICES[@]}"
+
     if [ ${#COPIED_FILES[@]} -gt 0 ]; then
         echo -e "\n${BOLD}New files:${NC}"
         printf '%s\n' "${COPIED_FILES[@]}" | sed 's/^/  /'
     fi
-    
+
     if [ ${#UPDATED_FILES[@]} -gt 0 ]; then
         echo -e "\n${BOLD}Updated files:${NC}"
         printf '%s\n' "${UPDATED_FILES[@]}" | sed 's/^/  /'
     fi
-    
+
     if [ ${#ENABLED_SERVICES[@]} -gt 0 ]; then
         echo -e "\n${BOLD}Enabled services:${NC}"
         printf '%s\n' "${ENABLED_SERVICES[@]}" | sed 's/^/  /'
@@ -396,9 +398,9 @@ fi
 # Final status
 echo
 if [ ${#ERROR_FILES[@]} -eq 0 ]; then
-    echo -e "${GREEN}${BOLD}✓ Configuration applied successfully!${NC}"
+    echo -e "${GREEN}${BOLD}✓ System Configuration applied successfully!${NC}"
 else
-    echo -e "${YELLOW}${BOLD}⚠ Configuration applied with warnings. Check error messages above.${NC}"
+    echo -e "${YELLOW}${BOLD}⚠ System Configuration applied with warnings. Check error messages above.${NC}"
 fi
 
 run_elevated_cleanup

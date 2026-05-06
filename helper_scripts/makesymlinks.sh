@@ -16,7 +16,7 @@ pam=.pam_environment
 picom=.config/picom/picom.conf
 dunst=.config/dunst/dunstrc
 pactl=.config/pulseaudio-ctl/config
-newsboat=".config/newsboat/urls .config/newsboat/config"
+newsboat=.config/newsboat/config
 ytdl=.config/youtube-dl/config
 tmux=".config/tmux/"
 gpg=.gnupg/gpg-agent.conf
@@ -54,16 +54,18 @@ hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $qz $eww $opencode"
 
 #figure out which system we are on by first variable i.e. $1:
 
+log() { [ -n "${VERBOSE:-}" ] && echo "$@"; }
+
 case $1 in
     "pc")           tag="$1"
         files=$pcfiles$files
-        mkdir ~/.local/share/dwm/ -p
-        mkdir -pv "$XDG_CACHE_HOME/dotfiles/{whisper_models,whisper_audio,llama_models}"
+        mkdir -p ~/.local/share/dwm/
+        mkdir -p "$XDG_CACHE_HOME/dotfiles/{whisper_models,whisper_audio,llama_models}"
         ln -sf "$PWD/dwm/startup.sh" "$HOME/.local/share/dwm/autostart.sh"
         ;;
     "hackerman")    tag="$1"
         files=$hackermanfiles$files
-        mkdir ~/.local/share/dwm/ -p
+        mkdir -p ~/.local/share/dwm/
         ln -sf "$PWD/dwm/startup.sh" "$HOME/.local/share/dwm/autostart.sh"
         ;;
 
@@ -98,25 +100,18 @@ files="$new_files"
 
 # create dotfiles_old in homedir
 olddir=$(mktemp -d)
-echo "Creating $olddir for backup of any existing dotfiles in ~"
-echo ""
-echo "Making needed parent directories..."
+log "Creating $olddir for backup of any existing dotfiles in ~"
+log "Making needed parent directories..."
 for file in $files; do
     parent="$(dirname "$file")"
     mkdir -p "$HOME/$parent"
     mkdir -p "$olddir/$parent"
 done
-echo "Done making parent directories."
-echo ""
+log "Done making parent directories."
 
-# change to the dotfiles directory
-echo "Changing directory to $dir"
 cd "$dir" || exit
-echo "...Done"
-echo ""
+log "Changed directory to $dir"
 
-
-# move any existing dotfiles in homedir to dotfiles_old directory, then create symlinks
 for file in $files; do
     dest="$HOME/$file"
     [ -e "$dest" ] && echo "Moving existing $file from $dest to $olddir" && mv "$dest" "$olddir"
@@ -144,11 +139,6 @@ for file in $files; do
             ;;
 
         esac
-        echo "Creating symlink from $src to ~/$file."
-        echo " "
         ln -s "$src" "$HOME/$file"
     done
-
-    echo "tag variable used = $tag"
-    echo "Script is finished."
 

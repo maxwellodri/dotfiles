@@ -28,6 +28,16 @@ while [ $# -gt 0 ]; do
 	esac
 done
 
+if [ -z "$tag" ]; then
+	tag_file="$(git -C "$(dirname "$(realpath "$0")")" rev-parse --show-toplevel)/.dotfile_tag"
+	if [ -f "$tag_file" ]; then
+		tag="$(cat "$tag_file")"
+	else
+		echo "No device specified and .dotfile_tag not found. Pass a device as first argument."
+		exit 1
+	fi
+fi
+
 cd "$(dirname "$(realpath "$0")")"
 
 check_kernel
@@ -51,8 +61,8 @@ if [ -n "$other_user" ]; then
 	exit 0
 fi
 
-sh helper_scripts/arch_package_install.sh $1
-sh helper_scripts/makesymlinks.sh "$1"
+sh helper_scripts/arch_package_install.sh "$tag"
+sh helper_scripts/makesymlinks.sh "$tag"
 sh helper_scripts/fontconfig.sh
 sh helper_scripts/custom_bin_scripts.sh
 sh helper_scripts/firefox_user.sh

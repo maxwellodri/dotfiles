@@ -17,7 +17,7 @@ case "$1" in
                 echo ""
                 ;;
 
-        *)  
+        *)
                 mkdir -p "$bin"
                 mkdir -p "$HOME/.cache/dotfiles"
                 cd "$dscripts" || exit
@@ -34,5 +34,3 @@ case "$1" in
                 echo ""
                 ;;
 esac
-
-echo "Remember to use run_root.sh to install udev rules and systemd system services as necessary"

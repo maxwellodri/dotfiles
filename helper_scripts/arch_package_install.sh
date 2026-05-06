@@ -13,5 +13,8 @@ fi
 # Add the packages from the main file
 packages="$packages$(grep -o '^[^#]*' archlinux_x86_64_packages)"
 
-# Install all the combined packages
-echo "$packages" | xargs run_elevated pacman -S --noconfirm --needed
+if sudo -v 2>/dev/null; then
+    run_elevated pacman -S --noconfirm --needed $packages
+else
+    echo "Skipping package install (no root access)"
+fi
