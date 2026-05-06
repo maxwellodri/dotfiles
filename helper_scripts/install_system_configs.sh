@@ -118,6 +118,12 @@ manage_user_service() {
     fi
 }
 
+copy_host_files() {
+    local tag="$1"
+    shift
+    copy_files "system_configs/host-specific/$tag/$1" "${@:2}"
+}
+
 # Enhanced function to handle copying of files with tracking
 copy_files() {
     local src="$1"
@@ -323,12 +329,15 @@ copy_files "system_configs/etc/NetworkManager" "/etc/NetworkManager" true false 
 copy_files "system_configs/etc/tlp.conf" "/etc" true false "644" "root"
 copy_files "system_configs/etc/pacman.d/hooks" "/etc/pacman.d/hooks" true false "644" "root"
 copy_files "system_configs/etc/polkit-1/rules.d/" "/etc/polkit-1/rules.d" true false "644" "root"
-copy_files "system_configs/etc/sudoers.d" "/etc/sudoers.d" true false "440" "root"
-# $dotfile_tag is exported by .zprofile.<machine> at login
-if [ "$dotfile_tag" = "pc" ]; then
-    #copy_files "system_configs/etc/systemd/zram-generator.conf" "/etc/systemd/zram-generator.conf" true
-    copy_files "system_configs/etc/systemd/" "/etc/systemd/" true false "644" "root"
-fi
+    copy_files "system_configs/etc/sudoers.d" "/etc/sudoers.d" true false "440" "root"
+    # $dotfile_tag is exported by .zprofile.<machine> at login
+    if [ "$dotfile_tag" = "pc" ]; then
+        #copy_files "system_configs/etc/systemd/zram-generator.conf" "/etc/systemd/zram-generator.conf" true
+        copy_files "system_configs/etc/systemd/" "/etc/systemd/" true false "644" "root"
+    fi
+
+    # Host-specific configurations
+    copy_host_files "$dotfile_tag" "etc/wireguard/wg0.conf" "/etc/wireguard" true false "600" "root"
 
 # Reload configurations
 print_header "Reloading System Configurations"
