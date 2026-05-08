@@ -1,0 +1,68 @@
+#!/bin/bash
+
+set -euo pipefail
+
+count=10
+raw_json=0
+
+usage() {
+    cat <<'EOF'
+Usage: websearch [OPTIONS] [QUERY]
+       echo "QUERY" | websearch [OPTIONS]
+
+Search the web using the Brave Search API.
+
+Options:
+  -j, --json       Output raw JSON
+  -n, --count N    Number of results (default: 10)
+  -h, --help       Show this help message
+
+Query can be provided as arguments or piped via stdin.
+EOF
+    exit 0
+}
+
+die() {
+    echo "Error: $*" >&2
+    exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -j|--json)   raw_json=1; shift ;;
+        -n|--count)  count="${2:-}"; [[ -n "$count" ]] || die "--count requires a value"; shift 2 ;;
+        -h|--help)   usage ;;
+        -*)          die "Unknown option: $1" ;;
+        *)           break ;;
+    esac
+done
+
+query="${*:-}"
+
+if [[ -z "$query" ]] && [[ ! -t 0 ]]; then
+    query=$(cat)
+fi
+
+[[ -n "$query" ]] || die "No query provided. Use --help for usage."
+
+for cmd in curl jq pass; do
+    command -v "$cmd" >/dev/null 2>&1 || die "$cmd is not installed"
+done
+
+encoded_query=$(jq -sRr '@uri' <<< "$query")
+url="https://api.search.brave.com/res/v1/web/search?q=${encoded_query}&count=${count}&country=au&search_lang=en"
+
+api_key=$(pass brave_search_api_key) || die "Failed to retrieve API key from pass"
+
+if [[ "$raw_json" -eq 1 ]]; then
+    printf 'header = "X-Subscription-Token: %s"\n' "$api_key" \
+        | curl --config - -s --compressed "$url"
+else
+    printf 'header = "X-Subscription-Token: %s"\n' "$api_key" \
+        | curl --config - -s --compressed "$url" \
+        | jq -r '
+            .web.results // [] | to_entries[] |
+            "\(.key + 1). \(.value.title)\n   \(.value.url)\n   \(.value.description // "No description")\n"
+        ' \
+        | sed 's/<[^>]*>//g'
+fi

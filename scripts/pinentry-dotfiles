@@ -1,0 +1,13 @@
+#!/bin/bash
+
+. "${XDG_CONFIG_HOME:-$HOME/.config}/sh/shutil.sh"
+
+case "${PINENTRY_MODE:-}" in
+    gui) exec /usr/bin/pinentry-qt "$@" ;;
+    cli) exec /usr/bin/pinentry-curses "$@" ;;
+esac
+
+case "$(display_kind)" in
+    wl|x11) exec /usr/bin/pinentry-qt "$@" ;;
+    *)      exec /usr/bin/pinentry-curses "$@" ;;
+esac
