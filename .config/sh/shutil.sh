@@ -89,3 +89,55 @@ run_elevated_init() {
 run_elevated_cleanup() {
     kill "$_SHUTIL_KEEPALIVE_PID" 2>/dev/null
 }
+
+symlink_contents() {
+    _sc_src=""
+    _sc_target=""
+    _sc_excludes=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --exclude)
+                shift
+                _sc_excludes="$_sc_excludes $1"
+                shift
+                ;;
+            *)
+                if [ -z "$_sc_src" ]; then
+                    _sc_src="$1"
+                elif [ -z "$_sc_target" ]; then
+                    _sc_target="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$_sc_src" ] || [ -z "$_sc_target" ]; then
+        echo "Usage: symlink_contents <src_dir> <target_dir> [--exclude <glob>]..." >&2
+        return 1
+    fi
+
+    if [ ! -d "$_sc_src" ]; then
+        echo "Error: source directory '$_sc_src' does not exist" >&2
+        return 1
+    fi
+
+    mkdir -p "$_sc_target"
+
+    for _sc_entry in "$_sc_src"/*; do
+        [ -e "$_sc_entry" ] || continue
+
+        _sc_name="$(basename "$_sc_entry")"
+
+        _sc_skip=false
+        for _sc_pat in $_sc_excludes; do
+            case "$_sc_name" in
+                $_sc_pat) _sc_skip=true; break ;;
+            esac
+        done
+        [ "$_sc_skip" = true ] && continue
+
+        ln -sf "$_sc_entry" "$_sc_target/"
+        echo "Linked $_sc_name -> $_sc_target"
+    done
+}
