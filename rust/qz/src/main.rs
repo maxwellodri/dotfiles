@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 use regex::Regex;
 use serde::Deserialize;
 use std::env;
-use std::io::Write;
+use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -422,12 +422,21 @@ fn cmd_switch(gui: bool) -> Result<()> {
                     let name_input = if gui {
                         run_dmenu("", "Session name")
                     } else {
-                        eprint!("Session name: ");
-                        let mut buf = String::new();
-                        std::io::stdin().read_line(&mut buf).ok().map(|_| buf)
+                        let tty = std::fs::File::open("/dev/tty").ok();
+                        if let Some(tty_file) = tty {
+                            eprint!("Session name: ");
+                            let _ = std::io::Write::flush(&mut std::io::stderr());
+                            let mut buf = String::new();
+                            std::io::BufReader::new(tty_file)
+                                .read_line(&mut buf)
+                                .ok()
+                                .map(|_| buf)
+                        } else {
+                            None
+                        }
                     };
                     if let Some(name) = name_input {
-                        let name = name.trim().to_string();
+                        let name: String = name.trim().to_string();
                         if !name.is_empty() {
                             println!("tmux new-session -s '{}'", name);
                         }
