@@ -120,11 +120,8 @@ projects:
 
   Games:
     path: ~/Games
-    filter_for: '\.sh$'
-    filter_opts:
-      max_depth: 5
-    handler_override: handlers/game_script_handler.sh
-    handler_pattern: '\.sh$'
+    find_override: fd -e sh -L -d 3 | grep -v battlenet | fzf | xargs bash
+    find_override_root_only: true
 
   videos:
     path: ~/Videos/youtube

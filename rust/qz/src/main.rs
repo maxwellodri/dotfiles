@@ -70,6 +70,8 @@ struct Project {
     #[serde(default)]
     find_override: Option<String>,
     #[serde(default)]
+    find_override_root_only: bool,
+    #[serde(default)]
     tmux_windows: IndexMap<String, Window>,
 }
 
@@ -478,8 +480,11 @@ fn cmd_find(gui: bool, path_only: bool) -> Result<()> {
 
     if let Some((_, proj)) = &project {
         if let Some(cmd) = &proj.find_override {
-            println!("{}", cmd);
-            return Ok(());
+            let ppath = expand_path(&proj.path);
+            if !proj.find_override_root_only || cwd == ppath {
+                println!("{}", cmd);
+                return Ok(());
+            }
         }
     }
 
