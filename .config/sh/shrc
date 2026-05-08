@@ -22,6 +22,7 @@ export dl="$HOME/Downloads"
 export CARGO_ASC=true
 export GTK_THEME=Arc-Dark
 export XCURSOR_THEME=Arc-Dark
+export QT_QPA_PLATFORMTHEME=qt6ct
 export GODOT4_BIN=/bin/godot-mono-bin
 export SOURCE="$HOME/source"
 export PI_CODING_AGENT_DIR="$SOURCE/pi"
