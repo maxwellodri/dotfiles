@@ -15,30 +15,30 @@ check_kernel() {
         return 0
     fi
 
-    running_kernel=$(uname -r)
-    suffix=$(echo "$running_kernel" | sed 's/[0-9]\+\.[0-9]\+\.[0-9]\+-[0-9]\+//')
-    case "$suffix" in
-        -lts) pkg="linux-lts" ;;
-        -zen) pkg="linux-zen" ;;
-        -hardened) pkg="linux-hardened" ;;
-        -rt) pkg="linux-rt" ;;
-        *) pkg="linux" ;;
+    shutil_running_kernel=$(uname -r)
+    shutil_suffix=$(echo "$shutil_running_kernel" | sed 's/[0-9]\+\.[0-9]\+\.[0-9]\+-[0-9]\+//')
+    case "$shutil_suffix" in
+        -lts) shutil_pkg="linux-lts" ;;
+        -zen) shutil_pkg="linux-zen" ;;
+        -hardened) shutil_pkg="linux-hardened" ;;
+        -rt) shutil_pkg="linux-rt" ;;
+        *) shutil_pkg="linux" ;;
     esac
 
-    installed_kernel=$(pacman -Qi "$pkg" 2>/dev/null | grep '^Version' | awk '{print $3}')
+    shutil_installed_kernel=$(pacman -Qi "$shutil_pkg" 2>/dev/null | grep '^Version' | awk '{print $3}')
 
-    if [ -z "$installed_kernel" ]; then
+    if [ -z "$shutil_installed_kernel" ]; then
         return 0
     fi
 
-    running_base=$(echo "$running_kernel" | sed "s/${suffix}$//")
-    running_normalized=$(echo "$running_base" | sed 's/\.arch/-arch/')
-    installed_normalized=$(echo "$installed_kernel" | sed 's/\.arch/-arch/')
+    shutil_running_base=$(echo "$shutil_running_kernel" | sed "s/${shutil_suffix}$//")
+    shutil_running_normalized=$(echo "$shutil_running_base" | sed 's/\.arch/-arch/')
+    shutil_installed_normalized=$(echo "$shutil_installed_kernel" | sed 's/\.arch/-arch/')
 
-    if [ "$running_normalized" != "$installed_normalized" ]; then
-        echo "Kernel version mismatch detected ($pkg):" >&2
-        echo "  Running:   $running_kernel" >&2
-        echo "  Installed: $installed_kernel" >&2
+    if [ "$shutil_running_normalized" != "$shutil_installed_normalized" ]; then
+        echo "Kernel version mismatch detected ($shutil_pkg):" >&2
+        echo "  Running:   $shutil_running_kernel" >&2
+        echo "  Installed: $shutil_installed_kernel" >&2
         echo "Reboot required." >&2
         return 1
     fi
@@ -91,53 +91,59 @@ run_elevated_cleanup() {
 }
 
 symlink_contents() {
-    _sc_src=""
-    _sc_target=""
-    _sc_excludes=""
+    _SHUTIL_SRC=""
+    _SHUTIL_TARGET=""
+    _SHUTIL_EXCLUDES=""
     while [ $# -gt 0 ]; do
         case "$1" in
             --exclude)
                 shift
-                _sc_excludes="$_sc_excludes $1"
+                _SHUTIL_EXCLUDES="$_SHUTIL_EXCLUDES $1"
                 shift
                 ;;
             *)
-                if [ -z "$_sc_src" ]; then
-                    _sc_src="$1"
-                elif [ -z "$_sc_target" ]; then
-                    _sc_target="$1"
+                if [ -z "$_SHUTIL_SRC" ]; then
+                    _SHUTIL_SRC="$1"
+                elif [ -z "$_SHUTIL_TARGET" ]; then
+                    _SHUTIL_TARGET="$1"
                 fi
                 shift
                 ;;
         esac
     done
 
-    if [ -z "$_sc_src" ] || [ -z "$_sc_target" ]; then
+    if [ -z "$_SHUTIL_SRC" ] || [ -z "$_SHUTIL_TARGET" ]; then
         echo "Usage: symlink_contents <src_dir> <target_dir> [--exclude <glob>]..." >&2
         return 1
     fi
 
-    if [ ! -d "$_sc_src" ]; then
-        echo "Error: source directory '$_sc_src' does not exist" >&2
+    if [ ! -d "$_SHUTIL_SRC" ]; then
+        echo "Error: source directory '$_SHUTIL_SRC' does not exist" >&2
         return 1
     fi
 
-    mkdir -p "$_sc_target"
+    mkdir -p "$_SHUTIL_TARGET"
 
-    for _sc_entry in "$_sc_src"/*; do
-        [ -e "$_sc_entry" ] || continue
+    for _SHUTIL_ENTRY in "$_SHUTIL_SRC"/*; do
+        [ -e "$_SHUTIL_ENTRY" ] || continue
 
-        _sc_name="$(basename "$_sc_entry")"
+        _SHUTIL_NAME="$(basename "$_SHUTIL_ENTRY")"
 
-        _sc_skip=false
-        for _sc_pat in $_sc_excludes; do
-            case "$_sc_name" in
-                $_sc_pat) _sc_skip=true; break ;;
+        _SHUTIL_SKIP=false
+        for _SHUTIL_PAT in $_SHUTIL_EXCLUDES; do
+            case "$_SHUTIL_NAME" in
+                $_SHUTIL_PAT) _SHUTIL_SKIP=true; break ;;
             esac
         done
-        [ "$_sc_skip" = true ] && continue
+        [ "$_SHUTIL_SKIP" = true ] && continue
 
-        ln -sf "$_sc_entry" "$_sc_target/"
-        echo "Linked $_sc_name -> $_sc_target"
+        _SHUTIL_DEST="$_SHUTIL_TARGET/$_SHUTIL_NAME"
+        if [ -e "$_SHUTIL_DEST" ] && [ ! -L "$_SHUTIL_DEST" ]; then
+            echo "Found regular file $_SHUTIL_NAME, skipping..." >&2
+            continue
+        fi
+
+        ln -sf "$_SHUTIL_ENTRY" "$_SHUTIL_TARGET/"
+        echo "Linked $_SHUTIL_NAME -> $_SHUTIL_TARGET"
     done
 }
