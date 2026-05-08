@@ -1,0 +1,8 @@
+#!/bin/sh
+REPO_ROOT="$(git -C "$(dirname "$(realpath "$0")")" rev-parse --show-toplevel)"
+. "$REPO_ROOT/.config/sh/shutil.sh"
+
+[ -d "$HOME/media/bonk/Games" ] || exit 0
+[ -d "$HOME/Games" ] || exit 0
+symlink_contents "$HOME/media/bonk/Games" "$HOME/Games"
+prune_dead_symlinks "$HOME/Games" --source "$HOME/media/bonk/Games"
