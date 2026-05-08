@@ -22,6 +22,7 @@ case "$1" in
                 mkdir -p "$HOME/.cache/dotfiles"
                 echo "bin path: $bin"
                 symlink_contents "$dscripts" "$bin" --exclude "__pycache__"
+                prune_dead_symlinks "$bin" --source "$dscripts"
                 echo ""
                 ;;
 esac

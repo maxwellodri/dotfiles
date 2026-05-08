@@ -147,3 +147,52 @@ symlink_contents() {
         echo "Linked $_SHUTIL_NAME -> $_SHUTIL_TARGET"
     done
 }
+
+prune_dead_symlinks() {
+    _SHUTIL_PRUNE_DIR=""
+    _SHUTIL_PRUNE_SRC=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --source)
+                shift
+                _SHUTIL_PRUNE_SRC="$1"
+                shift
+                ;;
+            *)
+                if [ -z "$_SHUTIL_PRUNE_DIR" ]; then
+                    _SHUTIL_PRUNE_DIR="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$_SHUTIL_PRUNE_DIR" ]; then
+        echo "Usage: prune_dead_symlinks <dir> [--source <src_dir>]" >&2
+        return 1
+    fi
+
+    if [ ! -d "$_SHUTIL_PRUNE_DIR" ]; then
+        echo "Error: directory '$_SHUTIL_PRUNE_DIR' does not exist" >&2
+        return 1
+    fi
+
+    for _SHUTIL_PRUNE_ENTRY in "$_SHUTIL_PRUNE_DIR"/*; do
+        [ -L "$_SHUTIL_PRUNE_ENTRY" ] || continue
+
+        _SHUTIL_PRUNE_TARGET="$(readlink -f "$_SHUTIL_PRUNE_ENTRY")"
+
+        if [ -n "$_SHUTIL_PRUNE_SRC" ]; then
+            case "$_SHUTIL_PRUNE_TARGET" in
+                "$_SHUTIL_PRUNE_SRC"/*) ;;
+                *) continue ;;
+            esac
+        fi
+
+        if [ ! -e "$_SHUTIL_PRUNE_TARGET" ]; then
+            _SHUTIL_PRUNE_BASENAME="$(basename "$_SHUTIL_PRUNE_ENTRY")"
+            rm "$_SHUTIL_PRUNE_ENTRY"
+            echo "Pruned dead symlink: $_SHUTIL_PRUNE_BASENAME"
+        fi
+    done
+}
