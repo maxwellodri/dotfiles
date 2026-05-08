@@ -1,5 +1,61 @@
 # Reference
 
+## websearch Script
+
+Wraps the Brave Search API with AU/EN defaults. Located at `scripts/websearch`.
+
+### Usage
+
+```bash
+# Basic text search (default, 10 results)
+scripts/websearch "wireless headphones Australia buy"
+
+# Raw JSON output (-j) for programmatic parsing
+scripts/websearch -j "DDR5-5600 32GB RAM kit"
+
+# Fewer results (-n)
+scripts/websearch -n 5 "vital wheat gluten buy Australia"
+
+# Pipe query via stdin
+echo "Baldur's Gate 3 cheapest price" | scripts/websearch
+
+# Store-scoped queries using site: operator
+scripts/websearch "headphones site:amazon.com.au OR site:jbhifi.com.au"
+```
+
+### Hardcoded Defaults
+
+- **Country:** `au`
+- **Language:** `en`
+- **Count:** 10 results (overridable with `-n`)
+- **HTML stripping:** description text has HTML tags removed
+
+### Output Format
+
+**Default (text):**
+```
+1. Title
+   https://url
+   Description text
+
+2. Title
+   https://url
+   Description text
+```
+
+**JSON (`-j`):** Full Brave API response. Key path: `.web.results[]` with `.title`, `.url`, `.description`.
+
+### Dependencies
+
+- `curl`, `jq`, `pass` (with `brave_search_api_key` stored)
+
+### Query Tips
+
+- Use `site:` operator to scope results to specific stores
+- Include "Australia" or "AUD" to bias AU results
+- Combine multiple stores with `OR`: `site:amazon.com.au OR site:scorptec.com.au`
+- For price comparison, try both broad and store-scoped queries
+
 ## Store Categories
 
 ### Tech / General
@@ -36,7 +92,7 @@
 
 ### Food / Specialty Ingredients
 
-No dedicated stores — use Google Shopping AU as primary discovery for items like vital wheat gluten, specialty flours, etc.
+No dedicated stores — use websearch with "Australia" for items like vital wheat gluten, specialty flours, etc.
 
 ### International (fallback only)
 
@@ -98,6 +154,8 @@ for (let i = 0; i < lines.length; i++) {
 
 ## Playwright MCP Tools
 
+Optional — only needed when websearch results lack sufficient detail.
+
 ### Navigation and Reading
 
 | Tool | When to use |
@@ -122,14 +180,14 @@ for (let i = 0; i < lines.length; i++) {
 | `browser_evaluate` | Run JS to extract structured data — primary extraction tool |
 | `browser_take_screenshot` | Visual debugging when snapshot is unclear |
 
-## Extraction Fallback Hierarchy
+## Extraction Hierarchy
 
-When `browser_evaluate` with selectors fails:
-
-1. **`browser_evaluate` with selectors** — preferred, structured data
-2. **`document.body.innerText` parsing** — for JS-heavy sites where DOM is hidden (Scorptec)
-3. **`browser_snapshot` + manual reading** — for pages where evaluate returns empty
-4. **`webfetch`** — last resort, no JS rendering but sometimes works for simple pages
+1. **`websearch`** — primary tool. Fast, no browser needed. Results include title, URL, description. Sufficient for most queries.
+2. **`websearch -j`** — same data as structured JSON for programmatic parsing
+3. **Playwright `browser_evaluate` with selectors** — for detailed store page data (specs, exact prices, stock)
+4. **`document.body.innerText` parsing** — for JS-heavy sites where DOM is hidden (Scorptec)
+5. **`browser_snapshot` + manual reading** — for pages where evaluate returns empty
+6. **`webfetch`** — last resort, no JS rendering but sometimes works for simple pages
 
 ## Local Spec Gathering
 
