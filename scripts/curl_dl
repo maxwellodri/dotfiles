@@ -2,19 +2,23 @@
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --file) FILE="$2"; shift 2 ;;
-    --url)  URL="$2";  shift 2 ;;
+    --file)    FILE="$2";    shift 2 ;;
+    --url)     URL="$2";     shift 2 ;;
+    --cookies) COOKIES="$2"; shift 2 ;;
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
 
 if [[ -z "$FILE" ]] || [[ -z "$URL" ]]; then
-  echo "Usage: $(basename "$0") --file <file> --url <url>" >&2
+  echo "Usage: $(basename "$0") --file <file> --url <url> [--cookies <file>]" >&2
   exit 1
 fi
 
+COOKIE_ARGS=()
+[[ -n "$COOKIES" ]] && COOKIE_ARGS=(--cookie "$(cat "$COOKIES")")
+
 START=$(date +%s)
-until curl -L -C - -o "$FILE" "$URL"; do echo "Retrying..."; sleep 2; done
+until curl -L -C - "${COOKIE_ARGS[@]}" -o "$FILE" "$URL"; do echo "Retrying..."; sleep 2; done
 ELAPSED=$(( $(date +%s) - START ))
 
 format_duration() {

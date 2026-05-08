@@ -1,9 +1,10 @@
 #!/bin/bash
 
+REPO_ROOT="$(git -C "$(dirname "$(realpath "$0")")" rev-parse --show-toplevel)"
 profiles_ini="$HOME/.mozilla/firefox/profiles.ini"
-user_js_path="$PWD/firefox/user.js"
-user_chrome_css_path="$PWD/firefox/userChrome.css"
-user_content_css_path="$PWD/firefox/userContent.css"
+user_js_path="$REPO_ROOT/firefox/user.js"
+user_chrome_css_path="$REPO_ROOT/firefox/userChrome.css"
+user_content_css_path="$REPO_ROOT/firefox/userContent.css"
 backup_dir=$(mktemp -d)
 
 if [ ! -f "$user_js_path" ]; then

@@ -61,7 +61,7 @@ Editing the symlinked location edits the repo file, but it's clearer to work dir
 Or run specific script if you know which one:
 - `./helper_scripts/makesymlinks.sh "$dotfile_tag"` - dotfile symlinks
 - `./helper_scripts/custom_bin_scripts.sh` - user scripts
-- `./helper_scripts/firefox_user.sh` - firefox configs
+- `./helper_scripts/firefox.sh` - firefox configs
 - `./helper_scripts/install_system_configs.sh` - system configs
 
 ### 5. After Completion
@@ -223,14 +223,14 @@ The `firefox/` directory contains Firefox customization files.
 - `userChrome.css` - Browser UI styling
 - `userContent.css` - Page content styling
 
-**Managed by:** `helper_scripts/firefox_user.sh`
+**Managed by:** `helper_scripts/firefox.sh`
 
 The script finds the default profile from `~/.mozilla/firefox/profiles.ini` and symlinks configs there.
 
 **To modify Firefox configs:**
 1. Edit files in `firefox/` directory
 2. Changes are immediate (symlinked)
-3. Run `./helper_scripts/firefox_user.sh` only if setting up on a new system
+3. Run `./helper_scripts/firefox.sh` only if setting up on a new system
 
 ### System Configs (Copied, not symlinked)
 
@@ -286,7 +286,7 @@ To reinstall everything (e.g., on a new system):
 1. `arch_package_install.sh` - Install packages
 2. `makesymlinks.sh` - Dotfile symlinks
 3. `custom_bin_scripts.sh` - Scripts to `$bin`
-4. `firefox_user.sh` - Firefox profile setup
+4. `firefox.sh` - Firefox profile setup
 5. `rust/install.sh` - Rust toolchain
 6. `install_system_configs.sh` - System configs (needs `.dotfile_tag`)
 7. `download_suckless.sh` - Suckless tools (last, may prompt for SSH)
