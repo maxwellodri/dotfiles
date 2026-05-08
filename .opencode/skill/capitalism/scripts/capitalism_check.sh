@@ -28,9 +28,9 @@ fi
 
 echo "PASS: ungoogled-chromium ready"
 echo ""
-echo "NOTE: Playwright MCP must be enabled in opencode.json."
-echo "  If browser tools are not available, enable the playwright MCP"
-echo "  in .config/opencode/opencode.json and restart opencode."
+echo "NOTE: Playwright MCP must be enabled by the user."
+echo "  Enable the playwright MCP in the opencode TUI, then confirm when ready."
+echo "  Waiting for Playwright MCP to be available..."
 echo ""
 echo "Config uses a dedicated config file:"
 echo '  "playwright": {'
