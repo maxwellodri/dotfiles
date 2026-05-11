@@ -22,8 +22,9 @@ description: Search for products, compare prices across stores, check availabili
 
 | Tool | Purpose | Required |
 |------|---------|----------|
-| `scripts/websearch` | Brave Search API wrapper. Primary product discovery and price comparison. AU/EN defaults, clean text output or raw JSON with `-j`. | Yes |
-| Playwright MCP | Browser automation for deep-diving individual store pages (detailed specs, shipping thresholds, stock verification). | No |
+| `scripts/websearch` | Brave Search API wrapper. Primary product discovery and price comparison. AU/EN defaults, clean text output or raw JSON with `-j`. **Path is relative to workspace root (`~/source/dotfiles/`), NOT the skill directory.** | Yes |
+| staticICE (`staticice.com.au`) | AU price aggregator. First port of call for comparing prices across all AU stores at once. Playwright is needed to scrape it. | No (but strongly recommended) |
+| Playwright MCP | Browser automation for scraping staticICE and deep-diving individual store pages (detailed specs, shipping thresholds, stock verification). **Browsing is read-only (no disk modifications) — it IS planning.** | No |
 
 ## Quick Start
 
@@ -36,13 +37,13 @@ description: Search for products, compare prices across stores, check availabili
 
 ## Workflow
 
-### 0. Plan mode gate
+### 0. Build mode gate
 
-If you are NOT in plan mode, REFUSE to continue. Tell the user:
+If you are in **build mode**, REFUSE to continue. Tell the user:
 
-> Capitalism skill requires plan mode. Re-invoke with plan mode enabled so I can structure research, compare deals, and present findings properly.
+> Capitalism skill requires plan mode. Browsing stores and comparing prices is research (read-only, no disk modifications). Re-invoke with plan mode enabled so I can structure research, compare deals, and present findings properly.
 
-Do not proceed with any browsing or research outside plan mode.
+Do not proceed with any browsing, websearch queries, or Playwright navigation outside plan mode. Playwright browsing IS planning — it only reads web pages and never modifies files on disk.
 
 ### 1. Pre-flight
 
@@ -58,9 +59,29 @@ If Playwright MCP tools are not available, note it to the user but continue — 
 
 If the user specifies a hardware requirement (e.g. "DDR5 RAM", "PCIe 4.0 NVMe"), trust their spec. Only check the local machine if they explicitly ask to verify compatibility. Do not assume they want parts for this machine.
 
-### 3. Search with websearch
+### 3. Price comparison with staticICE (first port of call)
 
-Identify the product category. Use `websearch` for discovery:
+Use Playwright to search [staticICE](https://www.staticice.com.au) — an AU price aggregator that lists products from dozens of stores sorted by price. It gives instant across-store comparisons and is the fastest way to find the best price.
+
+```text
+https://www.staticice.com.au/cgi-bin/search.cgi?q={query}
+```
+
+**Extraction:** staticICE renders server-side — no JS wait needed. Use `browser_evaluate` to read `document.body.innerText` and parse the text (prices, store names, product descriptions). The page layout is simple: a table with Price and Description columns.
+
+```javascript
+// Extract first ~3000 chars of page text — contains all results
+document.body.innerText.substring(0, 3000)
+```
+
+Run separate staticICE queries for each product variant or model number. staticICE is especially good for:
+- Finding the cheapest price across ALL AU stores (including smaller ones like MSY, CCPU, CPL)
+- Verifying stock status and last-updated timestamps
+- Comparing exact model numbers
+
+### 4. Search with websearch (supplementary discovery)
+
+After staticICE, use `websearch` for supplementary discovery — finding products that staticICE might not index (new releases, Amazon-only listings, niche items):
 
 **Broad discovery:**
 ```bash
@@ -83,7 +104,7 @@ Repeat with varied queries to cover different stores and product variants.
 
 **Free shipping:** If an item's price meets a store's free shipping threshold (see REFERENCE.md), treat shipping as free. Do not assume any paid membership (e.g. Amazon Prime).
 
-### 4. Deep-dive with Playwright (optional)
+### 5. Deep-dive with Playwright (optional)
 
 If `websearch` results lack sufficient detail (missing prices, specs, stock status, shipping info), use Playwright MCP to scrape individual store pages:
 
@@ -94,7 +115,7 @@ If `websearch` results lack sufficient detail (missing prices, specs, stock stat
 
 This step is optional. Skip it if `websearch` results already provide enough detail for the comparison table.
 
-### 5. Interventions (Playwright only)
+### 6. Interventions (Playwright only)
 
 When using Playwright and you hit a CAPTCHA, login wall, or age verification:
 1. Stop browsing
@@ -102,7 +123,7 @@ When using Playwright and you hit a CAPTCHA, login wall, or age verification:
 3. Wait for user confirmation
 4. Continue with `browser_snapshot`
 
-### 6. Present results
+### 7. Present results
 
 Output a markdown comparison table (all prices AUD):
 
@@ -110,7 +131,7 @@ Output a markdown comparison table (all prices AUD):
 
 Sort by best value (price + rating + availability + shipping).
 
-### 7. Agent feedback
+### 8. Agent feedback
 
 After presenting results, briefly note:
 - Any difficulties encountered (missing prices, blocked queries, sparse results)
@@ -118,14 +139,16 @@ After presenting results, briefly note:
 - Suggestions for improving this skill, scripts, or workflow
 - Stores that would be useful to add
 
-### 8. Follow-up
+### 9. Follow-up
 
 User may ask to narrow results, check more stores, open product pages, or compare products.
 
 ## Review Checklist
 
+- [ ] Build mode gate enforced — refused if in build mode
 - [ ] Pre-flight check passed (websearch functional)
-- [ ] `websearch` used for initial product discovery
+- [ ] staticICE checked as first port of call (if Playwright available)
+- [ ] `websearch` used for supplementary product discovery
 - [ ] At least 2 stores represented in results (AU storefronts first)
 - [ ] All prices in AUD
 - [ ] Free shipping noted where threshold is met (no membership assumptions)

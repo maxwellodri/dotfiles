@@ -26,21 +26,19 @@
 
 ---
 
-## Example 2: Hardware Upgrade with Deep-Dive
+## Example 2: Hardware Upgrade with staticICE + Playwright
 
 **User:** "find me 32GB DDR5-5600 RAM kit"
 
 **Agent does:**
 1. Runs pre-flight check — websearch OK, Playwright available
 2. Trusts user's spec (DDR5-5600, 32GB) — does not check local machine
-3. Broad websearch discovery:
-   ```
-   scripts/websearch "32GB DDR5-5600 RAM kit buy Australia"
-   ```
-4. Results show general availability but prices are inconsistent — uses Playwright to deep-dive:
-   - Navigates to Scorptec, PCCaseGear, Umart product pages for precise pricing
-   - Extracts CAS latency, stock status, shipping thresholds
-5. Presents:
+3. **staticICE first** — navigates to `https://www.staticice.com.au/cgi-bin/search.cgi?q=32GB+DDR5-5600`
+   - Extracts `document.body.innerText.substring(0, 3000)` to get all prices across stores
+   - Instantly sees cheapest prices from MSY, CPL, Scorptec, PCCG, Umart, etc.
+4. Websearch for supplementary discovery (Amazon-only listings, new products)
+5. If needed, Playwright deep-dive on specific store pages for specs (CAS latency, stock)
+6. Presents:
 
 | Product | Price (AUD) | Shipping | Speed | CAS Latency | Availability | Store | Link |
 |---------|-------------|----------|-------|-------------|--------------|-------|------|
@@ -48,7 +46,7 @@
 | Corsair Vengeance 32GB DDR5-5600 | $134.00 | Free (over $100) | 5600MHz | CL36 | In stock | PCCaseGear | [link](https://...) |
 | Kingston Fury Beast 32GB DDR5-5600 | $119.00 | $8.50 | 5600MHz | CL38 | In stock | Umart | [link](https://...) |
 
-**Agent feedback:** "websearch identified the products but prices in descriptions were often sale prices or outdated. Used Playwright to scrape actual current prices from each store. Scorptec's search sometimes returns 2x16GB kits — added 'kit' to queries to filter."
+**Agent feedback:** "staticICE found the cheapest price instantly across 15+ stores. Websearch supplemented with Amazon listings. staticICE also revealed MSY had the same Kingston kit for $115 — wouldn't have found that without it."
 
 ---
 

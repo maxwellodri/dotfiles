@@ -2,7 +2,7 @@
 
 ## websearch Script
 
-Wraps the Brave Search API with AU/EN defaults. Located at `scripts/websearch`.
+Wraps the Brave Search API with AU/EN defaults. Located at `scripts/websearch` in the workspace root (`~/source/dotfiles/scripts/websearch`). **NOT inside the skill directory.**
 
 ### Usage
 
@@ -57,6 +57,12 @@ scripts/websearch "headphones site:amazon.com.au OR site:jbhifi.com.au"
 - For price comparison, try both broad and store-scoped queries
 
 ## Store Categories
+
+### Price Aggregators (use first)
+
+| Store | Search URL | Notes |
+|-------|-----------|-------|
+| staticICE | `https://www.staticice.com.au/cgi-bin/search.cgi?q={query}` | **First port of call.** AU price aggregator covering 30+ stores (MSY, Scorptec, PCCG, UMart, CPL, Mwave, etc.). Server-rendered — no JS wait needed. Extract via `document.body.innerText.substring(0, 3000)`. Supports negation with `-` prefix (e.g. `-ARGB -V2`). Shows price, store, stock status, and last-updated date. Use Playwright to scrape. |
 
 ### Tech / General
 
@@ -182,12 +188,13 @@ Optional — only needed when websearch results lack sufficient detail.
 
 ## Extraction Hierarchy
 
-1. **`websearch`** — primary tool. Fast, no browser needed. Results include title, URL, description. Sufficient for most queries.
-2. **`websearch -j`** — same data as structured JSON for programmatic parsing
-3. **Playwright `browser_evaluate` with selectors** — for detailed store page data (specs, exact prices, stock)
-4. **`document.body.innerText` parsing** — for JS-heavy sites where DOM is hidden (Scorptec)
-5. **`browser_snapshot` + manual reading** — for pages where evaluate returns empty
-6. **`webfetch`** — last resort, no JS rendering but sometimes works for simple pages
+1. **staticICE** — first port of call. Instant across-store price comparison via Playwright. Best for finding the cheapest price for a known product.
+2. **`websearch`** — primary discovery tool. Fast, no browser needed. Results include title, URL, description. Sufficient for most queries.
+3. **`websearch -j`** — same data as structured JSON for programmatic parsing
+4. **Playwright `browser_evaluate` with selectors** — for detailed store page data (specs, exact prices, stock)
+5. **`document.body.innerText` parsing** — for JS-heavy sites where DOM is hidden (Scorptec)
+6. **`browser_snapshot` + manual reading** — for pages where evaluate returns empty
+7. **`webfetch`** — last resort, no JS rendering but sometimes works for simple pages
 
 ## Local Spec Gathering
 
