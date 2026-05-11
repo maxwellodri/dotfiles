@@ -120,6 +120,16 @@ All other configs are shared across platforms.
 
 **Config location:** `.config/nvim/`
 
+**Testing changes:** After editing any nvim config file, verify there are no errors by running headless nvim commands:
+```sh
+# Check that nvim starts without errors and sources all configs
+nvim --headless -c "qa!" 2>&1
+
+# Check a specific Lua module loads cleanly
+nvim --headless -c "lua require('user.cmp')" -c "qa!" 2>&1
+```
+Any errors or warnings will be printed to stderr. If the output is empty, the config is clean.
+
 **Entrypoints:**
 - `init.vim` — main entrypoint. Manages plugins via vim-plug (`call plug#begin`/`call plug#end`), general vim settings, autocmds, and keybinds. Sources `lua/user/init.lua` at the end.
 - `lua/user/init.lua` — Lua entrypoint. Requires all Lua modules (`lua/user/*.lua`) for LSP, cmp, treesitter, telescope, dap, etc.
