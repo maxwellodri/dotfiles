@@ -94,6 +94,20 @@ projects:
   dmenu:
     path: ~/source/dmenu
 
+  frostbolt:
+    path: ~/source/frostbolt
+    filter_out: "./target/"
+    tmux_windows:
+      dev:
+        layout: even-horizontal
+        panes:
+          - nvim .
+      slop:
+        layout: even-horizontal
+        panes:
+          - nvim .
+          - opencode .
+
   agentcoder:
     path: ~/source/agent_coder
 
@@ -120,7 +134,7 @@ projects:
 
   Games:
     path: ~/Games
-    find_override: fd -e sh -L -d 3 | grep -v battlenet | fzf | xargs bash
+    find_override: sel=$(fd -e sh -L -d 3 | grep -v battlenet | fzf) && echo "$sel" && bash "$sel"
     find_override_root_only: true
 
   videos:
