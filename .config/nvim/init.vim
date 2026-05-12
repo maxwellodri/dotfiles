@@ -37,13 +37,15 @@ let g:plug_threads = 1
     Plug 'windwp/nvim-autopairs'
     Plug 'nvim-lua/plenary.nvim' "library of functions, used by other modules
     Plug 'MunifTanjim/nui.nvim' "ui component library
+
     Plug 'kyazdani42/nvim-web-devicons' "library of icons
     Plug 'lambdalisue/suda.vim' "handle writing files w/ elevated permissions
     Plug 'folke/snacks.nvim'
     " =================
     " Language Support
     " =================
-    Plug 'nvim-treesitter/nvim-treesitter'
+    Plug 'neovim-treesitter/nvim-treesitter'
+    Plug 'neovim-treesitter/treesitter-parser-registry'
     Plug 'nvim-treesitter/nvim-treesitter-context'
     Plug 'tikhomirov/vim-glsl'
     Plug 'JuliaEditorSupport/julia-vim'
@@ -146,14 +148,11 @@ let g:plug_threads = 1
     " ===============
     " Perf
     " ===============
-    Plug 'lewis6991/impatient.nvim'
     "Plug 'nathom/filetype.nvim'
     Plug 'tweekmonster/startuptime.vim'
     " ===============
     " LLM
     " ===============
-    Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': 'make' }
-    "
     call plug#end()
     source ~/.config/vim/vimrc "vimrc is effectively a plugin lmao
     nnoremap <silent><leader>V :w<CR>:so $MYVIMRC<CR>:PlugInstall<CR>
@@ -184,9 +183,6 @@ let g:plug_threads = 1
     au VimEnter * RainbowParenthesesLoadRound
     au VimEnter * RainbowParenthesesLoadSquare
     au VimEnter * RainbowParenthesesLoadBraces
-
-    let g:did_load_filetypes = 0
-    let g:do_filetype_lua = 0
 
 " Telescope
     nnoremap <leader>fh <cmd>Telescope find_files find_command=rg,--hidden=true,--files prompt_prefix=🔍🥺<CR>

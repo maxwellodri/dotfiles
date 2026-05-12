@@ -1,22 +1,17 @@
-local status_ok, configs = pcall(require, "nvim-treesitter.configs")
-if not status_ok then
-    return
-end
+require('nvim-treesitter').install { 'rust', 'python', 'bash', 'toml', 'nix', 'json' }
 
-configs.setup {
-    ensure_installed = {"rust", "python", "bash", "toml", "nix", "markdown", "markdown_inline"},
-    sync_install = true,
-    ignore_install = { "" },
-    highlight = {
-        enable = { "markdown", "markdown_inline" },
-        additional_vim_regex_highlighting = false,
-        -- disable = { "markdown" },
-    },
-    indent = { enable = true, disable = { "yaml", "markdown", "markdown_inline" } },
-}
+vim.api.nvim_create_autocmd('FileType', {
+    pattern = { 'rust', 'python', 'bash', 'toml', 'nix', 'json', 'lua', 'c' },
+    callback = function()
+        vim.treesitter.start()
+        local ft = vim.bo.filetype
+        if ft ~= 'yaml' and ft ~= 'markdown' and ft ~= 'markdown_inline' then
+            vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+        end
+    end,
+})
 
 vim.keymap.set("n", "<leader>gS", function()
-    local result = {}
     -- Get word and line info
     local cursor_word = vim.fn.expand('<cword>')
     local cursor_line = vim.api.nvim_get_current_line()
