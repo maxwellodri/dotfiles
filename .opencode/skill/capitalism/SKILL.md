@@ -22,7 +22,7 @@ description: Search for products, compare prices across stores, check availabili
 
 | Tool | Purpose | Required |
 |------|---------|----------|
-| `scripts/websearch` | Brave Search API wrapper. Primary product discovery and price comparison. AU/EN defaults, clean text output or raw JSON with `-j`. **Path is relative to workspace root (`~/source/dotfiles/`), NOT the skill directory.** | Yes |
+| `scripts/websearch` | Brave Search API wrapper. Primary product discovery and price comparison. AU/EN defaults, clean text output or raw JSON with `-j`. Symlinked into the skill directory so both workspace-root-relative (`scripts/websearch`) and skill-relative paths work. | Yes |
 | staticICE (`staticice.com.au`) | AU price aggregator. First port of call for comparing prices across all AU stores at once. Playwright is needed to scrape it. | No (but strongly recommended) |
 | Playwright MCP | Browser automation for scraping staticICE and deep-diving individual store pages (detailed specs, shipping thresholds, stock verification). **Browsing is read-only (no disk modifications) — it IS planning.** | No |
 
@@ -115,7 +115,20 @@ If `websearch` results lack sufficient detail (missing prices, specs, stock stat
 
 This step is optional. Skip it if `websearch` results already provide enough detail for the comparison table.
 
-### 6. Interventions (Playwright only)
+### 6. Preserve un-extractable pages (Playwright only)
+
+If you navigated to a product page via Playwright but **cannot extract useful data** after trying the full extraction hierarchy (selectors → innerText → snapshot), do **not** navigate away or close the tab. Instead:
+
+1. Use `browser_tabs` to **open a new tab** for the next page you need to visit
+2. Leave the un-extractable product page tab open in the browser
+3. In the comparison table, include the product with whatever partial info you have (even just the URL) and mark it `⚠ manual review`
+4. At the end, tell the user how many tabs are left open for manual review
+
+The browser is a visible ungoogled-chromium window — the user can review these tabs themselves after the agent finishes. This avoids losing useful product pages just because automated extraction failed.
+
+**When to preserve:** Any product page where the extraction hierarchy (see REFERENCE.md) exhausted all options and returned empty or unusable data. Common causes: heavy JS rendering, anti-bot obfuscation, unconventional page layouts, image-based pricing.
+
+### 7. Interventions (Playwright only)
 
 When using Playwright and you hit a CAPTCHA, login wall, or age verification:
 1. Stop browsing
@@ -123,15 +136,17 @@ When using Playwright and you hit a CAPTCHA, login wall, or age verification:
 3. Wait for user confirmation
 4. Continue with `browser_snapshot`
 
-### 7. Present results
+### 8. Present results
 
 Output a markdown comparison table (all prices AUD):
 
 | Product | Price (AUD) | Shipping | Rating | Availability | Store | Link |
 
-Sort by best value (price + rating + availability + shipping).
+Rows for preserved (un-extractable) pages should include `⚠ manual review` in the Price column and whatever partial info is available. Sort by best value (price + rating + availability + shipping), with manual-review rows at the bottom.
 
-### 8. Agent feedback
+If any tabs were preserved, add a note: "N product page(s) left open in browser for manual review."
+
+### 9. Agent feedback
 
 After presenting results, briefly note:
 - Any difficulties encountered (missing prices, blocked queries, sparse results)
@@ -139,7 +154,7 @@ After presenting results, briefly note:
 - Suggestions for improving this skill, scripts, or workflow
 - Stores that would be useful to add
 
-### 9. Follow-up
+### 10. Follow-up
 
 User may ask to narrow results, check more stores, open product pages, or compare products.
 
@@ -154,6 +169,8 @@ User may ask to narrow results, check more stores, open product pages, or compar
 - [ ] Free shipping noted where threshold is met (no membership assumptions)
 - [ ] Playwright used only when websearch results were insufficient (or not at all)
 - [ ] User pinged for any CAPTCHA/login walls (Playwright only)
+- [ ] Un-extractable product pages preserved as open tabs (Playwright only, not closed/navigated away)
+- [ ] Preserved tabs noted in comparison table with `⚠ manual review`
 - [ ] Compatibility checked only if user explicitly asked
 - [ ] No purchase actions taken — only research and price comparison
 - [ ] Agent feedback on workflow improvements included

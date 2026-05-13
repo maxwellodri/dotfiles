@@ -100,3 +100,33 @@
 2. Agent tells user: "[Store] requires login. Please sign in via the browser window, then let me know."
 3. User logs in, confirms: "done"
 4. Agent continues scraping with authenticated session
+
+---
+
+## Example 6: Preserving Un-extractable Pages as Open Tabs
+
+**User:** "find me a 27" 4K monitor under $500"
+
+**Agent does:**
+1. Runs pre-flight — websearch OK, Playwright available
+2. staticICE search for "27 inch 4K monitor" — gets broad pricing
+3. websearch for supplementary discovery
+4. Tries Playwright deep-dive on a few top results
+5. On Scorptec page, extraction works fine (innerText parsing)
+6. On Harvey Norman page, all extraction methods fail (JS-heavy, image-based pricing, anti-bot)
+
+**Agent handles the failed page:**
+1. Runs `browser_tabs` — opens a new tab
+2. Navigates new tab to the next product page
+3. Leaves Harvey Norman tab open with the product page visible
+4. Continues research on other products
+
+**Comparison table includes:**
+
+| Product | Price (AUD) | Shipping | Rating | Availability | Store | Link |
+|---------|-------------|----------|--------|--------------|-------|------|
+| LG 27UL850 | $449.00 | Free | 4.7/5 | In stock | Scorptec | [link](https://...) |
+| Dell S2722QC | $399.00 | Free | 4.5/5 | In stock | Amazon AU | [link](https://...) |
+| Samsung S27A600U | ⚠ manual review | TBD | — | — | Harvey Norman | [link](https://...) |
+
+**Agent feedback:** "1 product page left open in browser for manual review (Harvey Norman — extraction failed due to JS-heavy layout). websearch + staticICE covered everything else."

@@ -2,7 +2,7 @@
 
 ## websearch Script
 
-Wraps the Brave Search API with AU/EN defaults. Located at `scripts/websearch` in the workspace root (`~/source/dotfiles/scripts/websearch`). **NOT inside the skill directory.**
+Wraps the Brave Search API with AU/EN defaults. Located at `scripts/websearch` in the workspace root (`~/source/dotfiles/scripts/websearch`). Symlinked into the skill directory at `.opencode/skill/capitalism/scripts/websearch` for convenience.
 
 ### Usage
 
@@ -194,7 +194,8 @@ Optional — only needed when websearch results lack sufficient detail.
 4. **Playwright `browser_evaluate` with selectors** — for detailed store page data (specs, exact prices, stock)
 5. **`document.body.innerText` parsing** — for JS-heavy sites where DOM is hidden (Scorptec)
 6. **`browser_snapshot` + manual reading** — for pages where evaluate returns empty
-7. **`webfetch`** — last resort, no JS rendering but sometimes works for simple pages
+7. **`webfetch`** — last automated resort, no JS rendering but sometimes works for simple pages
+8. **Preserve as open tab** — if all extraction methods fail, open a new tab for the next page and leave this one open. Mark the product `⚠ manual review` in the comparison table. The user can review the page manually in the visible chromium window.
 
 ## Local Spec Gathering
 
