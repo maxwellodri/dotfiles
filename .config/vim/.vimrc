@@ -99,15 +99,6 @@ if exists('$SHELL') "probably unnecesary
 
 
 
-" Unbind Arrow Keys
-    inoremap <left> <nop>
-    inoremap <right> <nop>
-    inoremap <down> <nop>
-    inoremap <up> <nop>
-    nnoremap <left> <nop>
-    nnoremap <right> <nop>
-    nnoremap <down> <nop>
-    nnoremap <up> <nop>
     nnoremap K <nop>
     nnoremap L <nop>
     nnoremap H <nop>

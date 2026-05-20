@@ -170,8 +170,7 @@ M.setup = function(opts)
         diagnostics = { enable = false },
         checkOnSave = { enable = false },
         cargo = {
-          allFeatures = true,
-          loadOutDirsFromCheck = true,
+          features = "all",
           buildScripts = { enable = true },
         },
         procMacro = {
