@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Default Handler
+Exec=/home/maxwell/bin/default_xdg_handler.sh %f
+NoDisplay=true
+MimeType=application/octet-stream;
