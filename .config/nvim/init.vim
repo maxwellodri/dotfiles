@@ -186,7 +186,6 @@ let g:plug_threads = 1
 
 " Telescope
     nnoremap <leader>fh <cmd>Telescope find_files find_command=rg,--hidden=true,--files prompt_prefix=🔍🥺<CR>
-    nnoremap <leader>ff :tabnew<CR>:Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>fv :vsplit<CR>:Telescope find_files find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>fs <cmd>Telescope lsp_document_symbols find_command=rg,--ignore,--hidden,--files prompt_prefix=🔍🥺<CR>
     nnoremap <leader>rg <cmd>Telescope live_grep prompt_prefix=🔍🤔<CR>

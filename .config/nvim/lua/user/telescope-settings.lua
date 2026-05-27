@@ -46,10 +46,6 @@ require("telescope").setup {
   },
   pickers = {
     find_files = {
-      find_command = function()
-        local opts = M.find_files_opts()
-        if opts.find_command then return opts.find_command end
-      end,
       preview = {
         hide_on_startup = true,
         treesitter = false,
