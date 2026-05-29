@@ -142,13 +142,15 @@ local function lsp_keymaps(bufnr)
       severity = vim.diagnostic.severity.ERROR,
     })
     if #all_errors > 0 then
-      pcall(vim.diagnostic.goto_next, {
+      pcall(vim.diagnostic.jump, {
+        count = 1,
         severity = vim.diagnostic.severity.ERROR,
         float = false,
         wrap = true
       })
     else
-      pcall(vim.diagnostic.goto_next, {
+      pcall(vim.diagnostic.jump, {
+        count = 1,
         float = false,
         wrap = true
       })
