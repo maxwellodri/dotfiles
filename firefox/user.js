@@ -61,6 +61,8 @@ user_pref("browser.safebrowsing.downloads.enabled", false);
 user_pref("browser.safebrowsing.downloads.remote.block_potentially_unwanted", false);
 user_pref("browser.safebrowsing.malware.enabled", false);
 user_pref("browser.safebrowsing.phishing.enabled", false);
+user_pref("browser.safebrowsing.provider.google4.updateURL", "");
+user_pref("browser.safebrowsing.provider.google4.gethashURL", "");
 user_pref("browser.search.region", "AU");
 user_pref("browser.search.suggest.enabled", false);
 user_pref("browser.search.update", false);
