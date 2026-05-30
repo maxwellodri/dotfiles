@@ -9,4 +9,33 @@
 /* Hidden state: Fix z-index of active pinned tabs */
 #main-window[titlepreface*=" "] #tabbrowser-tabs { z-index: 0 !important; }
 
-#alltabs-button { display: none !important; }       
+#alltabs-button { display: none !important; }
+
+
+
+/* Dim unlaoded tabs slightly */
+.tabbrowser-tab[pending] .tab-content {
+  opacity: 0.6;
+}
+
+/* Add a "zzz" or sleep icon before the favicon using a pseudo-element for unloaded tabs */
+.tabbrowser-tab[pending] .tab-icon-image {
+  position: relative;
+}
+
+.tabbrowser-tab[pending] .tab-stack::before {
+  content: "💤";
+  font-size: 8px;
+  position: absolute;
+  top: 2px;
+  left: -2px;
+  z-index: 10;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* tint unloaded tab label text */
+.tabbrowser-tab[pending] .tab-label {
+  color: #888 !important;
+  font-style: italic;
+}
