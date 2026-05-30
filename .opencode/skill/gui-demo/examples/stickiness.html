@@ -1,0 +1,266 @@
+<!--
+  Prompt: "stickiness(dex, diff) = clamp(dex^lerp(expH, expL, diff) + diff*floor, 0, 1).
+  Make a 2D plot with stickiness on Y vs attacker dex on X.
+  Sliders for difficulty (0-1), floor (0-1), expHigh (0-5), expLow (0-5)."
+
+  Pattern: Slider-driven Canvas 2D curve plot with:
+    - Range sliders controlling mathematical parameters
+    - Primary curve (bright) for current parameter values
+    - Ghost curves (faint) for alternate parameter values to show how shape changes
+    - Grid lines, axis labels, and a formula display
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stickiness Curve</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #1a1a2e;
+  color: #e0e0e0;
+  font-family: monospace;
+  padding: 20px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+h1 {
+  color: #e94560;
+  margin-bottom: 16px;
+  font-size: 1.4em;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  background: #16213e;
+  padding: 12px;
+  border-radius: 6px;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+label {
+  font-size: 0.85em;
+  color: #a0a0a0;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 150px;
+  height: 6px;
+  background: #0f3460;
+  border-radius: 3px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e94560;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e94560;
+  cursor: pointer;
+  border: none;
+}
+
+canvas {
+  background: #0a0a1a;
+  border: 1px solid #533483;
+  border-radius: 4px;
+  display: block;
+  max-width: 100%;
+}
+
+.value-display {
+  font-size: 0.85em;
+  color: #e94560;
+  min-width: 40px;
+  text-align: right;
+}
+
+.formula {
+  font-size: 0.9em;
+  color: #a0a0c0;
+  background: #16213e;
+  padding: 10px 14px;
+  border-radius: 6px;
+  line-height: 1.6;
+}
+</style>
+</head>
+<body>
+<h1>Stickiness Curve</h1>
+<div class="formula">
+  stickiness(dex, diff) = clamp( dex<sup>lerp(expH, expL, diff)</sup> + diff &times; floor, 0, 1 )
+</div>
+<div class="controls">
+  <div class="control-group">
+    <label>Difficulty <span class="value-display" id="diffVal">0.50</span></label>
+    <input type="range" id="diff" min="0" max="1" step="0.01" value="0.50">
+  </div>
+  <div class="control-group">
+    <label>Floor <span class="value-display" id="floorVal">0.00</span></label>
+    <input type="range" id="floor" min="0" max="1" step="0.01" value="0.00">
+  </div>
+  <div class="control-group">
+    <label>Exp High <span class="value-display" id="expHVal">2.00</span></label>
+    <input type="range" id="expH" min="0" max="5" step="0.01" value="2.00">
+  </div>
+  <div class="control-group">
+    <label>Exp Low <span class="value-display" id="expLVal">0.50</span></label>
+    <input type="range" id="expL" min="0" max="5" step="0.01" value="0.50">
+  </div>
+</div>
+<canvas id="canvas" width="800" height="500"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const sliders = {
+  diff: document.getElementById('diff'),
+  floor: document.getElementById('floor'),
+  expH: document.getElementById('expH'),
+  expL: document.getElementById('expL'),
+};
+const vals = {
+  diff: document.getElementById('diffVal'),
+  floor: document.getElementById('floorVal'),
+  expH: document.getElementById('expHVal'),
+  expL: document.getElementById('expLVal'),
+};
+
+const pad = { top: 20, right: 20, bottom: 40, left: 50 };
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function stickiness(dex, diff, floor, expH, expL) {
+  const exp = lerp(expH, expL, diff);
+  const base = Math.pow(Math.max(dex, 0.0001), exp);
+  return clamp(base + diff * floor, 0, 1);
+}
+
+function draw() {
+  const diff = parseFloat(sliders.diff.value);
+  const floor = parseFloat(sliders.floor.value);
+  const expH = parseFloat(sliders.expH.value);
+  const expL = parseFloat(sliders.expL.value);
+
+  vals.diff.textContent = diff.toFixed(2);
+  vals.floor.textContent = floor.toFixed(2);
+  vals.expH.textContent = expH.toFixed(2);
+  vals.expL.textContent = expL.toFixed(2);
+
+  const W = canvas.width;
+  const H = canvas.height;
+  const plotW = W - pad.left - pad.right;
+  const plotH = H - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.strokeStyle = '#2a2a4a';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 10; i++) {
+    const x = pad.left + (i / 10) * plotW;
+    const y = pad.top + (i / 10) * plotH;
+    ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + plotH); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + plotW, y); ctx.stroke();
+  }
+
+  ctx.strokeStyle = '#5a5a8a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top + plotH);
+  ctx.lineTo(pad.left + plotW, pad.top + plotH);
+  ctx.moveTo(pad.left, pad.top);
+  ctx.lineTo(pad.left, pad.top + plotH);
+  ctx.stroke();
+
+  ctx.fillStyle = '#a0a0c0';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'center';
+  for (let i = 0; i <= 10; i++) {
+    const x = pad.left + (i / 10) * plotW;
+    ctx.fillText((i / 10).toFixed(1), x, pad.top + plotH + 18);
+  }
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 10; i++) {
+    const y = pad.top + plotH - (i / 10) * plotH;
+    ctx.fillText((i / 10).toFixed(1), pad.left - 8, y + 4);
+  }
+
+  ctx.fillStyle = '#a0a0c0';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('Attacker Dex', pad.left + plotW / 2, H - 4);
+  ctx.save();
+  ctx.translate(14, pad.top + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('Stickiness', 0, 0);
+  ctx.restore();
+
+  ctx.strokeStyle = '#e94560';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  const steps = plotW;
+  for (let i = 0; i <= steps; i++) {
+    const dex = i / steps;
+    const s = stickiness(dex, diff, floor, expH, expL);
+    const x = pad.left + (dex) * plotW;
+    const y = pad.top + plotH - s * plotH;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(233, 69, 96, 0.15)';
+  ctx.lineWidth = 1;
+  for (let d = 0; d <= 1; d += 0.25) {
+    if (Math.abs(d - diff) < 0.01) continue;
+    ctx.beginPath();
+    for (let i = 0; i <= steps; i++) {
+      const dex = i / steps;
+      const s = stickiness(dex, d, floor, expH, expL);
+      const x = pad.left + dex * plotW;
+      const y = pad.top + plotH - s * plotH;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+}
+
+Object.values(sliders).forEach(s => s.addEventListener('input', draw));
+draw();
+</script>
+</body>
+</html>
