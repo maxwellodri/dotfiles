@@ -10,11 +10,10 @@ projects:
       slop:
         layout: even-horizontal
         panes:
-          - nvim .
           - opencode .
       notes:
         panes:
-          - nvim notes/index.md
+          - nvim notes/next.md
       scratch:
 
   dotfiles:
