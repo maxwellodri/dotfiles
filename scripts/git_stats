@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+
+set -uo pipefail
+
+if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+    echo "error: not inside a git repository" >&2
+    exit 1
+fi
+
+email=$(git config user.email)
+if [[ -z "$email" ]]; then
+    echo "error: no git user.email configured" >&2
+    exit 1
+fi
+
+repo_name=$(basename "$(git rev-parse --show-toplevel)")
+
+G='\033[1;32m' W='\033[0m' DIM='\033[2m' B='\033[1m' R='\033[0m'
+GN='\033[32m' RD='\033[31m'
+
+first_commit_ts=$(git log --reverse --format='%at' | head -1)
+now_ts=$(date +%s)
+total_days=$(( (now_ts - first_commit_ts) / 86400 ))
+years=$(( total_days / 365 ))
+rem=$(( total_days % 365 ))
+months=$(( rem / 30 ))
+days=$(( rem % 30 ))
+
+age_parts=()
+(( years > 0 )) && age_parts+=("${years}y")
+(( months > 0 )) && age_parts+=("${months}m")
+(( days > 0 )) && age_parts+=("${days}d")
+age_str=$(IFS=' '; echo "${age_parts[*]}")
+
+total_commits=$(git log --author="$email" --oneline | wc -l)
+first_commit_date=$(git log --reverse --format='%ai' | head -1 | cut -d' ' -f1)
+
+if (( total_days > 0 )); then
+    commits_per_day=$(awk "BEGIN {printf \"%.2f\", $total_commits / $total_days}")
+else
+    commits_per_day="0.00"
+fi
+
+commits_30d=$(git log --author="$email" --since="30 days ago" --oneline | wc -l)
+if (( commits_30d > 0 )); then
+    commits_per_day_30d=$(awk "BEGIN {printf \"%.2f\", $commits_30d / 30}")
+else
+    commits_per_day_30d="0.00"
+fi
+
+commits_24h=$(git log --author="$email" --since="24 hours ago" --oneline | wc -l)
+
+read -r diff_24h_ins diff_24h_del diff_24h_total < <(
+    git log --author="$email" --since="24 hours ago" --shortstat --format="" \
+        | awk '/files? changed/ {
+            for (i = 1; i <= NF; i++) {
+                if ($i ~ /^insertion/) { ins += $(i-1) }
+                if ($i ~ /^deletion/)  { del += $(i-1) }
+            }
+        }
+        END { printf "%d %d %d", ins+0, del+0, ins+del+0 }'
+)
+
+if (( diff_24h_total > 0 )); then
+    diff_24h_str="${GN}+${diff_24h_ins}${W}/${RD}-${diff_24h_del}${W} (${diff_24h_total} lines)"
+else
+    diff_24h_str="n/a"
+fi
+
+read -r avg_ins avg_del avg_total < <(
+    git log --author="$email" --shortstat --format="" \
+        | awk '/files? changed/ {
+            for (i = 1; i <= NF; i++) {
+                if ($i ~ /^insertion/) { ins += $(i-1) }
+                if ($i ~ /^deletion/)  { del += $(i-1) }
+            }
+            n++
+        }
+        END {
+            if (n > 0) { printf "%d %d %d", ins/n, del/n, (ins+del)/n }
+            else       { print "0 0 0" }
+        }'
+)
+
+if (( avg_total > 0 )); then
+    diff_str="${GN}+${avg_ins}${W}/${RD}-${avg_del}${W} (${avg_total} lines)"
+else
+    diff_str="n/a"
+fi
+
+printf "\n ${B}git stats${R} ${DIM}—${R} ${repo_name}\n\n"
+printf " ${G}%-14s${W} %s\n" "First commit"  "$first_commit_date"
+printf " ${G}%-14s${W} %s\n" "Project age"   "$age_str"
+printf " ${G}%-14s${W} %s\n" "Total commits"  "$total_commits"
+printf " ${G}%-14s${W} %b\n" "Avg diff/cmt"   "$diff_str"
+printf " ${G}%-14s${W} %s\n" "Commits/day"    "$commits_per_day"
+printf " ${G}%-14s${W} %s (%d commits)\n" "Commits/30d" "$commits_per_day_30d" "$commits_30d"
+printf " ${G}%-14s${W} %d commits, %b\n" "Last 24hr" "$commits_24h" "$diff_24h_str"
+
+if (( commits_24h > 0 )); then
+    shortlog_24h=$(git shortlog --author="$email" --since="24 hours ago")
+    printf "\n ${G}%-14s${W}\n" "Recent commits"
+    while IFS= read -r line; do
+        printf "   %s\n" "$line"
+    done <<< "$shortlog_24h"
+fi
+
+echo
