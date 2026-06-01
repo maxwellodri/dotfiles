@@ -1,7 +1,7 @@
 ---
 name: Dotfiles Configuration
 description: >
-  Guides editing and managing files in this dotfiles repository. Invoke whenever
+  Guides editing and managing dotfiles in this dotfiles repository. Invoke whenever
   modifying any file in the dotfiles repo — configs, scripts, Rust tools, etc.
 license: MIT
 compatibility: opencode
@@ -24,7 +24,7 @@ You are helping modify configuration files in this dotfiles repository.
 **Before starting any config modification:**
 
 Run `git status --porcelain` to verify working tree is clean:
-- **If dirty (any output):** REFUSE to proceed. Remind user to commit or stash current work.
+- **If dirty (any output):** REFUSE to proceed. Remind user to commit current work.
 - **If clean (no output):** Proceed to next step.
 
 ### 2. Determine Edit Location
@@ -38,7 +38,7 @@ The symlink structure means:
 ~/.config/nvim/ -> ~/source/dotfiles/.config/nvim/
 ```
 
-Editing the symlinked location edits the repo file, but it's clearer to work directly in the repo.
+Editing the symlinked location edits the repo file, but it's clearer to work directly in the repo to avoid permissions requests.
 
 ### 3. Editing Existing Configs
 
@@ -148,39 +148,6 @@ nvim --headless -c "help <topic>" -c "let lines=getline(1,80)" -c "echo join(lin
 - Adjust `80` to read more or fewer lines.
 - Output contains escape sequences and help tags (`*tag*`, `|link|`) — these are normal vim help formatting.
 - Use `grep`/`rg` on the output to find specific sections.
-
-**Help topics for installed plugins:**
-
-| Plugin | Help topic | Notes |
-|--------|-----------|-------|
-| Nvim built-in | `help`, `lsp`, `options`, `builtin`, `lua-guide` | Core Neovim help |
-| mason.nvim | `mason.nvim` | LSP/DAP/linter/formatter manager |
-| mason-lspconfig.nvim | `mason-lspconfig.nvim` | Bridges mason ↔ lspconfig |
-| nvim-cmp | `nvim-cmp` | Autocompletion |
-| LuaSnip | `luasnip` | Snippet engine |
-| telescope.nvim | `telescope.nvim` | Fuzzy finder; also `telescope.builtin` |
-| nvim-treesitter | `nvim-treesitter` | Parser/highlighting; also `nvim-treesitter-queries` |
-| nvim-dap | `dap.txt` | Debug Adapter Protocol client |
-| nvim-dap-ui | `dapui.txt` | DAP UI |
-| oil.nvim | `oil.nvim` | File browser |
-| nvim-tree | `nvim-tree` | File explorer |
-| fugitive | `fugitive` | Git integration |
-| lazygit | `lazygit.nvim` | LazyGit floating window |
-| vim-surround | `surround` | Surrounding text objects |
-| vim-eunuch | `eunuch` | Unix shell commands |
-| lualine | `lualine` | Statusline |
-| render-markdown | `render-markdown.nvim` | Markdown rendering |
-| mkdnflow | `mkdnflow` | Markdown navigation |
-| nvim-autopairs | `nvim-autopairs` | Auto-close brackets |
-| none-ls | `none-ls` | Diagnostics/formatting via external tools |
-| snacks.nvim | `snacks.nvim` | Utility plugin |
-| vimtex | `vimtex` | LaTeX support |
-| crates.nvim | `crates.nvim` | Cargo.toml crate management |
-| lspkind | `lspkind` | LSP completion icons |
-| dressing.nvim | `dressing.nvim` | UI improvements for vim.ui |
-| img-clip | `img-clip.nvim` | Image clipboard/paste |
-| nvim-treesitter-context | `nvim-treesitter-context` | Sticky context |
-
 **Finding help topics:** If the topic name is unknown, try searching help tags:
 ```sh
 # List all help tags matching a pattern
@@ -222,7 +189,9 @@ The `scripts/` directory contains utility scripts symlinked to `$bin` (typically
 
 **To add a new script:**
 1. Add script file to `scripts/` directory
-2. Run `./helper_scripts/custom_bin_scripts.sh`
+2. Always use #!/usr/bin/env <interpreter> as the shebang
+3. If the script is a bash or shell script, analyze it with shellcheck and fix
+4. Run `./helper_scripts/custom_bin_scripts.sh`
 
 ### Firefox (Symlinked to profile)
 
@@ -281,22 +250,3 @@ Store source code repositories in `$SOURCE` (typically `~/source`):
 - Open source projects: `~/source/<project>`
 - Personal projects: as appropriate
 - Rust/Cargo projects: `~/source/tsp_ytdlp`, `~/source/faucet`
-
----
-
-## Full Installation
-
-To reinstall everything (e.g., on a new system):
-
-```sh
-./install.sh "$dotfile_tag"
-```
-
-**Installation order:**
-1. `arch_package_install.sh` - Install packages
-2. `makesymlinks.sh` - Dotfile symlinks
-3. `custom_bin_scripts.sh` - Scripts to `$bin`
-4. `firefox.sh` - Firefox profile setup
-5. `rust/install.sh` - Rust toolchain
-6. `install_system_configs.sh` - System configs (needs `.dotfile_tag`)
-7. `download_suckless.sh` - Suckless tools (last, may prompt for SSH)
