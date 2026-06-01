@@ -1,8 +1,32 @@
-#!/bin/sh
+#!/usr/bin/env bash
 REPO_ROOT="$(git -C "$(dirname "$(realpath "$0")")" rev-parse --show-toplevel)"
+[ -f "$REPO_ROOT/.config/sh/shutil.sh" ] || exit 1
+# shellcheck source=.config/sh/shutil.sh
 . "$REPO_ROOT/.config/sh/shutil.sh"
 
 [ -d "$HOME/media/bonk/Games" ] || exit 0
 [ -d "$HOME/Games" ] || exit 0
-symlink_contents "$HOME/media/bonk/Games" "$HOME/Games"
-prune_dead_symlinks "$HOME/Games" --source "$HOME/media/bonk/Games"
+
+BONK="$HOME/media/bonk/Games"
+GAMES="$HOME/Games"
+
+for _dir in "$@"; do
+    _real="$(realpath "$_dir")"
+    [ -d "$_real" ] || { echo "Skipping '$_dir': not a directory" >&2; continue; }
+    case "$_real" in
+        "$GAMES"/*) ;;
+        *) echo "Skipping '$_dir': not under $GAMES" >&2; continue ;;
+    esac
+
+    _name="$(basename "$_real")"
+    [ -e "$BONK/$_name" ] && { echo "Skipping '$_name': already exists in $BONK" >&2; continue; }
+
+    echo "Moving '$_name' -> $BONK ..."
+    cp -r "$_real" "$BONK/$_name"
+    rm -rf "$_real"
+    ln -s "$BONK/$_name" "$GAMES/$_name"
+    echo "Success"
+done
+
+symlink_contents "$BONK" "$GAMES"
+prune_dead_symlinks "$GAMES" --source "$BONK"
