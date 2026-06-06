@@ -21,9 +21,6 @@ setopt hist_save_no_dups
 setopt hist_ignore_dups
 setopt hist_find_no_dups
 
-#ignore case for completions:
-zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
-
 # fg-bg toggle via c-z
 function fg-bg {
     if [[ $#BUFFER -eq 0 ]]; then
@@ -106,8 +103,7 @@ fdt() {
     fd "$1" -0 | xargs -0 touch
 }
 #fpath=(~/.zsh/completion /usr/local/share/zsh/site-functions /usr/share/zsh/site-functions /usr/share/zsh/5.9/functions)
-autoload -Uz compinit && compinit
-compdef _my_cargo_completion cargo
+
 
 #set yanking to yank to system clipboard
 function vi-yank-xclip {
@@ -240,10 +236,7 @@ zle -N zle-keymap-select
 export KEYTIMEOUT=1
 
 #export KEYTIMEOUT=1 #xtra option for vim keys
-zstyle :compinstall filename '/home/maxwell/.zshrc'
 
-autoload -Uz compinit #zshrc autocompletion
-compinit
 # Enable colors and change prompt:
 autoload -U colors && colors
 PS1="%B%{$fg[yellow]%}[%{$fg[magenta]%}%n%{$fg[green]%}@%{$fg[blue]%}%M %{$fg[red]%}%~%{$fg[yellow]%}]%{$reset_color%}$%b "
@@ -254,11 +247,12 @@ PS1="%B%{$fg[yellow]%}[%{$fg[magenta]%}%n%{$fg[green]%}@%{$fg[blue]%}%M %{$fg[re
 [ -e "/usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" ] && source "/usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" && bindkey '^ ' autosuggest-accept
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#46ff00,bg=black,bold,underline"
 # Basic auto/tab complete:
-autoload -U compinit
+autoload -Uz compinit && compinit
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
 zstyle ':completion:*' menu select
 zmodload zsh/complist
-compinit
-_comp_options+=(globdots)		# Include hidden files.
+compdef _my_cargo_completion cargo
+_comp_options+=(globdots)
 
 
 # Use vim keys in tab complete menu:
