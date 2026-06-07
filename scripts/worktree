@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CMD="opencode"
+
+if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+    echo "error: not inside a git repository" >&2
+    exit 1
+fi
+
+if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+    echo "warning: working tree is dirty"
+    read -r -p "Continue? (y/N) " -n 1
+    echo
+    [[ ! $REPLY =~ ^[Yy]$ ]] && exit 1
+fi
+
+git_root=$(git rev-parse --show-toplevel)
+
+if [ $# -gt 0 ]; then
+    branch="$1"
+else
+    branch=$(git branch --format='%(refname:short)' \
+        | fzf --prompt="Branch name: " --print-query \
+        | tail -1)
+    [ -z "$branch" ] && exit 1
+fi
+
+worktree_dir="$git_root/.git-worktrees/$branch"
+
+if [ -d "$worktree_dir" ]; then
+    echo "error: worktree already exists at $worktree_dir" >&2
+    exit 1
+fi
+
+if git show-ref --verify --quiet "refs/heads/$branch"; then
+    git worktree add "$worktree_dir" "$branch"
+else
+    git worktree add -b "$branch" "$worktree_dir" HEAD
+fi
+
+if [ -n "${TMUX:-}" ]; then
+    tmux new-window -n "$branch" -c "$worktree_dir"
+    tmux send-keys "$CMD" C-m
+else
+    cd "$worktree_dir"
+    "$CMD"
+fi
