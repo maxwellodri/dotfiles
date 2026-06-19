@@ -100,6 +100,7 @@ let g:plug_threads = 1
     "" ====
     Plug 'tpope/vim-fugitive'
     Plug 'kdheepak/lazygit.nvim'
+    Plug 'JoshuaFurman/diffy'
     " ======
     " Search / File Finding / Navigation
     " ======
