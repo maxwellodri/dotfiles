@@ -1,9 +1,21 @@
-#!/bin/bash
-MAC="5A:4D:2A:E8:7A:57"
+#!/usr/bin/env bash
+MAC="24:09:EB:07:E8:60"
 
 # Initialize bluetooth
 bluetoothctl power on >/dev/null 2>&1
 bluetoothctl agent on >/dev/null 2>&1
+
+show_help() {
+    echo "Usage: $(basename "$0") [OPTION]"
+    echo ""
+    echo "Toggle connection to headphones ($MAC)."
+    echo ""
+    echo "Options:"
+    echo "  --pair    Remove and re-pair the device (use if connection is broken)"
+    echo "  --help    Show this help message"
+    echo ""
+    echo "With no arguments, connects if disconnected, disconnects if connected."
+}
 
 do_pair() {
     echo "Removing device..."
@@ -20,7 +32,7 @@ EOF
     ) &
     SCAN_PID=$!
     DEVICE_FOUND=0
-    for i in {1..30}; do
+    for _ in {1..30}; do
         if bluetoothctl devices 2>/dev/null | grep -q "$MAC"; then
             DEVICE_FOUND=1
             echo "Device found!"
@@ -42,11 +54,23 @@ EOF
     echo "Pairing complete."
 }
 
-# Handle --pair flag
-if [ "$1" = "--pair" ]; then
-    do_pair
-    exit 0
-fi
+case "$1" in
+    --pair)
+        do_pair
+        exit 0
+        ;;
+    --help)
+        show_help
+        exit 0
+        ;;
+    "")
+        ;;
+    *)
+        echo "Unknown option: $1"
+        show_help
+        exit 1
+        ;;
+esac
 
 # Check current connection status
 if bluetoothctl info "$MAC" 2>/dev/null | grep -q "Connected: yes"; then
@@ -57,10 +81,6 @@ else
     echo "Connecting..."
     OUTPUT=$(bluetoothctl connect "$MAC" 2>&1)
     echo "$OUTPUT"
-    # br-connection-key-missing means the stored pairing key is stale or gone —
-    # typically happens when the headphones were connected to another device
-    # (e.g. a phone), which clears the key on the headphone side. Re-pairing
-    # generates a fresh key. Headphones must be in pairing mode for this to work.
     if echo "$OUTPUT" | grep -q "br-connection-key-missing"; then
         echo "Stale key detected (probably switched from another device). Re-pairing..."
         do_pair
