@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Warns if the assets/ subrepo has uncommitted changes after a main-repo commit.
+# Silently no-ops on clones where assets/ isn't a git checkout (artists, CI, etc).
+
+set -uo pipefail
+
+TOPLEVEL="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+ASSETS_DIR="$TOPLEVEL/assets"
+
+if ! git -C "$ASSETS_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  exit 0
+fi
+
+if [ -n "$(git -C "$ASSETS_DIR" status --porcelain 2>/dev/null)" ]; then
+  {
+    echo ""
+    echo "note: assets/ has uncommitted changes:"
+    git -C "$ASSETS_DIR" status --short
+    echo ""
+  } >&2
+fi
