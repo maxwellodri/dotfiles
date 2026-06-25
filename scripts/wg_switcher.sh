@@ -7,6 +7,7 @@ NOTIFY_TIMEOUT=2000
 WG_DIR="/etc/wireguard"
 
 SHUTIL_PREFER_GUI=1
+SHUTIL_QUIET=1
 dmenu=$(get_dmenu)
 has_display=false
 [[ "$dmenu" != "fzf" ]] && has_display=true
@@ -35,12 +36,12 @@ if [[ ${1:-} == "--query" ]]; then
     fi
 fi
 
-#if ! check_kernel; then
-#    if [[ "$has_display" == true ]]; then
-#    notify dialog-warning "Kernel Version Mismatch" "Reboot required"
-#    fi
-#    exit 1
-#fi
+if ! check_kernel; then
+    if [[ "$has_display" == true ]]; then
+        notify dialog-warning "Kernel Version Mismatch" "Reboot required"
+    fi
+    exit 1
+fi
 
 if ! command -v wg >/dev/null 2>&1; then
     notify network-vpn-error "WireGuard" "wireguard-tools not installed"
