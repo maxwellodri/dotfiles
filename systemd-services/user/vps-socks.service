@@ -1,0 +1,13 @@
+[Unit]
+Description=SSH SOCKS tunnel to VPS
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=AUTOSSH_GATETIME=0
+ExecStart=/bin/sh -c '. ~/.keychain/*-sh 2>/dev/null; exec /usr/bin/autossh -M 0 -N vps-socks'
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

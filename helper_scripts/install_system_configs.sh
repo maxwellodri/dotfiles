@@ -359,6 +359,9 @@ run_elevated systemctl daemon-reload
 log_verbose "${CYAN}Reloading user daemon...${NC}"
 systemctl --user daemon-reload
 
+log_verbose "${CYAN}Enabling linger for user ${USER}...${NC}"
+run_elevated loginctl enable-linger "$USER"
+
 log_verbose "${CYAN}Reloading udev rules...${NC}"
 run_elevated udevadm control --reload-rules && run_elevated udevadm trigger
 

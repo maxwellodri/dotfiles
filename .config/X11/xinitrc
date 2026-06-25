@@ -41,7 +41,6 @@ if [ "$(basename "$WM")" = "dwm" ]; then
     startdwm_pid=$!
     sxhkd &
     numlockx on
-    eval $(ssh-agent)
     #sleep 1
     [ "$(basename "$WM")" = "dwm" ] && [ -f "$dotfiles/dwm/dstatus.sh" ] && "$dotfiles/dwm/dstatus.sh" 1,2>/dev/null &
     "$dotfiles/dwm/startup.sh" &

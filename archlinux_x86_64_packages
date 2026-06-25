@@ -107,3 +107,5 @@ at
 deno
 alacritty
 inotify-tools
+keychain
+autossh

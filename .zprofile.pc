@@ -28,7 +28,6 @@ export dotfile_tag="pc"
 export AI_GPU=AMD
 
 #command transmission-daemon --no-auth
-eval "$(command ssh-agent)" > /dev/null
 #command xfce-polkit
 
 if [ -z "$WM" ] ; then

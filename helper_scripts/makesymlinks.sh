@@ -38,6 +38,7 @@ alacritty=".config/alacritty/"
 wezterm=".config/wezterm/"
 opencode=".config/opencode/opencode.json .config/opencode/skill/ .config/opencode/AGENTS.md .config/opencode/agents .config/opencode/plugins"
 desktop_apps=".local/share/applications/default_handler.desktop .local/share/applications/wine.desktop"
+sshconfig=.ssh/config
 
 
 ########### Meta Variables
@@ -48,8 +49,8 @@ zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam"
 files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $gitconfig $npm $faucet"
 
 ###########
-pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $eww $opencode $desktop_apps" #platform specific dotfiles
-hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $qz $eww $opencode $desktop_apps"
+pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $eww $opencode $desktop_apps $sshconfig" #platform specific dotfiles
+hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $qz $eww $opencode $desktop_apps $sshconfig"
 
 ##########
 
@@ -123,6 +124,9 @@ for file in $files; do
         ".zshrc_extra")         src="$dir/.zshrc_extra.$tag"
             ;;
         ".zprofile")            src="$dir/$file.$tag"
+            ;;
+        "$sshconfig")           src="$dir/.ssh/config.$tag"
+                                chmod 600 "$src"
             ;;
         "$i3statusconfig")      src="$dir/$file.$tag"
             ;;
