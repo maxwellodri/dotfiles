@@ -11,39 +11,32 @@ display_kind() {
 }
 
 check_kernel() {
-    if ! command -v pacman >/dev/null 2>&1; then
-        return 0
-    fi
+    [ -n "$(command -v pacman 2>/dev/null)" ] || return 0
 
-    shutil_running_kernel=$(uname -r)
-    shutil_suffix=$(echo "$shutil_running_kernel" | sed 's/[0-9]\+\.[0-9]\+\.[0-9]\+-[0-9]\+//')
-    case "$shutil_suffix" in
-        -lts) shutil_pkg="linux-lts" ;;
-        -zen) shutil_pkg="linux-zen" ;;
-        -hardened) shutil_pkg="linux-hardened" ;;
-        -rt) shutil_pkg="linux-rt" ;;
-        *) shutil_pkg="linux" ;;
+    shutil_running=$(uname -r)
+    shutil_last=${shutil_running##*-}
+    case "$shutil_last" in
+        zen|lts|hardened|rt) shutil_pkg="linux-$shutil_last"; shutil_suffix="-$shutil_last" ;;
+        *) shutil_pkg="linux"; shutil_suffix= ;;
     esac
 
-    shutil_installed_kernel=$(pacman -Qi "$shutil_pkg" 2>/dev/null | grep '^Version' | awk '{print $3}')
+    shutil_pkg_line=$(pacman -Q "$shutil_pkg" 2>/dev/null) || return 0
+    shutil_installed=${shutil_pkg_line##* }
 
-    if [ -z "$shutil_installed_kernel" ]; then
+    shutil_running_norm=$(printf '%s' "${shutil_running%"$shutil_suffix"}" | tr '.' '-')
+    shutil_installed_norm=$(printf '%s' "$shutil_installed" | tr '.' '-')
+
+    if [ "$shutil_running_norm" = "$shutil_installed_norm" ]; then
         return 0
     fi
 
-    shutil_running_base=$(echo "$shutil_running_kernel" | sed "s/${shutil_suffix}$//")
-    shutil_running_normalized=$(echo "$shutil_running_base" | sed 's/\.arch/-arch/')
-    shutil_installed_normalized=$(echo "$shutil_installed_kernel" | sed 's/\.arch/-arch/')
-
-    if [ "$shutil_running_normalized" != "$shutil_installed_normalized" ]; then
+    if [ -z "${SHUTIL_QUIET:-}" ]; then
         echo "Kernel version mismatch detected ($shutil_pkg):" >&2
-        echo "  Running:   $shutil_running_kernel" >&2
-        echo "  Installed: $shutil_installed_kernel" >&2
+        echo "  Running:   $shutil_running" >&2
+        echo "  Installed: $shutil_installed" >&2
         echo "Reboot required." >&2
-        return 1
     fi
-
-    return 0
+    return 1
 }
 
 get_dmenu() {
