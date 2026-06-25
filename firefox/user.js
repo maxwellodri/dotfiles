@@ -118,7 +118,7 @@ user_pref("full-screen-api.warning.timeout", 0);
 user_pref("browser.download.alwaysOpenPanel", false);
 
 user_pref("browser.urlbar.clickAtEndSelects", false);
-user_pref("browser.urlbar.doubleClickSelectsAll, false);
+user_pref("browser.urlbar.doubleClickSelectsAll", false);
 
 
 
@@ -211,6 +211,10 @@ user_pref("media.videocontrols.picture-in-picture.video-toggle.first-seen-secs",
 user_pref("media.videocontrols.picture-in-picture.video-toggle.has-used", true);
 user_pref("media.webspeech.synth.dont_notify_on_error", true);
 user_pref("network.dns.disablePrefetch", true);
+// Mullvad: disable DoH so DNS uses OS resolver (Mullvad on-VPN, Quad9 off-VPN)
+user_pref("network.trr.mode", 5);
+user_pref("network.trr.uri", "");
+user_pref("doh-rollout.enabled", false);
 user_pref("network.http.speculative-parallel-limit", 0);
 user_pref("network.predictor.enabled", false);
 user_pref("network.prefetch-next", false);
