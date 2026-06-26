@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# throttle-tunnel — cap the local SSH SOCKS tunnel (127.0.0.1:1080) bandwidth.
+# Shapes loopback port 1080, which caps the whole tunnel in both directions.
+# Usage: throttle-tunnel on [rate] | off | status
+#   rate: tc rate, default 400kbit (50 KB/s). e.g. 200kbit=25KB/s, 1mbit=125KB/s
+set -euo pipefail
+
+. "${XDG_CONFIG_HOME:-$HOME/.config}/sh/shutil.sh"
+
+SHUTIL_PREFER_GUI=1
+
+DEV=lo
+PORT=1080
+DEFAULT_RATE=400kbit   # 50 KB/s
+
+validate_rate() {
+    [[ "${1:-}" =~ ^[0-9]+(bit|kbit|mbit|bps|kbps|mbps)?$ ]] || {
+        echo "invalid rate: '${1:-}' (expected e.g. 400kbit, 1mbit, 50kbps)" >&2
+        exit 2
+    }
+}
+
+rate_to_kbs() {
+    local r="${1:-$DEFAULT_RATE}"
+    local num="${r%%[!0-9]*}"
+    local unit="${r#"$num"}"
+    local bps
+    case "$unit" in
+        bit)  bps=$((num/8)) ;;
+        kbit) bps=$((num*1000/8)) ;;
+        mbit) bps=$((num*1000000/8)) ;;
+        bps)  bps=$num ;;
+        kbps) bps=$((num*1000)) ;;
+        mbps) bps=$((num*1000000)) ;;
+        *)    bps=$num ;;
+    esac
+    echo $((bps/1000))
+}
+
+apply() {
+    local rate="${1:-$DEFAULT_RATE}"
+    validate_rate "$rate"
+    run_elevated bash -c "
+        set -e
+        tc qdisc del dev '$DEV' root 2>/dev/null || true
+        tc qdisc add dev '$DEV' root handle 1: htb default 99
+        tc class add dev '$DEV' parent 1:   classid 1:1  htb rate 10gbit quantum 2000
+        tc class add dev '$DEV' parent 1:1  classid 1:99 htb rate 10gbit ceil 10gbit quantum 2000
+        tc class add dev '$DEV' parent 1:1  classid 1:10 htb rate '$rate' ceil '$rate' burst 1mb prio 3
+        tc filter add dev '$DEV' protocol ip parent 1: prio 3 u32 match ip protocol 6 0xff match ip dport '$PORT' 0xffff flowid 1:10
+        tc filter add dev '$DEV' protocol ip parent 1: prio 3 u32 match ip protocol 6 0xff match ip sport '$PORT' 0xffff flowid 1:10
+    "
+    echo "throttle ON: $DEV:$PORT -> $rate (~$(rate_to_kbs "$rate") KB/s)"
+}
+
+remove() {
+    if tc qdisc show dev "$DEV" 2>/dev/null | grep -q htb; then
+        run_elevated tc qdisc del dev "$DEV" root
+    fi
+}
+
+status() {
+    if tc qdisc show dev "$DEV" 2>/dev/null | grep -q htb; then
+        echo "throttle ON:"
+        tc class show dev "$DEV" 2>/dev/null | grep -E 'htb 1:10 ' || true
+    else
+        echo "throttle OFF"
+    fi
+}
+
+case "${1:-status}" in
+    on)     apply "${2:-}" ;;
+    off)    remove; echo "throttle OFF" ;;
+    status) status ;;
+    *)      echo "usage: $(basename "$0") on [rate] | off | status" >&2; exit 2 ;;
+esac

@@ -5,6 +5,7 @@ Wants=network-online.target
 
 [Service]
 Environment=AUTOSSH_GATETIME=0
+Environment=AUTOSSH_POLL=30
 ExecStart=/bin/sh -c '. "$HOME/.local/state/keychain/"*-sh 2>/dev/null; exec /usr/bin/autossh -M 0 -N vps-socks'
 Restart=always
 RestartSec=10
