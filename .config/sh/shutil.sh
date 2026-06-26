@@ -56,22 +56,18 @@ get_imgviewer() {
 }
 
 run_elevated() {
-    if [ -n "${SHUTIL_PREFER_GUI:-}" ]; then
-        case $(display_kind) in
-            wl|x11) pkexec "$@" ;;
-            *) sudo "$@" ;;
-        esac
+    if [ -n "${SHUTIL_PREFER_GUI:-}" ] && [ "$(display_kind)" != "tty" ]; then
+        SUDO_ASKPASS="${SHUTIL_SUDO_ASKPASS:-$HOME/bin/sudo-askpass-dotfiles}" sudo -A "$@"
     else
         sudo "$@"
     fi
 }
 
 run_elevated_init() {
-    if [ -n "${SHUTIL_PREFER_GUI:-}" ]; then
-        return 0
-    fi
-    if ! sudo -v; then
-        return 1
+    if [ -n "${SHUTIL_PREFER_GUI:-}" ] && [ "$(display_kind)" != "tty" ]; then
+        SUDO_ASKPASS="${SHUTIL_SUDO_ASKPASS:-$HOME/bin/sudo-askpass-dotfiles}" sudo -A -v || return 1
+    else
+        sudo -v || return 1
     fi
     (
         while true; do sudo -n true; sleep 50; done

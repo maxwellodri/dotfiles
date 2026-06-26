@@ -1,0 +1,6 @@
+#!/bin/sh
+# sudo-askpass-dotfiles — themed askpass for `sudo -A` via pinentry-dotfiles.
+# Called by sudo only when a password is actually needed (NOPASSWD → never invoked).
+printf 'SETDESC sudo\nSETPROMPT Password:\nGETPIN\n' \
+  | "${SUDO_ASKPASS_PINENTRY:-$HOME/bin/pinentry-dotfiles}" 2>/dev/null \
+  | awk '/^D /{print substr($0,3)}'
