@@ -22,12 +22,16 @@ if [ ! -f "$user_content_css_path" ]; then
     exit 1
 fi
 
-# Extract the profile path associated with Default=1
+# Extract the default profile path. Prefer the [Install...] section's Default=
+# value (the profile Firefox actually boots into); fall back to the profile
+# marked Default=1 if no install section exists.
 default_profile=$(awk -F= '
-BEGIN {profile=""; default_found=0}
-/^Default=1$/ {default_found=1}
-/^Path=/ && default_found {profile=$2; default_found=0}
-END {print profile}
+/^\[Install/ {in_install=1; next}
+/^\[/        {in_install=0}
+in_install && /^Default=/ {install=$2}
+/^Default=1$/ {default_flag=1}
+/^Path=/ && default_flag {profile=$2; default_flag=0}
+END {print (install ? install : profile)}
 ' "$profiles_ini")
 
 # Check if we found a default profile
