@@ -2,7 +2,7 @@
 
 . "$(dirname "$(realpath "$0")")/.config/sh/shutil.sh"
 
-# --other-user <name>: minimal install for a non-primary user (e.g. pi)
+# --other-user <name>: minimal install for a secondary user
 #   Runs makesymlinks + custom_bin_scripts only.
 #   Skips pacman, system configs, firefox, rust, suckless, fontconfig.
 #   If .zshrc_extra.<name> exists in dotfiles, symlinks it over ~/.zshrc_extra.
@@ -44,6 +44,11 @@ check_kernel
 
 if [ -n "$tag" ]; then
 	echo "$tag" > .dotfile_tag
+fi
+
+if [ -n "$dotfile_tag" ] && [ "$dotfile_tag" != "$tag" ]; then
+	echo "Error: tag mismatch — install.sh got '$tag' but \$dotfile_tag is '$dotfile_tag' (from .zprofile). Pass a matching tag." >&2
+	exit 1
 fi
 
 run_elevated_init || exit 1

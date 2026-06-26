@@ -16,7 +16,6 @@ declare -a SKIPPED_FILES=()
 declare -a ERROR_FILES=()
 declare -a ENABLED_SERVICES=()
 declare -a STARTED_SERVICES=()
-declare -a RESTARTED_SERVICES=()
 
 
 log_verbose() {
@@ -27,97 +26,32 @@ print_header() {
     [ "${VERBOSE:-0}" -eq 1 ] && echo -e "\n${BOLD}${BLUE}=== $1 ===${NC}\n"
 }
 
-# Function to extract service name from path
-get_service_name() {
-    basename "$1"
-}
-
-# Function to check if a systemd service file is valid
-is_systemd_service() {
-    local file="$1"
-    [[ "$file" == *.service ]] || [[ "$file" == *.timer ]] || [[ "$file" == *.socket ]] || [[ "$file" == *.path ]]
-}
-
-# Function to manage system services (requires elevation)
-manage_system_service() {
-    local service_file="$1"
-    local service_name
-    service_name=$(get_service_name "$service_file")
-
-    if ! is_systemd_service "$service_file"; then
-        return 0
+enable_service() {
+    local user_mode=false
+    if [ "$1" = "--user" ]; then
+        user_mode=true
+        shift
     fi
-
-    log_verbose "${CYAN}Managing system service: ${service_name}${NC}"
-
-    # Check if service was already active
-    local was_active=false
-    if run_elevated systemctl is-active --quiet "$service_name"; then
-        was_active=true
-    fi
-
-    # Enable the service
-    if run_elevated systemctl enable "$service_name" 2>/dev/null; then
-        ENABLED_SERVICES+=("$service_name")
-        echo -e "  ${GREEN}✓ Enabled${NC}"
-    fi
-
-    # Start or restart the service
-    if [ "$was_active" = true ]; then
-        if run_elevated systemctl restart "$service_name" 2>/dev/null; then
-            RESTARTED_SERVICES+=("$service_name")
-            echo -e "  ${GREEN}✓ Restarted${NC}"
+    local svc="$1"
+    if [ "$user_mode" = true ]; then
+        if systemctl --user enable "$svc" 2>/dev/null; then
+            ENABLED_SERVICES+=("user:$svc")
+            echo -e "  ${GREEN}✓ enabled${NC} user:$svc"
+        fi
+        if systemctl --user start "$svc" 2>/dev/null; then
+            STARTED_SERVICES+=("user:$svc")
         else
-            echo -e "  ${YELLOW}⚠ Failed to restart (may require reboot)${NC}"
+            echo -e "  ${YELLOW}⚠ user:$svc did not start (may need a session)${NC}"
         fi
     else
-        if run_elevated systemctl start "$service_name" 2>/dev/null; then
-            STARTED_SERVICES+=("$service_name")
-            echo -e "  ${GREEN}✓ Started${NC}"
-        else
-            echo -e "  ${YELLOW}⚠ Failed to start (may require reboot)${NC}"
+        if run_elevated systemctl enable "$svc" 2>/dev/null; then
+            ENABLED_SERVICES+=("$svc")
+            echo -e "  ${GREEN}✓ enabled${NC} $svc"
         fi
-    fi
-}
-
-# Function to manage user services (no elevation needed)
-manage_user_service() {
-    local service_file="$1"
-    local service_name
-    service_name=$(get_service_name "$service_file")
-
-    if ! is_systemd_service "$service_file"; then
-        return 0
-    fi
-
-    log_verbose "${CYAN}Managing user service: ${service_name}${NC}"
-
-    # Check if service was already active
-    local was_active=false
-    if systemctl --user is-active --quiet "$service_name" 2>/dev/null; then
-        was_active=true
-    fi
-
-    # Enable the service
-    if systemctl --user enable "$service_name" 2>/dev/null; then
-        ENABLED_SERVICES+=("user:$service_name")
-        echo -e "  ${GREEN}✓ Enabled${NC}"
-    fi
-
-    # Start or restart the service
-    if [ "$was_active" = true ]; then
-        if systemctl --user restart "$service_name" 2>/dev/null; then
-            RESTARTED_SERVICES+=("user:$service_name")
-            echo -e "  ${GREEN}✓ Restarted${NC}"
+        if run_elevated systemctl start "$svc" 2>/dev/null; then
+            STARTED_SERVICES+=("$svc")
         else
-            echo -e "  ${YELLOW}⚠ Failed to restart (may require user session)${NC}"
-        fi
-    else
-        if systemctl --user start "$service_name" 2>/dev/null; then
-            STARTED_SERVICES+=("user:$service_name")
-            echo -e "  ${GREEN}✓ Started${NC}"
-        else
-            echo -e "  ${YELLOW}⚠ Failed to start (may require user session)${NC}"
+            echo -e "  ${YELLOW}⚠ $svc did not start${NC}"
         fi
     fi
 }
@@ -224,13 +158,6 @@ copy_files() {
                 fi
                 echo -e "${GREEN}↻ Updated${NC} $dst"
                 UPDATED_FILES+=("$dst")
-
-                # Manage service if it's a systemd service file
-                if [ "$is_user_service" = "true" ]; then
-                    manage_user_service "$dst"
-                elif [[ "$dst" == /etc/systemd/system/* ]]; then
-                    manage_system_service "$dst"
-                fi
             else
                 # Get timestamps for error message
                 local dst_date_modified src_date_modified
@@ -258,13 +185,6 @@ copy_files() {
             fi
             echo -e "${GREEN}+ Copied${NC} $dst ${GREEN}(new)${NC}"
             COPIED_FILES+=("$dst")
-
-            # Manage service if it's a systemd service file
-            if [ "$is_user_service" = "true" ]; then
-                manage_user_service "$dst"
-            elif [[ "$dst" == /etc/systemd/system/* ]]; then
-                manage_system_service "$dst"
-            fi
         fi
         return 0
     fi
@@ -301,6 +221,8 @@ if [ ! -f "$GIT_ROOT/.dotfile_tag" ]; then
     exit 1
 fi
 
+dotfile_tag="$(cat "$GIT_ROOT/.dotfile_tag")"
+
 if [ ! -d "systemd-services" ] && [ ! -d "system_configs" ]; then
     echo -e "${RED}Error: Required directories 'systemd-services' and 'system_configs' do not exist.${NC}"
     exit 1
@@ -334,7 +256,6 @@ copy_files "system_configs/etc/tlp.conf" "/etc" true false "644" "root"
 copy_files "system_configs/etc/pacman.d/hooks" "/etc/pacman.d/hooks" true false "644" "root"
 copy_files "system_configs/etc/polkit-1/rules.d/" "/etc/polkit-1/rules.d" true false "644" "root"
     copy_files "system_configs/etc/sudoers.d" "/etc/sudoers.d" true false "440" "root"
-    # $dotfile_tag is exported by .zprofile.<machine> at login
     if [ "$dotfile_tag" = "pc" ]; then
         #copy_files "system_configs/etc/systemd/zram-generator.conf" "/etc/systemd/zram-generator.conf" true
         copy_files "system_configs/etc/systemd/" "/etc/systemd/" true false "644" "root"
@@ -365,8 +286,17 @@ run_elevated loginctl enable-linger "$USER"
 log_verbose "${CYAN}Reloading udev rules...${NC}"
 run_elevated udevadm control --reload-rules && run_elevated udevadm trigger
 
-run_elevated systemctl enable atd
-run_elevated systemctl start atd
+print_header "Enabling Services"
+
+enable_service git-reminder.timer
+enable_service check_for_docker_updates.timer
+
+enable_service --user git-reminder.timer
+enable_service --user dunst.service
+
+[ "$dotfile_tag" = "pc" ] && enable_service --user vps-socks.service
+
+enable_service atd
 
 if [ "${VERBOSE:-0}" -eq 1 ]; then
     print_header "Installation Summary"
@@ -380,7 +310,6 @@ if [ "${VERBOSE:-0}" -eq 1 ]; then
     echo -e "\n${BOLD}Service Operations:${NC}"
     echo -e "  ${GREEN}✓ Enabled services:${NC} ${#ENABLED_SERVICES[@]}"
     echo -e "  ${GREEN}▶ Started services:${NC} ${#STARTED_SERVICES[@]}"
-    echo -e "  ${GREEN}↻ Restarted services:${NC} ${#RESTARTED_SERVICES[@]}"
 
     if [ ${#COPIED_FILES[@]} -gt 0 ]; then
         echo -e "\n${BOLD}New files:${NC}"

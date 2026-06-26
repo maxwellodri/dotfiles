@@ -17,7 +17,7 @@ fi
 check_kernel || exit 1
 
 update() {
-    
+
     tomb open maxwellsecrets.tomb -k maxwellsecrets.tomb.key -f
 
     mount_point=$(findmnt --real --list | grep maxwellsecrets | awk '{print $1}')
@@ -39,7 +39,7 @@ update() {
 
 toggle() {
     mount_point=$(findmnt --real --list | grep maxwellsecrets | awk '{print $1}')
-    
+
     if [ -n "$mount_point" ]; then
         echo "Tomb is currently mounted at: $mount_point"
         echo "Closing tomb..."
@@ -52,7 +52,7 @@ toggle() {
         fi
     else
         echo "Tomb is not mounted. Opening..."
-        
+
         tomb open maxwellsecrets.tomb -k maxwellsecrets.tomb.key -f
         if [ $? -eq 0 ]; then
             mount_point=$(findmnt --real --list | grep maxwellsecrets | awk '{print $1}')
@@ -132,7 +132,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --backup)
             backup_flag=true
-            paths+=("maxwell@donnie:~/backups/")  # Path to VPS
+            paths+=("maxwell@odri.xyz:~/tomb/")  # Path to VPS
             shift
             ;;
         --toggle)
