@@ -1,0 +1,9 @@
+[Unit]
+Description=Anchor graphical-session targets for startx/standalone-WM sessions
+Requires=graphical-session-pre.target graphical-session.target
+After=graphical-session-pre.target graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/true
+RemainAfterExit=yes

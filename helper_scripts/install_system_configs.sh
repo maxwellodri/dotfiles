@@ -255,6 +255,7 @@ copy_files "system_configs/etc/NetworkManager" "/etc/NetworkManager" true false 
 copy_files "system_configs/etc/tlp.conf" "/etc" true false "644" "root"
 copy_files "system_configs/etc/pacman.d/hooks" "/etc/pacman.d/hooks" true false "644" "root"
 copy_files "system_configs/etc/polkit-1/rules.d/" "/etc/polkit-1/rules.d" true false "644" "root"
+copy_files "system_configs/usr/share/xdg-desktop-portal" "/usr/share/xdg-desktop-portal" true false "644" "root"
     copy_files "system_configs/etc/sudoers.d" "/etc/sudoers.d" true false "440" "root"
     if [ "$dotfile_tag" = "pc" ]; then
         #copy_files "system_configs/etc/systemd/zram-generator.conf" "/etc/systemd/zram-generator.conf" true
