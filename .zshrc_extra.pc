@@ -14,9 +14,3 @@ hash -d df=~/source/dotfiles/
 hash -d myk=~/source/mykaelium/
 
 command -v systemctl >/dev/null 2>&1 && systemctl --user import-environment PATH HOME USER XDG_CONFIG_HOME BIN
-
-
-################
-# ssh-agent (keychain): persistent agent, prompts once per boot
-################
-command -v keychain >/dev/null 2>&1 && eval "$(keychain --eval --quiet --dir "$XDG_STATE_HOME/keychain" id_ed25519)"
