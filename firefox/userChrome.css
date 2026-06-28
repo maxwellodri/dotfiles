@@ -11,6 +11,13 @@
 
 #alltabs-button { display: none !important; }
 
+/* Hide window controls (using dwm) */
+.titlebar-buttonbox-container { display: none !important; }
+
+/* Remove draggable spacers around tabs */
+.titlebar-spacer[type="pre-tabs"] { display: none !important; }
+.titlebar-spacer[type="post-tabs"] { display: none !important; }
+
 
 
 /* Dim unlaoded tabs slightly */
