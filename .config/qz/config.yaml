@@ -10,7 +10,7 @@ projects:
       slop:
         layout: even-horizontal
         panes:
-          - opencode .
+          - pi
       notes:
         panes:
           - nvim notes/next.md
@@ -23,7 +23,7 @@ projects:
         layout: even-horizontal
         panes:
           - nvim .
-          - opencode .
+          - pi --skill .opencode/skill
       scratch:
 
   llm-config:
@@ -33,7 +33,7 @@ projects:
         layout: even-horizontal
         panes:
           - nvim .
-          - opencode .
+          - pi
       scratch:
 
   pi:
@@ -53,7 +53,7 @@ projects:
         layout: even-horizontal
         panes:
           - nvim rwm/src/lib.rs
-          - opencode .
+          - pi
       scratch:
 
   tsp_ytdlp:
@@ -64,7 +64,7 @@ projects:
         layout: even-horizontal
         panes:
           - nvim src/main.rs
-          - opencode .
+          - pi
       scratch:
 
   nix_config:
@@ -74,14 +74,14 @@ projects:
         layout: even-horizontal
         panes:
           - nvim flake.nix
-          - opencode .
+          - pi
       notes:
         panes:
           - nvim notes/index.md
       scratch:
       vibe:
         panes:
-          - opencode .
+          - pi
       deploy:
 
   dwm:
@@ -105,7 +105,7 @@ projects:
         layout: even-horizontal
         panes:
           - nvim .
-          - opencode .
+          - pi
 
   agentcoder:
     path: ~/source/agent_coder
@@ -128,7 +128,7 @@ projects:
         layout: even-horizontal
         panes:
           - nvim .
-          - opencode .
+          - pi
       scratch:
 
   Games:
