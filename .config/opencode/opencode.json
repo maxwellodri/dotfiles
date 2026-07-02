@@ -58,7 +58,7 @@
                 "npx",
                 "@playwright/mcp@latest",
                 "--config",
-                "/home/maxwell/source/dotfiles/.opencode/skill/capitalism/playwright-config.json"
+                "/home/maxwell/source/dotfiles/pi/skills/capitalism/playwright-config.json"
             ],
             "enabled": false
         }

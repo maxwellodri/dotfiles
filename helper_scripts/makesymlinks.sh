@@ -88,6 +88,16 @@ case $1 in
 
     echo "$tag" > "$PWD/.dotfile_tag"
 
+# Shared skills: source-of-truth is pi/skills/ (pi auto-discovers via
+# $PI_CODING_AGENT_DIR/skills). Symlink opt-in skills into opencode's global
+# skills dir so opencode discovers them too. Add skill dir names here to share.
+if [ -d "$dir/pi/skills" ]; then
+    mkdir -p "$HOME/.config/opencode/skills"
+    for skill in capitalism; do
+        [ -d "$dir/pi/skills/$skill" ] && ln -sfn "$dir/pi/skills/$skill" "$HOME/.config/opencode/skills/$skill"
+    done
+fi
+
 # Iterate through files and remove trailing slash if it's a directory
 for file in $files; do
     if [ -d "$file" ] && [[ "$file" == */ ]]; then

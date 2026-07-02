@@ -5,8 +5,9 @@
 			"args": [
 				"@playwright/mcp@latest",
 				"--config",
-				"/home/maxwell/source/dotfiles/.opencode/skill/capitalism/playwright-config.json"
-			]
+				"playwright-config.json"
+			],
+			"cwd": "${dotfiles}/pi/skills/capitalism"
 		}
 	}
 }

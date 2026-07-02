@@ -2,7 +2,7 @@
 
 ## websearch Script
 
-Wraps the Brave Search API with AU/EN defaults. Located at `scripts/websearch` in the workspace root (`~/source/dotfiles/scripts/websearch`). Symlinked into the skill directory at `.opencode/skill/capitalism/scripts/websearch` for convenience.
+Wraps the Brave Search API with AU/EN defaults. Located at `scripts/websearch` in the workspace root (`~/source/dotfiles/scripts/websearch`). Symlinked into the skill directory at `scripts/websearch` for convenience.
 
 ### Usage
 
@@ -211,7 +211,7 @@ lspci                      # PCIe slots
 
 ## Playwright MCP Config
 
-Uses a config file for launch options: `.opencode/skill/capitalism/playwright-config.json`
+Uses a config file for launch options: `playwright-config.json` (in the skill directory).
 
 ```json
 {
@@ -233,7 +233,7 @@ Uses a config file for launch options: `.opencode/skill/capitalism/playwright-co
   "type": "local",
   "command": [
     "npx", "@playwright/mcp@latest",
-    "--config", "/path/to/.opencode/skill/capitalism/playwright-config.json"
+    "--config", "/path/to/pi/skills/capitalism/playwright-config.json"
   ],
   "enabled": false
 }
