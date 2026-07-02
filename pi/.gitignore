@@ -1,0 +1,18 @@
+# Pi runtime artifacts — PI_CODING_AGENT_DIR points at this dir, so pi writes
+# runtime state here. Keep all of it out of the repo; only managed config
+# (settings.json, mcp.json, extensions/, themes/, vendor/) is committed.
+trust.json
+auth.json
+npm/
+packages/
+sessions/
+*.log
+
+# pi-mcp-adapter caches / oauth / onboarding state.
+mcp-cache.json
+mcp-npx-cache.json
+mcp-oauth/
+mcp-onboarding.json
+
+# Vendored extension deps (reinstalled per-machine via `npm install --omit=dev`).
+node_modules/

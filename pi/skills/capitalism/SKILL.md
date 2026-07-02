@@ -26,6 +26,22 @@ description: Search for products, compare prices across stores, check availabili
 | staticICE (`staticice.com.au`) | AU price aggregator. First port of call for comparing prices across all AU stores at once. Playwright is needed to scrape it. | No (but strongly recommended) |
 | Playwright MCP | Browser automation for scraping staticICE and deep-diving individual store pages (detailed specs, shipping thresholds, stock verification). **Browsing is read-only (no disk modifications) — it IS planning.** | No |
 
+## Harness differences
+
+This skill runs under both **OpenCode** and **Pi**. The pre-flight script
+(`scripts/capitalism_check.sh`) auto-detects the harness and prints the correct
+guidance. Key differences:
+
+| Concern | OpenCode | Pi |
+|---|---|---|
+| Playwright MCP enable | Manual: enable the playwright MCP in the TUI first, then continue | Automatic — lazy on-demand via the single `mcp` gateway tool (the server spawns only when a browser tool is actually called) |
+| Calling browser tools | Direct tool names, e.g. `playwright_browser_navigate({ url })` | Via the gateway: `mcp({ tool: "playwright_browser_navigate", args: { url } })`. Discover with `mcp({ search: "browser" })` |
+| Plan/build-mode gate | Applies — see step 0 (requires plan mode) | N/A — Pi has no plan mode, so the gate is opencode-only; proceed directly |
+| Detection | absence of `$PI_CODING_AGENT_DIR` | `$PI_CODING_AGENT_DIR` is set (by the pi wrapper) |
+
+When running under Pi, route every browser action through the `mcp` gateway
+tool rather than calling `playwright_*` tools by name.
+
 ## Quick Start
 
 1. User describes what they need: "find me wireless headphones under $100"
@@ -37,9 +53,11 @@ description: Search for products, compare prices across stores, check availabili
 
 ## Workflow
 
-### 0. Build mode gate
+### 0. Build mode gate (OpenCode only)
 
-If you are in **build mode**, REFUSE to continue. Tell the user:
+> Pi has no plan mode — skip this gate under Pi and go straight to step 1.
+
+If you are running under OpenCode and in **build mode**, REFUSE to continue. Tell the user:
 
 > Capitalism skill requires plan mode. Browsing stores and comparing prices is research (read-only, no disk modifications). Re-invoke with plan mode enabled so I can structure research, compare deals, and present findings properly.
 
@@ -48,7 +66,7 @@ Do not proceed with any browsing, websearch queries, or Playwright navigation ou
 ### 1. Pre-flight
 
 ```bash
-bash .opencode/skill/capitalism/scripts/capitalism_check.sh
+bash scripts/capitalism_check.sh
 ```
 
 This checks that `websearch` dependencies are met (curl, jq, pass with `brave_search_api_key`). Playwright checks are optional — the skill is fully functional without it.

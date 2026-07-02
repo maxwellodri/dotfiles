@@ -46,8 +46,15 @@ if [ ${#WARNINGS[@]} -gt 0 ]; then
     echo "Playwright is only needed for scraping individual store pages when"
     echo "websearch results lack sufficient detail (specs, shipping, stock)."
 else
-    echo "PASS: Playwright MCP ready (optional deep-dive tool)"
+    echo "PASS: Playwright available (optional deep-dive tool)"
     echo ""
-    echo "Playwright MCP must be enabled by the user if needed."
-    echo "  Enable the playwright MCP in the opencode TUI, then confirm when ready."
+    if [ -n "${PI_CODING_AGENT_DIR:-}" ]; then
+        echo "Pi detected: Playwright MCP is lazy/on-demand via the 'mcp' gateway tool."
+        echo "  No manual enable step. Discover browser tools with: mcp({ search: \"browser\" })"
+        echo "  Call them via: mcp({ tool: \"playwright_browser_*\", args: { ... } })"
+    else
+        echo "OpenCode detected: Playwright MCP must be enabled by the user if needed."
+        echo "  Enable the playwright MCP in the opencode TUI, then confirm when ready."
+        echo "  Call browser tools directly by name (e.g. playwright_browser_navigate)."
+    fi
 fi

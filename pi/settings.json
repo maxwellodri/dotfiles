@@ -1,0 +1,10 @@
+{
+  "theme": "gruvbox",
+  "defaultProvider": "zai",
+  "defaultModel": "glm-5.2",
+  "quietStartup": false,
+  "extensions": [
+    "vendor/pi-mcp-adapter"
+  ],
+  "lastChangelogVersion": "0.66.1"
+}

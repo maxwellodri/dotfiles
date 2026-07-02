@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Pi launcher wrapper.
+#  - Points Pi at the dotfiles-managed config dir (no symlinks needed).
+#  - Keeps runtime junk (sessions, packages, trust, logs) out of the repo.
+#  - Paints a gruvbox-dark canvas for pi's duration: OSC 11 sets the pane
+#    default bg, which pi clears/fills its inter-panel gaps with; OSC 111
+#    restores the original on exit. Per-pane in tmux (verified), so other
+#    panes and the wezterm window are never affected.
+#  - Reads the z.ai API key from pass; the value never touches disk/history.
+#
+# Note: pi is run as a child (NOT exec'd) so the EXIT trap can reset the bg.
+set -euo pipefail
+
+: "${dotfiles:?pi wrapper: \$dotfiles is not set (source your shell rc).}"
+
+export PI_CODING_AGENT_DIR="$dotfiles/pi"
+export PI_CODING_AGENT_SESSION_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi/sessions"
+mkdir -p "$PI_CODING_AGENT_SESSION_DIR"
+
+# API key from pass. Evaluated here only; passed to pi via its env.
+if ! ZAI_API_KEY="$(pass zai_pi_api_key)"; then
+	echo "pi wrapper: failed to read 'zai_pi_api_key' from pass" >&2
+	exit 1
+fi
+
+# Gruvbox canvas for pi's duration.
+if [ -t 1 ]; then
+	# shellcheck disable=SC1003
+	printf '\033]11;#282828\033\\'
+	trap 'printf "\033]111\033\\"' EXIT INT TERM
+fi
+
+# Run pi (child, not exec) so the trap fires on its return. Pass --session-dir
+# explicitly: 0.66.1 honors the flag (highest precedence) but not the env var.
+ZAI_API_KEY="$ZAI_API_KEY" "${PI_BIN:-/bin/pi}" --session-dir "$PI_CODING_AGENT_SESSION_DIR" "$@"
