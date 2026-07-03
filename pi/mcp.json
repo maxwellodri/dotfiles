@@ -7,7 +7,7 @@
 				"--config",
 				"playwright-config.json"
 			],
-			"cwd": "${dotfiles}/pi/skills/capitalism"
+			"cwd": "${dotfiles}/.pi/skills/capitalism"
 		}
 	}
 }

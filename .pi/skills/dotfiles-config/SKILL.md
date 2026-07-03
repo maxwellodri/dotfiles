@@ -1,10 +1,9 @@
 ---
-name: Dotfiles Configuration
+name: dotfiles-config
 description: >
   Guides editing and managing dotfiles in this dotfiles repository. Invoke whenever
   modifying any file in the dotfiles repo — configs, scripts, Rust tools, etc.
 license: MIT
-compatibility: opencode
 metadata:
   audience: Dotfiles Users
   workflow: configuration

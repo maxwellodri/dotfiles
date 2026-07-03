@@ -31,5 +31,7 @@ if [ -t 1 ]; then
 fi
 
 # Run pi (child, not exec) so the trap fires on its return. Pass --session-dir
-# explicitly: 0.66.1 honors the flag (highest precedence) but not the env var.
-ZAI_API_KEY="$ZAI_API_KEY" "${PI_BIN:-/bin/pi}" --session-dir "$PI_CODING_AGENT_SESSION_DIR" "$@"
+# explicitly (highest precedence; reliable across pi versions). PI_BIN defaults
+# to the official installer's user-owned location (~/.local/bin/pi); override
+# with the PI_BIN env var if pi is installed elsewhere.
+ZAI_API_KEY="$ZAI_API_KEY" "${PI_BIN:-$HOME/.local/bin/pi}" --session-dir "$PI_CODING_AGENT_SESSION_DIR" "$@"

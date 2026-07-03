@@ -233,7 +233,7 @@ Uses a config file for launch options: `playwright-config.json` (in the skill di
   "type": "local",
   "command": [
     "npx", "@playwright/mcp@latest",
-    "--config", "/path/to/pi/skills/capitalism/playwright-config.json"
+    "--config", "/path/to/.pi/skills/capitalism/playwright-config.json"
   ],
   "enabled": false
 }
