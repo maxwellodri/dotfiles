@@ -1,32 +1,74 @@
 #!/bin/sh
+# Toggle a persistent "scratchpad" pane in the current session.
+#
+# Tracked SOLELY by the per-pane option @scratch (1 = this pane is the scratch).
+# We never rely on a window name or a fixed window index — both are unreliable
+# and were the root cause of the old "returned 1" permanent breakage:
+#   - a hardcoded parking index (:100) made break-pane fail with "index in use"
+#     once that index got stuck occupied, breaking the toggle for the whole
+#     session;
+#   - the parked window's name drifted off "terminal" (auto-renamed to the
+#     running program), so it showed in the status bar and the name-based
+#     fallback couldn't recover it.
+#
+# Shown  = the scratch pane joined into the current window.
+# Hidden = broken out into its own background window named "terminal", which the
+#          status bar (tmux.conf) and window cycler (_tmux_cycle_window) skip.
+#
+# Note: break-pane's -n flag does NOT keep the name (the window still gets
+# auto-renamed to the running program). A manual `rename-window` DOES stick,
+# because it marks the window as user-named and disables auto-rename for it.
+
+park_scratch() {
+  # Break the scratch into its own background window, then force-stick the name.
+  #
+  # -n terminal is REQUIRED: in tmux 3.7, `break-pane` WITHOUT -n segfaults the
+  # server. (The -n name itself doesn't stick — the window still gets auto-renamed
+  # to the running program — so the manual rename-window below is what holds it.)
+  # We avoid `-P -F` (also crashes 3.7) and read the new window id via the pane.
+  tmux break-pane -d -s "$scratch" -n terminal
+  parked=$(tmux display-message -p -t "$scratch" "#{window_id}")
+  tmux rename-window -t "$parked" terminal
+}
+
 session=$(tmux display-message -p "#{session_id}")
-current_window=$(tmux display-message -p "#{window_id}")
 current_pane=$(tmux display-message -p "#{pane_id}")
-# Find terminal pane or window in current session
-pane=$(tmux list-panes -t "$session" -F "#{pane_id} #{@scratch}" | awk '$2 == "1" {print $1; exit}')
-window=$(tmux list-windows -t "$session" -F "#{window_id} #{window_name}" | awk '$2 == "terminal" {print $1; exit}')
-if [ "$current_pane" = "$pane" ]; then
-  pane_count=$(tmux list-panes -t "$current_window" | wc -l)
-  if [ "$pane_count" -eq 1 ]; then
-    tmux set-option -p -u @scratch
-    tmux display-message "Scratch tag removed"
-  else
-    tmux break-pane -d -n terminal -t :100
-  fi
-elif [ -n "$pane" ]; then
-  # Terminal pane exists elsewhere in session
-  pane_window=$(tmux list-panes -t "$session" -F "#{pane_id} #{window_id}" | awk -v p="$pane" '$1 == p {print $2; exit}')
-  if [ "$pane_window" = "$current_window" ]; then
-    tmux break-pane -d -s "$pane" -n terminal -t :100
-  else
-    tmux join-pane -t "$current_pane" -v -l 40% -s "$pane"
-  fi
-elif [ -n "$window" ]; then
-  # Terminal window exists — reattach it as a pane
-  tmux join-pane -t "$current_pane" -v -l 40% -s "$window".0
-else
-  # No terminal exists — create a new one
-  tmux split-window -v -l 30% -c "#{pane_current_path}"
-  tmux set-option -p @scratch 1
-  tmux select-pane -T terminal
+current_window=$(tmux display-message -p "#{window_id}")
+
+# Find the scratch pane anywhere in this session, by flag only.
+scratch=$(tmux list-panes -s -t "$session" -F "#{pane_id} #{@scratch}" \
+          | awk '$2 == "1" {print $1; exit}')
+
+if [ -z "$scratch" ]; then
+  # No scratch exists yet — create one as a pane in the current window.
+  new=$(tmux split-window -v -l 30% -c "#{pane_current_path}" -P -F "#{pane_id}")
+  tmux set-option -p -t "$new" @scratch 1
+  tmux select-pane -t "$new" -T terminal
+  exit 0
 fi
+
+scratch_window=$(tmux display-message -p -t "$scratch" "#{window_id}")
+
+if [ "$scratch" = "$current_pane" ]; then
+  # We are focused ON the scratch.
+  pane_count=$(tmux display-message -p -t "$scratch_window" "#{window_panes}")
+  if [ "$pane_count" -gt 1 ]; then
+    # Shown inside a working window — hide it.
+    park_scratch
+  else
+    # We're sitting on the parked (already-hidden) scratch directly — jump back
+    # to the previous window instead of orphaning the pane.
+    tmux last-window 2>/dev/null || true
+  fi
+  exit 0
+fi
+
+if [ "$scratch_window" = "$current_window" ]; then
+  # Scratch is visible in our window but not focused — hide it.
+  park_scratch
+  exit 0
+fi
+
+# Scratch is parked in another window — show it as a pane here.
+tmux join-pane -t "$current_pane" -v -l 40% -s "$scratch"
+exit 0
