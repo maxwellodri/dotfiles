@@ -49,12 +49,12 @@ else
     echo "PASS: Playwright available (optional deep-dive tool)"
     echo ""
     if [ -n "${PI_CODING_AGENT_DIR:-}" ]; then
-        echo "Pi detected: Playwright MCP is lazy/on-demand via the 'mcp' gateway tool."
+        echo "MCP gateway harness detected: Playwright MCP is lazy/on-demand via the 'mcp' gateway tool."
         echo "  No manual enable step. Discover browser tools with: mcp({ search: \"browser\" })"
         echo "  Call them via: mcp({ tool: \"playwright_browser_*\", args: { ... } })"
     else
-        echo "OpenCode detected: Playwright MCP must be enabled by the user if needed."
-        echo "  Enable the playwright MCP in the opencode TUI, then confirm when ready."
+        echo "Direct-tool harness detected: Playwright MCP must be enabled by the user if needed."
+        echo "  Enable the playwright MCP in your harness's TUI, then confirm when ready."
         echo "  Call browser tools directly by name (e.g. playwright_browser_navigate)."
     fi
 fi

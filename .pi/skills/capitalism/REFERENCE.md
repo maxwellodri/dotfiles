@@ -226,7 +226,7 @@ Uses a config file for launch options: `playwright-config.json` (in the skill di
 }
 ```
 
-`opencode.json` MCP entry:
+MCP server config entry (exact format varies by harness):
 
 ```json
 "playwright": {
@@ -239,6 +239,6 @@ Uses a config file for launch options: `playwright-config.json` (in the skill di
 }
 ```
 
-User enables manually via opencode TUI when needed (MCPs are context-heavy).
+On direct-tool harnesses the user enables this manually (MCPs can be context-heavy); on gateway-style harnesses it is lazy/on-demand with no manual step.
 
 **Note:** The ungoogled-chromium-bin AUR package installs with restrictive `750` permissions on `/usr/bin/chromium` and `/usr/lib/chromium/`. A pacman hook at `system_configs/etc/pacman.d/hooks/ungoogled-chromium-permissions.hook` auto-fixes this on install/upgrade.

@@ -2,7 +2,7 @@
 name: yap
 description: Brainstorming and open-ended discussion mode. Keeps conversation repo-agnostic and avoids filesystem/code tools unless explicitly requested.
 license: MIT
-compatibility: opencode
+compatibility: any
 metadata:
   audience: Developers
   workflow: brainstorming

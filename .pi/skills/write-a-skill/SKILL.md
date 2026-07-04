@@ -1,6 +1,6 @@
 ---
 name: write-a-skill
-description: "Create new opencode agent skills with proper structure, progressive disclosure, and bundled resources. Use when the user wants to create, write, or build a new skill."
+description: "Create new agent skills with proper structure, progressive disclosure, and bundled resources. Use when the user wants to create, write, or build a new skill."
 ---
 
 # Writing Skills
@@ -26,7 +26,7 @@ description: "Create new opencode agent skills with proper structure, progressiv
 ## Skill Structure
 
 ```
-.opencode/skill/<skill-name>/
+.pi/skills/<skill-name>/
 ├── SKILL.md           # Main instructions (required, YAML frontmatter)
 ├── REFERENCE.md       # Detailed docs (if needed)
 ├── EXAMPLES.md        # Usage examples (if needed)
@@ -90,7 +90,7 @@ Extract text and tables from PDF files, fill forms, merge documents. Use when wo
 **Good example without trigger**:
 
 ```
-Create new opencode agent skills with proper structure, progressive disclosure, and bundled resources.
+Create new agent skills with proper structure, progressive disclosure, and bundled resources.
 ```
 
 **Bad example**:

@@ -28,19 +28,22 @@ description: Search for products, compare prices across stores, check availabili
 
 ## Harness differences
 
-This skill runs under both **OpenCode** and **Pi**. The pre-flight script
-(`scripts/capitalism_check.sh`) auto-detects the harness and prints the correct
-guidance. Key differences:
+This skill runs under multiple harnesses. Some expose a single **MCP gateway**
+tool and spawn MCP servers (like Playwright) lazily on demand; others expose MCP
+tools by their direct names and require the user to enable the server manually
+first. The pre-flight script (`scripts/capitalism_check.sh`) detects which style
+is in use (via `$PI_CODING_AGENT_DIR`) and prints the correct guidance. Key
+differences:
 
-| Concern | OpenCode | Pi |
+| Concern | Harness with MCP gateway | Harness with direct MCP tools |
 |---|---|---|
-| Playwright MCP enable | Manual: enable the playwright MCP in the TUI first, then continue | Automatic — lazy on-demand via the single `mcp` gateway tool (the server spawns only when a browser tool is actually called) |
-| Calling browser tools | Direct tool names, e.g. `playwright_browser_navigate({ url })` | Via the gateway: `mcp({ tool: "playwright_browser_navigate", args: { url } })`. Discover with `mcp({ search: "browser" })` |
-| Plan/build-mode gate | Applies — see step 0 (requires plan mode) | N/A — Pi has no plan mode, so the gate is opencode-only; proceed directly |
-| Detection | absence of `$PI_CODING_AGENT_DIR` | `$PI_CODING_AGENT_DIR` is set (by the pi wrapper) |
+| Playwright MCP enable | Automatic — lazy on demand via the gateway tool (the server spawns only when a browser tool is actually called) | Manual: enable the playwright MCP in the TUI first, then continue |
+| Calling browser tools | Via the gateway: `mcp({ tool: "playwright_browser_navigate", args: { url } })`. Discover with `mcp({ search: "browser" })` | Direct tool names, e.g. `playwright_browser_navigate({ url })` |
+| Plan/build-mode gate | N/A — no plan mode; proceed directly | Applies — see step 0 (requires plan mode) |
+| Detection | `$PI_CODING_AGENT_DIR` is set | absence of `$PI_CODING_AGENT_DIR` |
 
-When running under Pi, route every browser action through the `mcp` gateway
-tool rather than calling `playwright_*` tools by name.
+When a gateway tool is available, route every browser action through it rather
+than calling `playwright_*` tools by name.
 
 ## Quick Start
 
@@ -53,11 +56,11 @@ tool rather than calling `playwright_*` tools by name.
 
 ## Workflow
 
-### 0. Build mode gate (OpenCode only)
+### 0. Build mode gate (harnesses with a build/plan split only)
 
-> Pi has no plan mode — skip this gate under Pi and go straight to step 1.
+> Skip this step on harnesses without a plan mode — go straight to step 1.
 
-If you are running under OpenCode and in **build mode**, REFUSE to continue. Tell the user:
+If your harness distinguishes **build mode** (no side effects) from **plan mode** (research + planning) and you are in build mode, REFUSE to continue. Tell the user:
 
 > Capitalism skill requires plan mode. Browsing stores and comparing prices is research (read-only, no disk modifications). Re-invoke with plan mode enabled so I can structure research, compare deals, and present findings properly.
 
