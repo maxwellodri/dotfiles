@@ -200,7 +200,6 @@ alias alp="vim \$dotfiles/archlinux_x86_64_packages"
 alias dfn="df -h | grep -vE 'run|tmpfs|efivars|efi' | awk '!/dev[[:space:]]/' | tail -n +1" #tail to remove whitespace above header
 
 alias untar='tar -zxvf'
-alias screensave="xclip -selection clipboard -target image/png -out > out.png"
 
 command -v ytop > /dev/null && alias htop="ytop -asm -c monokai"
 

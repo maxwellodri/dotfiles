@@ -1,6 +1,6 @@
 #!/bin/bash
 pgrep -f transmission-daemon > /dev/null || (transmission-daemon --no-auth && notify-send "Starting transmission daemon...")
-MAGNET_LINK="$(xclip -o)"
+MAGNET_LINK="$(clipboard -p)"
 BEFORE_ADD=$(transmission-remote -l | awk 'NR>1 {print $1}' | tr -d '*')
 transmission-remote -a $MAGNET_LINK --torrent-done-script ~/bin/torrdone || { notify-send "Invalid link ⛔ (Not a magnet link?)"; exit; }
 AFTER_ADD=$(transmission-remote -l | awk 'NR>1 {print $1}' | tr -d '*')

@@ -299,15 +299,11 @@ echo "" | tee -a "$OUTPUT_FILE"
 # Copy to clipboard
 echo "Copying diagnostic output to clipboard..."
 
-if command -v xclip &> /dev/null; then
-    xclip -selection clipboard -i "$OUTPUT_FILE"
-    echo "✓ Successfully copied to clipboard using xclip"
-elif command -v xsel &> /dev/null; then
-    xsel --clipboard < "$OUTPUT_FILE"
-    echo "✓ Successfully copied to clipboard using xsel"
+if command -v clipboard &> /dev/null; then
+    clipboard < "$OUTPUT_FILE"
+    echo "✓ Successfully copied to clipboard"
 else
-    echo "✗ Neither xclip nor xsel found. Install one of them for clipboard support."
-    echo "  run_elevated pacman -S xclip   # or xsel"
+    echo "✗ clipboard tool not found."
 fi
 
 echo ""

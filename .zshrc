@@ -108,7 +108,7 @@ fdt() {
 #set yanking to yank to system clipboard
 function vi-yank-xclip {
     zle vi-yank
-   echo "$CUTBUFFER" | xclip -i #xclip is obviously X11/Linux only
+   echo "$CUTBUFFER" | clipboard
 }
 zle -N vi-yank-xclip
 bindkey -M vicmd 'y' vi-yank-xclip

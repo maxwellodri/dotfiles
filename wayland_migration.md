@@ -4,16 +4,23 @@ Files needing changes before moving from X11 to Wayland. Target: avoid XWayland 
 
 ## Clipboard (swap xclip → wl-copy/wl-paste)
 
-- `.zshrc` — `vi-yank-xclip` uses `xclip -i`
-- `.config/tmux/tmux.conf` — hardcoded `xclip -selection clipboard`, use `_tmux_copy` instead
-- `scripts/torr` — `xclip -o` to read clipboard
-- `scripts/appender` — `xclip -sel clip -o` to read clipboard
+**Done** — routed callers through `scripts/clipboard`, a unified X11/Wayland
+primitive (auto-detects `wl-clipboard` vs `xclip`; supports `-t/--type` and
+`-p/--primary`). Migrated:
+
+- ✅ `.zshrc` — `vi-yank-xclip` → `clipboard`
+- ✅ `.config/tmux/tmux.conf` — both copy binds → `clipboard`
+- ✅ `scripts/torr` — reads primary selection via `clipboard -p`
+- ✅ `scripts/appender` — `clipboard`
+- ✅ `scripts/validate_fixes.sh` — xclip/xsel ladder → `clipboard`
+- ✅ `scripts/system_diagnostics.sh` — ladder → `clipboard < file`
+- ❌ `scripts/wholescreensave` — removed; `super+shift+s` (`scripts/screenshot`, already X11/Wayland-aware) is the replacement
+
+**Remaining** (X11-only tools, deferred):
+
 - `scripts/interactive_bookmarks.sh` — `xclip -selection clipboard`
-- `scripts/wholescreensave` — `maim` + `xclip -se c`
 - `scripts/colorpicker` — `xcolor` + `xclip`, use `hyprpicker + wl-copy`
-- `scripts/validate_fixes.sh` — `xclip` then `xsel` fallback, add `wl-copy` as first option
-- `scripts/system_diagnostics.sh` — `xclip` then `xsel` fallback, add `wl-copy` as first option
-- `.config/dotfiles/dwm_faucet.sh` — `xclip -selection primary -o`, use `wl-paste -p`
+- `.config/dotfiles/dwm_faucet.sh` — `xclip -selection primary -o` (STAYS X11; dwm is an X11-only WM, no Wayland target)
 
 ## st Terminal (needs replacement)
 
@@ -32,7 +39,7 @@ Files needing changes before moving from X11 to Wayland. Target: avoid XWayland 
 - `scripts/as_qr` — QR code display
 - `scripts/screenrecord.sh` — screenshot preview
 - `scripts/background_set.sh` — wallpaper setter (`feh --bg-fill` → `swaybg`)
-- `.config/mimeapps.list` — default image handler is `feh.desktop`
+- `.config/mimeapps.list` ✅ — default image handler is now `imv.desktop` (jpeg/png/gif/svg/webp)
 - `.config/faucet/faucet.yaml` — image/QR display commands
 
 ## X11-Only Configs (full replacement needed)

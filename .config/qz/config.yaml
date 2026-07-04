@@ -23,7 +23,7 @@ projects:
         layout: even-horizontal
         panes:
           - nvim .
-          - pi --skill .opencode/skill
+          - pi
       scratch:
 
   llm-config:

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Get clipboard content
-CLIP_CONTENT=$(xclip -sel clip -o)
+CLIP_CONTENT=$(clipboard)
 
 # Check if clipboard is not empty
 if [ -n "$CLIP_CONTENT" ]; then

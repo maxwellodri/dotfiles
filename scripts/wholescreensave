@@ -1,7 +1,0 @@
-#!/bin/sh
-#required programs (on arch)
-#maim
-#xclip
-img=~/.cache/dotfiles/screen.png 
-maim > "$img" && xclip -se c -t image/png "$img"
-

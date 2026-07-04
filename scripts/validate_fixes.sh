@@ -158,14 +158,11 @@ echo ""
 echo "================================"
 
 # Copy to clipboard
-if command -v xclip &> /dev/null; then
-    echo -e "$OUTPUT" | xclip -selection clipboard
-    echo "✓ Results copied to clipboard"
-elif command -v xsel &> /dev/null; then
-    echo -e "$OUTPUT" | xsel --clipboard
+if command -v clipboard &> /dev/null; then
+    echo -e "$OUTPUT" | clipboard
     echo "✓ Results copied to clipboard"
 else
-    echo "✗ Clipboard tools not found (xclip/xsel)"
+    echo "✗ clipboard tool not found"
 fi
 
 # Exit with appropriate code

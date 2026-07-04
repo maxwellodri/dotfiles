@@ -1,43 +1,83 @@
 #!/bin/sh
+# Unified clipboard copy/paste that works on both X11 (xclip) and Wayland
+# (wl-clipboard). Auto-detects the display server.
+#
+# Usage:
+#   clipboard                 # paste clipboard  -> stdout   (stdin is a TTY)
+#   some-cmd | clipboard      # stdin            -> clipboard (copy)
+#   clipboard -t image/png    # explicit MIME type (passthrough)
+#   clipboard -p              # use PRIMARY selection instead of clipboard
+#
+# On X11, a copy (without -p) writes BOTH the primary and clipboard selections
+# so middle-click and Ctrl-V both work; with -p only primary is written.
+# On Wayland, copy targets the clipboard selection (or primary with -p).
 
-if [ -t 0 ]; then
-    if [ "$XDG_SESSION_TYPE" = "wayland" ] || [ -n "$WAYLAND_DISPLAY" ]; then
-        if command -v wl-paste >/dev/null 2>&1; then
-            wl-paste
-        else
-            echo "Error: wl-paste not found. Please install wl-clipboard." >&2
-            exit 1
-        fi
-    else
-        if command -v xclip >/dev/null 2>&1; then
-            xclip -selection clipboard -o
-        else
-            echo "Error: xclip not found. Please install xclip." >&2
-            exit 1
-        fi
-    fi
+type=""
+primary=0
+while [ $# -gt 0 ]; do
+	case "$1" in
+		-t|--type) type="$2"; shift 2 ;;
+		-p|--primary) primary=1; shift ;;
+		-h|--help)
+			sed -n '2,15p' "$0"
+			exit 0 ;;
+		--) shift; break ;;
+		*) echo "clipboard: unknown option: $1" >&2; exit 2 ;;
+	esac
+done
 
+is_wayland() {
+	[ "$XDG_SESSION_TYPE" = "wayland" ] || [ -n "$WAYLAND_DISPLAY" ]
+}
+
+if is_wayland; then
+	if [ -t 0 ]; then
+		# paste -> stdout
+		set -- wl-paste
+		[ "$primary" = 1 ] && set -- "$@" --primary
+		[ -n "$type" ] && set -- "$@" --type "$type"
+		"$@"
+	else
+		# stdin -> copy
+		temp_file=$(mktemp)
+		trap 'rm -f "$temp_file"' EXIT
+		cat > "$temp_file"
+		set -- wl-copy
+		[ "$primary" = 1 ] && set -- "$@" --primary
+		[ -n "$type" ] && set -- "$@" --type "$type"
+		"$@" < "$temp_file"
+	fi
 else
-    temp_file=$(mktemp)
-    trap 'rm -f "$temp_file"' EXIT
-
-    cat > "$temp_file"
-
-    if [ "$XDG_SESSION_TYPE" = "wayland" ] || [ -n "$WAYLAND_DISPLAY" ]; then
-        # Wayland
-        if command -v wl-copy >/dev/null 2>&1; then
-            wl-copy < "$temp_file"
-        else
-            echo "Error: wl-copy not found. Please install wl-clipboard." >&2
-            exit 1
-        fi
-    else
-        if command -v xclip >/dev/null 2>&1; then
-            xclip -selection primary < "$temp_file"
-            xclip -selection clipboard < "$temp_file"
-        else
-            echo "Error: xclip not found. Please install xclip." >&2
-            exit 1
-        fi
-    fi
+	if [ -t 0 ]; then
+		# paste -> stdout
+		sel=clipboard
+		[ "$primary" = 1 ] && sel=primary
+		if [ -n "$type" ]; then
+			xclip -selection "$sel" -t "$type" -o
+		else
+			xclip -selection "$sel" -o
+		fi
+	else
+		# stdin -> copy
+		temp_file=$(mktemp)
+		trap 'rm -f "$temp_file"' EXIT
+		cat > "$temp_file"
+		if [ "$primary" = 1 ]; then
+			# primary only
+			if [ -n "$type" ]; then
+				xclip -selection primary -t "$type" < "$temp_file"
+			else
+				xclip -selection primary < "$temp_file"
+			fi
+		else
+			# write both selections (Ctrl-V and middle-click)
+			if [ -n "$type" ]; then
+				xclip -selection primary   -t "$type" < "$temp_file"
+				xclip -selection clipboard -t "$type" < "$temp_file"
+			else
+				xclip -selection primary   < "$temp_file"
+				xclip -selection clipboard < "$temp_file"
+			fi
+		fi
+	fi
 fi
