@@ -5,6 +5,7 @@
 
 ########### Fixed Variables (dont change)
 dir="$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel)" #dotfiles git root directory
+systemd=".config/systemd/user.conf.d/timeout.conf .config/systemd/user/pass-secret-service.service.d/override.conf"
 i3config=.config/i3/config #combines with below to make i3
 i3statusconfig=.config/i3status/config
 dotfiles=.config/dotfiles/
@@ -46,7 +47,7 @@ i3=" $i3config $i3statusconfig"
 xfiles=" .config/X11/xinitrc .config/X11/.Xresources .config/X11/.Xmodmap .config/neovide $zathura $picom $dunst $ncmpcpp $sxhkdconfig $rofi $gtk $qt $alacritty $wezterm"
 bash=" .bashrc .bashrc_extra .bash_profile $sh $pam"
 zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam"
-files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $gitconfig $npm $faucet"
+files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $gitconfig $npm $faucet $systemd"
 
 ###########
 pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $eww $opencode $desktop_apps $sshconfig" #platform specific dotfiles

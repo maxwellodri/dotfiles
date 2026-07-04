@@ -109,3 +109,4 @@ alacritty
 inotify-tools
 keychain
 autossh
+#pass-secret-service-bin #AUR: org.freedesktop.secrets provider backed by pass (replaces gnome-keyring)
