@@ -249,6 +249,11 @@ USER_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 mkdir -p "$USER_CONFIG_HOME/systemd/user"
 copy_files "systemd-services/user" "$USER_CONFIG_HOME/systemd/user" false
 
+# Copy tag-specific user systemd services (e.g. user-hackerman/, user-pc/)
+if [ -d "systemd-services/user-${dotfile_tag}" ]; then
+    copy_files "systemd-services/user-${dotfile_tag}" "$USER_CONFIG_HOME/systemd/user" false
+fi
+
 # Handle individual files in system_configs/etc
 print_header "Installing System Configurations"
 copy_files "system_configs/etc/NetworkManager" "/etc/NetworkManager" true false "644" "root"
@@ -296,6 +301,7 @@ enable_service --user git-reminder.timer
 enable_service --user dunst.service
 
 [ "$dotfile_tag" = "pc" ] && enable_service --user vps-socks.service
+[ "$dotfile_tag" = "hackerman" ] && enable_service --user keyboard-remap.service
 
 enable_service atd
 
