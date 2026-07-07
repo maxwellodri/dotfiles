@@ -65,12 +65,7 @@ Or run specific script if you know which one:
 
 ### 5. After Completion
 
-Suggest a kernel-style commit message (not conventional commits):
-
-Examples:
-- "makesymlinks: add support for alacritty config"
-- "zsh: enable autosuggestions plugin"
-- "nvim: add lsp configuration for rust-analyzer"
+Remind the user to commit after completing tasks (do not commit yourself).
 
 ---
 
