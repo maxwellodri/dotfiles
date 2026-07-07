@@ -22,7 +22,7 @@ description: Search for products, compare prices across stores, check availabili
 
 | Tool | Purpose | Required |
 |------|---------|----------|
-| `scripts/websearch` | Brave Search API wrapper. Primary product discovery and price comparison. AU/EN defaults, clean text output or raw JSON with `-j`. Symlinked into the skill directory so both workspace-root-relative (`scripts/websearch`) and skill-relative paths work. | Yes |
+| `websearch` | Brave Search API wrapper. Primary product discovery and price comparison. AU/EN defaults, clean text output or raw JSON with `-j`. On `$PATH` — invoke as bare `websearch`. | Yes |
 | staticICE (`staticice.com.au`) | AU price aggregator. First port of call for comparing prices across all AU stores at once. Playwright is needed to scrape it. | No (but strongly recommended) |
 | Playwright MCP | Browser automation for scraping staticICE and deep-diving individual store pages (detailed specs, shipping thresholds, stock verification). **Browsing is read-only (no disk modifications) — it IS planning.** | No |
 
@@ -106,17 +106,17 @@ After staticICE, use `websearch` for supplementary discovery — finding product
 
 **Broad discovery:**
 ```bash
-scripts/websearch "wireless headphones under 100 AUD buy Australia"
+websearch "wireless headphones under 100 AUD buy Australia"
 ```
 
 **Store-scoped searches** (target specific stores from REFERENCE.md):
 ```bash
-scripts/websearch "wireless headphones site:amazon.com.au OR site:jbhifi.com.au OR site:scorptec.com.au"
+websearch "wireless headphones site:amazon.com.au OR site:jbhifi.com.au OR site:scorptec.com.au"
 ```
 
 **Structured extraction** (when you want to parse results programmatically):
 ```bash
-scripts/websearch -j "DDR5-5600 32GB RAM kit Australia"
+websearch -j "DDR5-5600 32GB RAM kit Australia"
 ```
 
 Each result includes: title, URL, description (HTML tags stripped). Build the comparison table directly from these fields.

@@ -1,16 +1,16 @@
 ---
 name: web-browser-use
-description: "Drive a headless browser through the Playwright MCP server — navigate, read rendered pages, click, type, fill forms, scrape tables, and capture screenshots. Use when the user asks to open or browse a website, check or fill a web form, scrape JavaScript-rendered content, automate a multi-step web flow, or interact with a login-gated site. For plain keyword web search, prefer ./scripts/websearch instead of launching a full browser."
+description: "Drive a headless browser through the Playwright MCP server — navigate, read rendered pages, click, type, fill forms, scrape tables, and capture screenshots. Use when the user asks to open or browse a website, check or fill a web form, scrape JavaScript-rendered content, automate a multi-step web flow, or interact with a login-gated site. For plain keyword web search, prefer websearch instead of launching a full browser."
 ---
 
 # Web Browser Use
 
-## When to use a browser (vs `./scripts/websearch`)
+## When to use a browser (vs `websearch`)
 
-- **`./scripts/websearch`** → plain keyword search, result links/snippets. Cheap, no browser.
+- **`websearch`** → plain keyword search, result links/snippets. Cheap, no browser.
 - **Browser (this skill)** → anything interactive or rendered: click flows, form submission, JS-rendered pages, login-gated content, reading the live DOM, screenshots, scraping tables, multi-step automation.
 
-If a task is just "search the web for X", try `./scripts/websearch` first. Reach for the browser when you need to *act on* or *read the rendered* page.
+If a task is just "search the web for X", try `websearch` first. Reach for the browser when you need to *act on* or *read the rendered* page.
 
 ## The MCP gateway
 
@@ -74,7 +74,7 @@ When you hit one:
 
 1. Stop the automation. Do **not** click through, solve puzzles, or retry in a loop.
 2. Tell the user: which site/page, what kind of challenge it is, and what you were trying to do.
-3. Offer options: they solve it in the running browser session (you then `snapshot`/continue), they paste cookies/credentials, or you switch approach (e.g. back to `./scripts/websearch`, an API, or a different source).
+3. Offer options: they solve it in the running browser session (you then `snapshot`/continue), they paste cookies/credentials, or you switch approach (e.g. back to `websearch`, an API, or a different source).
 4. Resume only after the user confirms humanness is proven.
 
 This also applies to login walls you can't auth with provided credentials — ask, don't guess passwords.

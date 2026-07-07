@@ -2,25 +2,25 @@
 
 ## websearch Script
 
-Wraps the Brave Search API with AU/EN defaults. Located at `scripts/websearch` in the workspace root (`~/source/dotfiles/scripts/websearch`). Symlinked into the skill directory at `scripts/websearch` for convenience.
+Wraps the Brave Search API with AU/EN defaults. On `$PATH` as bare `websearch` (the export is in `.config/sh/shrc`); the script itself lives under `pi/scripts/` in the dotfiles repo.
 
 ### Usage
 
 ```bash
 # Basic text search (default, 10 results)
-scripts/websearch "wireless headphones Australia buy"
+websearch "wireless headphones Australia buy"
 
 # Raw JSON output (-j) for programmatic parsing
-scripts/websearch -j "DDR5-5600 32GB RAM kit"
+websearch -j "DDR5-5600 32GB RAM kit"
 
 # Fewer results (-n)
-scripts/websearch -n 5 "vital wheat gluten buy Australia"
+websearch -n 5 "vital wheat gluten buy Australia"
 
 # Pipe query via stdin
-echo "Baldur's Gate 3 cheapest price" | scripts/websearch
+echo "Baldur's Gate 3 cheapest price" | websearch
 
 # Store-scoped queries using site: operator
-scripts/websearch "headphones site:amazon.com.au OR site:jbhifi.com.au"
+websearch "headphones site:amazon.com.au OR site:jbhifi.com.au"
 ```
 
 ### Hardcoded Defaults

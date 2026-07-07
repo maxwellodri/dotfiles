@@ -8,11 +8,11 @@
 1. Runs pre-flight check — websearch OK
 2. Runs broad discovery:
    ```
-   scripts/websearch "wireless headphones under 100 AUD buy Australia"
+   websearch "wireless headphones under 100 AUD buy Australia"
    ```
 3. Runs store-scoped search:
    ```
-   scripts/websearch "wireless headphones under $100 site:amazon.com.au OR site:jbhifi.com.au"
+   websearch "wireless headphones under $100 site:amazon.com.au OR site:jbhifi.com.au"
    ```
 4. Builds comparison table from websearch results
 
@@ -58,7 +58,7 @@
 1. Runs pre-flight check — websearch OK
 2. Searches IsThereAnyDeal and stores:
    ```
-   scripts/websearch "Baldur's Gate 3 cheapest price Australia buy"
+   websearch "Baldur's Gate 3 cheapest price Australia buy"
    ```
 3. Presents:
 
@@ -81,7 +81,7 @@
 1. Runs pre-flight check — websearch OK
 2. Broad search:
    ```
-   scripts/websearch "vital wheat gluten buy Australia"
+   websearch "vital wheat gluten buy Australia"
    ```
 3. Presents whatever AU sources appear (health food stores, online grocers, Amazon AU)
 

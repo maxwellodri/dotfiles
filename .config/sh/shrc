@@ -29,7 +29,7 @@ export PI_CODING_AGENT_DIR="$SOURCE/pi"
 export PASSWORD_STORE_GENERATED_LENGTH=30
 export QMK="$SOURCE/qmk_firmware"
 export JUPYTERLAB_DIR="$HOME/.local/share/jupyter/lab"
-export PATH="$BIN:$BIN/steam_scripts:$HOME/.local/share/cargo/bin:$HOME/.local/bin:$PATH"
+export PATH="$HOME/source/dotfiles/pi/scripts:$BIN:$BIN/steam_scripts:$HOME/.local/share/cargo/bin:$HOME/.local/bin:$PATH"
 export MANPAGER='nvim +Man!'
 # systemctl --user import-environment moved to .zshrc_extra.<tag> (per-platform, not for agent users)
 

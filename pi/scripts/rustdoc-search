@@ -1,0 +1,210 @@
+#!/usr/bin/env bash
+#
+# rustdoc-search — fetch a single Rust item's docs from docs.rs as compact markdown.
+#
+# Retrieval primitive designed for LLM/subagent consumption: ~hundreds of tokens
+# per item instead of the ~tens of thousands a whole-crate dump costs.
+#
+#   rustdoc-search <crate>                      # list root module contents
+#   rustdoc-search <crate> <ItemPath>           # render one item (docs + signature + members)
+#   rustdoc-search serde Deserialize
+#   rustdoc-search serde de::Deserializer
+#   rustdoc-search serde de                     # list a submodule's contents
+#   rustdoc-search tokio spawn --version 1.45
+#
+# ItemPath is a Rust path using `::`, with or without the leading crate name.
+# Matching is by path suffix against the rustdoc-JSON path table, so
+# `Deserialize` and `serde::de::Deserialize` both work.
+#
+# JSON is cached at $RUSTDOC_CACHE (default /tmp/pi-rust-docs). Use --refresh to
+# re-download. Requires curl, jq, gunzip.
+
+set -euo pipefail
+
+cache="${RUSTDOC_CACHE:-/tmp/pi-rust-docs}"
+version="latest"
+refresh=0
+raw=0
+
+usage() {
+    cat <<'EOF'
+Usage: rustdoc-search [OPTIONS] <crate> [item-path]
+
+Fetch a Rust item's docs from docs.rs as compact markdown.
+
+Arguments:
+  <crate>        Crate name, e.g. serde, tokio
+  <item-path>    Optional Rust path (serde::de::Deserializer or just Deserializer).
+                 Omit to list the crate's root module contents.
+
+Options:
+  -V, --version <V>  Crate version or semver (default: latest)
+  -r, --refresh      Re-download the rustdoc JSON, ignoring cache
+  --raw              Dump the resolved item's full inner JSON (for deep type info)
+  -h, --help         Show this help
+
+Env:
+  RUSTDOC_CACHE      Cache directory (default: /tmp/pi-rust-docs)
+EOF
+    exit 0
+}
+
+die() { echo "Error: $*" >&2; exit 1; }
+
+positional=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -V|--version) version="${2:-}"; [[ -n "$version" ]] || die "--version requires a value"; shift 2 ;;
+        -r|--refresh) refresh=1; shift ;;
+        --raw)        raw=1; shift ;;
+        -h|--help)    usage ;;
+        -*)           die "Unknown option: $1" ;;
+        *)            positional+=("$1"); shift ;;
+    esac
+done
+
+[[ ${#positional[@]} -ge 1 ]] || die "No crate provided. See --help."
+crate="${positional[0]}"
+item="${positional[1]:-}"
+
+for cmd in curl jq gunzip; do
+    command -v "$cmd" >/dev/null 2>&1 || die "$cmd is not installed"
+done
+
+# Resolve "latest" to a concrete version for a stable cache key.
+if [[ "$version" == "latest" ]]; then
+    resolved=$(curl -s -H "User-Agent: rustdoc-search" "https://crates.io/api/v1/crates/${crate}" \
+        | jq -r '.crate.max_version // empty' 2>/dev/null) || resolved=""
+    [[ -n "$resolved" ]] && version="$resolved"
+fi
+
+mkdir -p "$cache"
+json="${cache}/${crate}_${version}.json"
+
+if [[ ! -f "$json" || "$refresh" -eq 1 ]]; then
+    url="https://docs.rs/crate/${crate}/${version}/json.gz"
+    if ! curl -sfL "$url" | gunzip > "${json}.tmp" 2>/dev/null; then
+        rm -f "${json}.tmp"
+        die "Failed to fetch rustdoc JSON from ${url}. (docs.rs only builds JSON for releases after 2025-05-23; try pinning an older crate with --version)"
+    fi
+    mv "${json}.tmp" "${json}"
+fi
+
+# Resolve this crate's numeric id (rustdoc convention: 0, but derive it).
+crate_id=$(jq -r '.paths[.root|tostring].crate_id // 0' "$json")
+
+# ---- No item given: list the root module's direct children. ----
+if [[ -z "$item" ]]; then
+    jq -r '
+        . as $r | ($r.index[$r.root|tostring].inner.module.items // []) as $kids
+        | "# module \($r.paths[$r.root|tostring].path | join("::"))  \($kids|length) items\n\n"
+        + ([$kids[] | tostring as $id | $r.index[$id] as $c
+            | ( if $c.inner.use then
+                  "- import: \($c.inner.use.name)  _(from \($c.inner.use.source))_"
+                else
+                  ($r.paths[$id] // {kind:"?", path:[$c.name // "?"]})
+                  | "- \(.kind): \(.path|join("::"))"
+                end )] | join("\n"))
+    ' "$json"
+    exit 0
+fi
+
+# ---- Resolve item path → id by path suffix among this crate's items. ----
+# Split on '::' (not per-char ':', which would insert empty middle segments).
+mapfile -t segs <<< "${item//::/$'\n'}"
+segs_json=$(printf '%s\n' "${segs[@]}" | jq -R . | jq -s .)
+
+resolve=$(jq --argjson segs "$segs_json" --argjson cid "$crate_id" -r '
+    .paths | to_entries
+    | map(select(.value.crate_id == $cid and (.value.path[-($segs|length):] == $segs)))
+    | if   length == 0 then "NONE"
+      elif length == 1 then .[0].key
+      else "AMBIG\n" + (map("  " + (.value.path|join("::")) + "  [" + (.value.kind) + "]") | join("\n"))
+      end
+' "$json")
+
+case "$resolve" in
+    NONE)
+        # Fallback: follow `pub use` re-exports whose imported name == last segment.
+        last_seg="${segs[-1]}"
+        resolve=$(jq --arg last "$last_seg" -r '
+            .index | to_entries
+            | map(select(.value.inner.use.name == $last) | .value.inner.use.id)
+            | unique
+            | if   length == 1 then (.[0]|tostring)
+              elif length > 1  then "AMBIG\n" + (map(tostring)|join(", "))
+              else "NONE" end
+        ' "$json")
+        ;;
+esac
+case "$resolve" in
+    NONE) die "No item matching '$item' in $crate $version. Run 'rustdoc-search $crate' to see what's available." ;;
+    AMBIG*) echo "Error: '$item' is ambiguous in $crate $version:" >&2; echo "${resolve#AMBIG}" >&2; exit 1 ;;
+esac
+id="$resolve"
+
+# External re-exports point outside this crate's .index. Detect and point instead.
+if ! jq --arg id "$id" -e '.index[$id] != null' "$json" >/dev/null 2>&1; then
+    src=$(jq --arg id "$id" -r '
+        .index | to_entries[] | select((.value.inner.use.id // -1) == ($id|tonumber))
+        | .value.inner.use.source // empty' "$json" | head -1)
+    if [[ -n "$src" ]]; then
+        ext="${src%%::*}"
+        echo "# (external re-export) $item"
+        echo
+        echo "Resolves to \`$src\`, defined in crate **$ext**."
+        echo "Its docs are not in $crate's rustdoc JSON — fetch the defining crate:"
+        echo
+        echo "  rustdoc-search $ext ${src#*::}"
+        exit 0
+    fi
+    die "Resolved id $id is not in $crate's index and no re-export source was found."
+fi
+
+if [[ "$raw" -eq 1 ]]; then
+    jq --arg id "$id" '.index[$id] | {name, docs, inner}' "$json"
+    exit 0
+fi
+
+# ---- Render the item as compact markdown, dispatching on kind. ----
+jq --arg id "$id" -r '
+    . as $r | $r.index[$id] as $it | $it.inner as $inner
+    | ($inner | keys[0]) as $kind
+    | ($r.paths[$id].path // [$it.name] | join("::")) as $fqp
+    | "# \($kind) \($fqp)\n\n"
+      + (($it.docs // "") | rtrimstr("\n"))
+      + (if ($it.docs // "") != "" then "\n\n" else "" end)
+      + (
+          if $kind == "module" then
+              "## Contents\n" +
+              ( [($inner.module.items // [])[] | tostring as $cid | $r.index[$cid] as $c
+                  | ( if $c.inner.use then
+                        "- import: \($c.inner.use.name)  _(from \($c.inner.use.source))_"
+                      else
+                        ($r.paths[$cid] // {kind:"?", path:[$c.name // "?"]})
+                        | "- \(.kind): \(.path|join("::"))"
+                      end )] | join("\n") )
+          elif $kind == "trait" then
+              "## Methods\n" +
+              ( [($inner.trait.items // [])[] | tostring as $mid | $r.index[$mid] as $m
+                  | "- \($m.name)\(if ($m.inner.function.has_body == false) then "  _(required)_" else "" end)"]
+                | join("\n") )
+          elif $kind == "struct" then
+              ($inner.struct.fields // {}) as $f
+              | "## Fields\n" +
+              ( if   ($f|has("Named")) then [ $f.Named[] | "- \(.name)" ] | join("\n")
+                elif ($f|has("Plain")) then "- (\($f.Plain|length) unnamed, tuple)"
+                else "- (unit, no fields)" end )
+          elif $kind == "enum" then
+              "## Variants\n" +
+              ( [($inner.enum.variants // [])[] | tostring as $vid | $r.index[$vid].name // "?"]
+                | map("- \(.)") | join("\n") )
+          elif $kind == "function" then
+              ($inner.function) as $fn
+              | "## Signature\n```\nfn \($it.name)"
+                + (if ($fn.generics.params | length) > 0
+                   then "<" + ([$fn.generics.params[].name]|join(", ")) + ">" else "" end)
+                + "(" + ([$fn.sig.inputs[] | .[0]] | join(", ")) + ")\n```"
+          else "# \($kind) (no specific renderer; use --raw)" end
+        )
+' "$json"
