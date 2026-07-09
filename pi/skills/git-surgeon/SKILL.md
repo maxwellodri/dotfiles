@@ -19,10 +19,11 @@ committer**.
    - `git-surgeon stage <id> --lines a-b` — stage part of a hunk
    - `git add <file>` — stage an untracked file (whole file, atomically)
 3. **Everything else is FORBIDDEN.** Never run, in any form:
-   `git-surgeon commit`, `commit-to`, `unstage`, `discard`, `fold`, `amend`,
+   `git-surgeon commit`, `commit-to`, `discard`, `fold`, `amend`,
    `reword`, `squash`, `undo`, `undo-file`, `split`, `move`; nor plain
    `git commit`, `git rebase`, `git reset --hard`, `git revert`, `git push`,
    etc. If a forbidden op seems necessary, STOP and ask the user.
+  - Caveat: unstaging/staging changes is ok - changes to the git history/log are not
 4. **Never commit.** The user commits every group. You stage, you stop, you
    wait.
 5. **No unattended iteration.** Stage one logical commit's worth, then yield.
