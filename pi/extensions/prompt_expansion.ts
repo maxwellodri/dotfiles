@@ -1,15 +1,33 @@
 /**
- * prompt_ref_expansion — inline @path file references into the prompt.
+ * prompt_expansion — inline @path references into the prompt.
  *
  * pi's TUI inserts `@path` references as plain-text pointers; the model has to
  * call `read` to see them. This extension expands `@path` tokens in the most
- * recent user message by appending each referenced file's contents below the
+ * recent user message by appending each referenced target's contents below the
  * original prompt, leaving what the user typed byte-for-byte intact:
  *
  *   read through @foobar.ts and tell me what you think.
  *
  *   @foobar.ts:
  *   <foobar.ts contents>
+ *
+ * Directories expand to a sorted entry listing (subdirectories suffixed with
+ * `/`, symlinks with `@`) — like `ls -1 -F`:
+ *
+ *   what's in @pi/extensions/?
+ *
+ *   @pi/extensions/:
+ *   footer.ts
+ *   fuzzy-filter.ts
+ *   herald.ts
+ *
+ * Hidden entries (names starting with `.`) are included only when there are
+ * few of them (see LIMIT_HIDDEN_FILES). When included, the header is the bare
+ * `@<dir>/:`. When omitted, pi appends a note so the model knows it's seeing a
+ * partial listing:
+ *
+ *   @<dir>/ (hidden files omitted):
+ *   <visible entries only>
  *
  * Hook: `context` event (fires before each LLM call with a deep copy of the
  * messages — non-destructive, the session keeps the literal `@path` text).
@@ -20,16 +38,29 @@
  *     ripgrep): if the file contains any 0x00 byte it's treated as binary.
  *     An 8KB head sample is checked first so a huge binary is rejected
  *     without reading it all; if clean, the full file is injected.
- *   - no size cap on text files (deliberate; re-add one if context bloat bites)
- *   - mtime-cached so repeated turns don't re-read unchanged files
+ *   - directories are listed one level deep (never recursed); `.`/`..` excluded
+ *   - no size cap on text files or entry count (deliberate; re-add one if
+ *     context bloat bites)
+ *   - file contents are mtime-cached so repeated turns don't re-read unchanged
+ *     files; directory listings are re-read each turn (cheap readdir, and the
+ *     listing may change between turns)
  *   - only the latest user message is expanded (keeps history lean)
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { statSync, openSync, readSync, closeSync } from "node:fs";
+import { statSync, openSync, readSync, closeSync, readdirSync } from "node:fs";
+import type { Stats, Dirent } from "node:fs";
 import { resolve as resolvePath, isAbsolute } from "node:path";
 import { homedir } from "node:os";
 
 const SAMPLE_BYTES = 8192;
+
+/**
+ * Hidden-entry threshold for directory listings. Flow: count a directory's
+ * hidden entries (names starting with `.`); if the count exceeds this limit,
+ * list visible entries only (and annotate the header accordingly), otherwise
+ * list visible + hidden.
+ */
+const LIMIT_HIDDEN_FILES = 50;
 
 // @ matches only when preceded by start-of-string or whitespace — kept
 // consistent with the autocomplete trigger (fuzzy-filter.ts), which pi-tui's
@@ -40,30 +71,42 @@ const SAMPLE_BYTES = 8192;
 const AT_TOKEN = /(^|\s)@(\S+)/g;
 const TRAIL_PUNCT = /[.,;:!?)]+$/;
 
-// absPath -> { mtimeMs, text: string | null }  (null = known-unreadable)
+// absPath -> { mtimeMs, text: string | null }  (null = known-unreadable/binary)
+// Only files are cached; directory listings are re-read each turn.
 const cache = new Map<string, { mtimeMs: number; text: string | null }>();
 
 interface Resolved {
 	absPath: string;
-	text: string;
+	header: string; // e.g. "@foobar.ts:" / "@<dir>/:" / "@<dir>/ (hidden files omitted):"
+	body: string;
 }
 
 function resolveRef(ref: string, cwd: string): Resolved | null {
 	let p = ref.startsWith("~") ? homedir() + ref.slice(1) : ref;
 	p = isAbsolute(p) ? p : resolvePath(cwd, p);
 
-	let st: { isFile: () => boolean; size: number; mtimeMs: number };
+	let st: Stats;
 	try {
-		const s = statSync(p);
-		st = { isFile: s.isFile.bind(s), size: s.size, mtimeMs: s.mtimeMs };
+		st = statSync(p);
 	} catch {
 		return null;
 	}
-	if (!st.isFile()) return null;
 
-	const cached = cache.get(p);
-	if (cached && cached.mtimeMs === st.mtimeMs) {
-		return cached.text == null ? null : { absPath: p, text: cached.text };
+	if (st.isDirectory()) return resolveDir(ref, p);
+	if (st.isFile()) return resolveFile(ref, p, st.size, st.mtimeMs);
+	return null;
+}
+
+/** Read a regular file, returning its full text (or null if binary/unreadable). */
+function resolveFile(
+	ref: string,
+	absPath: string,
+	size: number,
+	mtimeMs: number,
+): Resolved | null {
+	const cached = cache.get(absPath);
+	if (cached && cached.mtimeMs === mtimeMs) {
+		return cached.text == null ? null : { absPath, header: `@${ref}:`, body: cached.text };
 	}
 
 	// Text vs binary: NUL-byte heuristic (git/ripgrep method). Check an 8KB
@@ -71,28 +114,71 @@ function resolveRef(ref: string, cwd: string): Resolved | null {
 	// all; if the sample is clean, read the full file.
 	let fd: number;
 	try {
-		fd = openSync(p, "r");
+		fd = openSync(absPath, "r");
 	} catch {
 		return null;
 	}
 	try {
-		const sampleLen = Math.min(st.size, SAMPLE_BYTES);
+		const sampleLen = Math.min(size, SAMPLE_BYTES);
 		if (sampleLen > 0) {
 			const sample = Buffer.alloc(sampleLen);
 			readSync(fd, sample, 0, sampleLen, 0);
 			if (sample.includes(0)) {
-				cache.set(p, { mtimeMs: st.mtimeMs, text: null });
+				cache.set(absPath, { mtimeMs, text: null });
 				return null;
 			}
 		}
-		const full = Buffer.alloc(st.size);
-		if (st.size > 0) readSync(fd, full, 0, st.size, 0);
+		const full = Buffer.alloc(size);
+		if (size > 0) readSync(fd, full, 0, size, 0);
 		const text = full.toString("utf8");
-		cache.set(p, { mtimeMs: st.mtimeMs, text });
-		return { absPath: p, text };
+		cache.set(absPath, { mtimeMs, text });
+		return { absPath, header: `@${ref}:`, body: text };
 	} finally {
 		closeSync(fd);
 	}
+}
+
+/**
+ * List a directory's entries (one level deep), gating hidden entries by count.
+ * Hidden included (≤ LIMIT)  → bare header "@<dir>/:".
+ * Hidden omitted (> LIMIT)   → "@<dir>/ (hidden files omitted):".
+ */
+function resolveDir(ref: string, absPath: string): Resolved | null {
+	let entries: Dirent[];
+	try {
+		entries = readdirSync(absPath, { withFileTypes: true });
+	} catch {
+		return null;
+	}
+	// readdirSync already excludes "." and "..".
+	const hiddenCount = entries.reduce(
+		(n, e) => n + (e.name.startsWith(".") ? 1 : 0),
+		0,
+	);
+	const includeHidden = hiddenCount <= LIMIT_HIDDEN_FILES;
+
+	const body = entries
+		.filter((e) => includeHidden || !e.name.startsWith("."))
+		.sort(compareEntries)
+		.map(entryLabel)
+		.join("\n");
+
+	const dirRef = ref.endsWith("/") ? ref : ref + "/";
+	const header = includeHidden ? `@${dirRef}:` : `@${dirRef} (hidden files omitted):`;
+	return { absPath, header, body };
+}
+
+/** Case-insensitive alphabetical sort (matches `ls` ordering well enough). */
+function compareEntries(a: Dirent, b: Dirent): number {
+	const x = a.name.toLowerCase();
+	const y = b.name.toLowerCase();
+	return x < y ? -1 : x > y ? 1 : 0;
+}
+
+/** `ls -F`-style label: directories → `/`, symlinks → `@`, else bare name. */
+function entryLabel(e: Dirent): string {
+	const suffix = e.isDirectory() ? "/" : e.isSymbolicLink() ? "@" : "";
+	return e.name + suffix;
 }
 
 function extractRefs(text: string): string[] {
@@ -117,7 +203,7 @@ function buildAppendBlock(text: string, cwd: string): string | null {
 		const resolved = resolveRef(ref, cwd);
 		if (!resolved || seen.has(resolved.absPath)) continue;
 		seen.add(resolved.absPath);
-		blocks.push(`@${ref}:\n${resolved.text}`);
+		blocks.push(`${resolved.header}\n${resolved.body}`);
 	}
 	return blocks.length > 0 ? blocks.join("\n") : null;
 }
