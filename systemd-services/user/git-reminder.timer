@@ -1,9 +1,9 @@
 [Unit]
-Description=Check for uncommitted git changes every 2 hours
+Description=Check for uncommitted git changes daily
 
 [Timer]
 OnBootSec=10min
-OnUnitActiveSec=2h
+OnUnitActiveSec=24h
 
 [Install]
 WantedBy=timers.target
