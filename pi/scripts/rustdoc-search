@@ -25,6 +25,7 @@ cache="${RUSTDOC_CACHE:-/tmp/pi-rust-docs}"
 version="latest"
 refresh=0
 raw=0
+supported_format_version=57   # rustdoc JSON schema these jq queries target
 
 usage() {
     cat <<'EOF'
@@ -82,12 +83,28 @@ mkdir -p "$cache"
 json="${cache}/${crate}_${version}.json"
 
 if [[ ! -f "$json" || "$refresh" -eq 1 ]]; then
-    url="https://docs.rs/crate/${crate}/${version}/json.gz"
-    if ! curl -sfL "$url" | gunzip > "${json}.tmp" 2>/dev/null; then
-        rm -f "${json}.tmp"
-        die "Failed to fetch rustdoc JSON from ${url}. (docs.rs only builds JSON for releases after 2025-05-23; try pinning an older crate with --version)"
+    # Pin to $supported_format_version: a 200 from docs.rs guarantees that exact
+    # schema, so the jq queries are valid by construction. A 404 is the tripwire —
+    # docs.rs dropped this format_version (=> a newer one, 58+, is now served; the
+    # script needs updating) — distinguished from a crate/version that simply has
+    # no JSON (pre-2025-05-23 builds) by probing the un-pinned default URL.
+    url="https://docs.rs/crate/${crate}/${version}/json/${supported_format_version}.gz"
+    code=$(curl -sL -w "%{http_code}" -o "${json}.gz.tmp" "$url" || true)
+    if [[ "$code" != "200" ]]; then
+        rm -f "${json}.gz.tmp"
+        # No HTTP response at all => network/DNS, not a docs.rs signal.
+        if [[ "$code" == "000" ]]; then
+            die "Couldn't reach docs.rs for ${crate} ${version} (no HTTP response — likely a network/DNS error). Retry; if only docs.rs is affected, fall back to websearch or curl."
+        fi
+        # Pinned fv 404'd while the crate's default JSON exists => fv was dropped.
+        if [[ "$(curl -sL -o /dev/null -w "%{http_code}" "https://docs.rs/crate/${crate}/${version}/json.gz")" == "200" ]]; then
+            die "docs.rs no longer serves rustdoc JSON format_version ${supported_format_version} for ${crate} ${version} (HTTP ${code}); $((supported_format_version + 1))+ is now available — inform the user to update this script (bump supported_format_version and adapt the jq). Fallback (schema-independent): use websearch or curl to fetch this crate's docs another way."
+        fi
+        # No JSON at all => nonexistent or pre-2025-05-23.
+        die "No rustdoc JSON for ${crate} ${version} (HTTP ${code}); crate/version may not exist, or predates docs.rs JSON builds (releases before 2025-05-23 have none). Fallback (schema-independent): use websearch or curl to fetch this crate's docs another way."
     fi
-    mv "${json}.tmp" "${json}"
+    gunzip -c "${json}.gz.tmp" > "${json}" 2>/dev/null || { rm -f "${json}.gz.tmp"; die "Failed to decompress rustdoc JSON from ${url}."; }
+    rm -f "${json}.gz.tmp"
 fi
 
 # Resolve this crate's numeric id (rustdoc convention: 0, but derive it).
@@ -109,17 +126,28 @@ if [[ -z "$item" ]]; then
     exit 0
 fi
 
-# ---- Resolve item path → id by path suffix among this crate's items. ----
-# Split on '::' (not per-char ':', which would insert empty middle segments).
+# ---- Resolve item path → id. Two stages, then a `pub use` fallback:
+#   1. Exact canonical path  <crate>::<item>  — disambiguates a same-named
+#      macro/trait from the crate-root module (e.g. `quote quote` → the
+#      `quote!` macro at `quote::quote`, not the root module `quote`).
+#   2. Suffix match  <item>  within this crate — catches items nested in
+#      submodules when you don't know the full path (e.g. `serde Deserialize`
+#      → `serde::de::Deserialize`); lenient about a leading crate-name segment.
+#   3. Follow a `pub use` whose imported name == last segment (re-exports).
+# `<crate>` with no item lists the root module instead of resolving.
 mapfile -t segs <<< "${item//::/$'\n'}"
 segs_json=$(printf '%s\n' "${segs[@]}" | jq -R . | jq -s .)
 
-resolve=$(jq --argjson segs "$segs_json" --argjson cid "$crate_id" -r '
-    .paths | to_entries
-    | map(select(.value.crate_id == $cid and (.value.path[-($segs|length):] == $segs)))
-    | if   length == 0 then "NONE"
-      elif length == 1 then .[0].key
-      else "AMBIG\n" + (map("  " + (.value.path|join("::")) + "  [" + (.value.kind) + "]") | join("\n"))
+resolve=$(jq --argjson segs "$segs_json" --argjson cid "$crate_id" --arg crate "$crate" -r '
+    $segs as $suffix
+    | ([ $crate ] + $suffix) as $full
+    | (.paths | to_entries | map(select(.value.crate_id == $cid))) as $mine
+    | ($mine | map(select(.value.path == $full))) as $exact
+    | (if ($exact | length) >= 1 then $exact
+       else $mine | map(select(.value.path[-($suffix|length):] == $suffix)) end) as $hits
+    | if   ($hits | length) == 0 then "NONE"
+      elif ($hits | length) == 1 then $hits[0].key
+      else "AMBIG\n" + ($hits | map("  " + (.value.path | join("::")) + "  [" + .value.kind + "]") | join("\n"))
       end
 ' "$json")
 
