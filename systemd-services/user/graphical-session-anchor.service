@@ -1,3 +1,6 @@
+# Lifecycle-managed by .config/X11/xinitrc (start on session enter, stop on
+# exit) under the dwm startx flow from .zprofile.pc — NOT enabled via systemd,
+# which is why this unit has no [Install] section.
 [Unit]
 Description=Anchor graphical-session targets for startx/standalone-WM sessions
 Requires=graphical-session-pre.target graphical-session.target
