@@ -21,6 +21,7 @@ newsboat=.config/newsboat/config
 ytdl=.config/youtube-dl/config
 tmux=".config/tmux/"
 gpg=.gnupg/gpg-agent.conf
+pamgnupg=.config/pam-gnupg
 emacs=".emacs.d/init.el"
 mpd=" .config/mpd/mpd.conf"
 nix=" .config/nix/nix.conf"
@@ -47,7 +48,7 @@ i3=" $i3config $i3statusconfig"
 xfiles=" .config/X11/xinitrc .config/X11/.Xresources .config/X11/.Xmodmap .config/neovide $zathura $picom $dunst $ncmpcpp $sxhkdconfig $rofi $gtk $qt $alacritty $wezterm"
 bash=" .bashrc .bashrc_extra .bash_profile $sh $pam"
 zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam"
-files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $gitconfig $npm $faucet $systemd"
+files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $pamgnupg $gitconfig $npm $faucet $systemd"
 
 ###########
 pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $eww $opencode $desktop_apps $sshconfig" #platform specific dotfiles

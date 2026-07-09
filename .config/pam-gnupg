@@ -1,0 +1,7 @@
+# pam_gnupg: keygrips to unlock at login (login password == GPG passphrase).
+# Encryption [E] subkeys of the primary key
+#   431DD3FA641B6D307F0648FE46C8E7690CAA9957  (maxwellodri)
+# Listed by `gpg -K --with-keygrip`. Lines starting with '#' and anything after
+# the 40-char keygrip are ignored. pc and hackerman share this key.
+374CEB05D6B28F8DAB5F51066BC7CE55776F5325
+E53283F01BE2FDACE41398398D68208FE637C320

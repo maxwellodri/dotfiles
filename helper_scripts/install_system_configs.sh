@@ -186,6 +186,15 @@ if [ -d "systemd-services/user-${dotfile_tag}" ]; then
     copy_files "systemd-services/user-${dotfile_tag}" "$USER_CONFIG_HOME/systemd/user"
 fi
 
+# Make the GnuPG agent socket listen from the start of the user session so that
+# pam_gnupg (run during PAM login) presets the key into the same systemd-managed
+# agent that pass-secret-service later shares — preventing a dual agent and the
+# first-login pinentry prompt. gpg-agent.socket is `static` (no [Install] section),
+# so create the sockets.target.wants symlink by hand.
+USER_SOCKETS_WANTS="$USER_CONFIG_HOME/systemd/sockets.target.wants"
+mkdir -p "$USER_SOCKETS_WANTS"
+ln -sfn /usr/lib/systemd/user/gpg-agent.socket "$USER_SOCKETS_WANTS/gpg-agent.socket"
+
 # /etc and /usr config files
 header "Installing system configurations"
 copy_files "system_configs/etc/NetworkManager"      "/etc/NetworkManager"          true "644" "root"
@@ -194,6 +203,7 @@ copy_files "system_configs/etc/pacman.d/hooks"      "/etc/pacman.d/hooks"       
 copy_files "system_configs/etc/polkit-1/rules.d"    "/etc/polkit-1/rules.d"        true "644" "root"
 copy_files "system_configs/usr/share/xdg-desktop-portal" "/usr/share/xdg-desktop-portal" true "644" "root"
 copy_files "system_configs/etc/sudoers.d"           "/etc/sudoers.d"               true "440" "root"
+copy_files "system_configs/etc/pam.d"               "/etc/pam.d"                   true "644" "root"
 if [ "$dotfile_tag" = "pc" ]; then
     copy_files "system_configs/etc/systemd"         "/etc/systemd"                 true "644" "root"
 fi
