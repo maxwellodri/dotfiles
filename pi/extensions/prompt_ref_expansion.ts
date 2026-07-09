@@ -31,10 +31,13 @@ import { homedir } from "node:os";
 
 const SAMPLE_BYTES = 8192;
 
-// @ matches when preceded by start-of-string, whitespace, or an opening
-// bracket/paren. Does NOT match after letters/quotes/backticks, so emails
-// (foo@bar.com) and code spans (`@foo`) are left alone.
-const AT_TOKEN = /(^|[\s(\[{])@(\S+)/g;
+// @ matches only when preceded by start-of-string or whitespace — kept
+// consistent with the autocomplete trigger (fuzzy-filter.ts), which pi-tui's
+// compiled Editor hardcodes to the same boundary and no extension can widen.
+// So (@foo)/[@foo]/{@foo} are intentionally NOT treated as mentions. Also
+// does not match after letters/quotes/backticks, so emails (foo@bar.com) and
+// code spans (`@foo`) are left alone.
+const AT_TOKEN = /(^|\s)@(\S+)/g;
 const TRAIL_PUNCT = /[.,;:!?)]+$/;
 
 // absPath -> { mtimeMs, text: string | null }  (null = known-unreadable)
