@@ -108,3 +108,18 @@ Already added alongside X11 counterparts — no removals needed for dual-support
 ## Browser Window Management
 
 - ungoogled-chromium — used by the capitalism shopping skill via Playwright MCP. Configure compositor window rules to toggle visibility of the shopping browser window (e.g. move to hidden workspace, minimize, or set opacity to 0). This lets the agent browse in the background while user intervention (CAPTCHA/login) is only needed when pinged.
+
+## pi herald extension (focus detection)
+
+- `pi/extensions/herald.ts` — `focusedWindowPid()` suppresses "agent done"
+  notifications when the user is already looking at the pi instance. The X11
+  path uses `xdotool getactivewindow` + `getwindowpid`. The Wayland branch is a
+  **stub returning `null`**, which makes `isUserLooking()` default to "not
+  looking" (notifications always fire). Implement with compositor-specific IPC,
+  returning the focused top-level window's owning PID so the existing
+  tmux-client ancestor check keeps working:
+  - sway / wlroots — `swaymsg -t get_tree` (focused container's `pid`)
+  - Hyprland — `hyprctl activewindow -j` → `.pid`
+  - GNOME/mutter — `gdbus ... org.gnome.Shell`
+  - KWin — `qdbus org.kde.KWin`
+  - generic — `wlr-foreign-toplevel-management` (needs a helper; no simple CLI)

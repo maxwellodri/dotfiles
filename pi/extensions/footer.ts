@@ -3,8 +3,8 @@
  * a dim leader-key indicator (N / ?) to the bottom-right corner.
  *
  * This extension owns the footer ONLY. The indicator state arrives over pi's
- * shared event bus: leader-editor.ts emits `leader-editor:state` (boolean)
- * when its C-x prefix arms/disarms. The two extensions are fully decoupled —
+ * shared event bus: leader-key.ts emits `leader-key:state` (boolean) when its
+ * C-x prefix arms/disarms. The two extensions are fully decoupled —
  * no imports, no shared module (pi loads extensions with jiti
  * `moduleCache:false`, so a plain cross-import would not share state anyway).
  *
@@ -34,8 +34,8 @@ import type { AssistantMessage } from "@earendil-works/pi-ai";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
-/** Event-bus channel published by leader-editor.ts. */
-const STATE_CHANNEL = "leader-editor:state";
+/** Event-bus channel published by leader-key.ts. */
+const STATE_CHANNEL = "leader-key:state";
 
 /** Indicator state, cached from the event bus. Defaults to idle ("N"). */
 let leaderArmed = false;
