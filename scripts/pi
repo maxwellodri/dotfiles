@@ -8,7 +8,9 @@
 #    panes and the wezterm window are never affected.
 #  - Reads the z.ai API key from pass; the value never touches disk/history.
 #
-# Note: pi is run as a child (NOT exec'd) so the EXIT trap can reset the bg.
+# Subcommands (update/list/install/...) and --help/--version are exec'd straight
+# through (they need no key/session/canvas and must stay argv[1]); the normal
+# coding-agent invocation is run as a child so the EXIT trap can reset the bg.
 set -euo pipefail
 
 : "${dotfiles:?pi wrapper: \$dotfiles is not set (source your shell rc).}"
@@ -16,6 +18,19 @@ set -euo pipefail
 export PI_CODING_AGENT_DIR="$dotfiles/pi"
 export PI_CODING_AGENT_SESSION_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi/sessions"
 mkdir -p "$PI_CODING_AGENT_SESSION_DIR"
+
+PI_BIN="${PI_BIN:-$HOME/.local/bin/pi}"
+
+# pi's subcommands and the help/version flags must be argv[1] to be recognized;
+# prepending --session-dir (or anything else) demotes them into agent prompts
+# (e.g. 'pi list' would launch the AI with "list" as the prompt). They also need
+# no API key, session dir, or themed canvas, so exec them through untouched.
+# PI_CODING_AGENT_DIR is still exported above so list/config/update manage the
+# dotfiles-managed extensions rather than the default location.
+case "${1:-}" in
+	install|remove|uninstall|update|list|config|--help|-h|--version|-v)
+		exec "$PI_BIN" "$@" ;;
+esac
 
 # API key from pass. Evaluated here only; passed to pi via its env.
 if ! ZAI_API_KEY="$(pass zai_pi_api_key)"; then
@@ -34,7 +49,5 @@ if [ -t 1 ]; then
 fi
 
 # Run pi (child, not exec) so the trap fires on its return. Pass --session-dir
-# explicitly (highest precedence; reliable across pi versions). PI_BIN defaults
-# to the official installer's user-owned location (~/.local/bin/pi); override
-# with the PI_BIN env var if pi is installed elsewhere.
-ZAI_API_KEY="$ZAI_API_KEY" "${PI_BIN:-$HOME/.local/bin/pi}" --session-dir "$PI_CODING_AGENT_SESSION_DIR" "$@"
+# explicitly (highest precedence; reliable across pi versions).
+ZAI_API_KEY="$ZAI_API_KEY" "$PI_BIN" --session-dir "$PI_CODING_AGENT_SESSION_DIR" "$@"
