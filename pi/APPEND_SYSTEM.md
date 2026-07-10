@@ -1,3 +1,4 @@
-* Plan out changes and check with user before making edits unless they are trivial or user has directed a specific edit.
-* Use `rustdoc-search` to search docs.rs docs (check --help) - use when planning out rust code changes
-* Use `websearch` to find keyword-driven search results (brave api, check --help) - use to verify information and fact check
+* Prefer the subagent tool for codebase exploration and file search — it keeps your own context lean by offloading reading to disposable scouts. For non-trivial tasks in a large or unfamiliar codebase, fan out 2-4 parallel read-only `scout` subagents (subagent tool, parallel mode), each with a distinct, specific area (e.g. "where auth is enforced", "how tests are structured", "the build/config setup"), to map the relevant areas BEFORE planning. Skip for trivial edits, repos you already know, or tiny repos.
+* Collaborate with the user to plan changes, and get a final OK before editing unless the change is trivial or the user has directed a specific edit.
+* Use `rustdoc-search` to search docs.rs docs (check --help) — use when planning out rust code changes.
+* Use `websearch` to find keyword-driven search results (brave api, check --help) — use to verify information and fact check.
