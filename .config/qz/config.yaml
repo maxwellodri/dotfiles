@@ -151,3 +151,6 @@ projects:
   vw:
     path: ~/Documents/notes
     on_enter: "vw"
+
+  afk:
+    path: ~
