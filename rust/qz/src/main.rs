@@ -165,7 +165,7 @@ fn tmux_create_session(name: &str, project: &Project) -> Result<()> {
     }
 
     let mut tmux_windows: Vec<(&String, &Window)> = project.tmux_windows.iter().collect();
-    let first = tmux_windows.swap_remove(0);
+    let first = tmux_windows.remove(0);
 
     Command::new("tmux")
         .args([
