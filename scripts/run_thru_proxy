@@ -1,0 +1,333 @@
+#!/usr/bin/env bash
+#
+# run_thru_proxy - run a command inside a network namespace whose default route
+# is a Mullvad WireGuard tunnel. Interception is KERNEL-LEVEL (a real netns +
+# wg interface), so it works for ANY process: curl, firefox, steam, games, UDP,
+# statically-linked binaries - everything in the namespace egresses through
+# Mullvad.
+#
+#   run_thru_proxy curl https://api.ipify.org   # -> Mullvad exit IP
+#   run_thru_proxy steam                        # all steam + game traffic
+#   run_thru_proxy up                           # bring ns up persistently
+#   run_thru_proxy status                       # ns state + egress IP
+#   run_thru_proxy down                         # tear the ns down
+#
+# Lightweight SOCKS modes (no root; only tools that read *_proxy - curl/git/..):
+#   run_thru_proxy --env curl ...               # one-off command via SOCKS
+#   eval "$(run_thru_proxy on)"                 # proxy THIS shell's traffic
+#   eval "$(run_thru_proxy off)"                # ...and stop
+#
+# Requires: ip, wg, iptables, runuser, wireguard (kernel). Root is obtained via
+# sudo (shutil.sh's run_elevated: GUI askpass if SHUTIL_PREFER_GUI, else sudo).
+# Host networking is untouched: only a veth pair + one MASQUERADE rule are added
+# on the host, all cleaned up on `down` or when an ephemeral run exits.
+#
+# The wrapped command ALWAYS runs as the invoking (non-root) user via runuser,
+# never as root - enforced by target_user().
+set -euo pipefail
+
+REPO_ROOT="$(git -C "$(dirname "$(realpath "$0")")" rev-parse --show-toplevel)"
+[ -f "$REPO_ROOT/.config/sh/shutil.sh" ] || { echo "shutil.sh not found" >&2; exit 1; }
+# shellcheck source=.config/sh/shutil.sh
+. "$REPO_ROOT/.config/sh/shutil.sh"
+
+# ---- netns plumbing (override via env if needed) ----------------------------
+NS="${VPS_NETNS:-mullvad}"                 # netns name
+VR="${VPS_NETNS_VETH_ROOT:-vmv0}"          # veth endpoint on the host
+VN="${VPS_NETNS_VETH_NS:-vmv1}"            # veth endpoint in the netns
+WG="${VPS_NETNS_WG:-wgmv}"                 # wireguard iface inside the netns
+NS_IP=10.200.1.2                           # netns veth ip
+ROOT_IP=10.200.1.1                         # host veth ip
+SUBNET=10.200.1.0/24
+OUTIF_FILE="/run/${NS}.outiface"
+
+# Mullvad tunnel params (MV_*) are parsed from the host's wg-mullvad.conf by
+# load_mullvad_conf() - nothing Mullvad-specific is hardcoded in this script.
+CONF=""
+MV_ADDR="" MV_DNS="" MV_PEER="" MV_EP="" MV_EP_IP="" MV_KEY=""
+
+# ---- helpers -----------------------------------------------------------------
+die() { echo "run_thru_proxy: $*" >&2; exit 1; }
+
+usage() {
+    sed -n '3,24p' "$0" | sed 's/^# \{0,1\}//'
+    echo
+    echo "usage: run_thru_proxy [--env] [up|down|status|on|off]"
+    echo "       run_thru_proxy [--] <command> [args...]"
+}
+
+ns_exists() { [ -e "/run/netns/$NS" ]; }   # stat-based: works for non-root callers
+default_iface() { ip -o -4 route show default 2>/dev/null | awk '{print $5; exit}'; }
+
+# Resolve the user the wrapped command must run as, and REFUSE root. We always
+# escalate to enter the netns, then drop straight back - the program is never
+# root. Sets the global $user.
+target_user() {
+    user="${SUDO_USER:-$USER}"
+    local uid
+    uid="$(id -u "$user" 2>/dev/null)" || die "unknown user '$user'"
+    (( uid != 0 )) || die "refusing to run a wrapped command as root; invoke as a normal user"
+}
+
+# ---- mullvad config: validate env + resolve + parse the host's conf ---------
+# Reference path: $dotfiles/system_configs/host-specific/$dotfile_tag/etc/wireguard/
+# wg-mullvad.conf. Defensively require $dotfiles/$dotfile_tag in the parent shell
+# (set by .zprofile). sudo strips those vars, so under the root-half we fall back
+# to the git-derived REPO_ROOT + the .dotfile_tag file.
+field() { grep -iE "^[[:space:]]*$1[[:space:]]*=" "$CONF" | head -1 | sed -E 's/^[^=]*=[[:space:]]*//'; }
+
+load_mullvad_conf() {
+    if (( EUID != 0 )); then
+        [[ -n "${dotfiles:-}" ]]    || die "\$dotfiles is not set - source your shell profile (e.g. .zprofile)"
+        [[ -n "${dotfile_tag:-}" ]] || die "\$dotfile_tag is not set - source your shell profile (e.g. .zprofile)"
+    fi
+    local root="${dotfiles:-$REPO_ROOT}"
+    local tag="${dotfile_tag:-}"
+    [[ -n "$tag" ]] || tag="$(cat "$REPO_ROOT/.dotfile_tag" 2>/dev/null || true)"
+    [[ -n "$tag" ]] || die "can't determine dotfile_tag (env unset and no $REPO_ROOT/.dotfile_tag)"
+
+    CONF="$root/system_configs/host-specific/$tag/etc/wireguard/wg-mullvad.conf"
+    [[ -f "$CONF" ]] || die "no wg-mullvad.conf for host '$tag': $CONF"
+
+    # ini-ish parse; field names are unique across [Interface]/[Peer].
+    MV_ADDR="$(field Address | cut -d, -f1)"
+    MV_DNS="$(field DNS | cut -d, -f1)"
+    MV_PEER="$(field PublicKey)"
+    MV_EP="$(field Endpoint)"
+    MV_EP_IP="${MV_EP%:*}"
+    MV_KEY="${MV_KEY:-$(field PostUp | sed -E 's/.*private-key[[:space:]]+//' | awk '{print $1}')}"
+    [[ -n "$MV_ADDR" ]]  || die "conf missing Address: $CONF"
+    [[ -n "$MV_DNS" ]]   || die "conf missing DNS: $CONF"
+    [[ -n "$MV_PEER" ]]  || die "conf missing [Peer] PublicKey: $CONF"
+    [[ -n "$MV_EP" ]]    || die "conf missing [Peer] Endpoint: $CONF"
+    [[ -n "$MV_EP_IP" ]] || die "conf Endpoint has no host part: $CONF"
+    [[ -n "$MV_KEY" ]]   || MV_KEY="/etc/wireguard/wg0.key"
+}
+
+# Early validation for the netns paths (up / run-a-command / ephemeral): require
+# $dotfiles+$dotfile_tag in the parent shell and that the host's wg-mullvad.conf
+# exists. Conf-free subcommands (--help/--env/on/off/down/status) bypass it, so
+# e.g. `down` can still clean up a leaked ns even with a broken/missing conf.
+# Under the sudo'd root-half the env vars are stripped, so load_mullvad_conf
+# falls back to REPO_ROOT + .dotfile_tag and just parses MV_* for setup_ns.
+case "${1:-}" in
+    -h|--help|--env|on|off|""|down|status) : ;;
+    *) load_mullvad_conf ;;
+esac
+
+setup_ns() {
+    [[ $EUID -eq 0 ]] || die "setup_ns must run as root"
+    ns_exists && die "netns '$NS' already exists; run 'run_thru_proxy down' first"
+    command -v wg >/dev/null || die "wireguard-tools not installed"
+    [[ -r "$MV_KEY" ]]     || die "can't read mullvad key $MV_KEY"
+
+    modprobe wireguard 2>/dev/null || true
+    local out; out="$(default_iface)" || die "no default route on host"
+    echo "$out" > "$OUTIF_FILE"
+
+    # From here on, any failure or signal must roll back partial setup.
+    # Persistent callers (cmd_up) disarm on success; ephemeral keeps it armed.
+    arm_teardown_traps
+
+    # namespace + loopback. Ensure /run/netns is world-traversable so non-root
+    # callers can detect the ns (ip netns add can create it 700 under umask 077).
+    ip netns add "$NS"
+    chmod 755 /run/netns 2>/dev/null || true
+    ip -n "$NS" link set lo up
+
+    # veth pair: host <-> netns. This is the namespace's ONLY path to the real
+    # internet, used solely so WireGuard's outer UDP packet to the endpoint can
+    # escape - otherwise it would loop back into the tunnel it's trying to build.
+    ip link add "$VR" type veth peer name "$VN"
+    ip link set "$VN" netns "$NS"
+    ip addr add "$ROOT_IP/24" dev "$VR"
+    ip link set "$VR" up
+    ip -n "$NS" addr add "$NS_IP/24" dev "$VN"
+    ip -n "$NS" link set "$VN" up
+
+    # NAT the netns underlay out the host's real interface (ip_forward is on)
+    iptables -t nat -A POSTROUTING -s "$SUBNET" -o "$out" -j MASQUERADE
+
+    # underlay default (temporary - replaced by wg below)
+    ip -n "$NS" route add default via "$ROOT_IP" dev "$VN"
+
+    # wireguard inside the netns
+    ip netns exec "$NS" ip link add "$WG" type wireguard
+    ip netns exec "$NS" wg set "$WG" private-key "$MV_KEY" \
+        peer "$MV_PEER" endpoint "$MV_EP" allowed-ips 0.0.0.0/0
+    ip netns exec "$NS" ip addr add "$MV_ADDR" dev "$WG"
+    ip netns exec "$NS" ip link set "$WG" up
+
+    # pin endpoint out the veth (more-specific beats default), then flip default
+    ip -n "$NS" route add "$MV_EP_IP/32" via "$ROOT_IP" dev "$VN"
+    ip -n "$NS" route replace default dev "$WG"
+
+    # per-ns DNS (ip netns exec bind-mounts this over /etc/resolv.conf).
+    # NB: must be world-readable - sudo inherits the caller's umask (often 077),
+    # which would otherwise make this 600 and break DNS for the dropped command.
+    install -d -m 755 "/etc/netns/$NS"
+    echo "nameserver $MV_DNS" > "/etc/netns/$NS/resolv.conf"
+    chmod 644 "/etc/netns/$NS/resolv.conf"
+
+    wait_for_tunnel  # WG is lazy: warm the handshake before handing off
+}
+
+# block until the mullvad gateway answers through the tunnel (handshake done)
+wait_for_tunnel() {
+    local i=0
+    while (( i++ < 20 )); do
+        ip netns exec "$NS" ping -c1 -W1 "$MV_DNS" >/dev/null 2>&1 && return 0
+        sleep 0.3
+    done
+    return 1
+}
+
+teardown_ns() {
+    [[ $EUID -eq 0 ]] || return 0
+    local out=""
+    [[ -f "$OUTIF_FILE" ]] && out="$(cat "$OUTIF_FILE" 2>/dev/null)"
+    ip netns del "$NS" 2>/dev/null || true
+    ip link del "$VR" 2>/dev/null || true
+    [[ -n "$out" ]] && iptables -t nat -D POSTROUTING -s "$SUBNET" -o "$out" -j MASQUERADE 2>/dev/null || true
+    rm -rf "/etc/netns/$NS" "$OUTIF_FILE" 2>/dev/null || true
+}
+
+# Install/remove the teardown traps. teardown_ns is idempotent, so it's harmless
+# if both a signal handler and the EXIT trap fire. Signal handlers just `exit`,
+# which runs the EXIT trap -> one clean teardown. Covers Ctrl-C (INT), kill
+# (TERM), terminal close (HUP) and Ctrl-\ (QUIT). SIGKILL can't be trapped, so
+# `kill -9` will leak the ns (recover with: run_thru_proxy down).
+arm_teardown_traps() {
+    trap teardown_ns EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    trap 'exit 129' HUP
+    trap 'exit 131' QUIT
+}
+disarm_teardown_traps() { trap - EXIT INT TERM HUP QUIT; }
+
+# report the egress IP seen from inside the ns (empty string if unreachable)
+probe_ns() {
+    ip netns exec "$NS" curl -sS --max-time 8 https://api.ipify.org 2>/dev/null || true
+}
+
+# ---- management commands -----------------------------------------------------
+cmd_up() {
+    if (( EUID != 0 )); then run_elevated "$0" up; return; fi
+    if ns_exists; then echo "already up"; else
+        setup_ns
+        disarm_teardown_traps   # persistent: the ns must survive our exit
+        local ip="" i=0
+        while (( i++ < 10 )) && [[ -z "$ip" ]]; do ip="$(probe_ns)"; [[ -z "$ip" ]] && sleep 0.5; done
+        echo "netns '$NS' up. egress: ${ip:-<no answer yet>}"
+    fi
+    "$0" status
+}
+
+cmd_down() {
+    if (( EUID != 0 )); then run_elevated "$0" down; return; fi
+    if ns_exists; then teardown_ns; echo "down"; else echo "already down"; fi
+}
+
+cmd_status() {
+    if ! ns_exists; then echo "state: down"; return; fi
+    if (( EUID != 0 )); then run_elevated "$0" status; return; fi
+    echo "state: up (netns '$NS')"
+    ip -n "$NS" -o route | sed 's/^/  /'
+    local ip; ip="$(probe_ns)"; echo "  egress: ${ip:-<unreachable>}"
+}
+
+# default action: run the given command inside the netns (as the invoking user)
+run_default() {
+    [[ $# -ge 1 ]] || { usage; exit 2; }
+    target_user
+    if ns_exists; then
+        # persistent: reuse the live tunnel (one sudo, no teardown)
+        run_elevated ip netns exec "$NS" runuser -u "$user" -- "$@"
+    else
+        # ephemeral: root half brings the ns up, runs the cmd, tears down on exit
+        run_elevated "$0" __ephemeral__ "$user" -- "$@"
+    fi
+}
+
+# ---- env-var (SOCKS) mode: no root, only tools that read *_proxy -------------
+# bash's /dev/tcp error can only be silenced at the call site of a function.
+_probe_tcp() { exec 3<>"/dev/tcp/$1/$2"; }
+socks_url() { echo "socks5h://${VPS_SOCKS_PROXY:-127.0.0.1:1080}"; }
+
+# one-off: run CMD with proxy env exported into its own process
+cmd_env() {
+    [[ $# -ge 1 ]] || die "no command given"
+    local socks="${VPS_SOCKS_PROXY:-127.0.0.1:1080}"
+    if ! _probe_tcp "${socks%:*}" "${socks##*:}" 2>/dev/null; then
+        die "nothing listening on ${socks} - is vps-socks.service running?"
+    fi
+    local url; url="$(socks_url)"
+    export ALL_PROXY="$url"  all_proxy="$url"
+    export HTTP_PROXY="$url" http_proxy="$url"
+    export HTTPS_PROXY="$url" https_proxy="$url"
+    export NO_PROXY="localhost,127.0.0.1,::1,.local" no_proxy="localhost,127.0.0.1,::1,.local"
+    exec "$@"
+}
+
+# whole-session toggle: print shell code for the caller to eval. A subprocess
+# can't mutate the parent shell's env, hence the eval:
+#   eval "$(run_thru_proxy on)"     # proxy this shell's curl/git/pip/...
+#   eval "$(run_thru_proxy off)"    # back to direct
+cmd_session() {
+    local socks="${VPS_SOCKS_PROXY:-127.0.0.1:1080}" url; url="socks5h://${socks}"
+    case "${1:-}" in
+        on)
+            printf 'export ALL_PROXY=%q all_proxy=%q\n' "$url" "$url"
+            printf 'export HTTP_PROXY=%q http_proxy=%q\n' "$url" "$url"
+            printf 'export HTTPS_PROXY=%q https_proxy=%q\n' "$url" "$url"
+            printf 'export NO_PROXY=%q no_proxy=%q\n' "localhost,127.0.0.1,::1,.local" "localhost,127.0.0.1,::1,.local"
+            printf 'echo "shell traffic -> SOCKS5 %s"\n' "$socks"
+            ;;
+        off)
+            echo 'unset ALL_PROXY all_proxy HTTP_PROXY http_proxy HTTPS_PROXY https_proxy NO_PROXY no_proxy'
+            echo 'echo "shell traffic -> direct"'
+            ;;
+        *) die "usage: run_thru_proxy on|off  (eval it: eval \"\$(run_thru_proxy on)\")" ;;
+    esac
+}
+
+# ---- dispatch ----------------------------------------------------------------
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    up)     shift; cmd_up; exit $? ;;
+    down)   shift; cmd_down; exit $? ;;
+    status) shift; cmd_status; exit $? ;;
+    on|off) cmd_session "$1"; exit $? ;;          # eval "$(run_thru_proxy on)"
+    --env)  shift; cmd_env "$@" ;;                # cmd_env execs
+    __ephemeral__)  # internal: sudo re-entry for ephemeral mode
+        shift
+        euser="${1:-}"; shift
+        [[ "${1:-}" == "--" ]] && shift
+        [[ $EUID -eq 0 ]] || die "internal error: __ephemeral__ needs root"
+        [[ -n "$euser" ]] || die "internal error: no target user"
+        (( $(id -u "$euser") != 0 )) || die "refusing to run a wrapped command as root"
+        setup_ns
+        # Run the command `setsid`'d into its OWN process group, then `wait`.
+        # This is the key to reliable teardown on SIGINT/SIGQUIT: if the command
+        # shared our pgrp, a Ctrl-C would kill it directly and bash's WCE rule
+        # would skip our trap (leaking the ns). In its own pgrp it survives the
+        # signal, so the trap fires and kills it explicitly. teardown_ns is
+        # idempotent, so EXIT firing after a signal handler's exit is harmless.
+        set +e
+        setsid ip netns exec "$NS" runuser -u "$euser" -- "$@" &
+        cmd_pid=$!
+        # shellcheck disable=SC2329  # invoked via the trap strings below
+        _ephemeral_cleanup() { kill -- -"$cmd_pid" 2>/dev/null || kill "$cmd_pid" 2>/dev/null || true; teardown_ns; }
+        trap '_ephemeral_cleanup' EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+        trap 'exit 129' HUP
+        trap 'exit 131' QUIT
+        wait "$cmd_pid"; rc=$?
+        exit "$rc"
+        ;;
+    --) shift; run_default "$@" ;;
+    "") usage; exit 0 ;;
+    *) run_default "$@" ;;
+esac

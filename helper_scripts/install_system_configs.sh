@@ -212,6 +212,9 @@ fi
 if [ -f "system_configs/host-specific/$dotfile_tag/etc/wireguard/wg0.conf" ]; then
     copy_host_file "$dotfile_tag" "etc/wireguard/wg0.conf" "/etc/wireguard" true "600" "root"
 fi
+if [ -f "system_configs/host-specific/$dotfile_tag/etc/wireguard/wg-mullvad.conf" ]; then
+    copy_host_file "$dotfile_tag" "etc/wireguard/wg-mullvad.conf" "/etc/wireguard" true "600" "root"
+fi
 
 # reload + reseed
 header "Reloading configurations"
