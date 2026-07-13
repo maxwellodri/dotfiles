@@ -83,20 +83,6 @@ projects:
   dmenu:
     path: ~/source/dmenu
 
-  frostbolt:
-    path: ~/source/frostbolt
-    filter_out: "./target/"
-    tmux_windows:
-      dev:
-        layout: even-horizontal
-        panes:
-          - nvim .
-      slop:
-        layout: even-horizontal
-        panes:
-          - nvim .
-          - pi
-
   agentcoder:
     path: ~/source/agent_coder
 
@@ -144,3 +130,7 @@ projects:
 
   afk:
     path: ~
+    find_skip: true
+    tmux_windows:
+      hello:
+        panes:

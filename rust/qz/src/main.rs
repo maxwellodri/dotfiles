@@ -72,6 +72,8 @@ struct Project {
     #[serde(default)]
     find_override_root_only: bool,
     #[serde(default)]
+    find_skip: bool,
+    #[serde(default)]
     tmux_windows: IndexMap<String, Window>,
 }
 
@@ -474,7 +476,7 @@ fn cmd_find(gui: bool, path_only: bool) -> Result<()> {
     let project = config.as_ref().and_then(|c| {
         c.projects.iter().find(|(_, p)| {
             let ppath = expand_path(&p.path);
-            cwd.starts_with(&ppath) || cwd == ppath
+            !p.find_skip && (cwd.starts_with(&ppath) || cwd == ppath)
         })
     });
 
