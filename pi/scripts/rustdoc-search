@@ -25,7 +25,10 @@ cache="${RUSTDOC_CACHE:-/tmp/pi-rust-docs}"
 version="latest"
 refresh=0
 raw=0
-supported_format_version=57   # rustdoc JSON schema these jq queries target
+# rustdoc JSON format_version range these jq queries are verified to handle
+# (tested across fv57, fv59, fv60; fv58 is inferred-stable between 57 and 59).
+min_supported_format_version=57
+max_supported_format_version=60
 
 usage() {
     cat <<'EOF'
@@ -72,6 +75,38 @@ for cmd in curl jq gunzip; do
     command -v "$cmd" >/dev/null 2>&1 || die "$cmd is not installed"
 done
 
+# Hardcoded exception: the `bevy` crate is an umbrella that only re-exports
+# from per-domain sub-crates (bevy_app, bevy_ecs, ...), so a bare root listing
+# is a single useless `bevy_internal` import. Short-circuit before fetching
+# its JSON and point at the right sub-crate instead. (With an item path,
+# `rustdoc-search bevy App` is already routed correctly by the external
+# re-export branch below.)
+if [[ "$crate" == "bevy" ]]; then
+    cat <<'EOF'
+# bevy — umbrella crate (no items of its own)
+
+The `bevy` crate is an umbrella that only re-exports from per-domain
+sub-crates, so its root has nothing to list. Search the specific sub-crate
+instead. Modules map to crates as `bevy::<m>` → `bevy_<m>`:
+
+  bevy::app       → bevy_app
+  bevy::ecs       → bevy_ecs
+  bevy::math      → bevy_math
+  bevy::transform → bevy_transform
+  bevy::render    → bevy_render
+  bevy::asset     → bevy_asset
+
+Examples:
+  rustdoc-search bevy_app App
+  rustdoc-search bevy_ecs                       # list bevy_ecs's root
+  rustdoc-search bevy_ecs world::World
+
+For a `bevy::<module>::<Item>` path: drop `bevy::`, prefix the module with
+`bevy_`, and search that crate.
+EOF
+    exit 0
+fi
+
 # Resolve "latest" to a concrete version for a stable cache key.
 if [[ "$version" == "latest" ]]; then
     resolved=$(curl -s -H "User-Agent: rustdoc-search" "https://crates.io/api/v1/crates/${crate}" \
@@ -83,28 +118,35 @@ mkdir -p "$cache"
 json="${cache}/${crate}_${version}.json"
 
 if [[ ! -f "$json" || "$refresh" -eq 1 ]]; then
-    # Pin to $supported_format_version: a 200 from docs.rs guarantees that exact
-    # schema, so the jq queries are valid by construction. A 404 is the tripwire —
-    # docs.rs dropped this format_version (=> a newer one, 58+, is now served; the
-    # script needs updating) — distinguished from a crate/version that simply has
-    # no JSON (pre-2025-05-23 builds) by probing the un-pinned default URL.
-    url="https://docs.rs/crate/${crate}/${version}/json/${supported_format_version}.gz"
-    code=$(curl -sL -w "%{http_code}" -o "${json}.gz.tmp" "$url" || true)
+    # Fetch the un-pinned default JSON: docs.rs serves whatever rustdoc JSON
+    # format_version a crate's build emitted, and that varies per build (older
+    # builds are 57; recent ones 59/60). Pinning a single fv 404s/500s for every
+    # build that emits a different one, so take the default and validate its
+    # format_version field against the supported range below.
+    url="https://docs.rs/crate/${crate}/${version}/json.gz"
+    code=$(curl -sL -w "%{http_code}" -o "${json}.tmp" "$url" || true)
     if [[ "$code" != "200" ]]; then
-        rm -f "${json}.gz.tmp"
+        rm -f "${json}.tmp"
         # No HTTP response at all => network/DNS, not a docs.rs signal.
         if [[ "$code" == "000" ]]; then
             die "Couldn't reach docs.rs for ${crate} ${version} (no HTTP response — likely a network/DNS error). Retry; if only docs.rs is affected, fall back to websearch or curl."
         fi
-        # Pinned fv 404'd while the crate's default JSON exists => fv was dropped.
-        if [[ "$(curl -sL -o /dev/null -w "%{http_code}" "https://docs.rs/crate/${crate}/${version}/json.gz")" == "200" ]]; then
-            die "docs.rs no longer serves rustdoc JSON format_version ${supported_format_version} for ${crate} ${version} (HTTP ${code}); $((supported_format_version + 1))+ is now available — inform the user to update this script (bump supported_format_version and adapt the jq). Fallback (schema-independent): use websearch or curl to fetch this crate's docs another way."
-        fi
-        # No JSON at all => nonexistent or pre-2025-05-23.
+        # No JSON at all => nonexistent crate/version or pre-2025-05-23 build.
         die "No rustdoc JSON for ${crate} ${version} (HTTP ${code}); crate/version may not exist, or predates docs.rs JSON builds (releases before 2025-05-23 have none). Fallback (schema-independent): use websearch or curl to fetch this crate's docs another way."
     fi
-    gunzip -c "${json}.gz.tmp" > "${json}" 2>/dev/null || { rm -f "${json}.gz.tmp"; die "Failed to decompress rustdoc JSON from ${url}."; }
-    rm -f "${json}.gz.tmp"
+    gunzip -c "${json}.tmp" > "${json}" 2>/dev/null || { rm -f "${json}.tmp"; die "Failed to decompress rustdoc JSON from ${url}."; }
+    rm -f "${json}.tmp"
+
+    # Tripwire: docs.rs emits per-build format_versions (there is no single
+    # "current" fv), so validate the served schema against the range the jq
+    # queries are known to handle. Unlike the old fv-pinned probe — which guessed
+    # at the next version and could false-positive on a transient 500 — this
+    # reports the REAL number and fires only on a genuinely unknown schema.
+    fv=$(jq -r '.format_version // empty' "$json")
+    if [[ -z "$fv" ]] || (( fv < min_supported_format_version || fv > max_supported_format_version )); then
+        rm -f "$json"   # don't cache an unsupported schema
+        die "docs.rs served rustdoc JSON format_version ${fv:-unknown} for ${crate} ${version}; this script handles ${min_supported_format_version}–${max_supported_format_version}. Inform the user to update this script (raise max_supported_format_version and re-verify the jq). Fallback (schema-independent): use websearch or curl to fetch this crate's docs another way."
+    fi
 fi
 
 # Resolve this crate's numeric id (rustdoc convention: 0, but derive it).
@@ -236,3 +278,74 @@ jq --arg id "$id" -r '
           else "# \($kind) (no specific renderer; use --raw)" end
         )
 ' "$json"
+
+################################################################################
+# NOTES ON UPDATING — rustdoc JSON format_version handling
+# (Updated for json v58 incident; this script now handles fv 57–60)
+################################################################################
+#
+# HOW docs.rs SERVES JSON (the key model)
+#   docs.rs serves whatever rustdoc JSON format_version a crate's BUILD emitted —
+#   there is NO single global "current" fv. At the same time, different crates
+#   sit on different fvs because they were last rebuilt with different toolchains:
+#     fv57 : bevy, bevy_ecs, serde, reqwest, sqlx, pyo3, nalgebra, tracing
+#     fv59 : egui, anyhow
+#     fv60 : tokio, clap, axum, wgpu, rand
+#   (as of 2026-07; no fv58 crates were observed in the wild.)
+#
+# WHY WE DON'T PIN A SINGLE fv (the v58 lesson)
+#   An earlier version pinned `supported_format_version=57` in the URL. Pinning
+#   ANY single fv 404s/500s for every build that emits a different one, so a pin
+#   to 58 would have broken the fv57 crates AND the fv59/60 crates. Worse, the
+#   old tripwire guessed "58+ is now available" via `$((57+1))+` without ever
+#   verifying fv58 existed — a transient HTTP 500 on the pinned fv57 URL for
+#   bevy_app 0.19.0 set off a FALSE alarm that prompted this rewrite. (bevy_app
+#   0.19.0 fv57 was 10/10 → HTTP 200 minutes later; the 500 was transient.)
+#   => Current design: fetch the un-pinned default `.json.gz`, then validate the
+#      JSON's own `.format_version` against [min, max]_supported_format_version.
+#      The tripwire now reports the REAL number and fires only on a genuinely
+#      unknown schema. DO NOT reintroduce a single pinned fv.
+#
+# WHEN TO UPDATE
+#   Bump `max_supported_format_version` (and re-verify the jq) the day a crate's
+#   default JSON reports a format_version ABOVE the current max (the tripwire's
+#   message names the exact number). `min` may rise if old fvs disappear from
+#   docs.rs, but that hasn't happened — fv57 builds are still served.
+#
+# CHECKING THE CURRENT HIGH-WATER fv
+#     for cr in tokio/latest clap/latest axum/latest wgpu/latest rand/latest \
+#               egui/latest anyhow/latest bevy_ecs/latest serde/latest; do
+#       curl -sL "https://docs.rs/crate/$cr/json.gz" | gunzip -c \
+#         | jq -r '"\($cr) -> fv\(.format_version)"'
+#     done
+#
+# DOES THE jq NEED CHANGES? (usually NO)
+#   The schema for the fields this script reads has been stable across fv57–60,
+#   verified by running every renderer (module / trait / struct / enum / function
+#   signature) + path resolution + `pub use` re-export resolution against crates
+#   of each fv. The fields in play are deep, old, structural ones:
+#       .format_version  .root  .paths[]  .index[]  .paths[id].crate_id/.kind/.path
+#       .inner.<module|trait|struct|enum|function|use>  (kind = keys(inner)[0])
+#       .inner.module.items  .inner.trait.items  .inner.enum.variants
+#       .inner.struct.fields.{Named,Plain}
+#       .inner.function.{generics.params[].name, sig.inputs[], has_body}
+#       .inner.use.{name, source, id}
+#   So a typical bump is just raising `max_supported_format_version`. Only if a
+#   renderer mis-renders on the new fv do you need to touch jq — re-run the
+#   verification matrix below against the new fv and fix what breaks.
+#
+# VERIFICATION MATRIX (run against crates of EACH in-scope fv)
+#     rustdoc-search serde   Deserialize        # trait      (fv57)
+#     rustdoc-search serde                       # root list  (fv57)
+#     rustdoc-search egui    Context            # struct     (fv59)
+#     rustdoc-search tokio   spawn              # function   (fv60)
+#     rustdoc-search tokio                       # root list  (fv60)
+#     rustdoc-search <crate> <module>::<Item>   # path resolution + `pub use`
+#     rustdoc-search <bad-item>                 # error path
+#     rustdoc-search <missing-crate>            # HTTP-error path
+#
+# UPSTREAM SCHEMA REFERENCE
+#   The format_version constant and its per-version CHANGELOG live in the
+#   rust-lang/rust tree: src/rustdoc-json-output/ (see FORMAT_VERSION and the
+#   CHANGELOG.md there). When a new fv lands, diff that CHANGELOG against the
+#   fields listed above to predict whether any jq needs adapting.
