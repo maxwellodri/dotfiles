@@ -28,11 +28,19 @@ Frontmatter fields: `name`, `description`, `tools` (comma-separated allowlist),
 `model` (optional; omit to inherit the session default). The body becomes the
 agent's appended system prompt.
 
-Ships with one agent:
-- `scout` — read-only recon (`read, grep, find, ls, bash`). Returns compressed,
-  structured findings for the parent. This is the one to fan out in parallel at
-  the start of a task to map a codebase before planning. Add more agents (e.g.
-  `reviewer`, `planner`) by dropping `.md` files into `pi/agents/`.
+Ships with two agents:
+
+- `explore` — read-only recon (`read, grep, find, ls, bash`; bash used for
+  read-only lookups only). Returns compressed, structured findings for the
+  parent. Fan this out in parallel at the start of a task to map a codebase
+  before planning.
+- `general` — general-purpose worker with the full default tool set
+  (read, write, edit, bash, …). Use it to execute independent, self-contained
+  units of real work in parallel or in a chain, with an isolated context.
+  Inspired by opencode's `general` subagent.
+
+Add more agents (e.g. `reviewer`, `planner`) by dropping `.md` files into
+`pi/agents/`.
 
 ## Two deliberate deviations from upstream
 
@@ -43,7 +51,7 @@ Ships with one agent:
    the real binary via `process.argv[1]` (the wrapper always launches it
    directly) and never falls back to PATH `pi`.
 
-2. **`--no-extensions` on every child.** Recon children don't need herald,
+2. **`--no-extensions` on every child.** Children don't need herald,
    footer, theming, etc. The child's behaviour is fully pinned by `--tools`,
    `--model`, and `--append-system-prompt`.
 

@@ -16,6 +16,8 @@ When the user asks to scout a repo, or pastes a repo URL with a question, follow
 - Otherwise treat the input as a `<owner>/<repo>` or bare `<repo>` shorthand:
   - Bare name like `pi` → resolve to `https://github.com/badlogic/pi-mono.git` using `gh repo view <name> --json url` or ask the user for the owner.
   - `owner/repo` → `https://github.com/<owner>/<repo>.git`
+- If the user describes a repo, without giving a url, use gh cli, falling back
+  to websearch to find it if you dont know it
 - If resolution fails, ask the user for the full URL.
 
 ### 2. Determine the Local Path
