@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import json
 import os
 import re
 import shutil
@@ -15,6 +14,53 @@ VIDEO_EXTENSIONS = {'.mp4', '.mkv', '.webm', '.avi', '.mov', '.wmv', '.flv', '.t
 CONTAINER_NAME = "whisper-transcribe"
 WHISPER_MODEL = "base"
 LAST_USED_FILE = "/tmp/.whisper_last_used"
+
+# System prompt for the summary step, run through a headless pi agent.
+# Adapted from fabric's youtube_summary pattern (the trailing INPUT marker is
+# dropped because pi receives the transcript as its input message).
+SUMMARY_SYSTEM_PROMPT = """\
+# IDENTITY and PURPOSE
+
+You are an AI assistant specialized in creating concise, informative summaries of YouTube video content based on transcripts. Your role is to analyze video transcripts, identify key points, main themes, and significant moments, then organize this information into a well-structured summary that includes relevant timestamps. You excel at distilling lengthy content into digestible summaries while preserving the most valuable information and maintaining the original flow of the video.
+
+Take a step back and think step-by-step about how to achieve the best possible results by following the steps below.
+
+## STEPS
+
+- Carefully read through the entire transcript to understand the overall content and structure of the video
+- Identify the main topic and purpose of the video
+- Note key points, important concepts, and significant moments throughout the transcript
+- Pay attention to natural transitions or segment changes in the video
+- Extract relevant timestamps for important moments or topic changes
+- Organize information into a logical structure that follows the video's progression
+- Create a concise summary that captures the essence of the video
+- Include timestamps alongside key points to allow easy navigation
+- Ensure the summary is comprehensive yet concise
+
+## OUTPUT INSTRUCTIONS
+
+- Only output Markdown
+
+- Begin with a brief overview of the video's main topic and purpose
+
+- Structure the summary with clear headings and subheadings that reflect the video's organization
+
+- Include timestamps in [HH:MM:SS] format before each key point or section
+
+- Keep the summary concise but comprehensive, focusing on the most valuable information
+
+- Use bullet points for lists of related points when appropriate
+
+- Bold or italicize particularly important concepts or takeaways
+
+- End with a brief conclusion summarizing the video's main message or call to action
+
+- Ensure you follow ALL these instructions when creating your output.
+
+## INPUT
+
+The video transcript is provided to you as the input message.
+"""
 
 
 def is_youtube_url(s: str) -> bool:
@@ -114,21 +160,156 @@ for segment in segments:
     return transcript
 
 
+# --- YouTube transcript fetching (yt-dlp + VTT parsing, replaces fabric-ai) ---
+#
+# Mirrors fabric's --transcript-with-timestamps behavior: yt-dlp writes the
+# auto/manual subtitles as a .vtt file, which we parse into "[HH:MM:SS] text"
+# lines, deduping repeats that reappear within TIME_GAP_FOR_REPEATS seconds.
+_VTT_TAG_RE = re.compile(r"<[^>]*>")
+_VTT_TS_LINE_RE = re.compile(r"^\d+$|^\d{1,2}:\d{2}(:\d{2})?(\.\d{3})?$")
+TIME_GAP_FOR_REPEATS = 10  # seconds; repeats after this gap are kept
+
+
+def _vtt_timestamp_to_seconds(ts: str) -> int | None:
+    parts = ts.split(":")
+    if len(parts) < 2 or len(parts) > 3:
+        return None
+    try:
+        if len(parts) == 3:
+            hours, minutes, seconds = int(parts[0]), int(parts[1]), int(parts[2])
+        else:
+            hours, minutes, seconds = 0, int(parts[0]), int(parts[1])
+    except ValueError:
+        return None
+    return hours * 3600 + minutes * 60 + seconds
+
+
+def vtt_to_timestamped_text(content: str) -> str:
+    """Parse VTT subtitle content into "[HH:MM:SS] text" lines."""
+    seen: dict[str, str] = {}  # text -> last timestamp it appeared at
+    current_ts = ""
+    out: list[str] = []
+    for raw in content.split("\n"):
+        line = raw.strip()
+        if not line or line == "WEBVTT":
+            continue
+        if line.startswith(("NOTE", "STYLE", "Kind:", "Language:")):
+            continue
+        if "-->" in line:
+            current_ts = line.split(" --> ")[0].split(".")[0]
+            continue
+        # Skip bare numeric cue identifiers (no colon).
+        if _VTT_TS_LINE_RE.match(line) and ":" not in line:
+            continue
+        text = _VTT_TAG_RE.sub("", line).strip()
+        if not text or not current_ts:
+            continue
+        include = True
+        if text in seen:
+            last = _vtt_timestamp_to_seconds(seen[text])
+            now = _vtt_timestamp_to_seconds(current_ts)
+            if last is not None and now is not None and (now - last) < TIME_GAP_FOR_REPEATS:
+                include = False
+        if include:
+            out.append(f"[{current_ts}] {text}")
+            seen[text] = current_ts
+    return "\n".join(out).strip()
+
+
+def _find_vtt(directory: str, lang: str | None = None) -> str | None:
+    paths = [p for p in Path(directory).rglob("*") if p.suffix.lower() == ".vtt"]
+    if not paths:
+        return None
+    if lang:
+        for p in paths:
+            if f".{lang}." in p.name.lower():
+                return str(p)
+    return str(paths[0])
+
+
 def transcribe_youtube(url: str) -> str:
+    if not shutil.which("yt-dlp"):
+        print("Error: 'yt-dlp' not found in PATH (required for YouTube transcripts).", file=sys.stderr)
+        sys.exit(1)
     print(f"Fetching transcript from YouTube: {url}")
-    result = run_cmd(["fabric-ai", "-y", url, "--transcript-with-timestamps"])
-    return result.stdout.strip()
+    lang = os.environ.get("YTS_LANG", "en")
+    lang_match = lang[:2]
+    lang_opts = f"{lang},{lang_match}.*"
+    if lang_match != lang:
+        lang_opts += f",{lang_match}"
+    with tempfile.TemporaryDirectory(prefix="yts-youtube-") as tmp:
+        out_tmpl = os.path.join(tmp, "%(title)s.%(ext)s")
+
+        def run_ytdlp(with_lang: bool) -> None:
+            cmd = [
+                "yt-dlp", "--write-subs", "--write-auto-subs", "--skip-download",
+                "--sub-format", "vtt", "-o", out_tmpl,
+            ]
+            if with_lang:
+                cmd += ["--sub-langs", lang_opts]
+            cmd.append(url)
+            run_cmd(cmd, check=False)
+
+        run_ytdlp(with_lang=True)
+        vtt = _find_vtt(tmp, lang)
+        if vtt is None:
+            # Retry without a language restriction to grab any available subs.
+            run_ytdlp(with_lang=False)
+            vtt = _find_vtt(tmp)
+        if vtt is None:
+            print("Error: No transcript (subtitles) available for this video.", file=sys.stderr)
+            sys.exit(1)
+        content = Path(vtt).read_text(encoding="utf-8", errors="replace")
+        transcript = vtt_to_timestamped_text(content)
+
+    if not transcript:
+        print("Error: Failed to extract transcript text.", file=sys.stderr)
+        sys.exit(1)
+    return transcript
+
+
+def find_pi() -> str:
+    """Resolve the dotfiles pi wrapper used to run the summary agent headless."""
+    dotfiles = os.environ.get("dotfiles")
+    if not dotfiles:
+        print("Error: $dotfiles environment variable not set.", file=sys.stderr)
+        sys.exit(1)
+    pi_wrapper = Path(dotfiles) / "scripts" / "pi"
+    if not pi_wrapper.is_file():
+        print(f"Error: pi wrapper not found at {pi_wrapper}", file=sys.stderr)
+        sys.exit(1)
+    return str(pi_wrapper)
 
 
 def summarize(text: str) -> str:
-    print("Generating summary...")
-    result = subprocess.run(
-        ["fabric-ai", "--pattern=youtube_summary"],
-        input=text,
-        capture_output=True,
-        text=True
-    )
-    return result.stdout.strip()
+    """Summarize a transcript with a headless pi agent (no tools, ephemeral)."""
+    print("Generating summary with pi...")
+    cmd = [
+        find_pi(),
+        "--print",
+        "--no-tools",
+        "--no-extensions",
+        "--no-skills",
+        "--no-prompt-templates",
+        "--no-context-files",
+        "--no-session",
+        "--system-prompt", SUMMARY_SYSTEM_PROMPT,
+    ]
+    # Optional model override, e.g. YTS_MODEL='google/gemini-2.5-flash'.
+    model = os.environ.get("YTS_MODEL")
+    if model:
+        cmd += ["--model", model]
+    result = subprocess.run(cmd, input=text, capture_output=True, text=True)
+    if result.returncode != 0:
+        print("Error: pi failed to generate summary.", file=sys.stderr)
+        if result.stderr.strip():
+            print(result.stderr.strip(), file=sys.stderr)
+        sys.exit(1)
+    summary = result.stdout.strip()
+    if not summary:
+        print("Error: pi returned an empty summary.", file=sys.stderr)
+        sys.exit(1)
+    return summary
 
 
 def get_clipboard() -> str:
@@ -150,10 +331,6 @@ Examples:
     parser.add_argument("input", nargs="?", help="YouTube URL or path to audio/video file")
     parser.add_argument("--no-summary", action="store_true", help="Output raw transcript without summary")
     args = parser.parse_args()
-    
-    if not shutil.which("fabric-ai"):
-        print("Error: 'fabric-ai' not found in PATH.", file=sys.stderr)
-        sys.exit(1)
     
     input_val = args.input
     if not input_val:
