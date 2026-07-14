@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+#
+# git-numbered-diff — render a `git diff` with the real new-file line number
+# prefixed on every surviving (context + added) line.
+#
+# Retrieval primitive for the `review` / `review-reflect` subagents: turns
+# git's positional hunk format into a numbered view so an LLM reviewer can cite
+# exact line numbers without counting from the `@@ -a,b +c,d @@` header (which
+# LLMs get wrong constantly). This is the `__new hunk__` trick from PR-Agent's
+# git_patch_processing.py.
+#
+#   git-numbered-diff                       # unstaged working-tree changes
+#   git-numbered-diff --cached             # staged changes
+#   git-numbered-diff main..HEAD           # a rev range
+#   git-numbered-diff HEAD~3..HEAD -- '**/*.ts'
+#
+# All args are forwarded to `git diff`. Output, per changed file:
+#
+#   ## path/to/file.ts
+#   @@ new lines 10-13 @@
+#    10:   existing line
+#    11: + added line
+#    12: + another added line
+#    13:   existing line
+#         - removed line
+#
+# Added lines keep a leading `+`, context lines a leading space, removed lines
+# are shown indented with `-` and no number (they don't exist in the new file).
+# Binary / mode-only / rename-only changes are summarized by name only.
+
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+Usage: git-numbered-diff [GIT-DIFF-ARGS...]
+
+Run `git diff` with the given args and render it with new-file line numbers
+prefixed on every surviving (context + added) line. All args forward to git diff.
+
+Examples:
+  git-numbered-diff                  # unstaged working-tree changes
+  git-numbered-diff --cached         # staged changes
+  git-numbered-diff main..HEAD       # a rev range
+  git-numbered-diff HEAD~3..HEAD -- '**/*.ts'
+EOF
+    exit 0
+}
+
+case "${1:-}" in
+    -h|--help) usage ;;
+esac
+
+command -v git >/dev/null 2>&1 || { echo "Error: git not found" >&2; exit 1; }
+
+# `git diff --no-color` so ^[[m escapes never reach the awk parser.
+# `--src-prefix=a/ --dst-prefix=b/` forces the `a/`/`b/` prefixes the parser
+# below assumes, even when the reviewed repo sets `diff.noprefix=true` or
+# `diff.mnemonicprefix=true` (common power-user configs that would otherwise
+# emit `diff --git f f` / `c/… i/…` and break the path extraction). The rev
+# range / pathspec / --cached are passed through verbatim.
+git diff --no-color --src-prefix=a/ --dst-prefix=b/ "$@" | awk '
+function reset() { in_hunk = 0 }
+
+# New file header. Extract the b/ path (the post-change filename); for renames
+# "diff --git a/old b/new" we want "new".
+/^diff --git / {
+    reset()
+    s = $0
+    sub(/^diff --git /, "", s)
+    # split on " b/" — the last field is the new path (handles " b/" in the path
+    # itself poorly, but that is vanishingly rare and git itself uses " b/ ").
+    n = split(s, parts, " b/")
+    path = (n >= 2) ? parts[n] : parts[1]
+    sub(/^b\//, "", path)
+    printf "\n## %s\n", path
+    next
+}
+
+# Summarize-and-skip lines that carry no reviewable content.
+/^new file mode / { print "  (new file)"; next }
+/^deleted file mode / { print "  (deleted file)"; next }
+/^index [0-9a-f]+\.\.[0-9a-f]+/ { next }
+/^similarity index / { next }
+/^rename from / { print "  (renamed from " substr($0, 13) ")"; next }
+/^rename to / { next }
+/^old mode / || /^new mode / { next }
+/^Binary files/ { print "  (binary file, no textual diff)"; next }
+/^\\ No newline/ { next }
+/^--- / || /^\+\+\+ / { next }
+
+# Hunk header: "@@ -old_start,old_len +new_start,new_len @@ <section>".
+# new_start may be 0 for pure additions to a new file; handle it.
+/^@@/ {
+    # Locate the " +" that precedes the new-file range (always present, since
+    # the old range "-a,b" comes first). +1 to skip the space, +1 for the "+".
+    p = index($0, " +")
+    rest = substr($0, p + 2)          # "new_start,new_len @@ <section>"
+    match(rest, /^[0-9]+/)
+    new_start = (RLENGTH > 0) ? substr(rest, RSTART, RLENGTH) + 0 : 0
+    after_num = substr(rest, RSTART + RLENGTH + 1)   # skip the "," -> "new_len @@ ..."
+    match(after_num, /^[0-9]+/)
+    new_len = (RLENGTH > 0) ? substr(after_num, RSTART, RLENGTH) + 0 : 1
+    if (new_len == 0) {                              # pure deletion: no new lines to number
+        printf "@@ (pure deletion — no new lines) @@\n"
+        in_hunk = 1
+        next
+    }
+    if (new_start == 0) new_start = 1                # safety: new-file header edge
+    end = new_start + new_len - 1
+    printf "@@ new lines %d-%d @@\n", new_start, end
+    nl = new_start
+    in_hunk = 1
+    next
+}
+
+in_hunk && /^\+/ { printf "%5d: + %s\n", nl, substr($0, 2); nl++; next }
+in_hunk && /^-/  { printf "       - %s\n", substr($0, 2); next }
+in_hunk && /^ /  { printf "%5d:   %s\n", nl, substr($0, 2); nl++; next }
+in_hunk && /^\\/ { next }            # "\ No newline at end of file"
+
+{ reset() }
+'
