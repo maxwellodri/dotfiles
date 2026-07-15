@@ -1,9 +1,13 @@
 /**
  * snippet_expansion — `$name` text snippets with autocomplete.
  *
- * A lightweight text-expansion macro for reusable prompt fragments. Drop a
- * markdown file in `$PI_CODING_AGENT_DIR/snippets/<name>.md` (the dotfiles
- * wrapper points that at `pi/snippets/`), then reference it inline:
+ * A lightweight text-expansion macro for reusable prompt fragments. A snippet
+ * is either a file `<PI_CODING_AGENT_DIR>/snippets/<name>.md` or a directory
+ * `<PI_CODING_AGENT_DIR>/snippets/<name>/` whose entry is the hardcoded file
+ * `snippet.md` (the dotfiles wrapper points that env at `pi/snippets/`). The
+ * directory layout lets you co-locate metadata next to the body — e.g.
+ * `pi/snippets/swarm/{snippet.md, LICENSE_INFO.md}`. Either way, reference it
+ * inline:
  *
  *   review this against $rust-style and tell me what's wrong
  *
@@ -28,8 +32,9 @@
  * Name rules (also enforced by the token regexes):
  *   - `[a-zA-Z0-9_-]+` only — keeps the autocomplete token unambiguous and
  *     side-steps `$5.00` / `$HOME`-style false matches (the run stops at the
- *     first char outside that class, and a token only expands if its file
- *     exists, so `$HOME` is a no-op unless you actually create `HOME.md`).
+ *     first char outside that class, and a token only expands if a snippet by
+ *     that name exists, so `$HOME` is a no-op unless you actually create
+ *     `HOME.md` or `HOME/snippet.md`).
  *   - `$` must sit at a token boundary: preceded by start-of-string or
  *     whitespace (`foo$bar` is NOT a snippet ref). Same boundary `@` uses.
  *
@@ -50,13 +55,20 @@
  * within LIST_CACHE_TTL_MS.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import type { Dirent } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
 /** Valid snippet name: alphanumeric, underscore, hyphen. No dots/slashes. */
 const VALID_NAME = /^[a-zA-Z0-9_-]+$/;
+
+/**
+ * Hardcoded entry filename for the directory layout. A snippet directory
+ * `<name>/` is recognised iff it contains this file; any siblings (e.g.
+ * `LICENSE_INFO.md`) are co-located metadata, not snippets themselves.
+ */
+const SNIPPET_ENTRY_FILENAME = "snippet.md";
 
 /**
  * Complete `$name` token for expansion. Preceded by start-of-string or
@@ -91,9 +103,25 @@ function snippetsDir(): string {
 	return join(base, "snippets");
 }
 
-/** Absolute path of a snippet's markdown file (no existence check). */
-function snippetPath(name: string): string {
-	return join(snippetsDir(), `${name}.md`);
+/**
+ * Resolve a snippet name to its source file. Two layouts are supported:
+ *
+ *   1. file layout:      <snippets>/<name>.md
+ *   2. directory layout: <snippets>/<name>/snippet.md
+ *
+ * The file layout wins when both exist, preserving the original behaviour
+ * (and so a stale `<name>.md` shadows a half-migrated directory until the
+ * author removes it — which is the least surprising option). Returns null if
+ * neither layout is present or the name is invalid.
+ */
+function resolveSnippetFile(name: string): string | null {
+	if (!VALID_NAME.test(name)) return null;
+	const dir = snippetsDir();
+	const fileLayout = join(dir, `${name}.md`);
+	if (existsSync(fileLayout)) return fileLayout;
+	const dirLayout = join(dir, name, SNIPPET_ENTRY_FILENAME);
+	if (existsSync(dirLayout)) return dirLayout;
+	return null;
 }
 
 /**
@@ -108,16 +136,27 @@ function listSnippets(): string[] {
 	} catch {
 		return [];
 	}
-	const names: string[] = [];
+	const dir = snippetsDir();
+	// Dedupe: if both <name>.md and <name>/ exist, file-layout wins (matches
+	// resolveSnippetFile), so the name should appear only once.
+	const nameSet = new Set<string>();
 	for (const e of entries) {
-		if (!e.isFile()) continue;
-		if (!e.name.endsWith(".md")) continue;
-		const name = e.name.slice(0, -3);
-		if (!VALID_NAME.test(name)) continue;
-		names.push(name);
+		// File layout: <name>.md
+		if (e.isFile() && e.name.endsWith(".md")) {
+			const name = e.name.slice(0, -3);
+			if (VALID_NAME.test(name)) nameSet.add(name);
+			continue;
+		}
+		// Directory layout: <name>/snippet.md
+		if (e.isDirectory()) {
+			const name = e.name;
+			if (!VALID_NAME.test(name)) continue;
+			if (existsSync(join(dir, name, SNIPPET_ENTRY_FILENAME))) {
+				nameSet.add(name);
+			}
+		}
 	}
-	names.sort((a, b) => a.localeCompare(b));
-	return names;
+	return [...nameSet].sort((a, b) => a.localeCompare(b));
 }
 
 /**
@@ -141,8 +180,8 @@ async function getSnippetNames(): Promise<string[]> {
 
 /** Read a snippet body, mtime-cached. Returns null if missing/unreadable. */
 function readSnippet(name: string): string | null {
-	if (!VALID_NAME.test(name)) return null;
-	const absPath = snippetPath(name);
+	const absPath = resolveSnippetFile(name);
+	if (!absPath) return null;
 	let st;
 	try {
 		st = statSync(absPath);
