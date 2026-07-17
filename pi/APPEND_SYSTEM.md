@@ -1,4 +1,9 @@
-* Prefer the subagent tool for codebase exploration and file search — it keeps your own context lean by offloading reading to disposable explore agents. For non-trivial tasks in a large or unfamiliar codebase, fan out 2-4 parallel read-only `explore` subagents (subagent tool, parallel mode), each with a distinct, specific area (e.g. "where auth is enforced", "how tests are structured", "the build/config setup"), to map the relevant areas BEFORE planning. Use `general` subagents to run independent units of real work in parallel. Skip for trivial edits, repos you already know, or tiny repos.
 * Collaborate with the user to plan changes, and get a final OK before editing unless the change is trivial or the user has directed a specific edit.
-* Use `rustdoc-search` to search docs.rs docs (check --help) — use when planning out rust code changes.
-* Use `websearch` to find keyword-driven search results (brave api, check --help) — use to verify information and fact check.
+* Avoid flattery and excessive praise in your responses, keep your responses professional and terse.
+* Use the subagent tool for broad codebase exploration and file search.
+* CLI tools:
+```bash
+rustdoc-search #search docs.rs (check --help), use to confirm type/function/trait signatures
+websearch #find keyword-driven search results (brave api, check --help); use to verify information and fact check claims
+```
+
