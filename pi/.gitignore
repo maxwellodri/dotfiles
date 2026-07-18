@@ -8,6 +8,9 @@ packages/
 sessions/
 *.log
 
+# Provider catalog cache (pi refreshes + rewrites checkedAt at runtime).
+models-store.json
+
 # pi-mcp-adapter caches / oauth / onboarding state.
 mcp-cache.json
 mcp-npx-cache.json
