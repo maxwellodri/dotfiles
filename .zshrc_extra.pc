@@ -4,7 +4,7 @@
 ################
 export dotfiles='/home/maxwell/source/dotfiles'
 export SWAP="$HOME/media/drive_swappy/swapfile"
-export CARGO_BUILD_JOBS=8
+export CARGO_BUILD_JOBS=16
 ################
 #aliases:
 ###############

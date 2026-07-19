@@ -10,6 +10,7 @@ org/*.el$
 .opencode/plans/
 .opencode/completed_plans/
 dwm/nohup.out
+pi/models-store.json
 !org/$
 !org/*.org$
 !.emacs.d/init.el$

@@ -19,6 +19,23 @@ export PI_CODING_AGENT_DIR="$dotfiles/pi"
 export PI_CODING_AGENT_SESSION_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi/sessions"
 mkdir -p "$PI_CODING_AGENT_SESSION_DIR"
 
+# Resource limits so pi agents can't freeze the box. Each rustc process is
+# memory-heavy (~1-2GB); CARGO_BUILD_JOBS bounds the parallel RSS footprint,
+# and nice + ionice deprioritize the whole agent subtree. Both are kernel
+# attributes inherited on fork(), so every bash tool subprocess and every
+# cargo it runs inherits the low CPU/disk priority. CARGO_BUILD_JOBS is an
+# exported env var, likewise inherited by the entire subtree.
+# Force parallelism by host (overrides the ambient CARGO_BUILD_JOBS from
+# .zshrc_extra, which is tuned for interactive cargo). pi agents run in the
+# background, so we clamp harder to keep the box responsive.
+# hackerman is the heavy workstation so keep more headroom.
+case "${dotfile_tag:-}" in
+  hackerman) CARGO_BUILD_JOBS=2 ;;
+  *)         CARGO_BUILD_JOBS=4 ;;
+esac
+export CARGO_BUILD_JOBS
+NICE=(nice -n 19 ionice -c 3)
+
 PI_BIN="${PI_BIN:-$HOME/.local/bin/pi}"
 
 # pi's subcommands and the help/version flags must be argv[1] to be recognized;
@@ -50,4 +67,4 @@ fi
 
 # Run pi (child, not exec) so the trap fires on its return. Pass --session-dir
 # explicitly (highest precedence; reliable across pi versions).
-ZAI_API_KEY="$ZAI_API_KEY" "$PI_BIN" --session-dir "$PI_CODING_AGENT_SESSION_DIR" "$@"
+ZAI_API_KEY="$ZAI_API_KEY" "${NICE[@]}" "$PI_BIN" --session-dir "$PI_CODING_AGENT_SESSION_DIR" "$@"
