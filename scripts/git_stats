@@ -98,11 +98,12 @@ printf " ${G}%-14s${W} %s (%d commits)\n" "Commits/30d" "$commits_per_day_30d" "
 printf " ${G}%-14s${W} %d commits, %b\n" "Last 24hr" "$commits_24h" "$diff_24h_str"
 
 if (( commits_24h > 0 )); then
-    shortlog_24h=$(git shortlog --author="$email" --since="24 hours ago")
     printf "\n ${G}%-14s${W}\n" "Recent commits"
-    while IFS= read -r line; do
-        printf "   %s\n" "$line"
-    done <<< "$shortlog_24h"
+    git log --author="$email" --since="24 hours ago" \
+        --format='   %C(dim green)%h%C(reset) %C(green)%cr%C(reset) %s' \
+        | while IFS= read -r line; do
+            printf "%b\n" "$line"
+        done
 fi
 
 echo
