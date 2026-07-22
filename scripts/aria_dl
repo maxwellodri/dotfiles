@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+#
+# aria_dl — robust resumable downloader wrapping aria2c.
+#
+# Replaces the old curl_dl bash retry loop. aria2c gives us, for free:
+#   - resume (-c)
+#   - infinite retry with backoff (--max-tries=0 --retry-wait=2)
+#   - multi-connection downloads (-x16 -s16) for much higher throughput
+#   - real HTTP status-code handling (curl without --fail "succeeds" on 404)
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --file)    FILE="$2";    shift 2 ;;
+    --url)     URL="$2";     shift 2 ;;
+    --cookies) COOKIES="$2"; shift 2 ;;
+    *) echo "Unknown option: $1" >&2; exit 1 ;;
+  esac
+done
+
+if [[ -z "$URL" ]]; then
+  echo "Usage: $(basename "$0") --url <url> [--file <file>] [--cookies <file>]" >&2
+  echo "  --file is optional: when omitted, aria2c autodetects the name from the URL." >&2
+  exit 1
+fi
+
+ARIA_ARGS=(
+  -c                          # resume partial downloads
+  --no-netrc                  # don't read ~/.netrc (auth comes from --cookies)
+  --max-tries=0               # retry forever (replaces the old until-loop)
+  --retry-wait=2              # 2s backoff between attempts
+  -x16 -s16 -k1M              # 16 parallel connections, 1M chunks
+  --summary-interval=60       # periodic progress line on long downloads
+)
+
+if [[ -n "$FILE" ]]; then
+  # Explicit output path: split into directory + filename for aria2c.
+  ARIA_ARGS+=(
+    -d "$(dirname "$FILE")"   # output directory
+    -o "$(basename "$FILE")"  # output filename
+  )
+fi
+
+if [[ -n "$COOKIES" ]]; then
+  if grep -q $'\t' "$COOKIES"; then
+    # Netscape cookies.txt format → let aria2c parse it
+    ARIA_ARGS+=(--load-cookies="$COOKIES")
+  else
+    # Raw "name=value; name2=value2" string, as curl_dl used to send it
+    ARIA_ARGS+=(--header="Cookie: $(cat "$COOKIES")")
+  fi
+fi
+
+START=$(date +%s)
+aria2c "${ARIA_ARGS[@]}" "$URL"
+RC=$?
+ELAPSED=$(( $(date +%s) - START ))
+
+# Don't claim success on a failed download.
+if (( RC != 0 )); then
+  echo "aria2c exited with code $RC after $(date -u -d "@$ELAPSED" +%H:%M:%S)" >&2
+  exit "$RC"
+fi
+
+format_duration() {
+  local s=$1
+  if (( s < 60 )); then printf "%ds" "$s"
+  elif (( s < 3600 )); then printf "%dm %ds" "$((s / 60))" "$((s % 60))"
+  else printf "%dh %dm" "$((s / 3600))" "$(( (s % 3600) / 60 ))"
+  fi
+}
+
+BODY="Downloaded in ($(format_duration "$ELAPSED"))"
+if [[ -n "$TMUX" ]]; then
+  SESSION=$(tmux display-message -p '#S')
+  BODY="$BODY in tmux session '$SESSION'"
+fi
+
+(( ELAPSED >= 30 )) && herald message --title "Download complete" --sound "$BODY"
