@@ -1,7 +1,7 @@
 /**
  * format-on-write.ts — run an in-place code formatter after the write/edit
  * tools commit a file, picked by extension. rustfmt (.rs), ruff (.py),
- * prettier (js/ts/json/css/html/md/yaml family), and shfmt (.sh/.bash).
+ * prettier (js/ts/json/css/html/md/yaml family).
  *
  * Hook choice: tool_result, not tool_call. tool_call fires BEFORE the tool
  * runs and can only block; the file doesn't exist yet, so an in-place
@@ -66,8 +66,6 @@ const DEFAULT_FORMATTERS: Record<string, string[]> = {
 	".mdx": PRETTIER,
 	".yaml": PRETTIER,
 	".yml": PRETTIER,
-	".sh": ["shfmt", "-w"],
-	".bash": ["shfmt", "-w"],
 };
 
 const FORMAT_TIMEOUT_MS = 30_000;
