@@ -37,6 +37,28 @@ M.find_files_opts = function()
   return find_opts
 end
 
+M.git_dirty_files_opts = function()
+  local cwd = vim.fn.getcwd()
+  local git_root = vim.fn.systemlist('git rev-parse --show-toplevel')[1]
+  if vim.v.shell_error == 0 then
+    cwd = git_root
+  end
+
+  -- All git dirty files: staged, unstaged, and untracked (including every
+  -- file inside untracked dirs via --untracked-files=all). Renames resolve
+  -- to the new path; deletions are dropped since the file no longer exists.
+  local cmd = "git status --porcelain=v1 --untracked-files=all"
+    .. " | grep -vE '^.D|^D.'"
+    .. " | cut -c4-"
+    .. " | sed 's/.* -> //'"
+
+  return {
+    prompt_prefix = '🔍🥺',
+    cwd = cwd,
+    find_command = { "bash", "-c", cmd },
+  }
+end
+
 require("telescope").setup {
   defaults = {
     preview = {
