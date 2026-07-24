@@ -19,3 +19,6 @@ ts.extra_find_paths = {
   "fd --hidden --type f --no-ignore-vcs . notes/",
   "fd --hidden --type f --no-ignore-vcs . .opencode/ --exclude bun.lock --exclude node_modules --exclude package.json --exclude .gitignore",
 }
+
+-- GitSplit: never diff anything under notes/
+vim.g.GitSplitIgnore = { "./notes/" }
