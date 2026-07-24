@@ -105,14 +105,20 @@ load_mullvad_conf() {
 }
 
 # Early validation for the netns paths (up / run-a-command / ephemeral): require
-# $dotfiles+$dotfile_tag in the parent shell and that the host's wg-mullvad.conf
-# exists. Conf-free subcommands (--help/--env/on/off/down/status) bypass it, so
-# e.g. `down` can still clean up a leaked ns even with a broken/missing conf.
+# $dotfiles+$dotfile_tag + a readable wg-mullvad.conf, AND a non-stale running
+# kernel. wireguard is a loadable module; after a kernel upgrade with no reboot
+# its modules are missing and `ip link add ... type wireguard` then dies with a
+# cryptic "Unknown device type" - so gate on check_kernel up front, as non-root,
+# before any sudo prompt. Conf-free subcommands (--help/--env/on/off/down/status)
+# bypass this, so e.g. `down` can still clean up a leaked ns with a broken conf.
 # Under the sudo'd root-half the env vars are stripped, so load_mullvad_conf
 # falls back to REPO_ROOT + .dotfile_tag and just parses MV_* for setup_ns.
 case "${1:-}" in
     -h|--help|--env|on|off|""|down|status) : ;;
-    *) load_mullvad_conf ;;
+    *)
+        load_mullvad_conf
+        check_kernel || die "reboot into the installed kernel first; wireguard needs the matching kernel modules"
+        ;;
 esac
 
 setup_ns() {
