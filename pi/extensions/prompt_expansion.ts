@@ -20,6 +20,11 @@
  *         [assistant: toolCall read { path: "foobar.ts" }]
  *         [toolResult read: <foobar.ts contents>]
  *
+ *     Empty files/dirs are annotated: an empty file's toolResult is
+ *     `(empty file)` (the real `read` tool returns a blank string, which
+ *     leaves the model unsure a read even happened) and an empty directory's
+ *     listing body is `(empty directory)` (rather than a bare header line).
+ *
  *   - **Directories** have no `read` equivalent, so they expand to a sorted
  *     entry listing (subdirectories suffixed with `/`, symlinks with `@`) —
  *     like `ls -1 -F` — appended as text below the prompt:
@@ -217,11 +222,14 @@ function resolveDir(ref: string, absPath: string): DirResolved | null {
 	);
 	const includeHidden = hiddenCount <= LIMIT_HIDDEN_FILES;
 
-	const body = entries
-		.filter((e) => includeHidden || !e.name.startsWith("."))
-		.sort(compareEntries)
-		.map(entryLabel)
-		.join("\n");
+	const body =
+		entries.length === 0
+			? "(empty directory)"
+			: entries
+					.filter((e) => includeHidden || !e.name.startsWith("."))
+					.sort(compareEntries)
+					.map(entryLabel)
+					.join("\n");
 
 	const dirRef = ref.endsWith("/") ? ref : ref + "/";
 	const header = includeHidden ? `@${dirRef}:` : `@${dirRef} (hidden files omitted):`;
@@ -355,7 +363,9 @@ export default function (pi: ExtensionAPI) {
 				role: "toolResult",
 				toolCallId: f.id,
 				toolName: "read",
-				content: [{ type: "text", text: f.text }],
+				content: [
+					{ type: "text", text: f.text.length === 0 ? "(empty file)" : f.text },
+				],
 				isError: false,
 				timestamp: ts,
 			}));
