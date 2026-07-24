@@ -10,30 +10,46 @@ display_kind() {
     fi
 }
 
+# Detect a stale running kernel (common after `pacman -Syu` with no reboot).
+# Compares `uname -r` against the version `pacman -Q` reports for the matching
+# linux package. Returns 0 when in sync, 1 (with a notice on stderr unless
+# SHUTIL_QUIET is set) when a reboot is needed.
+#
+# Each supported flavor is its own case arm: to add one, just give its package
+# name and the ABI suffix to strip. Flavor is inferred from the last hyphen-
+# segment of uname, e.g.
+#   7.1.4-zen1-1-zen  -> zen
+#   6.18.39-1-lts     -> lts
+#   6.11.8-arch1-1    -> 1   (stock; falls through to the default arm)
 check_kernel() {
     [ -n "$(command -v pacman 2>/dev/null)" ] || return 0
 
-    shutil_running=$(uname -r)
-    shutil_last=${shutil_running##*-}
-    case "$shutil_last" in
-        zen|lts|hardened|rt) shutil_pkg="linux-$shutil_last"; shutil_suffix="-$shutil_last" ;;
-        *) shutil_pkg="linux"; shutil_suffix= ;;
+    _ck_running=$(uname -r)
+    _ck_tail=${_ck_running##*-}
+
+    case "$_ck_tail" in
+        zen)      _ck_pkg=linux-zen;       _ck_suffix=-zen ;;
+        lts)      _ck_pkg=linux-lts;       _ck_suffix=-lts ;;
+        hardened) _ck_pkg=linux-hardened;  _ck_suffix=-hardened ;;
+        rt)       _ck_pkg=linux-rt;        _ck_suffix=-rt ;;
+        *)        _ck_pkg=linux;           _ck_suffix= ;;  # stock Arch kernel
     esac
 
-    shutil_pkg_line=$(pacman -Q "$shutil_pkg" 2>/dev/null) || return 0
-    shutil_installed=${shutil_pkg_line##* }
+    _ck_line=$(pacman -Q "$_ck_pkg" 2>/dev/null) || return 0
+    _ck_installed=${_ck_line##* }
 
-    shutil_running_norm=$(printf '%s' "${shutil_running%"$shutil_suffix"}" | tr '.' '-')
-    shutil_installed_norm=$(printf '%s' "$shutil_installed" | tr '.' '-')
+    # uname and pacman render the version with different separators (e.g.
+    # "7.1.4-zen1-1-zen" vs "7.1.4.zen1-1"); drop the ABI suffix from the
+    # running string, then unify dots and dashes so the two line up.
+    _ck_run_norm=$(printf '%s' "${_ck_running%"$_ck_suffix"}" | tr '.' '-')
+    _ck_inst_norm=$(printf '%s' "$_ck_installed" | tr '.' '-')
 
-    if [ "$shutil_running_norm" = "$shutil_installed_norm" ]; then
-        return 0
-    fi
+    [ "$_ck_run_norm" = "$_ck_inst_norm" ] && return 0
 
     if [ -z "${SHUTIL_QUIET:-}" ]; then
-        echo "Kernel version mismatch detected ($shutil_pkg):" >&2
-        echo "  Running:   $shutil_running" >&2
-        echo "  Installed: $shutil_installed" >&2
+        echo "Kernel version mismatch detected ($_ck_pkg):" >&2
+        echo "  Running:   $_ck_running" >&2
+        echo "  Installed: $_ck_installed" >&2
         echo "Reboot required." >&2
     fi
     return 1
