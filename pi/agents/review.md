@@ -1,6 +1,6 @@
 ---
 name: review
-description: Senior-engineer code review of a git diff or PR. Returns low-noise, line-accurate, actionable findings with severities and fixes. Read-only — never edits.
+description: Senior-engineer code review of a git change you point at (rev range, --cached, commit, or PR — the agent runs git itself, no need to paste a diff). Returns low-noise, line-accurate, actionable findings with severities and fixes. Read-only — never edits.
 tools: read, grep, find, bash
 ---
 

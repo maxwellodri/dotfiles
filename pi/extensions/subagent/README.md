@@ -42,6 +42,16 @@ Ships with two agents:
 Add more agents (e.g. `reviewer`, `planner`) by dropping `.md` files into
 `pi/agents/`.
 
+### System-prompt injection
+
+The extension injects the discovered agent list into the parent's system prompt
+each turn (via a `before_agent_start` handler), so the parent LLM can pick the
+right agent without reading `pi/agents/` itself. Both user and project agents
+are listed; project agents are tagged `[project]`. Recomputed per turn, so edits
+take effect immediately. Appended at the end of the prompt to preserve the
+upstream prefix cache; never fires inside a subagent (children run with
+`--no-extensions`).
+
 ## Two deliberate deviations from upstream
 
 1. **Real binary, not the wrapper.** `pi` on PATH here is the user's wrapper

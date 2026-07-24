@@ -50,6 +50,13 @@ const MAX_CONCURRENCY = 4;
 const COLLAPSED_ITEM_COUNT = 10;
 const PER_TASK_OUTPUT_CAP = 50 * 1024;
 
+/** First sentence of an agent description, for the terse system-prompt listing. */
+function firstSentence(text: string): string {
+	const trimmed = text.trim();
+	const end = trimmed.search(/[.](\s|$)/);
+	return end >= 0 ? trimmed.slice(0, end + 1) : trimmed;
+}
+
 function formatTokens(count: number): string {
 	if (count < 1000) return count.toString();
 	if (count < 10000) return `${(count / 1000).toFixed(1)}k`;
@@ -498,6 +505,37 @@ const SubagentParams = Type.Object({
 });
 
 export default function (pi: ExtensionAPI) {
+	// Inject the discovered agent list into the parent's system prompt each turn
+	// so the parent LLM can pick the right agent (and see project-local ones)
+	// without reading pi/agents/ itself. Recomputed per turn to pick up edits
+	// live, matching the extension's per-invocation discovery model. Children
+	// run with --no-extensions, so this never fires inside a subagent.
+	pi.on("before_agent_start", async (event, ctx) => {
+		const discovery = discoverAgents(ctx.cwd, "both");
+		if (discovery.agents.length === 0) return;
+
+		const hasProject = discovery.agents.some((a) => a.source === "project");
+		const lines = discovery.agents.map(
+			(a) =>
+				`- \`${a.name}\`${a.source === "project" ? " [project]" : ""} — ${firstSentence(a.description)}`,
+		);
+
+		const block = [
+			"",
+			"## Subagents",
+			"",
+			hasProject
+				? "Invoke via the `subagent` tool. `[project]` agents are repo-controlled and prompt before running."
+				: "Invoke via the `subagent` tool.",
+			"",
+			...lines,
+		].join("\n");
+
+		// Appended at the end so the upstream prefix stays a cache hit; the block
+		// is byte-stable across turns unless an agent file changes.
+		return { systemPrompt: event.systemPrompt + "\n" + block };
+	});
+
 	pi.registerTool({
 		name: "subagent",
 		label: "Subagent",
