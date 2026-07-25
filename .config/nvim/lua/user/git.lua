@@ -152,10 +152,51 @@ local function set_lhs_content(buf, root, file, ft)
   end
 end
 
+-- Recompute the diff and force both panes to repaint. Used after a buffer swap
+-- (refresh) and after the user edits the RHS so the diff tracks live edits --
+-- vim does not recompute diffs on its own (especially with a nofile partner).
+local function repaint()
+  if not state then return end
+  pcall(vim.cmd, 'diffupdate')
+  -- invalidate both panes' cached grid lines and flush, so the (already-correct)
+  -- diff model is re-rendered. Targeted, so no full-screen flicker on each edit.
+  for _, w in ipairs({ state.lhs_win, state.rhs_win }) do
+    if vim.api.nvim_win_is_valid(w) then
+      pcall(vim.api.nvim__redraw, { win = w, valid = false })
+    end
+  end
+  pcall(vim.api.nvim__redraw, { flush = true })
+end
+
+-- Debounced repaint for live typing: TextChangedI fires per keystroke, so
+-- coalesce to avoid running diffupdate on every character.
+local edit_debounce
+local function repaint_debounced()
+  if edit_debounce and not edit_debounce:is_closing() then
+    edit_debounce:stop()
+    edit_debounce:close()
+  end
+  edit_debounce = vim.defer_fn(function()
+    repaint()
+    vim.schedule(repaint)
+  end, 150)
+end
+
 local function refresh()
   if not state then return end
   local file = state.files[state.index]
   if not file then return end
+
+  -- diffoff BOTH windows BEFORE swapping the RHS buffer / rewriting the LHS.
+  -- If a buffer changes while its window is still in diff mode, the diff engine
+  -- keeps stale highlight state and `diffupdate` cannot recover it -- so every
+  -- cycle corrupts the highlighting. Take both out of diff, mutate, then put
+  -- them back in.
+  for _, w in ipairs({ state.lhs_win, state.rhs_win }) do
+    if vim.api.nvim_win_is_valid(w) then
+      pcall(vim.api.nvim_win_call, w, function() vim.cmd('diffoff') end)
+    end
+  end
 
   local rhs = state.rhs_bufs[state.index]
   if vim.api.nvim_win_is_valid(state.rhs_win) and vim.api.nvim_buf_is_valid(rhs) then
@@ -169,17 +210,23 @@ local function refresh()
 
   for _, w in ipairs({ state.lhs_win, state.rhs_win }) do
     if vim.api.nvim_win_is_valid(w) then
-      vim.api.nvim_win_call(w, function() vim.cmd('diffthis') end)
+      pcall(vim.api.nvim_win_call, w, function() vim.cmd('diffthis') end)
     end
   end
-  vim.cmd('diffupdate')
-
   if vim.api.nvim_win_is_valid(state.lhs_win) then
     vim.wo[state.lhs_win].winbar = '[HEAD] ' .. file.rel .. (file.untracked and '  (untracked)' or '')
   end
   if vim.api.nvim_win_is_valid(state.rhs_win) then
     vim.wo[state.rhs_win].winbar = ('[WORK] %s  (%d/%d)'):format(file.rel, state.index, #state.files)
   end
+
+  -- Swapping a buffer in a diff window leaves the *screen grid* stale -- the
+  -- diff model is correct (diff_hlID is right) but the rendered cells keep the
+  -- previous file's highlight regions, so cycles look "clobbered". Repaint now
+  -- (diffupdate + invalidate) and again on the next tick, since a buffer swap
+  -- can settle asynchronously.
+  repaint()
+  vim.schedule(repaint)
 end
 
 --------------------------------------------------------------------------------
@@ -239,7 +286,7 @@ local function delete_current()
   table.remove(state.rhs_bufs, i)
 
   if #state.files == 0 then
-    M.close()                          -- closes the tab; working buffers left as-is
+    M.close()                          -- tears down GitSplit (preserves user windows like notes.md)
     pcall(vim.cmd, 'bdelete' .. suffix)
     return
   end
@@ -274,6 +321,17 @@ function M.close()
   if not s then return end
   state = nil
 
+  -- Does this tab have windows that aren't GitSplit's (e.g. a notes.md split the
+  -- user opened)? If so we preserve them instead of tabclose!-ing the whole tab
+  -- (which would kill the user's buffers too).
+  local mine = { [s.lhs_win] = true, [s.rhs_win] = true }
+  local has_user_wins = false
+  if vim.api.nvim_tabpage_is_valid(s.tab) then
+    for _, w in ipairs(vim.api.nvim_tabpage_list_wins(s.tab)) do
+      if not mine[w] then has_user_wins = true; break end
+    end
+  end
+
   for _, w in ipairs({ s.lhs_win, s.rhs_win }) do
     if vim.api.nvim_win_is_valid(w) then
       pcall(vim.api.nvim_win_call, w, function() vim.cmd('diffoff') end)
@@ -281,13 +339,27 @@ function M.close()
   end
   clear_rhs_keymaps(s)
 
-  if vim.api.nvim_tabpage_is_valid(s.tab) then
-    pcall(vim.cmd, 'tabclose ' .. vim.api.nvim_tabpage_get_number(s.tab))
+  if has_user_wins then
+    -- preserve the tab + user windows: remove only GitSplit's own panes
+    for _, w in ipairs({ s.lhs_win, s.rhs_win }) do
+      if vim.api.nvim_win_is_valid(w) then pcall(vim.api.nvim_win_close, w, true) end
+    end
+  elseif vim.api.nvim_tabpage_is_valid(s.tab) then
+    -- `!`: skips the E37 save-prompt if a working buffer has unsaved edits; rhs
+    -- buffers are bufhidden=hide so they survive (loaded + modified) -- edits
+    -- are NOT lost.
+    pcall(vim.cmd, 'tabclose! ' .. vim.api.nvim_tabpage_get_number(s.tab))
   end
+
   if vim.api.nvim_buf_is_valid(s.lhs_buf) then
     pcall(vim.cmd, 'bwipe ' .. s.lhs_buf)
   end
   vim.api.nvim_clear_autocmds({ group = augroup })
+end
+
+-- Open if closed, close if open.
+function M.toggle()
+  if state then M.close() else M.open() end
 end
 
 function M.open()
@@ -354,6 +426,18 @@ function M.open()
       group = augroup, buffer = b,
       callback = function() vim.schedule(function() on_rhs_deleted(b) end) end,
     })
+    -- keep the diff in sync as the working file is edited: vim won't recompute
+    -- on its own (the LHS is a nofile partner). Repaint now AND on the next tick
+    -- -- the screen grid settles asynchronously after an edit, just like a swap.
+    vim.api.nvim_create_autocmd({ 'TextChanged', 'InsertLeave' }, {
+      group = augroup, buffer = b,
+      callback = function() repaint(); vim.schedule(repaint) end,
+    })
+    -- live-as-you-type: coalesce per-keystroke TextChangedI into a debounced repaint
+    vim.api.nvim_create_autocmd('TextChangedI', {
+      group = augroup, buffer = b,
+      callback = repaint_debounced,
+    })
   end
   -- `q` to quit lives only on the (non-editable) LHS so the RHS keeps macro
   -- recording (`q{reg}`) available.
@@ -365,6 +449,14 @@ function M.open()
       if state and not vim.api.nvim_tabpage_is_valid(state.tab) then M.close() end
     end,
   })
+  -- closing either GitSplit pane (lhs/rhs) closes the whole session
+  vim.api.nvim_create_autocmd('WinClosed', {
+    group = augroup,
+    callback = function(args)
+      local win = tonumber(args.match)
+      if state and (win == state.lhs_win or win == state.rhs_win) then M.close() end
+    end,
+  })
 
   refresh()
   if vim.api.nvim_win_is_valid(rhs_win) then
@@ -372,11 +464,9 @@ function M.open()
   end
 end
 
-vim.api.nvim_create_user_command('GitSplit', function() M.open() end, {})
+vim.api.nvim_create_user_command('GitSplit', function() M.toggle() end, {})
 
--- No default keybind: `<leader>g*` is crowded in this config. Map it yourself,
--- e.g.:
---   vim.keymap.set('n', '<leader>gs', require('user.git').open,
---     { desc = 'GitSplit: HEAD vs working diff for all dirty files' })
+vim.keymap.set('n', '<leader>gs', M.toggle,
+  { desc = 'GitSplit: toggle HEAD vs working diff for all dirty files' })
 
 return M

@@ -197,8 +197,69 @@ local function dim_color(hex, factor)
   return string.format("#%02x%02x%02x", math.floor(rr * 255), math.floor(gg * 255), math.floor(bb * 255))
 end
 
+--- Blend two #rrggbb colors. alpha = 0 -> fully `bg`, alpha = 1 -> fully `fg`.
+--- Used to tint highlight backgrounds toward the editor background so they read
+--- as a soft wash instead of a flat block.
+local function blend(fg_hex, bg_hex, alpha)
+  local function comp(h)
+    h = h:gsub("#", "")
+    return tonumber(h:sub(1, 2), 16), tonumber(h:sub(3, 4), 16), tonumber(h:sub(5, 6), 16)
+  end
+  local fr, fgc, fb = comp(fg_hex)
+  local br, bgc, bb = comp(bg_hex)
+  local function mix(a, b) return math.floor(a * alpha + b * (1 - alpha)) end
+  return string.format("#%02x%02x%02x", mix(fr, br), mix(fgc, bgc), mix(fb, bb))
+end
+
+--- Soften the diff highlight backgrounds (blend toward the editor background),
+--- strip every underline variant, and deliberately leave `fg` UNSET so syntax /
+--- treesitter colouring still shows through on added / changed / deleted lines.
+--- `alpha` = how much of the original tint to keep.
+local function soften_diff_highlights()
+  local normal = vim.api.nvim_get_hl_by_name('Normal', true) or {}
+  local bg = to_hex(normal.background) or '#282828'
+
+  local function soften(name, alpha)
+    local hl = vim.api.nvim_get_hl_by_name(name, true)
+    if not hl then return end
+    local tint
+    if hl.background then tint = to_hex(hl.background)
+    elseif hl.foreground then tint = to_hex(hl.foreground)
+    else return end -- nothing to tint
+    vim.api.nvim_set_hl(0, name, {
+      bg = blend(tint, bg, alpha),
+      -- no `fg`: setting one would clobber the syntax colouring of those lines
+      reverse = false,
+      underline = false,
+      undercurl = false,
+      underdouble = false,
+      underdotted = false,
+      underdashed = false,
+      bold = false,
+      italic = false,
+      default = false,
+    })
+  end
+
+  soften('DiffAdd',    0.40)   -- added lines: clear green
+  soften('DiffChange', 0.28)   -- changed lines: subtle (the changed chars are picked out by DiffText)
+  soften('DiffDelete', 0.40)   -- deleted lines: clear red
+  soften('DiffText',   0.45)   -- changed chars within a line: visible gold
+end
+
+soften_diff_highlights()
+
+--- Render the diff filler (placeholder lines on the shorter side) as a blank
+--- space instead of the default `-`, which draws an ugly underline-like dash
+--- through added / deleted regions.
+do
+  local fc = vim.o.fillchars
+  vim.o.fillchars = fc .. (fc == '' and '' or ',') .. 'diff: '
+end
+
 local M = {}
 M.dim_color = dim_color
+M.blend = blend
 M.colors = {
   dull_grey = dull_grey,
   burnt_yellow = burnt_yellow,
