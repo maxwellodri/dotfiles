@@ -81,7 +81,7 @@ end
 -- drop it) with `--no-renames`, so every record is exactly `XY path<NUL>`.
 -- Deletions are dropped (no working copy to display) and binary / non-text files
 -- are skipped (a binary diff is meaningless and would trip bigfile plugins).
-local function collect_files(root)
+local function collect_files(root, staged_only)
   local res = vim.system({ 'git', '-C', root, 'status', '--porcelain=v1',
     '--untracked-files=all', '-z', '--no-renames' }):wait()
   local raw = (res and res.code == 0 and res.stdout) or ''
@@ -89,7 +89,9 @@ local function collect_files(root)
   for entry in raw:gmatch('[^%z]+') do
     if #entry >= 3 then
       local x, y = entry:sub(1, 1), entry:sub(2, 2)
-      if x ~= 'D' and y ~= 'D' then
+      -- staged-only: keep paths whose index (X) status is a real change.
+      -- ' ' = no staged change, '?' = untracked (never staged) -> skip.
+      if x ~= 'D' and y ~= 'D' and not (staged_only and (x == ' ' or x == '?')) then
         local path = entry:sub(4)
         local abs = root .. '/' .. path
         if vim.fn.filereadable(abs) == 1 and is_text(abs) and not ignored(path) then
@@ -358,11 +360,11 @@ function M.close()
 end
 
 -- Open if closed, close if open.
-function M.toggle()
-  if state then M.close() else M.open() end
+function M.toggle(staged_only)
+  if state then M.close() else M.open(staged_only) end
 end
 
-function M.open()
+function M.open(staged_only)
   if state then M.close() end
 
   local root = git_root()
@@ -370,9 +372,9 @@ function M.open()
     return vim.notify('GitSplit: not inside a git repository', vim.log.levels.ERROR)
   end
 
-  local files = collect_files(root)
+  local files = collect_files(root, staged_only)
   if #files == 0 then
-    return vim.notify('Git tree is clean', vim.log.levels.INFO)
+    return vim.notify(staged_only and 'No staged changes' or 'Git tree is clean', vim.log.levels.INFO)
   end
 
   -- shared left pane (HEAD version), a nofile scratch we rewrite per file
@@ -465,8 +467,11 @@ function M.open()
 end
 
 vim.api.nvim_create_user_command('GitSplit', function() M.toggle() end, {})
+vim.api.nvim_create_user_command('GitSplitStaged', function() M.toggle(true) end, {})
 
 vim.keymap.set('n', '<leader>gs', M.toggle,
   { desc = 'GitSplit: toggle HEAD vs working diff for all dirty files' })
+vim.keymap.set('n', '<leader>gS', function() M.toggle(true) end,
+  { desc = 'GitSplit: toggle HEAD vs working diff for staged files only' })
 
 return M
