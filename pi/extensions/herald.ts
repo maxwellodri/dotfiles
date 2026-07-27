@@ -9,8 +9,17 @@ import { join } from "node:path";
 //
 // Event mapping from opencode:
 //   session.status(busy)  ->  "input"          (user sent a prompt)
-//   session.idle          ->  "agent_end"      (turn complete, back to user)
+//   session.idle          ->  "agent_settled"  (turn fully settled — see below)
 //   message.part.updated  ->  "tool_call"      (optional heavy-tool trigger)
+//
+// Why agent_settled and not agent_end: agent_end fires once per agent-core run,
+// including before each automatic retry of a connection/API error, so notifying
+// on it would ping on every transient connection error. agent_settled fires
+// only after a run has fully settled (no retry, compaction, or queued
+// continuation left), so it is the one "the turn is really over" signal. The
+// last agent_end's assistant stopReason is captured to distinguish a clean
+// finish ("stop" / "toolUse") from a terminal error ("error", retries
+// exhausted) — the latter is reported as "I hit an error" instead of "done".
 //
 // The opencode plugin also notified on question.asked / permission.asked and on
 // subagent/todowrite use. Pi has no built-in permission/question events (those
@@ -169,16 +178,62 @@ async function isUserLooking(pi: ExtensionAPI): Promise<boolean> {
 // Shape of the agent_end event payload (cast locally to avoid importing the
 // full internal message types).
 type AgentEndEventLike = {
-	messages?: Array<{ role?: string; stopReason?: string }>;
+	messages?: Array<{ role?: string; stopReason?: string; errorMessage?: string }>;
 };
 
 export default function (pi: ExtensionAPI) {
 	let lastInputTime: number | null = null;
 	let usedHeavyTool = false;
+	// Outcome of the most recent agent_end. agent_end fires once per agent-core
+	// run — including before each automatic retry — so it can't by itself tell
+	// us whether the turn is truly over. We defer the notification to
+	// agent_settled (which fires only once no retry/compaction/continuation will
+	// run) and use this captured state to report success vs. a terminal
+	// connection error.
+	let lastStopReason: string | null = null;
+	let lastErrorMessage: string | null = null;
+
+	function reset(): void {
+		lastInputTime = null;
+		usedHeavyTool = false;
+		lastStopReason = null;
+		lastErrorMessage = null;
+	}
+
+	function describeError(msg: string | null): string {
+		if (!msg) return "unknown error";
+		const s = String(msg).replace(/\s+/g, " ").trim();
+		return s.length > 120 ? s.slice(0, 117) + "…" : s;
+	}
+
+	/** Herald send with focus suppression + state reset. */
+	async function notify(title: string, label: string, detail?: string): Promise<void> {
+		const looking = await isUserLooking(pi);
+		log(`focus check: looking=${looking} display=${displayKind()}`);
+		if (looking) {
+			reset();
+			return;
+		}
+		const elapsed = lastInputTime != null ? Date.now() - lastInputTime : 0;
+		const duration = elapsed > 0 ? formatDuration(elapsed) : "";
+		const tmuxInfo = await getTmuxInfo(pi);
+		let body = `${label}${tmuxInfo}`;
+		if (duration) body += ` (${duration})`;
+		if (detail) body += ` — ${detail}`;
+		try {
+			await pi.exec("herald", ["message", "--title", title, "--sound", body]);
+			log(`notified: ${body}`);
+		} catch (e) {
+			log(`herald failed: ${e instanceof Error ? e.message : String(e)}`);
+		}
+		reset();
+	}
 
 	pi.on("input", async () => {
 		lastInputTime = Date.now();
 		usedHeavyTool = false;
+		lastStopReason = null;
+		lastErrorMessage = null;
 		log("input received");
 	});
 
@@ -190,44 +245,42 @@ export default function (pi: ExtensionAPI) {
 		}
 	});
 
+	// Capture the outcome of each agent-core run. Fires before every automatic
+	// retry too, so we only record state here — never notify.
 	pi.on("agent_end", async (event) => {
-		log(`agent_end fired (lastInputTime=${lastInputTime}, usedHeavyTool=${usedHeavyTool})`);
-		if (lastInputTime == null) return;
-		const elapsed = Date.now() - lastInputTime;
-		const timedOut = elapsed > THRESHOLD;
-		if (!timedOut && !usedHeavyTool) {
-			lastInputTime = null;
-			usedHeavyTool = false;
-			return;
-		}
-		// Suppress if the user manually aborted this turn (interrupted streams
-		// leave the final assistant message with stopReason === "aborted").
 		const messages = (event as unknown as AgentEndEventLike)?.messages ?? [];
 		const lastAssistant = [...messages].reverse().find((m) => m?.role === "assistant");
-		if (lastAssistant?.stopReason === "aborted") {
-			log(`suppressing notification: turn aborted (stopReason="aborted")`);
-			lastInputTime = null;
-			usedHeavyTool = false;
+		lastStopReason = (lastAssistant?.stopReason as string | undefined) ?? null;
+		lastErrorMessage = (lastAssistant?.errorMessage as string | undefined) ?? null;
+		log(`agent_end: stopReason=${lastStopReason}`);
+	});
+
+	// The turn has fully settled: no automatic retry, compaction, or queued
+	// continuation will run. This is the one reliable "the user should come back
+	// now" moment — agent_end fires mid-retry, agent_settled does not.
+	pi.on("agent_settled", async () => {
+		log(`agent_settled (lastStopReason=${lastStopReason}, lastInputTime=${lastInputTime}, usedHeavyTool=${usedHeavyTool})`);
+		if (lastInputTime == null) {
+			reset();
 			return;
 		}
-		// Suppress if the user is already looking at this pi.
-		const looking = await isUserLooking(pi);
-		log(`focus check: looking=${looking} display=${displayKind()}`);
-		if (looking) {
-			lastInputTime = null;
-			usedHeavyTool = false;
+		// Manual abort — don't bother the user.
+		if (lastStopReason === "aborted") {
+			log("suppressing notification: turn aborted");
+			reset();
 			return;
 		}
-		const duration = formatDuration(elapsed);
-		const tmuxInfo = await getTmuxInfo(pi);
-		const body = `Done${tmuxInfo} (${duration})`;
-		try {
-			await pi.exec("herald", ["message", "--title", "Human, I am done 🥹", "--sound", body]);
-			log(`notified: ${body}`);
-		} catch (e) {
-			log(`herald failed: ${e instanceof Error ? e.message : String(e)}`);
+		const elapsed = Date.now() - lastInputTime;
+		if (elapsed <= THRESHOLD && !usedHeavyTool) {
+			reset();
+			return;
 		}
-		lastInputTime = null;
-		usedHeavyTool = false;
+		// Turn died on an error after exhausting all retries: report it honestly
+		// instead of "done".
+		if (lastStopReason === "error") {
+			await notify("Human, I hit an error 🫠", "Failed", describeError(lastErrorMessage));
+			return;
+		}
+		await notify("Human, I am done 🥹", "Done");
 	});
 }
