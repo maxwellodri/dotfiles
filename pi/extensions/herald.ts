@@ -50,10 +50,15 @@ function formatDuration(ms: number): string {
 }
 
 async function getTmuxInfo(pi: ExtensionAPI): Promise<string> {
-	if (!process.env.TMUX) return ", pi";
+	// Target our own pane explicitly. Without `-t`, display-message resolves
+	// formats against the client's *active* pane (whatever the user is looking
+	// at), so window/session would reflect the wrong window when the user has
+	// switched away from this pi.
+	const pane = process.env.TMUX_PANE;
+	if (!process.env.TMUX || !pane) return ", pi";
 	try {
-		const session = (await pi.exec("tmux", ["display-message", "-p", "#S"])).stdout.trim();
-		const window = (await pi.exec("tmux", ["display-message", "-p", "#W"])).stdout.trim();
+		const session = (await pi.exec("tmux", ["display-message", "-t", pane, "-p", "#{session_name}"])).stdout.trim();
+		const window = (await pi.exec("tmux", ["display-message", "-t", pane, "-p", "#{window_name}"])).stdout.trim();
 		if (!session) return ", pi";
 		let info = ` in tmux session \`${session}\``;
 		if (window) info += `, at window \`${window}\``;
