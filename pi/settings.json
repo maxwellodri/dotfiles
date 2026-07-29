@@ -9,6 +9,8 @@
   "lastChangelogVersion": "0.82.1",
   "defaultThinkingLevel": "high",
   "hideThinkingBlock": false,
+  "steeringMode": "all",
+  "followUpMode": "all",
   "retry": {
     "enabled": true,
     "maxRetries": 8,
