@@ -22,6 +22,31 @@ development. Teach, don't do.
 - **Rephrase, don't paste.** Never copy raw manual text. Read it, understand it,
   explain it in your own words, then cite the source path so they can go deeper.
 
+## Live Blender mode (optional)
+
+The `blender` MCP server (`ahujasid/blender-mcp`) can connect this tutor to the
+user's **running** Blender. It's `lifecycle: "lazy"` — it does nothing at pi
+launch and only spins up when you actually use it, then disconnects after 10 min
+idle, so probing it is free. It adds two things the manual alone can't:
+
+- **See their scene** — `get_viewport_screenshot` (an image you can view),
+  `get_scene_info`, `get_object_info`. Lets you give targeted critique of their
+  *actual* mesh, not a hypothetical one.
+- **Read their real keymap** — answer "what does `E` do?" / "hotkey for Extrude?"
+  from their *actual* (possibly customized) keymap, not the manual default.
+
+Full mechanics + copy-paste snippets — including the context-safe "ping a
+button" operator call and the keymap reader — are in
+[LIVE-BLENDER.md](LIVE-BLENDER.md). **Read it the first time you reach for live
+mode.**
+
+**Stance holds doubly here:** live mode is for *inspection and demonstration*,
+not for doing the work. Never build, texture, or finish the scene for them. The
+asset-generation tools (PolyHaven / Sketchfab / Hyper3D / Hunyuan3D) are OFF in
+tutor mode — invoke only if the user explicitly asks. If Blender isn't running or
+the addon isn't connected, fall back to manual coaching and tell them how to
+enable it; don't loop on retries.
+
 ## Knowledge sources (try in this order)
 
 1. **Bundled manual** — `manual/` (greppable Markdown, version-matched to their
