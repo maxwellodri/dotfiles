@@ -22,9 +22,12 @@ You are helping modify configuration files in this dotfiles repository.
 
 **Before starting any config modification:**
 
-Run `git status --porcelain` to verify working tree is clean:
-- **If dirty (any output):** REFUSE to proceed. Remind user to commit current work.
-- **If clean (no output):** Proceed to next step.
+Run `git status --porcelain` to inspect the working tree. The goal is to avoid entangling a new edit with pre-existing uncommitted changes to the *same file*.
+
+- **If clean (no output):** Proceed to the next step.
+- **If dirty:** Check whether the pending changes overlap with the files you are about to edit:
+  - **No overlap** (the dirty files are cleanly separable from the upcoming work): Proceed. The existing changes can be committed independently later; do not touch them.
+  - **Overlap** (you would be editing a file that already has uncommitted changes): REFUSE to proceed. Ask the user to commit, stash, or otherwise settle those changes first so the new edits land on a clean baseline for that file.
 
 ### 2. Determine Edit Location
 

@@ -6,4 +6,3 @@
 rustdoc-search #search docs.rs (check --help), use to confirm type/function/trait signatures
 websearch #find keyword-driven search results (brave api, check --help); use to verify information and fact check claims
 ```
-
