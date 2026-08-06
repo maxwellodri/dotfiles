@@ -3,15 +3,16 @@
 		"playwright": {
 			"command": "npx",
 			"args": [
-				"@playwright/mcp@latest",
+				"@playwright/mcp@0.0.78",
 				"--config",
 				"playwright-config.json"
 			],
 			"cwd": "${dotfiles}/.pi/skills/capitalism"
 		},
 		"blender": {
-			"command": "uvx",
-			"args": ["--python", "3.11", "blender-mcp"],
+			"command": "uv",
+			"args": ["run", "blender-mcp"],
+			"cwd": "${dotfiles}/uv",
 			"env": {
 				"UV_PYTHON_PREFERENCE": "only-managed",
 				"DISABLE_TELEMETRY": "true"

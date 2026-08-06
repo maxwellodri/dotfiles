@@ -1,0 +1,15 @@
+[project]
+name = "dotfiles-mcp"
+version = "0.1.0"
+description = "Pinned, locked Python environments for MCP servers used by pi."
+requires-python = ">=3.11,<3.14"
+dependencies = [
+	# Pinned exactly for supply-chain safety (no floating @latest).
+	# Bump deliberately after reviewing the upstream changelog.
+	"blender-mcp==1.8.0",
+]
+
+[tool.uv]
+# The interpreter is pinned via .python-version (3.11) and UV_PYTHON_PREFERENCE=only-managed
+# is set by pi/mcp.json, so this environment is fully isolated from the system interpreter
+# (system Python is 3.14, which the mcp/httpx stack does not yet support).
