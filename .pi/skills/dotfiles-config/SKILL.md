@@ -64,7 +64,7 @@ Or run specific script if you know which one:
 - `./helper_scripts/makesymlinks.sh "$dotfile_tag"` - dotfile symlinks
 - `./helper_scripts/custom_bin_scripts.sh` - user scripts
 - `./helper_scripts/firefox.sh` - firefox configs
-- `./helper_scripts/install_system_configs.sh` - system configs
+- `./helper_scripts/install_system_configs.sh` - system configs that are outside of ~/ as well as user-local systemd configs
 
 ### 5. After Completion
 
