@@ -1,242 +1,219 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Portions adapted from pi-file-injector — https://github.com/dabstractor/pi-file-injector
+//
+// MIT License
+//
+// Copyright (c) 2026 Dustin Schultz
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * prompt_expansion — inline @path references into the prompt.
+ * prompt_expansion — inline `@path` references into the prompt as pre-read files.
  *
  * pi's TUI inserts `@path` references as plain-text pointers; the model has to
- * call `read` to see them. This extension expands `@path` tokens in the most
- * recent user message so the contents are already in context, leaving what the
- * user typed byte-for-byte intact.
+ * call `read` to see them. This extension resolves `@path` tokens at submit time
+ * and delivers the contents to the model BEFORE it replies, so there is no
+ * read round-trip. What the user typed stays byte-for-byte intact.
  *
- *   - **Files** are expanded as a synthetic `read` tool call: an assistant
- *     message carrying one `toolCall` block per file, immediately followed by
- *     matching `toolResult` messages with the file contents. To the model this
- *     is indistinguishable from having called `read` itself, which makes it
- *     unmistakable that a read was already performed (the original motivation:
- *     pasted-text appends were sometimes not recognized as a read the agent
- *     could rely on, so it would re-`read` the same file).
+ * ## Architecture (input → before_agent_start → persistent custom message)
  *
- *       read through @foobar.ts and tell me what you think.
+ *   - `input` event — fires once per submit (interactive TUI, `pi -p`, RPC).
+ *     Detects `@path` tokens, resolves each to a file or directory, builds
+ *     pi-native `<file name="abs">…</file>` blocks, and stashes them in a
+ *     closure var. Returns the prompt VERBATIM (`action:"transform"` with the
+ *     original text) so the stored message keeps its `@` markers — cancel /
+ *     fork / `/tree`-re-open re-triggers injection automatically (the editor
+ *     prefill still shows `@foo`, so re-submitting re-injects).
+ *   - `before_agent_start` event — fires right after `input` in the same
+ *     `prompt()` call. Publishes the stashed blocks as ONE custom message
+ *     (`customType:"promptExpansion.injected"`) appended after the user
+ *     message. That message is a `CustomMessageEntry` — it PERSISTS in the
+ *     session and participates in LLM context on every subsequent turn until
+ *     compaction prunes it. So an `@mention` is STICKY: the file stays in
+ *     context for later turns without re-injection. (This is the key win over
+ *     a `context`-event approach, which is non-persistent and would have to
+ *     re-inject every turn — more CPU and a worse compaction story.)
+ *   - `session_start` — registers a `MessageRenderer` so the injected items
+ *     render as one compact green `read <path>` / `ls <dir>/` line each
+ *     (ctrl+o to expand) instead of dumping raw `<file>` blocks into the chat.
  *
- *       → [user message, unchanged]
- *         [assistant: toolCall read { path: "foobar.ts" }]
- *         [toolResult read: <foobar.ts contents>]
+ * Adapted from dabstractor/pi-file-injector (the `#@file` extension): same
+ * input+before_agent_start+custom-message mechanism and budget-aware paging,
+ * but keeping our bare-`@` trigger and our directory-listing semantics. Image
+ * handling is deliberately omitted — binary files (images included) get a note
+ * block, since the target model has no image support.
  *
- *     Empty files/dirs are annotated: an empty file's toolResult is
- *     `(empty file)` (the real `read` tool returns a blank string, which
- *     leaves the model unsure a read even happened) and an empty directory's
- *     listing body is `(empty directory)` (rather than a bare header line).
+ * ## What gets delivered
  *
- *   - **Directories** have no `read` equivalent, so they expand to a sorted
- *     entry listing (subdirectories suffixed with `/`, symlinks with `@`) —
- *     like `ls -1 -F` — appended as text below the prompt:
+ *   - **Text files**: whole contents in a `<file name="abs">…</file>` block
+ *     when they fit the remaining context budget; otherwise an 8KB head block
+ *     plus a paging directive telling the model to `read` the rest at
+ *     `offset:N, limit:2000`. Budget-aware, never a silent hard truncation.
+ *   - **Empty files**: `<file name="abs">\n\n</file>` (pi-native empty block).
+ *   - **Binary files** (NUL-byte heuristic — incl. images): a
+ *     `<binary file — contents not injected; use the read tool if needed>` note.
+ *   - **Directories**: an `ls -F`-style listing (one level deep, `/` and `@`
+ *     suffixes, hidden entries gated by count) as a text block — `read` has no
+ *     directory equivalent. Empty directories annotate `(empty directory)`.
+ *   - **Missing / unreadable**: left as written; nothing injected.
  *
- *       what's in @pi/extensions/?
+ * ## Guards
  *
- *       @pi/extensions/:
- *       footer.ts
- *       fuzzy-filter.ts
- *       herald.ts
+ *   - only `@`-prefixed refs at a token boundary (start, or after a non-word
+ *     char) — matches `(@foo)` / `[@foo]`, not mid-word `foo@bar.com`, and not
+ *     `#@foo` (`#` excluded). Unicode-aware.
+ *   - the `input` handler short-circuits (`continue`) for extension-origin
+ *     input (loop prevention), mid-stream steering (latency), and prompts with
+ *     no `@` at all.
+ *   - per-path try/catch: a resolution/read error leaves that token verbatim
+ *     and never throws — one bad path can't fail the submit.
+ *   - de-dup by resolved absolute path (`@./a.ts` + `@a.ts` inject once).
  *
- * Hidden entries (names starting with `.`) are included only when there are
- * few of them (see LIMIT_HIDDEN_FILES). When included, the header is the bare
- * `@<dir>/:`. When omitted, pi appends a note so the model knows it's seeing a
- * partial listing:
- *
- *   @<dir>/ (hidden files omitted):
- *   <visible entries only>
- *
- * Hook: `context` event (fires before each LLM call with a deep copy of the
- * messages — non-destructive, the session keeps the literal `@path` text; the
- * synthetic read messages exist only in the copy sent to the LLM).
- *
- * Guards:
- *   - only @-prefixed refs (no bare-filename inference)
- *   - binary files are skipped via the NUL-byte heuristic (same as git /
- *     ripgrep): if the file contains any 0x00 byte it's treated as binary and
- *     no synthetic read is emitted for it. An 8KB head sample is checked first
- *     so a huge binary is rejected without reading it all; if clean, the full
- *     file is read.
- *   - directories are listed one level deep (never recursed); `.`/`..` excluded
- *   - no size cap on text files or entry count (deliberate; re-add one if
- *     context bloat bites)
- *   - file contents are mtime-cached so repeated turns don't re-read unchanged
- *     files; directory listings are re-read each turn (cheap readdir, and the
- *     listing may change between turns)
- *   - only the latest user message is expanded (keeps history lean); because
- *     injection is non-destructive, the synthetic reads are re-injected each
- *     turn (cheap — cached) and land right after the user message, so on later
- *     turns the model still sees "it already read these files" before its own
- *     earlier responses.
+ * Hook order is guaranteed: pi runs `input` → … → `before_agent_start` in one
+ * awaited `prompt()` call, so the closure handoff is race-free. `/reload` after
+ * edits (auto-discovered from pi/extensions/*.ts).
  */
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { statSync, openSync, readSync, closeSync, readdirSync } from "node:fs";
-import type { Stats, Dirent } from "node:fs";
-import { resolve as resolvePath, isAbsolute } from "node:path";
-import { homedir } from "node:os";
+import type { ExtensionAPI, InputEvent, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { highlightCode, getLanguageFromPath } from "@earendil-works/pi-coding-agent";
+import { Box, Text, type Component } from "@earendil-works/pi-tui";
+import { promises as fs } from "node:fs";
+import type { Dirent } from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
 
-const SAMPLE_BYTES = 8192;
+// ── trigger & token cleaning ────────────────────────────────────────────────
+// `@` at start-of-string or after a non-word char (Unicode-aware negative
+// lookbehind). Matches `(@foo)` / `[@foo]` / `>@foo`; does NOT match mid-word
+// (`foo@bar.com`) or `#@foo` (`#` is excluded so a hypothetical `#@` syntax is
+// left alone). Mirrors pi-file-injector's BARE_AT_RE boundary (collision-free).
+const AT_TOKEN = /(^|(?<![\p{L}\p{N}_#]))@(\S+)/gu;
+const TRAILING_PUNCT = ".,;:!?\")]}>'";
 
-/**
- * Hidden-entry threshold for directory listings. Flow: count a directory's
- * hidden entries (names starting with `.`); if the count exceeds this limit,
- * list visible entries only (and annotate the header accordingly), otherwise
- * list visible + hidden.
- */
-const LIMIT_HIDDEN_FILES = 50;
+// ── budget / paging constants (parity with the read tool + pi-file-injector) ─
+const BINARY_SAMPLE = 8000; // NUL-byte heuristic sample window (git/ripgrep method)
+const PAGED_THRESHOLD = 0.6; // inject whole if fileCost ≤ PAGED_THRESHOLD · remaining
+const MARGIN = 8192; // safety bytes subtracted from the remaining budget
+const HEAD_CHARS = 8192; // paged head size in UTF-16 code units (~read's 2000-line head)
+const DEFAULT_RESERVE = 8192; // fallback output reserve when ctx.model is absent
+const READ_LIMIT = 2000; // read tool DEFAULT_MAX_LINES — the paging directive's page size
+const LIMIT_HIDDEN_FILES = 50; // list hidden entries only when there are ≤ this many
 
-// @ matches only when preceded by start-of-string or whitespace — kept
-// consistent with the autocomplete trigger (fuzzy-filter.ts), which pi-tui's
-// compiled Editor hardcodes to the same boundary and no extension can widen.
-// So (@foo)/[@foo]/{@foo} are intentionally NOT treated as mentions. Also
-// does not match after letters/quotes/backticks, so emails (foo@bar.com) and
-// code spans (`@foo`) are left alone.
-const AT_TOKEN = /(^|\s)@(\S+)/g;
-const TRAIL_PUNCT = /[.,;:!?)]+$/;
-
-// absPath -> { mtimeMs, text: string | null }  (null = known-unreadable/binary)
-// Only files are cached; directory listings are re-read each turn.
-const cache = new Map<string, { mtimeMs: number; text: string | null }>();
-
-/** A resolved file reference, to be turned into a synthetic read tool call. */
-interface FileResolved {
-	kind: "file";
-	absPath: string;
-	ref: string; // as-typed path, exactly what `read` would receive
-	text: string;
+/** Per-injected-item metadata for the renderer (NOT sent to the model — only `content` is). */
+interface FileDetail {
+	path: string; // absolute resolved path
+	kind: "text" | "binary" | "paged" | "dir";
+	body?: string; // displayable body (file contents / head / dir listing); renderer-only
+	range?: string; // paged: ":<startLine>-" resume range (read-tool style)
+	directive?: string; // paged: the <paged: …> instruction text, shown when expanded
 }
 
-/** A resolved directory reference, to be appended as a text listing. */
-interface DirResolved {
-	kind: "dir";
-	absPath: string;
-	header: string; // "@<dir>/:" / "@<dir>/ (hidden files omitted):"
-	body: string;
+interface Injections {
+	blocks: string[]; // pi-native <file> blocks + dir text blocks → joined into message content
+	details: FileDetail[]; // one per injected item, in encounter order → renderer
+	injected: number;
+	paged: number;
 }
 
-type Resolved = FileResolved | DirResolved;
-
-/** A file injection ready to become a toolCall + toolResult pair. */
-interface FileInject {
-	id: string; // shared by the toolCall block and its toolResult
-	ref: string;
-	absPath: string;
-	text: string;
+/** Strip trailing punctuation/glue that `\S+` glues onto a path token. */
+function cleanToken(raw: string): string {
+	let s = raw;
+	while (s.length > 0 && TRAILING_PUNCT.includes(s[s.length - 1])) s = s.slice(0, -1);
+	return s;
 }
 
-let idCounter = 0;
-/** Unique id for a synthetic tool call (matches `toolCall.id` ↔ `toolResult.toolCallId`). */
-function syntheticId(): string {
-	return `promptexp_${Date.now().toString(36)}_${(idCounter++).toString(36)}`;
+/** Expand a leading `~` / `~/`, then resolve against cwd. Absolute paths pass through. */
+function expandTilde(p: string): string {
+	if (p === "~") return os.homedir();
+	if (p.startsWith("~/")) return path.join(os.homedir(), p.slice(2));
+	return p;
 }
 
-/**
- * Zeroed Usage for synthetic assistant messages. The AssistantMessage type
- * requires `usage`, and several pi paths read it without null-checks
- * (getSessionStats sums usage.input/.cost.total; getContextUsage calls
- * calculateContextTokens(usage)). All-zero keeps those readers safe while
- * ensuring the message is *not* counted as real token/cost usage —
- * getAssistantUsage / getContextTokens treat a 0-total usage as "no usage"
- * and skip past it.
- */
-const ZERO_USAGE = {
-	input: 0,
-	output: 0,
-	cacheRead: 0,
-	cacheWrite: 0,
-	totalTokens: 0,
-	cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
-};
-
-function resolveRef(ref: string, cwd: string): Resolved | null {
-	let p = ref.startsWith("~") ? homedir() + ref.slice(1) : ref;
-	p = isAbsolute(p) ? p : resolvePath(cwd, p);
-
-	let st: Stats;
-	try {
-		st = statSync(p);
-	} catch {
-		return null;
-	}
-
-	if (st.isDirectory()) return resolveDir(ref, p);
-	if (st.isFile()) return resolveFile(ref, p, st.size, st.mtimeMs);
-	return null;
-}
-
-/** Read a regular file, returning its full text (or null if binary/unreadable). */
-function resolveFile(
-	ref: string,
-	absPath: string,
-	size: number,
-	mtimeMs: number,
-): FileResolved | null {
-	const cached = cache.get(absPath);
-	if (cached && cached.mtimeMs === mtimeMs) {
-		return cached.text == null ? null : { kind: "file", absPath, ref, text: cached.text };
-	}
-
-	// Text vs binary: NUL-byte heuristic (git/ripgrep method). Check an 8KB
-	// head sample first so a multi-GB binary is rejected without reading it
-	// all; if the sample is clean, read the full file.
-	let fd: number;
-	try {
-		fd = openSync(absPath, "r");
-	} catch {
-		return null;
-	}
-	try {
-		const sampleLen = Math.min(size, SAMPLE_BYTES);
-		if (sampleLen > 0) {
-			const sample = Buffer.alloc(sampleLen);
-			readSync(fd, sample, 0, sampleLen, 0);
-			if (sample.includes(0)) {
-				cache.set(absPath, { mtimeMs, text: null });
-				return null;
-			}
+/** Extract de-duplicated (by as-typed token) `@path` refs from the prompt, in order. */
+function extractRefs(text: string): string[] {
+	const refs: string[] = [];
+	const seen = new Set<string>();
+	let m: RegExpExecArray | null;
+	AT_TOKEN.lastIndex = 0;
+	while ((m = AT_TOKEN.exec(text)) !== null) {
+		const tok = cleanToken(m[2]);
+		if (tok && !seen.has(tok)) {
+			seen.add(tok);
+			refs.push(tok);
 		}
-		const full = Buffer.alloc(size);
-		if (size > 0) readSync(fd, full, 0, size, 0);
-		const text = full.toString("utf8");
-		cache.set(absPath, { mtimeMs, text });
-		return { kind: "file", absPath, ref, text };
-	} finally {
-		closeSync(fd);
 	}
+	return refs;
 }
 
-/**
- * List a directory's entries (one level deep), gating hidden entries by count.
- * Hidden included (≤ LIMIT)  → bare header "@<dir>/:".
- * Hidden omitted (> LIMIT)   → "@<dir>/ (hidden files omitted):".
- */
-function resolveDir(ref: string, absPath: string): DirResolved | null {
-	let entries: Dirent[];
-	try {
-		entries = readdirSync(absPath, { withFileTypes: true });
-	} catch {
-		return null;
-	}
-	// readdirSync already excludes "." and "..".
-	const hiddenCount = entries.reduce(
-		(n, e) => n + (e.name.startsWith(".") ? 1 : 0),
-		0,
+/** NUL-byte heuristic (git/ripgrep): binary if any 0x00 in the first BINARY_SAMPLE bytes. */
+function isBinary(buf: Buffer): boolean {
+	const n = Math.min(buf.length, BINARY_SAMPLE);
+	for (let i = 0; i < n; i++) if (buf[i] === 0) return true;
+	return false;
+}
+
+/** `<file name="abs">\n<content>\n</file>` — pi's native attached-file block (CLI @file parity). */
+function formatTextFileBlock(abs: string, content: string): string {
+	return '<file name="' + abs + '">\n' + content + "\n</file>";
+}
+
+/** Binary note (em dash U+2014). No decoded garbage; points the model at the read tool. */
+function formatBinaryBlock(abs: string): string {
+	return '<file name="' + abs + '"><binary file \u2014 contents not injected; use the read tool if needed></file>';
+}
+
+/** Paged directive: tells the model exactly where the head stopped and how to read the rest. */
+function formatPagedDirectiveBlock(abs: string, len: number, startLine: number, injectedLines: number): string {
+	return (
+		'<file name="' +
+		abs +
+		'"><paged: ' +
+		len +
+		" chars; head delivered " +
+		injectedLines +
+		" complete lines; read the rest with the read tool at offset:" +
+		startLine +
+		", limit:" +
+		READ_LIMIT +
+		", incrementing offset by " +
+		READ_LIMIT +
+		" until done></file>"
 	);
-	const includeHidden = hiddenCount <= LIMIT_HIDDEN_FILES;
-
-	const body =
-		entries.length === 0
-			? "(empty directory)"
-			: entries
-					.filter((e) => includeHidden || !e.name.startsWith("."))
-					.sort(compareEntries)
-					.map(entryLabel)
-					.join("\n");
-
-	const dirRef = ref.endsWith("/") ? ref : ref + "/";
-	const header = includeHidden ? `@${dirRef}:` : `@${dirRef} (hidden files omitted):`;
-	return { kind: "dir", absPath, header, body };
 }
 
-/** Case-insensitive alphabetical sort (matches `ls` ordering well enough). */
+/** UTF-16 head slice, backed past a lone high surrogate so it never splits a pair. */
+function headSlice(content: string): string {
+	let s = content.slice(0, HEAD_CHARS);
+	const last = s.charCodeAt(s.length - 1);
+	const next = content.charCodeAt(HEAD_CHARS);
+	if (last >= 0xd800 && last <= 0xdbff && next >= 0xdc00 && next <= 0xdfff) s = s.slice(0, -1);
+	return s;
+}
+
+/** Count complete lines (newlines) in the head, so the directive resumes with no data loss. */
+function headCompleteLineCount(head: string): number {
+	let n = 0;
+	for (let i = 0; i < head.length; i++) if (head.charCodeAt(i) === 0x0a) n++;
+	return n;
+}
+
+// ── directory listing (kept from the prior prompt_expansion; read can't do dirs) ─
 function compareEntries(a: Dirent, b: Dirent): number {
 	const x = a.name.toLowerCase();
 	const y = b.name.toLowerCase();
@@ -249,130 +226,228 @@ function entryLabel(e: Dirent): string {
 	return e.name + suffix;
 }
 
-function extractRefs(text: string): string[] {
-	const refs: string[] = [];
-	let m: RegExpExecArray | null;
-	AT_TOKEN.lastIndex = 0;
-	while ((m = AT_TOKEN.exec(text)) !== null) {
-		const path = m[2].replace(TRAIL_PUNCT, "");
-		if (path) refs.push(path);
+/** List a directory one level deep, gating hidden entries by count. Never throws. */
+async function listDir(absPath: string): Promise<{ header: string; body: string } | null> {
+	let entries: Dirent[];
+	try {
+		entries = await fs.readdir(absPath, { withFileTypes: true });
+	} catch {
+		return null;
 	}
-	// de-dup by as-typed form, preserve order
-	return [...new Set(refs)];
+	const hiddenCount = entries.reduce((n, e) => n + (e.name.startsWith(".") ? 1 : 0), 0);
+	const includeHidden = hiddenCount <= LIMIT_HIDDEN_FILES;
+	const body =
+		entries.length === 0
+			? "(empty directory)"
+			: entries
+					.filter((e) => includeHidden || !e.name.startsWith("."))
+					.sort(compareEntries)
+					.map(entryLabel)
+					.join("\n");
+	const header = includeHidden ? `@${absPath}/:` : `@${absPath}/ (hidden files omitted):`;
+	return { header, body };
 }
 
-interface Injections {
-	fileInjects: FileInject[];
-	dirBlocks: string[]; // pre-formatted "header\nbody" listings
+/** Remaining context budget (tokens), or null when unknown → caller injects whole. */
+function computeRemaining(ctx: ExtensionContext): number | null {
+	try {
+		const usage = ctx.getContextUsage();
+		if (!usage || usage.tokens === null) return null; // unknown (e.g. right after compaction)
+		const reserve = ctx.model?.maxTokens ?? DEFAULT_RESERVE;
+		return Math.max(0, usage.contextWindow - usage.tokens - reserve - MARGIN);
+	} catch {
+		return null;
+	}
 }
 
 /**
- * Resolve every @path in `text` into either a synthetic read (files) or a text
- * listing block (directories). De-duplicated by resolved absPath.
+ * Resolve every `@path` in `text` into `<file>` blocks (files) or text listings
+ * (directories). Best-effort sequential budgeting: each delivered file subtracts
+ * its cost from `remaining` so a run of files can tip later ones onto the paged
+ * path. Never throws — per-path failures leave that token verbatim.
  */
-function buildInjections(text: string, cwd: string): Injections {
+async function buildInjections(text: string, ctx: ExtensionContext): Promise<Injections> {
 	const refs = extractRefs(text);
-	const fileInjects: FileInject[] = [];
-	const dirBlocks: string[] = [];
-	const seen = new Set<string>(); // by resolved absPath
+	let remaining = computeRemaining(ctx);
+	const blocks: string[] = [];
+	const details: FileDetail[] = [];
+	const seen = new Set<string>(); // by resolved absolute path
+	let injected = 0;
+	let paged = 0;
+
 	for (const ref of refs) {
-		const resolved = resolveRef(ref, cwd);
-		if (!resolved || seen.has(resolved.absPath)) continue;
-		seen.add(resolved.absPath);
-		if (resolved.kind === "file") {
-			fileInjects.push({ id: syntheticId(), ref, absPath: resolved.absPath, text: resolved.text });
-		} else {
-			dirBlocks.push(`${resolved.header}\n${resolved.body}`);
+		const abs = path.resolve(ctx.cwd, expandTilde(ref));
+		if (seen.has(abs)) continue; // dedup before any I/O
+
+		let st;
+		try {
+			st = await fs.stat(abs);
+		} catch {
+			continue; // missing → leave verbatim
 		}
+		seen.add(abs); // claim (delivered, or explicitly skipped below — a dup would skip too)
+
+		if (st.isDirectory()) {
+			const listing = await listDir(abs);
+			if (!listing) continue; // unreadable dir → leave verbatim
+			blocks.push(`${listing.header}\n${listing.body}`);
+			details.push({ path: abs, kind: "dir", body: `${listing.header}\n${listing.body}` });
+			injected++;
+			continue;
+		}
+		if (!st.isFile()) continue; // socket / fifo / etc. → leave verbatim
+
+		let buf: Buffer;
+		try {
+			buf = await fs.readFile(abs);
+		} catch {
+			continue; // unreadable file → leave verbatim
+		}
+
+		if (isBinary(buf)) {
+			blocks.push(formatBinaryBlock(abs));
+			details.push({ path: abs, kind: "binary" });
+			injected++;
+			continue;
+		}
+
+		const content = buf.toString("utf8");
+		const fileCost = Math.ceil(content.length / 4);
+		// Whole when: budget unknown, or it fits the threshold, or it's sub-head-sized
+		// (a sub-head file has nothing to page — a directive would point past EOF).
+		if (remaining === null || fileCost <= PAGED_THRESHOLD * remaining || content.length <= HEAD_CHARS) {
+			blocks.push(formatTextFileBlock(abs, content));
+			details.push({ path: abs, kind: "text", body: content });
+			if (remaining !== null) remaining = Math.max(0, remaining - fileCost);
+		} else {
+			const head = headSlice(content);
+			const headLines = headCompleteLineCount(head);
+			const startLine = headLines + 1; // 1-indexed line AFTER the complete lines in the head
+			blocks.push(formatTextFileBlock(abs, head));
+			blocks.push(formatPagedDirectiveBlock(abs, content.length, startLine, headLines));
+			details.push({
+				path: abs,
+				kind: "paged",
+				body: head,
+				range: `:${startLine}-`,
+				directive: `<paged: ${content.length} chars; head delivered ${headLines} complete lines; read the rest at offset:${startLine}, limit:${READ_LIMIT}>`,
+			});
+			paged++;
+			if (remaining !== null) remaining = Math.max(0, remaining - Math.ceil(HEAD_CHARS / 4));
+		}
+		injected++;
 	}
-	return { fileInjects, dirBlocks };
+
+	return { blocks, details, injected, paged };
 }
 
+// ── TUI rendering ────────────────────────────────────────────────────────────
+/** Leading `~` for a home-relative path, for readable display (read-tool parity). */
+function tildify(abs: string): string {
+	const home = os.homedir();
+	return home && abs.startsWith(home + "/") ? "~" + abs.slice(home.length) : abs;
+}
+
+function expandHint(theme: any): string {
+	return " " + theme.fg("dim", "(ctrl+o to expand)");
+}
+
+/** One collapsed line per item, read-tool-style: `read <path>` / `ls <dir>/`. */
+function itemLine(d: FileDetail, theme: any): string {
+	const isDir = d.kind === "dir";
+	const title = theme.fg("toolTitle", theme.bold(isDir ? "ls" : "read"));
+	const p = theme.fg("accent", tildify(d.path) + (isDir ? "/" : ""));
+	if (d.kind === "binary") return `${title} ${p} ${theme.fg("dim", "(binary \u2014 not injected)")}`;
+	if (d.kind === "paged") return `${title} ${p}${theme.fg("warning", d.range ?? "")}`;
+	return `${title} ${p}`;
+}
+
+/**
+ * Renders the injected-items custom message as a compact green box: one line per
+ * item when collapsed, full contents (syntax-highlighted for files, raw for
+ * dirs) plus the paging directive when expanded via ctrl+o. Mirrors the read
+ * tool's rendering. Bodies come from `details` (renderer-only, never sent to the
+ * model) so a file containing a literal `</file>` can't mis-truncate display.
+ */
+function renderInjected(message: any, opts: { expanded?: boolean }, theme: any): Component {
+	const files: FileDetail[] = message?.details?.files ?? [];
+	const box = new Box(1, 1, (t: string) => theme.bg("toolSuccessBg", t));
+	if (files.length === 0) {
+		box.addChild(
+			new Text(theme.fg("toolTitle", theme.bold("read")) + " " + theme.fg("dim", "(injected)") + expandHint(theme), 0, 0),
+		);
+		return box;
+	}
+	for (let i = 0; i < files.length; i++) {
+		const d = files[i];
+		box.addChild(new Text(itemLine(d, theme) + (i === 0 ? expandHint(theme) : ""), 0, 0));
+		if (opts.expanded && typeof d.body === "string") {
+			if (d.kind === "binary") continue; // nothing to show
+			if (d.kind === "dir") {
+				box.addChild(new Text(theme.fg("toolOutput", d.body), 0, 0));
+			} else {
+				const lang = getLanguageFromPath(d.path);
+				const rendered = lang ? highlightCode(d.body, lang).join("\n") : d.body;
+				box.addChild(new Text(theme.fg("toolOutput", rendered), 0, 0));
+				if (d.kind === "paged" && d.directive) {
+					box.addChild(new Text(theme.fg("dim", d.directive), 0, 0));
+				}
+			}
+		}
+	}
+	return box;
+}
+
+// ── extension entry ──────────────────────────────────────────────────────────
 export default function (pi: ExtensionAPI) {
-	pi.on("context", async (event, ctx) => {
-		const messages = event.messages;
+	// One-shot handoff stash from the input handler to before_agent_start. input
+	// produces the work (file I/O + blocks/details); before_agent_start publishes
+	// it as the custom message after the user message. prompt() runs input → … →
+	// before_agent_start sequentially (one awaited call), so there is no race.
+	// Cleared unconditionally in before_agent_start (one-shot per submit) so a
+	// later no-`@` prompt never re-delivers a stale stash.
+	let pending: { blocks: string[]; details: FileDetail[] } | null = null;
 
-		// find the most recent user message
-		let lastUser = -1;
-		for (let i = messages.length - 1; i >= 0; i--) {
-			if (messages[i].role === "user") {
-				lastUser = i;
-				break;
-			}
-		}
-		if (lastUser === -1) return;
+	pi.on("session_start", () => {
+		// Register the chat renderer ONCE. customType MUST match before_agent_start's
+		// "promptExpansion.injected" exactly (the handshake). No hasUI guard — the
+		// renderer fn is only invoked in TUI mode; it's a no-op in print/json.
+		pi.registerMessageRenderer("promptExpansion.injected", (message: any, opts: any, theme: any) =>
+			renderInjected(message, opts, theme),
+		);
+	});
 
-		const msg: any = messages[lastUser];
-		const content = msg.content;
+	pi.on("input", async (event: InputEvent, ctx: ExtensionContext) => {
+		if (event.source === "extension") return { action: "continue" }; // loop prevention
+		if (event.streamingBehavior === "steer") return { action: "continue" }; // skip mid-stream steering
+		if (!event.text?.includes("@")) return { action: "continue" }; // cheap pre-check before regex/IO
 
-		// collect text from the message
-		let text: string | undefined;
-		if (typeof content === "string") {
-			text = content;
-		} else if (Array.isArray(content)) {
-			text = content
-				.filter((c: any) => c && c.type === "text")
-				.map((c: any) => c.text)
-				.join("\n");
-		}
-		if (!text) return;
+		const { blocks, details, injected, paged } = await buildInjections(event.text, ctx);
+		if (injected === 0) return { action: "continue" }; // nothing resolved → prompt byte-for-byte
 
-		const { fileInjects, dirBlocks } = buildInjections(text, ctx.cwd);
-		if (fileInjects.length === 0 && dirBlocks.length === 0) return;
+		pending = { blocks, details };
 
-		let mutated = false;
-
-		// 1) Directory listings: append as text below the user message (no read
-		//    tool — read has no directory equivalent).
-		if (dirBlocks.length > 0) {
-			const addition = "\n\n" + dirBlocks.join("\n");
-			if (typeof content === "string") {
-				msg.content = content + addition;
-				mutated = true;
-			} else if (Array.isArray(content)) {
-				// append as a new text part; leave original parts untouched
-				content.push({ type: "text", text: addition });
-				mutated = true;
-			}
+		if (ctx.hasUI) {
+			const msg = `@ expanded ${injected} file${injected === 1 ? "" : "s"}${paged > 0 ? `, ${paged} paged` : ""}`;
+			ctx.ui.notify(msg, "info");
 		}
 
-		// 2) Files: splice a synthetic assistant read(toolCall) + toolResult
-		//    pair(s) immediately after the user message. To the model this looks
-		//    exactly like it already called `read` on each file and got the
-		//    contents back.
-		if (fileInjects.length > 0) {
-			const ts = Date.now();
-			// Synthetic assistant message: `usage` is required and zeroed (see
-			// ZERO_USAGE) so token/cost readers don't crash and the message isn't
-			// counted as real usage. `provider`/`api`/`model` are intentionally
-			// omitted — transformMessages then treats it as cross-model and runs
-			// the id-normalization path, which is a no-op for our already-clean ids.
-			const assistantMsg: any = {
-				role: "assistant",
-				content: fileInjects.map((f) => ({
-					type: "toolCall",
-					id: f.id,
-					name: "read",
-					arguments: { path: f.ref },
-				})),
-				stopReason: "toolUse",
-				usage: ZERO_USAGE,
-				timestamp: ts,
-			};
-			const resultMsgs: any[] = fileInjects.map((f) => ({
-				role: "toolResult",
-				toolCallId: f.id,
-				toolName: "read",
-				content: [
-					{ type: "text", text: f.text.length === 0 ? "(empty file)" : f.text },
-				],
-				isError: false,
-				timestamp: ts,
-			}));
-			messages.splice(lastUser + 1, 0, assistantMsg, ...resultMsgs);
-			mutated = true;
-		}
+		// text VERBATIM: the prompt is never modified, so cancel/fork//tree re-open
+		// re-triggers injection. images pass through untouched.
+		return { action: "transform" as const, text: event.text, images: event.images ?? [] };
+	});
 
-		if (mutated) return { messages };
+	pi.on("before_agent_start", async () => {
+		if (!pending) return undefined; // no @, or short-circuited, or nothing resolved
+		const { blocks, details } = pending;
+		pending = null; // clear regardless — one-shot per submit
+		return {
+			message: {
+				customType: "promptExpansion.injected", // the renderer's registered customType
+				content: blocks.join("\n\n"), // every <file>/dir block → sent to the LLM
+				display: true, // render in the TUI (renderer registered above)
+				details: { files: details }, // renderer metadata; NOT extra model text
+			},
+		};
 	});
 }
