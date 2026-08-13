@@ -10,16 +10,22 @@
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --file)    FILE="$2";    shift 2 ;;
-    --url)     URL="$2";     shift 2 ;;
-    --cookies) COOKIES="$2"; shift 2 ;;
+    # ${2:?...} aborts with a clear message if the arg is missing,
+    # which also prevents a runaway loop (shift 2 can't advance otherwise).
+    --file)          FILE="${2:?--file requires an argument}";       shift 2 ;;
+    --url)           URL="${2:?--url requires an argument}";         shift 2 ;;
+    --cookies)       COOKIES="${2:?--cookies requires an argument}"; shift 2 ;;
+    --limit)         LIMIT="${2:?--limit requires an argument}";     shift 2 ;;
+    --default-limit) LIMIT=500K; shift ;;
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
 
 if [[ -z "$URL" ]]; then
-  echo "Usage: $(basename "$0") --url <url> [--file <file>] [--cookies <file>]" >&2
-  echo "  --file is optional: when omitted, aria2c autodetects the name from the URL." >&2
+  echo "Usage: $(basename "$0") --url <url> [--file <file>] [--cookies <file>] [--limit <speed> | --default-limit]" >&2
+  echo "  --file          optional: when omitted, aria2c autodetects the name from the URL." >&2
+  echo "  --limit <speed> caps bandwidth using aria2c syntax, e.g. '500K', '1M', '2M' (0 = unlimited)." >&2
+  echo "  --default-limit shorthand for --limit 500K." >&2
   exit 1
 fi
 
@@ -38,6 +44,11 @@ if [[ -n "$FILE" ]]; then
     -d "$(dirname "$FILE")"   # output directory
     -o "$(basename "$FILE")"  # output filename
   )
+fi
+
+if [[ -n "$LIMIT" ]]; then
+  # Cap download throughput so the link isn't saturated while doing other things.
+  ARIA_ARGS+=(--max-download-limit="$LIMIT")
 fi
 
 if [[ -n "$COOKIES" ]]; then
