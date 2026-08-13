@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<!--
+  Function Plotter — mini Desmos-style 1D function plotter for gamedev prototyping.
+
+  Reference patterns for math/plotting demos:
+    - Gruvbox dark theme (palette inline in <style>).
+    - expr-eval from CDN (https://unpkg.com/expr-eval) as global `exprEval` parses and
+      evaluates user expressions — no hand-rolled parser.
+    - Multi-region layout: variables (constants with sliders + independent x-axis vars)
+      and functions, each parsed line-by-line from textareas.
+    - Canvas plots with grid/axes and click/drag markers; a marker on a shared variable
+      updates every plot that uses it (live cross-coupling).
+    - Color-coded tokens: dependent var + plotted independent share a colour, other
+      independents a 2nd colour, constants a 3rd.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Function Plotter</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #282828;
+  color: #ebdbb2;
+  font-family: monospace;
+  padding: 20px;
+  max-width: 960px;
+  margin: 0 auto;
+  font-size: 14px;
+}
+
+h1 { color: #fb4934; margin-bottom: 4px; font-size: 1.4em; }
+h1 .sub { color: #928374; font-size: 0.7em; font-weight: normal; }
+h2 { color: #d5c4a1; margin-bottom: 8px; font-size: 1.05em; }
+h2 .muted { color: #928374; font-size: 0.8em; font-weight: normal; }
+.muted { color: #928374; }
+
+.topbar {
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+  background: #3c3836; padding: 10px 12px; border-radius: 6px; margin: 12px 0 16px;
+}
+.topbar .control-group { display: flex; flex-direction: column; gap: 4px; }
+.topbar label { font-size: 0.8em; color: #bdae93; }
+.range-pair { display: flex; gap: 4px; align-items: center; }
+.range-pair span { color: #928374; }
+
+.region {
+  background: #3c3836; padding: 12px 14px; border-radius: 6px; margin-bottom: 16px;
+}
+
+textarea {
+  width: 100%; background: #1d2021; color: #ebdbb2;
+  border: 1px solid #504945; border-radius: 4px; padding: 8px;
+  font-family: monospace; font-size: 0.92em; resize: vertical; line-height: 1.5;
+}
+textarea:focus { outline: none; border-color: #fb4934; }
+
+input[type="number"], input[type="text"] {
+  background: #1d2021; color: #ebdbb2; border: 1px solid #504945;
+  padding: 4px 6px; border-radius: 4px; font-family: monospace; font-size: 0.88em;
+  width: 5.5em;
+}
+input[type="number"]:focus { outline: none; border-color: #fb4934; }
+
+button {
+  background: #fb4934; color: #282828; border: none; padding: 6px 16px;
+  border-radius: 4px; font-family: monospace; font-size: 0.9em; cursor: pointer;
+  font-weight: bold;
+}
+button:hover { background: #cc241d; color: #ebdbb2; }
+button.ghost { background: transparent; border: 1px solid #504945; color: #bdae93; }
+button.ghost:hover { background: #3c3836; color: #ebdbb2; }
+
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  height: 6px; background: #504945; border-radius: 3px; outline: none; width: 180px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 14px; height: 14px;
+  border-radius: 50%; background: #fb4934; cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%; background: #fb4934;
+  cursor: pointer; border: none;
+}
+
+.sliders { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.slider-row {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  background: #1d2021; padding: 5px 8px; border-radius: 4px;
+}
+.slider-row .sname { color: #83a598; min-width: 90px; font-weight: bold; }
+.slider-row .sval { width: 4.5em; }
+
+.errors { margin-top: 8px; }
+.msg { padding: 2px 0; font-size: 0.88em; }
+.msg.err { color: #fb4934; }
+.msg.info { color: #b8bb26; }
+
+.plot {
+  background: #1d2021; border: 1px solid #504945; border-radius: 6px;
+  padding: 10px 12px 6px; margin-bottom: 14px;
+}
+.plot-label { font-size: 0.88em; margin-bottom: 6px; word-break: break-all; }
+.plot-label .pexpr { color: #ebdbb2; }
+.v-dep { color: #fabd2f; font-weight: bold; }
+.v-indep { color: #8ec07c; }
+.v-const { color: #83a598; }
+canvas {
+  background: #1d2021; border: 1px solid #504945; border-radius: 4px;
+  display: block; max-width: 100%; height: auto;
+}
+
+.help {
+  margin-top: 18px; background: #3c3836; border-radius: 6px; padding: 10px 14px;
+  font-size: 0.8em; color: #bdae93;
+}
+.help summary { cursor: pointer; color: #d5c4a1; }
+.help code { color: #fabd2f; background: #1d2021; padding: 0 4px; border-radius: 3px; }
+.help ul { margin: 8px 0 0 18px; line-height: 1.7; }
+
+#status { color: #928374; font-size: 0.85em; }
+</style>
+</head>
+<body>
+<h1>Function Plotter <span class="sub">// 1D gamedev prototyping</span></h1>
+
+<div class="topbar">
+  <div class="control-group">
+    <label>y-range (global)</label>
+    <div class="range-pair">
+      <input type="number" id="ylo" value="0" step="any">
+      <span>..</span>
+      <input type="number" id="yhi" value="1" step="any">
+    </div>
+  </div>
+  <button id="clearBtn">Clear</button>
+  <span id="status"></span>
+</div>
+
+<div class="region">
+  <h2>1 · Variables <span class="muted">// constants (sliders) &amp; independent (x-axis) vars</span></h2>
+  <textarea id="vars" rows="7" spellcheck="false"></textarea>
+  <div id="sliders" class="sliders"></div>
+  <div id="varErrors" class="errors"></div>
+</div>
+
+<div class="region">
+  <h2>2 · Functions <span class="muted">// name = expr &nbsp;·&nbsp; each independent var used → its own plot</span></h2>
+  <textarea id="funcs" rows="4" spellcheck="false"></textarea>
+  <div id="funcErrors" class="errors"></div>
+</div>
+
+<h2>Plots</h2>
+<div id="plots"></div>
+
+<details class="help">
+  <summary>Syntax &amp; function reference</summary>
+  <ul>
+    <li><strong>Variables</strong> — <code>a = 5</code> constant (slider, default range <code>[0,10]</code>); <code>a = 5 {0,100}</code> sets slider range; a bare <code>a</code> defaults to 1.</li>
+    <li><strong>Independent vars</strong> — <code>x = independent {0, 1}</code> declares an x-axis variable with its domain (defaults to <code>{0, 1}</code>). Each one a function uses renders a separate plot.</li>
+    <li><strong>Functions</strong> — <code>y = expr</code>. Click or drag a plot to place a marker; markers on a shared variable update every plot together.</li>
+    <li><strong>Comments</strong> — lines starting with <code>#</code> or <code>//</code> are ignored.</li>
+    <li><strong>Operators</strong> — <code>+ - * / % ^</code>, comparison <code>== != &lt; &lt;= &gt; &gt;=</code>, logical <code>and or</code>, ternary <code>? :</code>.</li>
+    <li><strong>Constants</strong> — <code>PI</code>, <code>E</code>.</li>
+    <li><strong>Functions</strong> — <code>sin cos tan asin acos atan atan2 sinh cosh tanh sqrt exp log log2 log10 abs floor ceil round trunc min max sign clamp lerp smoothstep step mod</code>.</li>
+  </ul>
+</details>
+
+<script src="https://unpkg.com/expr-eval@2.0.2/dist/bundle.min.js"></script>
+<script>
+"use strict";
+(function () {
+  if (typeof exprEval === 'undefined') {
+    document.getElementById('plots').innerHTML =
+      '<div class="msg err">Failed to load expr-eval from CDN. Check your internet connection and reload.</div>';
+    return;
+  }
+
+  const { Parser } = exprEval;
+  const parser = new Parser();
+  // extra gamedev-friendly functions (min/max already variadic built-ins)
+  parser.functions.clamp      = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  parser.functions.lerp       = (a, b, t) => a + (b - a) * t;
+  parser.functions.smoothstep = (e0, e1, x) => {
+    if (e1 === e0) return 0;
+    const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+    return t * t * (3 - 2 * t);
+  };
+  parser.functions.step = (edge, x) => (x < edge ? 0 : 1);
+  parser.functions.mod  = (a, b) => ((a % b) + b) % b;
+
+  const NUM = '-?\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?';
+  const RX_INDEP = new RegExp('^([a-zA-Z_]\\w*)\\s*=\\s*independent(?:\\s*\\{\\s*(' + NUM + ')\\s*,\\s*(' + NUM + ')\\s*\\})?$');
+  const RX_CONST = new RegExp('^([a-zA-Z_]\\w*)\\s*=\\s*(' + NUM + ')(?:\\s*\\{\\s*(' + NUM + ')\\s*,\\s*(' + NUM + ')\\s*\\})?$');
+  const RX_BARE  = /^([a-zA-Z_]\w*)$/;
+  const RX_FUNC  = /^([a-zA-Z_]\w*)\s*=\s*(.+)$/;
+
+  const state = {
+    constants: {},     // name -> { value, lo, hi, declared }
+    independents: {},  // name -> { lo, hi, current }
+    funcs: [],         // { name, exprStr, ast, usedIndep, undef }
+    errors: { vars: [], funcs: [] },
+    yRange: { lo: 0, hi: 80 },
+    canvases: [],      // { canvas, ctx, func, indep }
+  };
+
+  const $ = id => document.getElementById(id);
+  const els = {
+    vars: $('vars'), funcs: $('funcs'), ylo: $('ylo'), yhi: $('yhi'),
+    sliders: $('sliders'), plots: $('plots'),
+    varErrors: $('varErrors'), funcErrors: $('funcErrors'),
+    status: $('status'), clearBtn: $('clearBtn'),
+  };
+
+  // ---------- helpers ----------
+  function fmt(n) {
+    if (typeof n !== 'number') return String(n);
+    if (!isFinite(n)) return n > 0 ? '+∞' : '−∞';
+    const a = Math.abs(n);
+    if (a !== 0 && (a < 1e-3 || a >= 1e5)) return n.toExponential(2);
+    return String(Math.round(n * 1000) / 1000);
+  }
+  function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+  // color variable tokens in an expression for the plot label:
+  //   plotted independent + dependent name -> v-dep ; other independents -> v-indep ; constants -> v-const
+  function colorExpr(exprStr, indep) {
+    return exprStr.split(/([a-zA-Z_]\w*)/).map(tok => {
+      if (!tok) return '';
+      if (!/^[a-zA-Z_]\w*$/.test(tok)) return escapeHtml(tok);
+      if (tok === indep) return '<span class="v-dep">' + escapeHtml(tok) + '</span>';
+      if (state.independents[tok]) return '<span class="v-indep">' + escapeHtml(tok) + '</span>';
+      if (state.constants[tok]) return '<span class="v-const">' + escapeHtml(tok) + '</span>';
+      return escapeHtml(tok); // function call / unknown -> default
+    }).join('');
+  }
+  function line(ctx, x1, y1, x2, y2) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+  function msg(parent, text, cls) { const d = document.createElement('div'); d.className = 'msg ' + cls; d.textContent = text; parent.appendChild(d); }
+  function makeScope(override) {
+    const scope = {};
+    for (const n in state.constants) scope[n] = state.constants[n].value;
+    for (const n in state.independents) scope[n] = state.independents[n].current;
+    if (override) for (const k in override) scope[k] = override[k];
+    return scope;
+  }
+
+  // ---------- parsing ----------
+  function parseVars(text) {
+    const prevC = state.constants, prevI = state.independents;
+    const constants = {}, independents = {};
+    const errors = [];
+    text.split('\n').forEach(raw => {
+      const line = raw.trim();
+      if (!line || line.startsWith('#') || line.startsWith('//')) return;
+
+      const lead = line.match(/^([a-zA-Z_]\w*)/);
+      if (lead && lead[1] === 'independent') {
+        errors.push('"independent" is a reserved keyword (use "name = independent {lo, hi}")');
+        return;
+      }
+
+      let m = line.match(RX_INDEP);
+      if (m) {
+        const [, name, loS, hiS] = m;
+        const lo = loS != null ? parseFloat(loS) : 0;
+        const hi = hiS != null ? parseFloat(hiS) : 1;
+        if (!(lo < hi)) { errors.push(name + ': bad domain {' + lo + ', ' + hi + '}'); return; }
+        const prev = prevI[name];
+        let current;
+        if (prev && prev.lo === lo && prev.hi === hi) current = prev.current;
+        else if (prev) current = Math.min(hi, Math.max(lo, prev.current));
+        else current = (lo + hi) / 2;
+        if (name in constants) errors.push('"' + name + '" declared as both constant and independent');
+        independents[name] = { lo, hi, current };
+        return;
+      }
+
+      m = line.match(RX_CONST);
+      if (m) {
+        const [, name, valS, loS, hiS] = m;
+        const declared = parseFloat(valS);
+        const lo = loS != null ? parseFloat(loS) : 0;
+        const hi = hiS != null ? parseFloat(hiS) : 10;
+        if (!(lo < hi)) { errors.push(name + ': bad slider range {' + lo + ', ' + hi + '}'); return; }
+        const prev = prevC[name];
+        let value = (prev && prev.declared === declared) ? prev.value : declared;
+        value = Math.min(hi, Math.max(lo, value));
+        if (name in independents) errors.push('"' + name + '" declared as both constant and independent');
+        constants[name] = { value, lo, hi, declared };
+        return;
+      }
+
+      m = line.match(RX_BARE);
+      if (m) {
+        const name = m[1];
+        const prev = prevC[name];
+        const value = (prev && prev.declared === 1) ? prev.value : 1;
+        constants[name] = { value, lo: 0, hi: 10, declared: 1 };
+        return;
+      }
+
+      errors.push('unrecognized: "' + line + '"');
+    });
+    state.constants = constants;
+    state.independents = independents;
+    state.errors.vars = errors;
+  }
+
+  function parseFuncs(text) {
+    const funcs = [], errors = [];
+    text.split('\n').forEach(raw => {
+      const line = raw.trim();
+      if (!line || line.startsWith('#') || line.startsWith('//')) return;
+      const m = line.match(RX_FUNC);
+      if (!m) { errors.push('bad line: "' + line + '"'); return; }
+      const [, name, exprStr] = m;
+      let ast;
+      try { ast = parser.parse(exprStr); }
+      catch (e) { errors.push(name + ': ' + e.message); return; }
+      const free = ast.variables();
+      const usedIndep = free.filter(v => state.independents[v]);
+      const undef = free.filter(v => !state.constants[v] && !state.independents[v]);
+      funcs.push({ name, exprStr, ast, usedIndep, undef });
+    });
+    state.funcs = funcs;
+    state.errors.funcs = errors;
+  }
+
+  // ---------- UI build ----------
+  function buildSliders() {
+    els.sliders.innerHTML = '';
+    const names = Object.keys(state.constants);
+    if (!names.length) return;
+    names.forEach(name => {
+      const c = state.constants[name];
+      const step = (c.hi - c.lo) / 200;
+      const row = document.createElement('div');
+      row.className = 'slider-row';
+      row.innerHTML =
+        '<span class="sname">' + escapeHtml(name) + '</span>' +
+        '<input type="range" min="' + c.lo + '" max="' + c.hi + '" step="' + step + '" value="' + c.value + '">' +
+        '<input type="number" class="sval" step="any" value="' + c.value + '">' +
+        '<span class="muted">[' + fmt(c.lo) + ', ' + fmt(c.hi) + ']</span>';
+      const rng = row.querySelector('input[type=range]');
+      const num = row.querySelector('input[type=number]');
+      rng.addEventListener('input', () => {
+        const v = parseFloat(rng.value); c.value = v; num.value = v; scheduleRender();
+      });
+      num.addEventListener('input', () => {
+        const v = parseFloat(num.value);
+        if (isFinite(v)) { c.value = v; rng.value = v; scheduleRender(); }
+      });
+      els.sliders.appendChild(row);
+    });
+  }
+
+  function buildPlots() {
+    els.plots.innerHTML = '';
+    state.canvases = [];
+    let plotted = 0;
+    state.funcs.forEach(f => {
+      if (f.undef.length) {
+        msg(els.plots, f.name + ' = ' + f.exprStr + '   ✗ undefined variable(s): ' + f.undef.join(', '), 'err');
+        return;
+      }
+      if (!f.usedIndep.length) {
+        let v;
+        try { v = f.ast.evaluate(makeScope()); }
+        catch (e) { msg(els.plots, f.name + ': ' + e.message, 'err'); return; }
+        msg(els.plots, f.name + ' = ' + f.exprStr + '   →   ' + fmt(v) + '   (no independent var)', 'info');
+        return;
+      }
+      f.usedIndep.forEach(indep => {
+        const wrap = document.createElement('div');
+        wrap.className = 'plot';
+        const ind = state.independents[indep];
+        const label = document.createElement('div');
+        label.className = 'plot-label';
+        label.innerHTML =
+          '<span class="v-dep">' + escapeHtml(f.name) + '</span> = <span class="pexpr">' +
+          colorExpr(f.exprStr, indep) + '</span>  <span class="muted">x: <span class="v-dep">' +
+          escapeHtml(indep) + '</span> ∈ [' + fmt(ind.lo) + ', ' + fmt(ind.hi) + ']</span>';
+        const canvas = document.createElement('canvas');
+        canvas.width = 760; canvas.height = 420;
+        wrap.appendChild(label);
+        wrap.appendChild(canvas);
+        els.plots.appendChild(wrap);
+        attachPointer(canvas, indep);
+        state.canvases.push({ canvas, ctx: canvas.getContext('2d'), func: f, indep });
+        plotted++;
+      });
+    });
+    if (!plotted && state.funcs.length === 0 && state.errors.funcs.length === 0) {
+      msg(els.plots, 'No functions defined yet.', 'info');
+    }
+    renderAll();
+  }
+
+  function attachPointer(canvas, indepName) {
+    function setFromClientX(clientX) {
+      const ind = state.independents[indepName];
+      if (!ind) return;
+      const rect = canvas.getBoundingClientRect();
+      const pad = PAD;
+      const plotW = canvas.width - pad.l - pad.r;
+      let fx = (clientX - rect.left) * (canvas.width / rect.width);
+      fx = (fx - pad.l) / plotW;
+      fx = Math.min(1, Math.max(0, fx));
+      ind.current = ind.lo + fx * (ind.hi - ind.lo);
+      scheduleRender();
+    }
+    let dragging = false;
+    canvas.addEventListener('mousedown', e => { dragging = true; setFromClientX(e.clientX); });
+    window.addEventListener('mouseup', () => { dragging = false; });
+    canvas.addEventListener('mousemove', e => { if (dragging) setFromClientX(e.clientX); });
+    canvas.addEventListener('touchstart', e => { e.preventDefault(); setFromClientX(e.touches[0].clientX); }, { passive: false });
+    canvas.addEventListener('touchmove',  e => { e.preventDefault(); setFromClientX(e.touches[0].clientX); }, { passive: false });
+  }
+
+  // ---------- rendering ----------
+  const PAD = { l: 56, r: 18, t: 18, b: 38 };
+  const COL = { grid: '#3c3836', axis: '#665c54', curve: '#fabd2f', marker: '#fabd2f', text: '#ebdbb2', muted: '#928374' };
+
+  function drawPlot(ref) {
+    const { canvas, ctx, func: f, indep: name } = ref;
+    const ind = state.independents[name];
+    const W = canvas.width, H = canvas.height, pad = PAD;
+    const plotW = W - pad.l - pad.r, plotH = H - pad.t - pad.b;
+    const xLo = ind.lo, xHi = ind.hi;
+    const yr = state.yRange, yLo = yr.lo, yHi = yr.hi;
+
+    ctx.clearRect(0, 0, W, H);
+    const sx = x => pad.l + (x - xLo) / (xHi - xLo) * plotW;
+    const sy = y => pad.t + plotH - (y - yLo) / (yHi - yLo) * plotH;
+
+    // faint grid
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1;
+    const G = 10;
+    for (let i = 0; i <= G; i++) {
+      const gx = pad.l + (i / G) * plotW, gy = pad.t + (i / G) * plotH;
+      line(ctx, gx, pad.t, gx, pad.t + plotH);
+      line(ctx, pad.l, gy, pad.l + plotW, gy);
+    }
+
+    // emphasized zero axes if visible
+    ctx.strokeStyle = COL.axis; ctx.lineWidth = 1.5;
+    if (yLo <= 0 && yHi >= 0) line(ctx, pad.l, sy(0), pad.l + plotW, sy(0));
+    if (xLo <= 0 && xHi >= 0) line(ctx, sx(0), pad.t, sx(0), pad.t + plotH);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = COL.axis;
+    ctx.strokeRect(pad.l, pad.t, plotW, plotH);
+
+    // tick labels
+    ctx.fillStyle = COL.muted; ctx.font = '11px monospace';
+    ctx.textAlign = 'center';
+    for (let i = 0; i <= G; i += 2) {
+      ctx.fillText(fmt(xLo + (i / G) * (xHi - xLo)), pad.l + (i / G) * plotW, pad.t + plotH + 16);
+    }
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= G; i += 2) {
+      ctx.fillText(fmt(yLo + (i / G) * (yHi - yLo)), pad.l - 7, pad.t + plotH - (i / G) * plotH + 4);
+    }
+    // axis names
+    ctx.fillStyle = COL.text; ctx.font = '12px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(name, pad.l + plotW / 2, H - 8);
+    ctx.save(); ctx.translate(15, pad.t + plotH / 2); ctx.rotate(-Math.PI / 2);
+    ctx.fillText(f.name, 0, 0); ctx.restore();
+
+    // curve (segmented: skip non-finite samples)
+    const steps = Math.min(plotW, 700) | 0;
+    ctx.strokeStyle = COL.curve; ctx.lineWidth = 2;
+    ctx.beginPath();
+    let pen = false;
+    for (let i = 0; i <= steps; i++) {
+      const xv = xLo + (i / steps) * (xHi - xLo);
+      let yv;
+      try { yv = f.ast.evaluate(makeScope({ [name]: xv })); } catch (e) { yv = NaN; }
+      if (!isFinite(yv)) { pen = false; continue; }
+      const px = sx(xv), py = sy(yv);
+      if (!pen) { ctx.moveTo(px, py); pen = true; } else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    // marker
+    const mv = ind.current;
+    let my;
+    try { my = f.ast.evaluate(makeScope({ [name]: mv })); } catch (e) { my = NaN; }
+    const mxPx = sx(mv);
+    ctx.strokeStyle = COL.marker; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+    line(ctx, mxPx, pad.t, mxPx, pad.t + plotH);
+    ctx.setLineDash([]);
+    if (isFinite(my)) {
+      const myPx = sy(my);
+      ctx.fillStyle = COL.marker;
+      ctx.beginPath(); ctx.arc(mxPx, myPx, 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#1d2021'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+
+    // readout box (top-left)
+    const txt = name + ' = ' + fmt(mv) + '    ' + f.name + ' = ' + (isFinite(my) ? fmt(my) : '—');
+    ctx.font = '12px monospace';
+    const tw = ctx.measureText(txt).width;
+    ctx.fillStyle = 'rgba(29,32,33,0.85)';
+    ctx.fillRect(pad.l + 5, pad.t + 4, tw + 12, 19);
+    ctx.fillStyle = COL.marker; ctx.textAlign = 'left';
+    ctx.fillText(txt, pad.l + 11, pad.t + 18);
+  }
+
+  let rafPending = false;
+  function scheduleRender() { if (rafPending) return; rafPending = true; requestAnimationFrame(() => { rafPending = false; renderAll(); }); }
+  function renderAll() { for (let i = 0; i < state.canvases.length; i++) drawPlot(state.canvases[i]); }
+
+  function rebuild() {
+    parseVars(els.vars.value);
+    parseFuncs(els.funcs.value);
+    let ylo = parseFloat(els.ylo.value), yhi = parseFloat(els.yhi.value);
+    if (isFinite(ylo) && isFinite(yhi)) {
+      if (ylo > yhi) { const t = ylo; ylo = yhi; yhi = t; }
+      state.yRange = { lo: ylo, hi: yhi };
+    }
+    buildSliders();
+    els.varErrors.innerHTML = '';
+    state.errors.vars.forEach(e => msg(els.varErrors, '✗ ' + e, 'err'));
+    els.funcErrors.innerHTML = '';
+    state.errors.funcs.forEach(e => msg(els.funcErrors, '✗ ' + e, 'err'));
+    buildPlots();
+    const n = state.canvases.length;
+    els.status.textContent = n ? (n + ' plot' + (n === 1 ? '' : 's')) : '';
+  }
+
+  // ---------- wiring ----------
+  els.vars.addEventListener('input', rebuild);
+  els.funcs.addEventListener('input', rebuild);
+  els.ylo.addEventListener('input', rebuild);
+  els.yhi.addEventListener('input', rebuild);
+  els.clearBtn.addEventListener('click', () => {
+    els.vars.value = ''; els.funcs.value = '';
+    els.ylo.value = 0; els.yhi.value = 1;
+    state.constants = {}; state.independents = {}; state.funcs = [];
+    state.errors = { vars: [], funcs: [] };
+    rebuild();
+  });
+
+  // ---------- seed example ----------
+  els.vars.value =
+    'a = 1 {0,1}\n' +
+    'c = 1 {0,1}\n' +
+    'q = independent {0, 1}\n' +
+    'p = independent {0, 1}';
+  els.funcs.value =
+    'y = (a*q^2 + c*p)/2';
+  rebuild();
+})();
+</script>
+</body>
+</html>
