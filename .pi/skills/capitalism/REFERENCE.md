@@ -211,11 +211,11 @@ lspci                      # PCIe slots
 
 ## Playwright MCP Config
 
-Uses a config file for launch options: `playwright-config.json` (in the skill directory).
+Uses a config file for launch options: `playwright-config.json`, living in `pi/browser/` (the dotfiles home for pi's browser; downloads go to `~/Downloads/pi/`).
 
 ```json
 {
-  "outputDir": "/home/maxwell/.cache/playwright-mcp",
+  "outputDir": "/home/maxwell/Downloads/pi",
   "browser": {
     "launchOptions": {
       "headless": false,
@@ -233,7 +233,7 @@ MCP server config entry (exact format varies by harness):
   "type": "local",
   "command": [
     "npx", "@playwright/mcp@latest",
-    "--config", "/path/to/.pi/skills/capitalism/playwright-config.json"
+    "--config", "/path/to/dotfiles/pi/browser/playwright-config.json"
   ],
   "enabled": false
 }

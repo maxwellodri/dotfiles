@@ -1,12 +1,12 @@
 {
   "theme": "gruvbox",
   "defaultProvider": "zai",
-  "defaultModel": "glm-5.2",
+  "defaultModel": "glm-5.3",
   "quietStartup": false,
   "extensions": [
     "vendor/pi-mcp-adapter"
   ],
-  "lastChangelogVersion": "0.83.0",
+  "lastChangelogVersion": "0.84.1",
   "defaultThinkingLevel": "high",
   "hideThinkingBlock": false,
   "steeringMode": "all",

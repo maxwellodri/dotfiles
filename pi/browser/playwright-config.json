@@ -1,5 +1,5 @@
 {
-  "outputDir": "/home/maxwell/.cache/playwright-mcp",
+  "outputDir": "/home/maxwell/Downloads/pi",
   "browser": {
     "launchOptions": {
       "headless": false,

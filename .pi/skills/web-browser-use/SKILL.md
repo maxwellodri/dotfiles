@@ -12,6 +12,12 @@ description: "Drive a headless browser through the Playwright MCP server — nav
 
 If a task is just "search the web for X", try `websearch` first. Reach for the browser when you need to *act on* or *read the rendered* page.
 
+## Browser, profile & downloads
+
+- The MCP launches **ungoogled-chromium** (`/usr/bin/chromium`, headed) — not Firefox (Playwright doesn't work with this user's Firefox).
+- **Downloads land in `~/Downloads/pi/`** — both files downloaded via MCP calls (`outputDir`) and manual downloads in the visible window (profile pref). Screenshots taken with a `filename` also save there.
+- Launch config and profile pref seed live in the dotfiles repo at `pi/browser/`. The persistent profile sits at `~/.cache/ms-playwright-mcp/mcp-chrome-<hash>/` — the hash is derived from the config, so config changes create a **fresh profile**; `pi/browser/apply-preferences.sh` re-seeds prefs (run it with the browser closed).
+
 ## The MCP gateway
 
 All browser actions go through the `mcp` tool, server name `playwright`. Tools are named `playwright_browser_<action>`.

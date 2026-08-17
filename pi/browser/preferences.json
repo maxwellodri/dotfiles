@@ -1,0 +1,10 @@
+{
+	"download": {
+		"default_directory": "/home/maxwell/Downloads/pi",
+		"prompt_for_download": false,
+		"directory_upgrade": true
+	},
+	"savefile": {
+		"default_directory": "/home/maxwell/Downloads/pi"
+	}
+}
