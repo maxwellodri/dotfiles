@@ -85,7 +85,6 @@ The `helper_scripts/makesymlinks.sh` script manages symlinks:
 | `nvim` | `~/.config/nvim/` | `.config/nvim/` |
 | `tmux` | `~/.config/tmux/` | `.config/tmux/` |
 | `gitconfig` | `~/.config/git/` | `.config/git/` |
-| `opencode` | `~/.config/opencode/opencode.json`, etc. | `.config/opencode/opencode.json`, etc. |
 
 **Tag/Platform System:**
 

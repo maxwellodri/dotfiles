@@ -38,7 +38,6 @@ npm=".config/npm/"
 faucet=".config/faucet/"
 alacritty=".config/alacritty/"
 wezterm=".config/wezterm/"
-opencode=".config/opencode/opencode.json .config/opencode/skill/ .config/opencode/AGENTS.md .config/opencode/agents .config/opencode/plugins"
 desktop_apps=".local/share/applications/default_handler.desktop .local/share/applications/wine.desktop"
 sshconfig=.ssh/config
 
@@ -51,8 +50,8 @@ zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam"
 files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $pamgnupg $gitconfig $npm $faucet $systemd"
 
 ###########
-pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $eww $opencode $desktop_apps $sshconfig" #platform specific dotfiles
-hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $qz $eww $opencode $desktop_apps $sshconfig"
+pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $eww $desktop_apps $sshconfig" #platform specific dotfiles
+hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $qz $eww $desktop_apps $sshconfig"
 
 ##########
 
@@ -89,16 +88,6 @@ case $1 in
     esac
 
     echo "$tag" > "$PWD/.dotfile_tag"
-
-# Shared skills: source-of-truth is pi/skills/ (pi auto-discovers via
-# $PI_CODING_AGENT_DIR/skills). Symlink opt-in skills into opencode's global
-# skills dir so opencode discovers them too. Add skill dir names here to share.
-if [ -d "$dir/pi/skills" ]; then
-    mkdir -p "$HOME/.config/opencode/skills"
-    for skill in capitalism; do
-        [ -d "$dir/pi/skills/$skill" ] && ln -sfn "$dir/pi/skills/$skill" "$HOME/.config/opencode/skills/$skill"
-    done
-fi
 
 # Iterate through files and remove trailing slash if it's a directory
 for file in $files; do

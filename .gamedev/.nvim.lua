@@ -17,7 +17,6 @@ local ts = require("user.telescope-settings")
 ts.extra_find_paths = {
   "fd --type f -e wgsl . assets/",
   "fd --hidden --type f --no-ignore-vcs . notes/",
-  "fd --hidden --type f --no-ignore-vcs . .opencode/ --exclude bun.lock --exclude node_modules --exclude package.json --exclude .gitignore",
 }
 
 -- GitSplit: never diff anything under notes/
