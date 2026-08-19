@@ -6,7 +6,7 @@ vim.lsp.config('rust_analyzer', {
         ignored = {
           serde_derive = { "Serialize", "Deserialize" },
           bevy_ecs_macros = { "Component", "Bundle", "Event", "Resource" },
-          -- bevy_reflect_derive = { "Reflect", "FromReflect", "TypePath" },
+          bevy_reflect_derive = { "Reflect", "FromReflect", "TypePath" },
         },
       },
     },

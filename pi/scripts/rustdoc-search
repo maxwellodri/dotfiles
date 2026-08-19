@@ -1,23 +1,4 @@
 #!/usr/bin/env bash
-#
-# rustdoc-search — fetch a single Rust item's docs from docs.rs as compact markdown.
-#
-# Retrieval primitive designed for LLM/subagent consumption: ~hundreds of tokens
-# per item instead of the ~tens of thousands a whole-crate dump costs.
-#
-#   rustdoc-search <crate>                      # list root module contents
-#   rustdoc-search <crate> <ItemPath>           # render one item (docs + signature + members)
-#   rustdoc-search serde Deserialize
-#   rustdoc-search serde de::Deserializer
-#   rustdoc-search serde de                     # list a submodule's contents
-#   rustdoc-search tokio spawn --version 1.45
-#
-# ItemPath is a Rust path using `::`, with or without the leading crate name.
-# Matching is by path suffix against the rustdoc-JSON path table, so
-# `Deserialize` and `serde::de::Deserialize` both work.
-#
-# JSON is cached at $RUSTDOC_CACHE (default /tmp/pi-rust-docs). Use --refresh to
-# re-download. Requires curl, jq, gunzip.
 
 set -euo pipefail
 
@@ -26,20 +7,26 @@ version="latest"
 refresh=0
 raw=0
 # rustdoc JSON format_version range these jq queries are verified to handle
-# (tested across fv57, fv59, fv60; fv58 is inferred-stable between 57 and 59).
+# (tested across fv57, fv60, fv61; fv58/59 inferred-stable in between).
 min_supported_format_version=57
-max_supported_format_version=60
+max_supported_format_version=61
 
 usage() {
     cat <<'EOF'
-Usage: rustdoc-search [OPTIONS] <crate> [item-path]
+rustdoc-search — fetch a single Rust item's docs from docs.rs as compact markdown.
 
-Fetch a Rust item's docs from docs.rs as compact markdown.
+Retrieval primitive designed for LLM/subagent consumption: ~hundreds of tokens
+per item instead of the ~tens of thousands a whole-crate dump costs.
+
+Usage: rustdoc-search [OPTIONS] <crate> [item-path]
 
 Arguments:
   <crate>        Crate name, e.g. serde, tokio
   <item-path>    Optional Rust path (serde::de::Deserializer or just Deserializer).
                  Omit to list the crate's root module contents.
+                 A Rust path using `::`, with or without the leading crate name;
+                 matching is by path suffix against the rustdoc-JSON path table,
+                 so `Deserialize` and `serde::de::Deserialize` both work.
 
 Options:
   -V, --version <V>  Crate version or semver (default: latest)
@@ -49,6 +36,16 @@ Options:
 
 Env:
   RUSTDOC_CACHE      Cache directory (default: /tmp/pi-rust-docs)
+
+Requires curl, jq, gunzip.
+
+Examples:
+  rustdoc-search <crate>                      # list root module contents
+  rustdoc-search <crate> <ItemPath>           # render one item (docs + signature + members)
+  rustdoc-search serde Deserialize
+  rustdoc-search serde de::Deserializer
+  rustdoc-search serde de                     # list a submodule's contents
+  rustdoc-search tokio spawn --version 1.45
 EOF
     exit 0
 }
@@ -281,17 +278,20 @@ jq --arg id "$id" -r '
 
 ################################################################################
 # NOTES ON UPDATING — rustdoc JSON format_version handling
-# (Updated for json v58 incident; this script now handles fv 57–60)
+# (Updated when fv61 landed; this script now handles fv 57–61)
 ################################################################################
 #
 # HOW docs.rs SERVES JSON (the key model)
 #   docs.rs serves whatever rustdoc JSON format_version a crate's BUILD emitted —
 #   there is NO single global "current" fv. At the same time, different crates
 #   sit on different fvs because they were last rebuilt with different toolchains:
-#     fv57 : bevy, bevy_ecs, serde, reqwest, sqlx, pyo3, nalgebra, tracing
-#     fv59 : egui, anyhow
-#     fv60 : tokio, clap, axum, wgpu, rand
-#   (as of 2026-07; no fv58 crates were observed in the wild.)
+#     fv57 : tracing
+#     fv60 : tokio, axum, wgpu, rand, serde, reqwest, sqlx, pyo3, nalgebra,
+#           anyhow, quote
+#     fv61 : clap, egui, bevy_ecs
+#   (as of 2026-07-20; no fv58/59 builds observed in the wild. Crates drift
+#   upward as docs.rs rebuilds them with newer toolchains — serde moved 57→60
+#   and anyhow 59→60 since the previous update of these notes.)
 #
 # WHY WE DON'T PIN A SINGLE fv (the v58 lesson)
 #   An earlier version pinned `supported_format_version=57` in the URL. Pinning
@@ -320,7 +320,7 @@ jq --arg id "$id" -r '
 #     done
 #
 # DOES THE jq NEED CHANGES? (usually NO)
-#   The schema for the fields this script reads has been stable across fv57–60,
+#   The schema for the fields this script reads has been stable across fv57–61,
 #   verified by running every renderer (module / trait / struct / enum / function
 #   signature) + path resolution + `pub use` re-export resolution against crates
 #   of each fv. The fields in play are deep, old, structural ones:
@@ -330,22 +330,28 @@ jq --arg id "$id" -r '
 #       .inner.struct.fields.{Named,Plain}
 #       .inner.function.{generics.params[].name, sig.inputs[], has_body}
 #       .inner.use.{name, source, id}
-#   So a typical bump is just raising `max_supported_format_version`. Only if a
+#   So a typical bump is just raising `max_supported_format_version` — fv61's
+#   own breaking change ("Make `Stability` work with non-self-describing
+#   formats") is serde/rkyv-internal and did not alter the emitted JSON. Only if a
 #   renderer mis-renders on the new fv do you need to touch jq — re-run the
 #   verification matrix below against the new fv and fix what breaks.
 #
 # VERIFICATION MATRIX (run against crates of EACH in-scope fv)
-#     rustdoc-search serde   Deserialize        # trait      (fv57)
-#     rustdoc-search serde                       # root list  (fv57)
-#     rustdoc-search egui    Context            # struct     (fv59)
+#     rustdoc-search serde   Deserialize        # trait      (fv60)
+#     rustdoc-search serde                       # root list  (fv60)
+#     rustdoc-search clap_builder ValueEnum --version latest  # trait      (fv61)
+#     rustdoc-search egui    Context --version latest     # struct     (fv61)
+#     rustdoc-search bevy_ecs world::World --version latest  # path res. (fv61)
 #     rustdoc-search tokio   spawn              # function   (fv60)
 #     rustdoc-search tokio                       # root list  (fv60)
+#     rustdoc-search tracing                     # root list  (fv57)
 #     rustdoc-search <crate> <module>::<Item>   # path resolution + `pub use`
 #     rustdoc-search <bad-item>                 # error path
 #     rustdoc-search <missing-crate>            # HTTP-error path
 #
 # UPSTREAM SCHEMA REFERENCE
-#   The format_version constant and its per-version CHANGELOG live in the
-#   rust-lang/rust tree: src/rustdoc-json-output/ (see FORMAT_VERSION and the
-#   CHANGELOG.md there). When a new fv lands, diff that CHANGELOG against the
-#   fields listed above to predict whether any jq needs adapting.
+#   FORMAT_VERSION and its per-bump "Latest feature" note live in the
+#   rust-lang/rust tree at src/rustdoc-json-types/lib.rs (the const plus the
+#   comment directly above it; the old src/rustdoc-json-output/CHANGELOG.md path
+#   no longer exists on master). When a new fv lands, read that note and diff it
+#   against the fields listed above to predict whether any jq needs adapting.

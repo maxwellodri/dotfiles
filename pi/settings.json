@@ -6,7 +6,7 @@
   "extensions": [
     "vendor/pi-mcp-adapter"
   ],
-  "lastChangelogVersion": "0.84.1",
+  "lastChangelogVersion": "0.84.2",
   "defaultThinkingLevel": "high",
   "hideThinkingBlock": false,
   "steeringMode": "all",
