@@ -65,6 +65,19 @@ if [ -t 1 ]; then
 	trap 'clear; printf "\033]111\033\\"' EXIT INT TERM
 fi
 
+# Pi's APPEND_SYSTEM.md discovery is shadowing-only: a project file hides
+# the global one. Flags layer instead, but any explicit flag disables
+# discovery, so always pass the global, plus the project copy when present.
+# Global first, then local. Nonexistent paths would be injected as literal
+# text, hence the -f guards.
+APPEND_FLAGS=()
+if [ -f "$PI_CODING_AGENT_DIR/APPEND_SYSTEM.md" ]; then
+	APPEND_FLAGS+=(--append-system-prompt "$PI_CODING_AGENT_DIR/APPEND_SYSTEM.md")
+fi
+if [ -f "$PWD/.pi/APPEND_SYSTEM.md" ]; then
+	APPEND_FLAGS+=(--append-system-prompt "$PWD/.pi/APPEND_SYSTEM.md")
+fi
+
 # Run pi (child, not exec) so the trap fires on its return. Pass --session-dir
 # explicitly (highest precedence; reliable across pi versions).
-ZAI_API_KEY="$ZAI_API_KEY" "${NICE[@]}" "$PI_BIN" --session-dir "$PI_CODING_AGENT_SESSION_DIR" "$@"
+ZAI_API_KEY="$ZAI_API_KEY" "${NICE[@]}" "$PI_BIN" --session-dir "$PI_CODING_AGENT_SESSION_DIR" "${APPEND_FLAGS[@]}" "$@"
