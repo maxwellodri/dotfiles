@@ -133,8 +133,10 @@ function! s:get_visual_selection()
     nnoremap <silent><leader>tj :tabprev<CR>
     nnoremap <leader>tn :w<CR>:tabnew<CR>
     nnoremap <leader>td  :tabclose<CR>
-    nnoremap <silent><leader>th  :tabfirst<CR>
-    nnoremap <silent><leader>tl  :tablast<CR>
+    nnoremap <silent><leader>th :tabprev<CR>
+    nnoremap <silent><leader>tl :tabnext<CR>
+    nnoremap <silent><leader>tH :tabfirst<CR>
+    nnoremap <silent><leader>tL :tablast<CR>
     nnoremap <leader>te  :w<CR>:tabe<Space>
     nnoremap <leader>tm  :tabm<Space>
     nnoremap <leader>tv  :vsplit<Space>
