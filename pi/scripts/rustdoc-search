@@ -1,19 +1,5 @@
-#!/usr/bin/env bash
-
-set -euo pipefail
-
-cache="${RUSTDOC_CACHE:-/tmp/pi-rust-docs}"
-version="latest"
-refresh=0
-raw=0
-# rustdoc JSON format_version range these jq queries are verified to handle
-# (tested across fv57, fv60, fv61; fv58/59 inferred-stable in between).
-min_supported_format_version=57
-max_supported_format_version=61
-
-usage() {
-    cat <<'EOF'
-rustdoc-search — fetch a single Rust item's docs from docs.rs as compact markdown.
+#!/usr/bin/env python3
+"""rustdoc-search — fetch a single Rust item's docs from docs.rs as compact markdown.
 
 Retrieval primitive designed for LLM/subagent consumption: ~hundreds of tokens
 per item instead of the ~tens of thousands a whole-crate dump costs.
@@ -37,50 +23,738 @@ Options:
 Env:
   RUSTDOC_CACHE      Cache directory (default: /tmp/pi-rust-docs)
 
-Requires curl, jq, gunzip.
+Rendered per item: full signature (generics, where clauses, param/return
+types, async/unsafe/const), feature-gate / deprecation / must_use banners,
+trait methods with short docs, struct field types, enum variant payloads,
+inherent + trait impls, and the item's doc text. `Type::member` paths
+(Runtime::block_on) resolve against trait/impl item tables.
+"""
 
-Examples:
-  rustdoc-search <crate>                      # list root module contents
-  rustdoc-search <crate> <ItemPath>           # render one item (docs + signature + members)
-  rustdoc-search serde Deserialize
-  rustdoc-search serde de::Deserializer
-  rustdoc-search serde de                     # list a submodule's contents
-  rustdoc-search tokio spawn --version 1.45
-EOF
-    exit 0
-}
+from __future__ import annotations
 
-die() { echo "Error: $*" >&2; exit 1; }
+import argparse
+import gzip
+import json
+import os
+import re
+import sys
+from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
-positional=()
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        -V|--version) version="${2:-}"; [[ -n "$version" ]] || die "--version requires a value"; shift 2 ;;
-        -r|--refresh) refresh=1; shift ;;
-        --raw)        raw=1; shift ;;
-        -h|--help)    usage ;;
-        -*)           die "Unknown option: $1" ;;
-        *)            positional+=("$1"); shift ;;
-    esac
-done
+# rustdoc JSON format_version range this script is verified to handle
+# (tested across fv57, fv60, fv61; fv58/59 inferred-stable in between).
+MIN_SUPPORTED_FORMAT_VERSION = 57
+MAX_SUPPORTED_FORMAT_VERSION = 61
 
-[[ ${#positional[@]} -ge 1 ]] || die "No crate provided. See --help."
-crate="${positional[0]}"
-item="${positional[1]:-}"
+UA = {"User-Agent": "rustdoc-search"}
 
-for cmd in curl jq gunzip; do
-    command -v "$cmd" >/dev/null 2>&1 || die "$cmd is not installed"
-done
 
-# Hardcoded exception: the `bevy` crate is an umbrella that only re-exports
-# from per-domain sub-crates (bevy_app, bevy_ecs, ...), so a bare root listing
-# is a single useless `bevy_internal` import. Short-circuit before fetching
-# its JSON and point at the right sub-crate instead. (With an item path,
-# `rustdoc-search bevy App` is already routed correctly by the external
-# re-export branch below.)
-if [[ "$crate" == "bevy" ]]; then
-    cat <<'EOF'
-# bevy — umbrella crate (no items of its own)
+def die(msg: str) -> "None":
+    print(f"Error: {msg}", file=sys.stderr)
+    sys.exit(1)
+
+
+# ---------------------------------------------------------------- fetching ---
+
+def http_get(url: str, timeout: int = 30) -> tuple[int, bytes]:
+    req = Request(url, headers=UA)
+    try:
+        with urlopen(req, timeout=timeout) as resp:
+            return resp.getcode(), resp.read()
+    except HTTPError as e:
+        return e.code, e.read()
+    except URLError as e:
+        raise OSError(str(e.reason)) from e
+
+
+def resolve_latest(crate: str) -> "str | None":
+    try:
+        code, body = http_get(f"https://crates.io/api/v1/crates/{crate}")
+        if code == 200:
+            return json.loads(body).get("crate", {}).get("max_version")
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def ensure_json(crate: str, version: str, refresh: bool) -> Path:
+    cache = Path(os.environ.get("RUSTDOC_CACHE", "/tmp/pi-rust-docs"))
+    cache.mkdir(parents=True, exist_ok=True)
+    path = cache / f"{crate}_{version}.json"
+
+    if path.exists() and not refresh:
+        return path
+
+    url = f"https://docs.rs/crate/{crate}/{version}/json.gz"
+    try:
+        code, blob = http_get(url)
+    except OSError:
+        die(
+            f"Couldn't reach docs.rs for {crate} {version} (no HTTP response — likely a "
+            "network/DNS error). Retry; if only docs.rs is affected, fall back to "
+            "websearch or curl."
+        )
+    if code != 200:
+        die(
+            f"No rustdoc JSON for {crate} {version} (HTTP {code}); crate/version may not "
+            "exist, or predates docs.rs JSON builds (releases before 2025-05-23 have none). "
+            "Fallback (schema-independent): use websearch or curl to fetch this crate's "
+            "docs another way."
+        )
+    try:
+        data = gzip.decompress(blob)
+    except OSError:
+        die(f"Failed to decompress rustdoc JSON from {url}.")
+
+    # Tripwire: docs.rs emits per-build format_versions (there is no single
+    # "current" fv), so validate the served schema against the range this
+    # script's renderers are known to handle. Reports the REAL number and fires
+    # only on a genuinely unknown schema.
+    fv = json.loads(data).get("format_version")
+    if not isinstance(fv, int) or not (
+        MIN_SUPPORTED_FORMAT_VERSION <= fv <= MAX_SUPPORTED_FORMAT_VERSION
+    ):
+        die(
+            f"docs.rs served rustdoc JSON format_version {fv!r} for {crate} {version}; "
+            f"this script handles {MIN_SUPPORTED_FORMAT_VERSION}–"
+            f"{MAX_SUPPORTED_FORMAT_VERSION}. Inform the user to update this script "
+            "(raise MAX_SUPPORTED_FORMAT_VERSION and re-run the verification matrix in "
+            "the NOTES at the bottom of the source). Fallback (schema-independent): use "
+            "websearch or curl to fetch this crate's docs another way."
+        )
+    path.write_bytes(data)
+    return path
+
+
+# ------------------------------------------------------------ crate model ---
+
+class Crate:
+    def __init__(self, data: dict):
+        self.index: dict[str, dict] = data["index"]
+        self.paths: dict[str, dict] = data["paths"]
+        self.root: str = str(data["root"])
+        self.crate_id: int = data["paths"][self.root].get("crate_id", 0)
+
+    def item(self, id_: "str | int") -> "dict | None":
+        return self.index.get(str(id_))
+
+    def fqp(self, id_: "str | int") -> str:
+        p = self.paths.get(str(id_))
+        if p:
+            return "::".join(p["path"])
+        it = self.item(id_)
+        return (it or {}).get("name", "?")
+
+    def display_fqp(self, id_: "str | int") -> str:
+        """Shortest *public* path: the canonical defining path (e.g.
+        tokio::task::spawn::spawn) or a shorter re-export — docs.rs pages live
+        at the re-export path (tokio::task::spawn). Re-export location =
+        parent module path of the `use` item + imported name."""
+        if not hasattr(self, "_parent_of"):
+            self._parent_of: dict[str, str] = {}
+            for pid, it in self.index.items():
+                for cid in it.get("inner", {}).get("module", {}).get("items", []):
+                    self._parent_of[str(cid)] = str(pid)
+        best = self.fqp(id_)
+        n_best = len(best.split("::"))
+        for uid, it in self.index.items():
+            u = it.get("inner", {}).get("use")
+            if not u or str(u.get("id")) != str(id_):
+                continue
+            ppath = self.paths.get(self._parent_of.get(str(uid), ""), {}).get("path")
+            if not ppath:
+                continue
+            cand_segs = ppath + [str(u.get("name", ""))]
+            canon = self.fqp(id_).split("::")
+            # Only re-exports from ANCESTOR modules of the item whose imported
+            # name matches — every such path is valid Rust and reads like the
+            # idiomatic reference (tokio::task::spawn, serde_json::Value).
+            if u.get("name") != canon[-1] or canon[: len(ppath)] != ppath:
+                continue
+            if len(cand_segs) < n_best:
+                best, n_best = "::".join(cand_segs), len(cand_segs)
+        # Glob re-exports (`pub use system::*`) leave no `use` item, but the
+        # defining-module-named-after-the-item pattern (system::system::System)
+        # exists precisely for re-export; docs.rs shows the deduped path. Only
+        # apply when no explicit re-export was found (an explicit one is
+        # strictly better evidence).
+        if best == self.fqp(id_):
+            segs_ = best.split("::")
+            if len(segs_) >= 3 and segs_[-2].lower() == segs_[-1].lower():
+                best = "::".join(segs_[:-2] + [segs_[-1]])
+        return best
+
+    @staticmethod
+    def kind(it: dict) -> str:
+        return next(iter(it["inner"]))
+
+
+# ------------------------------------------------------- type  rendering  ---
+
+def rpath(p: dict) -> str:
+    path = p["path"]
+    if path.startswith("crate::"):
+        path = path[len("crate::"):]
+    # Fully-qualified std paths render as their last segment on docs.rs
+    # (`String`, `Option`, ...) — matches HTML and reads better.
+    root = path.split("::", 1)[0]
+    if root in ("std", "core", "alloc") and "::" in path:
+        path = path.rsplit("::", 1)[1]
+    return path
+
+
+def rgeneric_arg(a: dict) -> str:
+    if "type" in a:
+        return rtype(a["type"])
+    if "lifetime" in a:
+        return a["lifetime"]
+    if "const" in a:
+        return str(a["const"])
+    if "binding" in a:
+        b = a["binding"]
+        val = rtype(b["type"]) if "type" in b else b.get("lifetime", "?")
+        return f"{a['name']} = {val}"
+    return "?"
+
+
+def rpath_args(args: "dict | None") -> str:
+    if not args:
+        return ""
+    if "parenthesized" in args:  # Fn(A, B) -> C sugar
+        p = args["parenthesized"]
+        ins = ", ".join(rtype(t) for t in p["inputs"])
+        out = f" -> {rtype(p['output'])}" if p.get("output") else ""
+        return f"({ins}){out}"
+    ab = args["angle_bracketed"]
+    parts = [rgeneric_arg(a) for a in ab.get("args", [])]
+    for cons in ab.get("constraints", []):
+        head = cons["name"] + rpath_args(cons.get("args"))
+        b = cons.get("binding") or {}
+        if "constraint" in b:  # fv61: assoc-type bound — Name<Args>: Bounds
+            parts.append(head + ": " + " + ".join(rbound(gb) for gb in b["constraint"]))
+        elif "type" in b:
+            parts.append(f"{head} = {rtype(b['type'])}")
+        elif "lifetime" in b:
+            parts.append(f"{head} = {b['lifetime']}")
+    return f"<{', '.join(parts)}>" if parts else ""
+
+
+def rtype(t: "dict | None") -> str:
+    if not t:
+        return ""
+    k, v = next(iter(t.items()))
+    if k in ("primitive", "generic"):
+        return v
+    if k == "resolved_path":
+        return rpath(v) + rpath_args(v.get("args"))
+    if k == "tuple":
+        inner = ", ".join(rtype(x) for x in v)
+        return f"({inner}{',' if len(v) == 1 else ''})"
+    if k == "slice":
+        return f"[{rtype(v)}]"
+    if k == "array":
+        return f"[{rtype(v['type'])}; {v['len']}]"
+    if k == "borrowed_ref":
+        lt = v.get("lifetime") or ""
+        mut = "mut " if v.get("is_mutable") else ""
+        return f"&{lt}{' ' if lt else ''}{mut}{rtype(v['type'])}"
+    if k == "raw_pointer":
+        return ("*mut " if v["is_mutable"] else "*const ") + rtype(v["type"])
+    if k == "qualified_path":
+        base = rtype(v["self_type"])
+        trait = v.get("trait") or {}
+        lhs = f"<{base} as {rpath(trait)}>" if trait.get("path") else base
+        return f"{lhs}::{v['name']}{rpath_args(v.get('args'))}"
+    if k == "never":
+        return "!"
+    if k == "infer":
+        return "_"
+    if k == "dyn_trait":
+        parts = []
+        if v.get("lifetime"):
+            parts.append(v["lifetime"])
+        parts += [rpoly_trait(t) for t in v.get("traits", [])]
+        return "dyn " + " + ".join(parts)
+    if k == "impl_trait":
+        return "impl " + " + ".join(rbound(b) for b in v)
+    if k == "function_pointer":
+        # fv57: {decl, param_names}; fv60+: {sig, generic_params, header}
+        fp = v
+        sig = fp.get("sig") or fp.get("decl") or {}
+        params = ", ".join(rtype(t) for _, t in sig.get("inputs", []))
+        if sig.get("is_c_variadic") or sig.get("c_variadic"):
+            params = ", ".join(filter(None, [params, "..."]))
+        ret = f" -> {rtype(sig.get('output'))}" if sig.get("output") else ""
+        hrt = ""
+        if fp.get("generic_params"):
+            hrt = "for<" + ", ".join(gp["name"] for gp in fp["generic_params"]) + "> "
+        hdr = fp.get("header") or {}
+        pre = ""
+        if hdr.get("is_unsafe"):
+            pre = "unsafe "
+        elif hdr.get("abi") not in (None, "Rust"):
+            abi = hdr["abi"]
+            pre = f'extern "{abi}" '
+        return f"{hrt}{pre}fn({params}){ret}"
+    # Unknown Type shape (newer rustdoc fv?): dump defensively.
+    return json.dumps(t)
+
+
+def rpoly_trait(pt: dict) -> str:
+    s = rpath(pt["trait"]) + rpath_args(pt["trait"].get("args"))
+    if pt.get("generic_params"):
+        s = "for<" + ", ".join(p["name"] for p in pt["generic_params"]) + "> " + s
+    return s
+
+
+def field_type(fd: dict) -> str:
+    """Type of a struct-field item. fv57 wrapped it as {"type": T}; fv60+
+    stores the Type directly."""
+    sf = fd["inner"]["struct_field"]
+    if not sf:
+        return "?"
+    return rtype(sf.get("type") if "type" in sf else sf)
+
+
+def rbound(b: dict) -> str:
+    if "trait_bound" in b:
+        tb = b["trait_bound"]
+        s = rpath(tb["trait"]) + rpath_args(tb["trait"].get("args"))
+        mod = tb.get("modifier", "none")
+        if mod == "maybe":
+            s = "?" + s
+        elif mod == "const":
+            s = "const " + s
+        if tb.get("generic_params"):
+            s = "for<" + ", ".join(p["name"] for p in tb["generic_params"]) + "> " + s
+        return s
+    if "outlives" in b:
+        return b["outlives"]
+    if "term" in b:  # GenericBound::Term (assoc-type equality in bounds)
+        t = b["term"]
+        return rtype(t["type"]) if "type" in t else t.get("lifetime", "?")
+    return "?"
+
+
+def rgeneric_params(params: list) -> str:
+    # Argument-position `impl Trait` shows up as an anonymous generic param
+    # (name "impl ...") in the JSON; HTML folds it into the argument type
+    # (rendered there via the impl_trait Type), so skip it here.
+    params = [p for p in params if not str(p.get("name", "")).startswith("impl ")]
+    parts = []
+    for p in params:
+        kind = p["kind"]
+        if "lifetime" in kind:
+            parts.append(p["name"])
+        elif "type" in kind:
+            s = p["name"]
+            if kind["type"].get("bounds"):
+                s += ": " + " + ".join(rbound(b) for b in kind["type"]["bounds"])
+            if kind["type"].get("default"):
+                s += " = " + rtype(kind["type"]["default"])
+            parts.append(s)
+        elif "const" in kind:
+            parts.append(f"const {p['name']}: {rtype(kind['const']['type'])}")
+    return f"<{', '.join(parts)}>" if parts else ""
+
+
+def rwhere(preds: list) -> str:
+    parts = []
+    for p in preds:
+        if "bound_predicate" in p:
+            bp = p["bound_predicate"]
+            parts.append(f"{rtype(bp['type'])}: " + " + ".join(rbound(b) for b in bp["bounds"]))
+        elif "type_outlives" in p:
+            to = p["type_outlives"]
+            parts.append(f"{rtype(to['ty'])}: {to['outlives']}")
+        elif "lifetime_outlives" in p:
+            lo = p["lifetime_outlives"]
+            parts.append(f"{lo['a']}: {lo['b']}")
+        elif "equality" in p:
+            eq = p["equality"]
+            parts.append(f"{rtype(eq['lhs'])} = {rtype(eq['rhs'])}")
+    return " where " + ", ".join(parts) if parts else ""
+
+
+def fn_signature(it: dict) -> str:
+    f = it["inner"]["function"]
+    h = f["header"]
+    sig = f["sig"]
+
+    prefix = " ".join(
+        filter(None, [
+            "const" if h.get("is_const") else "",
+            "async" if h.get("is_async") else "",
+            "unsafe" if h.get("is_unsafe") else "",
+            (lambda a: f'extern "{a}"')(h["abi"]) if h.get("abi") not in (None, "Rust") else "",
+        ])
+    )
+    decl = f"{prefix + ' ' if prefix else ''}fn {it['name']}{rgeneric_params(f['generics']['params'])}"
+
+    inputs: list[str] = []
+    for i, (name, t) in enumerate(sig.get("inputs", [])):
+        if i == 0 and name == "self":
+            k, v = next(iter(t.items()))
+            if k == "borrowed_ref" and isinstance(v.get("type"), dict) and "generic" in v["type"] and v["type"]["generic"] == "Self":
+                lt = v.get("lifetime") or ""
+                inputs.append(f"&{lt}{' ' if lt else ''}{'mut ' if v.get('is_mutable') else ''}self")
+            elif t == {"generic": "Self"}:
+                inputs.append("self")
+            else:
+                inputs.append(f"self: {rtype(t)}")
+        else:
+            inputs.append(f"{name}: {rtype(t)}")
+    if sig.get("is_c_variadic"):
+        inputs.append("...")
+    decl += f"({', '.join(inputs)})"
+
+    ret = rtype(sig.get("output"))
+    if ret and ret != "()":
+        decl += f" -> {ret}"
+    return decl + rwhere(f["generics"].get("where_predicates", []))
+
+
+# ---------------------------------------------------------- item banners  ---
+
+def attr_strings(it: dict) -> list[str]:
+    """Attrs appear as plain strings, {"other": str} wrappers, or typed
+    objects like {"must_use": {...}} — extract the string forms."""
+    out = []
+    for a in it.get("attrs") or []:
+        if isinstance(a, str):
+            out.append(a)
+        elif isinstance(a, dict) and isinstance(a.get("other"), str):
+            out.append(a["other"])
+    return out
+
+
+def feature_gate(it: dict) -> "str | None":
+    for a in attr_strings(it):
+        if a.startswith("#[doc(cfg(") and a.endswith("))]"):
+            inner = a[len("#[doc(cfg("):-3].strip()
+            m = re.fullmatch(r'feature\s*=\s*"([^"]+)"', inner)
+            if m:
+                return f"Available on crate feature `{m.group(1)}` only"
+            if inner:
+                return f"Available on {inner}"
+    return None
+
+
+def must_use(it: dict) -> "str | None":
+    for a in it.get("attrs") or []:
+        if isinstance(a, dict) and "must_use" in a:
+            reason = a["must_use"].get("reason")
+            return f"#[must_use] {reason}" if reason else "#[must_use]"
+    return None
+
+
+def banners(it: dict) -> list[str]:
+    out = []
+    dep = it.get("deprecation")
+    if dep:
+        since = f" since {dep['since']}" if dep.get("since") else ""
+        note = f": {dep['note']}" if dep.get("note") else ""
+        out.append(f"⚠ **Deprecated{since}**{note}")
+    fg = feature_gate(it)
+    if fg:
+        out.append(f"🔒 {fg}")
+    mu = must_use(it)
+    if mu:
+        out.append(f"⚠ `{mu}`")
+    return out
+
+
+def method_marker(it: dict) -> str:
+    """Compact inline marker for deprecated / must_use methods."""
+    parts = []
+    dep = it.get("deprecation")
+    if dep:
+        since = f" since {dep['since']}" if dep.get("since") else ""
+        note = f": {dep['note']}" if dep.get("note") else ""
+        parts.append(f"⚠ deprecated{since}{note}")
+    mu = must_use(it)
+    if mu:
+        parts.append(mu)
+    return ("  _[" + "; ".join(parts) + "]_") if parts else ""
+
+
+def doc_first_para(docs: "str | None") -> str:
+    if not docs:
+        return ""
+    p = docs.strip().split("\n\n")[0]
+    return re.sub(r"\s+", " ", p).strip()
+
+
+# ------------------------------------------------------------ renderers  ---
+
+def render_module(c: Crate, it: dict, fqp: str) -> str:
+    kids = it["inner"]["module"].get("items", [])
+    out = [f"# module {fqp}  {len(kids)} items", ""]
+    for cid in kids:
+        ch = c.item(cid)
+        if ch is None:
+            continue
+        if "use" in ch["inner"]:
+            u = ch["inner"]["use"]
+            out.append(f"- import: {u.get('name')}  _(from {u.get('source')})_")
+        else:
+            p = c.paths.get(str(cid))
+            if p:
+                out.append(f"- {p['kind']}: {'::'.join(p['path'])}")
+            else:
+                out.append(f"- {Crate.kind(ch)}: {ch.get('name', '?')}")
+    return "\n".join(out) + "\n"
+
+
+def render_trait(c: Crate, it: dict, fqp: str) -> str:
+    tr = it["inner"]["trait"]
+    decl = f"trait {it['name']}{rgeneric_params(tr['generics']['params'])}"
+    if tr.get("bounds"):
+        decl += ": " + " + ".join(rbound(b) for b in tr["bounds"])
+    decl += rwhere(tr["generics"].get("where_predicates", []))
+
+    out = [f"# trait {fqp}", ""]
+    out += [f"> {b}" for b in banners(it)]
+    if it.get("docs"):
+        out += [it["docs"].rstrip(), ""]
+    out += ["## Declaration", "```rust", decl, "```", "", "## Methods", ""]
+    for mid in tr.get("items", []):
+        m = c.item(mid)
+        if m is None:
+            continue
+        if "assoc_type" in m["inner"]:
+            at = m["inner"]["assoc_type"]
+            b = (": " + " + ".join(rbound(x) for x in at["bounds"])) if at.get("bounds") else ""
+            d = f" = {rtype(at['type'])}" if at.get("type") else ""
+            out.append(f"- `type {m['name']}{rgeneric_params(at['generics']['params'])}{b}{d}`")
+            continue
+        if "assoc_const" in m["inner"]:
+            ac = m["inner"]["assoc_const"]
+            v = f" = {ac['value']}" if ac.get("value") else ""
+            out.append(f"- `const {m['name']}: {rtype(ac['type'])}{v}`")
+            continue
+        if "function" not in m["inner"]:
+            continue
+        tag = "_(required)_" if not m["inner"]["function"].get("has_body") else ""
+        doc = doc_first_para(m.get("docs"))
+        tail = " ".join(x for x in (tag, f"— {doc}" if doc else "") if x)
+        out.append(f"- `{fn_signature(m)}`{method_marker(m)}{(' ' + tail) if tail else ''}")
+    return "\n".join(out) + "\n"
+
+
+def render_struct(c: Crate, it: dict, fqp: str) -> str:
+    st = it["inner"]["struct"]
+    gdecl = rgeneric_params(st["generics"]["params"])
+
+    out = [f"# struct {fqp}", ""]
+    out += [f"> {b}" for b in banners(it)]
+    if it.get("docs"):
+        out += [it["docs"].rstrip(), ""]
+
+    lines: list[str] = []
+    kind = st.get("kind")
+    if isinstance(kind, dict) and "plain" in kind:
+        ids = kind["plain"]["fields"]
+        stripped = kind["plain"].get("has_stripped_fields")
+        if ids:
+            decl = f"struct {it['name']}{gdecl} {{ ... }}"
+            for fid in ids:
+                fd = c.item(fid)
+                if not fd:
+                    continue
+                doc = doc_first_para(fd.get("docs"))
+                doc_s = f" — {doc}" if doc else ""
+                lines.append(f"- `{fd.get('name', '?')}: {field_type(fd)}`{doc_s}")
+            if stripped:
+                lines.append("- (+ private fields)")
+        elif stripped:
+            decl = f"struct {it['name']}{gdecl} {{ /* private fields */ }}"
+        else:
+            decl = f"struct {it['name']}{gdecl} {{}}"
+    elif isinstance(kind, dict) and "tuple" in kind:
+        fds = [c.item(x) for x in kind["tuple"]]
+        if any(f is None for f in fds):  # null id = stripped private field
+            decl = f"struct {it['name']}{gdecl}( /* private fields */ );"
+        else:
+            types = ", ".join(field_type(f) for f in fds)
+            decl = f"struct {it['name']}{gdecl}({types});"
+    elif kind == "transparent":
+        decl = f"struct {it['name']}{gdecl}(/* transparent */) "
+    else:
+        # fv57 legacy shape: st.fields = {"Named"|"Plain": [...]} (+ fields_stripped)
+        fields = st.get("fields") or {}
+        if "Named" in fields:
+            decl = f"struct {it['name']}{gdecl} {{ ... }}"
+            for fid in fields["Named"]:
+                fd = c.item(fid)
+                if fd:
+                    lines.append(f"- `{fd.get('name', '?')}: {field_type(fd)}`")
+            if st.get("fields_stripped"):
+                lines.append("- (+ private fields)")
+        elif "Plain" in fields:
+            types = ", ".join(field_type(fd) for fd in filter(None, (c.item(x) for x in fields["Plain"])))
+            decl = f"struct {it['name']}{gdecl}({types})"
+        else:
+            decl = f"struct {it['name']}{gdecl}"
+
+    out += ["## Declaration", "```rust", decl, "```"]
+    if lines:
+        out += ["", "## Fields", ""] + lines
+    return "\n".join(out) + "\n" + render_impls(c, it)
+
+
+def render_enum(c: Crate, it: dict, fqp: str) -> str:
+    en = it["inner"]["enum"]
+    decl = f"enum {it['name']}{rgeneric_params(en['generics']['params'])}"
+
+    out = [f"# enum {fqp}", ""]
+    out += [f"> {b}" for b in banners(it)]
+    if it.get("docs"):
+        out += [it["docs"].rstrip(), ""]
+    out += ["## Declaration", "```rust", decl, "```", "", "## Variants", ""]
+    for vid in en.get("variants", []):
+        v = c.item(vid)
+        if v is None:
+            continue
+        var = v["inner"]["variant"]
+        kind = var.get("kind", "plain")
+        if kind == "plain":
+            payload = ""
+        elif isinstance(kind, dict) and "tuple" in kind:
+            fds = [c.item(x) for x in kind["tuple"]]
+            payload = "( /* private */ )" if any(f is None for f in fds) else f"({', '.join(field_type(f) for f in fds)})"
+        elif isinstance(kind, dict) and "struct" in kind:
+            fields = [
+                f"{fd.get('name', '?')}: {field_type(fd)}"
+                for fd in filter(None, (c.item(x) for x in kind["struct"].get("fields", [])))
+            ]
+            payload = " { " + ", ".join(fields) + " }" if fields else " {}"
+        else:
+            payload = ""
+        disc = f" = {var['discriminant']['expr']}" if var.get("discriminant") else ""
+        out.append(f"- `{v['name']}{payload}{disc}`")
+    return "\n".join(out) + "\n" + render_impls(c, it)
+
+
+def render_function(c: Crate, it: dict, fqp: str) -> str:
+    out = [f"# function {fqp}", ""]
+    out += [f"> {b}" for b in banners(it)]
+    if it.get("docs"):
+        out += [it["docs"].rstrip(), ""]
+    out += ["## Signature", "```rust", fn_signature(it), "```"]
+    return "\n".join(out) + "\n"
+
+
+def render_impls(c: Crate, it: dict) -> str:
+    """Implementations sections for a struct/enum: inherent methods with short
+    docs, trait impls as names, synthetic (auto) impls as a compact list."""
+    out: list[str] = []
+    impl_ids = (it["inner"].get("struct") or it["inner"].get("enum") or {}).get("impls") or []
+    inherent: list[str] = []
+    trait_impls: list[str] = []
+    auto: list[str] = []
+    for iid in impl_ids:
+        impl = c.item(iid)
+        if impl is None or "impl" not in impl["inner"]:
+            continue
+        im = impl["inner"]["impl"]
+        if im.get("is_synthetic"):
+            for tid in im.get("items", []):
+                ti = c.item(tid)
+                if ti is not None:
+                    auto.append(str(ti.get("name", "?")))
+            continue
+        if im.get("trait"):
+            neg = "!" if im.get("is_negative") else ""
+            lhs = rtype(im["for"])
+            trait_impls.append(f"- `impl {neg}{rpath(im['trait'])}{rpath_args(im['trait'].get('args'))} for {lhs}`")
+        else:
+            for mid in im.get("items", []):
+                m = c.item(mid)
+                if m is None:
+                    continue
+                if "assoc_const" in m["inner"]:
+                    ac = m["inner"]["assoc_const"]
+                    v = f" = {ac['value']}" if ac.get("value") else ""
+                    doc = doc_first_para(m.get("docs"))
+                    inherent.append(f"- `const {m['name']}: {rtype(ac['type'])}{v}`{method_marker(m)}{f' — {doc}' if doc else ''}")
+                    continue
+                if "function" not in m["inner"]:
+                    continue
+                doc = doc_first_para(m.get("docs"))
+                doc_s = f" — {doc}" if doc else ""
+                inherent.append(f"- `{fn_signature(m)}`{method_marker(m)}{doc_s}")
+
+    if inherent:
+        out += ["## Inherent methods", ""] + inherent + [""]
+    if trait_impls:
+        out += ["## Trait impls", ""] + trait_impls + [""]
+    if auto:
+        out += ["## Auto traits", "", ", ".join(sorted(set(auto))), ""]
+    return "\n".join(out)
+
+
+def render_item(c: Crate, it: dict, fqp: str) -> str:
+    kind = Crate.kind(it)
+    if kind == "module":
+        return render_module(c, it, fqp)
+    if kind == "trait":
+        return render_trait(c, it, fqp)
+    if kind == "struct":
+        return render_struct(c, it, fqp)
+    if kind == "enum":
+        return render_enum(c, it, fqp)
+    if kind == "function":
+        return render_function(c, it, fqp)
+    if kind == "assoc_const":
+        ac = it["inner"]["assoc_const"]
+        v = f" = {ac['value']}" if ac.get("value") else ""
+        out = [f"# assoc const {fqp}", ""]
+        out += [f"> {b}" for b in banners(it)]
+        if it.get("docs"):
+            out += [it["docs"].rstrip(), ""]
+        out += ["## Declaration", "```rust", f"const {it['name']}: {rtype(ac['type'])}{v}", "```"]
+        return "\n".join(out) + "\n"
+    if kind == "assoc_type":
+        at = it["inner"]["assoc_type"]
+        b = (": " + " + ".join(rbound(x) for x in at["bounds"])) if at.get("bounds") else ""
+        d = f" = {rtype(at['type'])}" if at.get("type") else ""
+        out = [f"# assoc type {fqp}", ""]
+        out += [f"> {b}" for b in banners(it)]
+        if it.get("docs"):
+            out += [it["docs"].rstrip(), ""]
+        out += ["## Declaration", "```rust", f"type {it['name']}{rgeneric_params(at['generics']['params'])}{b}{d}", "```"]
+        return "\n".join(out) + "\n"
+    if kind == "constant":
+        cv = it["inner"]["constant"]
+        val = cv.get("const", {})
+        expr = val.get("value") if val.get("value") not in (None, "_") else (val.get("expr") or "")
+        out = [f"# constant {fqp}", ""]
+        out += [f"> {b}" for b in banners(it)]
+        if it.get("docs"):
+            out += [it["docs"].rstrip(), ""]
+        out += ["## Declaration", "```rust", f"const {it['name']}: {rtype(cv['type'])}" + (f" = {expr}" if expr else ""), "```"]
+        return "\n".join(out) + "\n"
+    if kind == "type_alias":
+        ta = it["inner"]["type_alias"]
+        out = [f"# type alias {fqp}", ""]
+        out += [f"> {b}" for b in banners(it)]
+        if it.get("docs"):
+            out += [it["docs"].rstrip(), ""]
+        out += ["## Declaration", "```rust", f"type {it['name']}{rgeneric_params(ta['generics']['params'])} = {rtype(ta['type'])}", "```"]
+        return "\n".join(out) + "\n"
+    # Generic fallback (macro, static, union, foreign, ...): docs + name.
+    out = [f"# {kind} {fqp}", ""]
+    out += [f"> {b}" for b in banners(it)]
+    if it.get("docs"):
+        out += [it["docs"].rstrip(), ""]
+    return "\n".join(out) + "\n"
+
+
+# ------------------------------------------------------------ resolution  ---
+
+BEVY_NOTE = """# bevy — umbrella crate (no items of its own)
 
 The `bevy` crate is an umbrella that only re-exports from per-domain
 sub-crates, so its root has nothing to list. Search the specific sub-crate
@@ -100,185 +774,207 @@ Examples:
 
 For a `bevy::<module>::<Item>` path: drop `bevy::`, prefix the module with
 `bevy_`, and search that crate.
-EOF
-    exit 0
-fi
+"""
 
-# Resolve "latest" to a concrete version for a stable cache key.
-if [[ "$version" == "latest" ]]; then
-    resolved=$(curl -s -H "User-Agent: rustdoc-search" "https://crates.io/api/v1/crates/${crate}" \
-        | jq -r '.crate.max_version // empty' 2>/dev/null) || resolved=""
-    [[ -n "$resolved" ]] && version="$resolved"
-fi
 
-mkdir -p "$cache"
-json="${cache}/${crate}_${version}.json"
+def resolve(c: Crate, crate: str, item: str) -> "str | None":
+    """item path → index id. Exact canonical path first, then suffix match,
+    then `Type::member` (methods/consts aren't in the paths table), then a
+    `pub use` fallback; dies with diagnostics on ambiguity/miss."""
+    segs = item.split("::")
+    full = [crate] + segs
+    mine = [(id_, p) for id_, p in c.paths.items() if p.get("crate_id") == c.crate_id]
+    hits = [e for e in mine if e[1]["path"] == full] or [
+        e for e in mine if e[1]["path"][-len(segs):] == segs
+    ]
+    if not hits and len(segs) >= 2:
+        m = resolve_member(c, crate, item)
+        if m is not None:
+            return m
+    if not hits:
+        return pub_use_target(c, crate, item, segs[-1])
+    return hits[0][0] if len(hits) == 1 else ambiguous_paths(c, crate, item, hits)
 
-if [[ ! -f "$json" || "$refresh" -eq 1 ]]; then
-    # Fetch the un-pinned default JSON: docs.rs serves whatever rustdoc JSON
-    # format_version a crate's build emitted, and that varies per build (older
-    # builds are 57; recent ones 59/60). Pinning a single fv 404s/500s for every
-    # build that emits a different one, so take the default and validate its
-    # format_version field against the supported range below.
-    url="https://docs.rs/crate/${crate}/${version}/json.gz"
-    code=$(curl -sL -w "%{http_code}" -o "${json}.tmp" "$url" || true)
-    if [[ "$code" != "200" ]]; then
-        rm -f "${json}.tmp"
-        # No HTTP response at all => network/DNS, not a docs.rs signal.
-        if [[ "$code" == "000" ]]; then
-            die "Couldn't reach docs.rs for ${crate} ${version} (no HTTP response — likely a network/DNS error). Retry; if only docs.rs is affected, fall back to websearch or curl."
-        fi
-        # No JSON at all => nonexistent crate/version or pre-2025-05-23 build.
-        die "No rustdoc JSON for ${crate} ${version} (HTTP ${code}); crate/version may not exist, or predates docs.rs JSON builds (releases before 2025-05-23 have none). Fallback (schema-independent): use websearch or curl to fetch this crate's docs another way."
-    fi
-    gunzip -c "${json}.tmp" > "${json}" 2>/dev/null || { rm -f "${json}.tmp"; die "Failed to decompress rustdoc JSON from ${url}."; }
-    rm -f "${json}.tmp"
 
-    # Tripwire: docs.rs emits per-build format_versions (there is no single
-    # "current" fv), so validate the served schema against the range the jq
-    # queries are known to handle. Unlike the old fv-pinned probe — which guessed
-    # at the next version and could false-positive on a transient 500 — this
-    # reports the REAL number and fires only on a genuinely unknown schema.
-    fv=$(jq -r '.format_version // empty' "$json")
-    if [[ -z "$fv" ]] || (( fv < min_supported_format_version || fv > max_supported_format_version )); then
-        rm -f "$json"   # don't cache an unsupported schema
-        die "docs.rs served rustdoc JSON format_version ${fv:-unknown} for ${crate} ${version}; this script handles ${min_supported_format_version}–${max_supported_format_version}. Inform the user to update this script (raise max_supported_format_version and re-verify the jq). Fallback (schema-independent): use websearch or curl to fetch this crate's docs another way."
-    fi
-fi
-
-# Resolve this crate's numeric id (rustdoc convention: 0, but derive it).
-crate_id=$(jq -r '.paths[.root|tostring].crate_id // 0' "$json")
-
-# ---- No item given: list the root module's direct children. ----
-if [[ -z "$item" ]]; then
-    jq -r '
-        . as $r | ($r.index[$r.root|tostring].inner.module.items // []) as $kids
-        | "# module \($r.paths[$r.root|tostring].path | join("::"))  \($kids|length) items\n\n"
-        + ([$kids[] | tostring as $id | $r.index[$id] as $c
-            | ( if $c.inner.use then
-                  "- import: \($c.inner.use.name)  _(from \($c.inner.use.source))_"
-                else
-                  ($r.paths[$id] // {kind:"?", path:[$c.name // "?"]})
-                  | "- \(.kind): \(.path|join("::"))"
-                end )] | join("\n"))
-    ' "$json"
-    exit 0
-fi
-
-# ---- Resolve item path → id. Two stages, then a `pub use` fallback:
-#   1. Exact canonical path  <crate>::<item>  — disambiguates a same-named
-#      macro/trait from the crate-root module (e.g. `quote quote` → the
-#      `quote!` macro at `quote::quote`, not the root module `quote`).
-#   2. Suffix match  <item>  within this crate — catches items nested in
-#      submodules when you don't know the full path (e.g. `serde Deserialize`
-#      → `serde::de::Deserialize`); lenient about a leading crate-name segment.
-#   3. Follow a `pub use` whose imported name == last segment (re-exports).
-# `<crate>` with no item lists the root module instead of resolving.
-mapfile -t segs <<< "${item//::/$'\n'}"
-segs_json=$(printf '%s\n' "${segs[@]}" | jq -R . | jq -s .)
-
-resolve=$(jq --argjson segs "$segs_json" --argjson cid "$crate_id" --arg crate "$crate" -r '
-    $segs as $suffix
-    | ([ $crate ] + $suffix) as $full
-    | (.paths | to_entries | map(select(.value.crate_id == $cid))) as $mine
-    | ($mine | map(select(.value.path == $full))) as $exact
-    | (if ($exact | length) >= 1 then $exact
-       else $mine | map(select(.value.path[-($suffix|length):] == $suffix)) end) as $hits
-    | if   ($hits | length) == 0 then "NONE"
-      elif ($hits | length) == 1 then $hits[0].key
-      else "AMBIG\n" + ($hits | map("  " + (.value.path | join("::")) + "  [" + .value.kind + "]") | join("\n"))
-      end
-' "$json")
-
-case "$resolve" in
-    NONE)
-        # Fallback: follow `pub use` re-exports whose imported name == last segment.
-        last_seg="${segs[-1]}"
-        resolve=$(jq --arg last "$last_seg" -r '
-            .index | to_entries
-            | map(select(.value.inner.use.name == $last) | .value.inner.use.id)
-            | unique
-            | if   length == 1 then (.[0]|tostring)
-              elif length > 1  then "AMBIG\n" + (map(tostring)|join(", "))
-              else "NONE" end
-        ' "$json")
-        ;;
-esac
-case "$resolve" in
-    NONE) die "No item matching '$item' in $crate $version. Run 'rustdoc-search $crate' to see what's available." ;;
-    AMBIG*) echo "Error: '$item' is ambiguous in $crate $version:" >&2; echo "${resolve#AMBIG}" >&2; exit 1 ;;
-esac
-id="$resolve"
-
-# External re-exports point outside this crate's .index. Detect and point instead.
-if ! jq --arg id "$id" -e '.index[$id] != null' "$json" >/dev/null 2>&1; then
-    src=$(jq --arg id "$id" -r '
-        .index | to_entries[] | select((.value.inner.use.id // -1) == ($id|tonumber))
-        | .value.inner.use.source // empty' "$json" | head -1)
-    if [[ -n "$src" ]]; then
-        ext="${src%%::*}"
-        echo "# (external re-export) $item"
-        echo
-        echo "Resolves to \`$src\`, defined in crate **$ext**."
-        echo "Its docs are not in $crate's rustdoc JSON — fetch the defining crate:"
-        echo
-        echo "  rustdoc-search $ext ${src#*::}"
-        exit 0
-    fi
-    die "Resolved id $id is not in $crate's index and no re-export source was found."
-fi
-
-if [[ "$raw" -eq 1 ]]; then
-    jq --arg id "$id" '.index[$id] | {name, docs, inner}' "$json"
-    exit 0
-fi
-
-# ---- Render the item as compact markdown, dispatching on kind. ----
-jq --arg id "$id" -r '
-    . as $r | $r.index[$id] as $it | $it.inner as $inner
-    | ($inner | keys[0]) as $kind
-    | ($r.paths[$id].path // [$it.name] | join("::")) as $fqp
-    | "# \($kind) \($fqp)\n\n"
-      + (($it.docs // "") | rtrimstr("\n"))
-      + (if ($it.docs // "") != "" then "\n\n" else "" end)
-      + (
-          if $kind == "module" then
-              "## Contents\n" +
-              ( [($inner.module.items // [])[] | tostring as $cid | $r.index[$cid] as $c
-                  | ( if $c.inner.use then
-                        "- import: \($c.inner.use.name)  _(from \($c.inner.use.source))_"
-                      else
-                        ($r.paths[$cid] // {kind:"?", path:[$c.name // "?"]})
-                        | "- \(.kind): \(.path|join("::"))"
-                      end )] | join("\n") )
-          elif $kind == "trait" then
-              "## Methods\n" +
-              ( [($inner.trait.items // [])[] | tostring as $mid | $r.index[$mid] as $m
-                  | "- \($m.name)\(if ($m.inner.function.has_body == false) then "  _(required)_" else "" end)"]
-                | join("\n") )
-          elif $kind == "struct" then
-              ($inner.struct.fields // {}) as $f
-              | "## Fields\n" +
-              ( if   ($f|has("Named")) then [ $f.Named[] | "- \(.name)" ] | join("\n")
-                elif ($f|has("Plain")) then "- (\($f.Plain|length) unnamed, tuple)"
-                else "- (unit, no fields)" end )
-          elif $kind == "enum" then
-              "## Variants\n" +
-              ( [($inner.enum.variants // [])[] | tostring as $vid | $r.index[$vid].name // "?"]
-                | map("- \(.)") | join("\n") )
-          elif $kind == "function" then
-              ($inner.function) as $fn
-              | "## Signature\n```\nfn \($it.name)"
-                + (if ($fn.generics.params | length) > 0
-                   then "<" + ([$fn.generics.params[].name]|join(", ")) + ">" else "" end)
-                + "(" + ([$fn.sig.inputs[] | .[0]] | join(", ")) + ")\n```"
-          else "# \($kind) (no specific renderer; use --raw)" end
+def pub_use_target(c: Crate, crate: str, item: str, last: str) -> "str | None":
+    """Follow `pub use` re-exports whose imported name == last segment."""
+    uses = [
+        id_ for id_, it in c.index.items()
+        if "use" in it.get("inner", {}) and it["inner"]["use"].get("name") == last
+    ]
+    targets = sorted({str(c.index[u]["inner"]["use"]["id"]) for u in uses})
+    if len(targets) == 1:
+        return targets[0]
+    if len(targets) > 1:
+        lines = "\n".join(
+            f"  {c.index[u]['inner']['use'].get('source', '?')}" for u in uses
         )
-' "$json"
+        die(f"'{item}' is ambiguous in {crate} (multiple pub use targets):\n{lines}")
+    return None
+
+
+def ambiguous_paths(c: Crate, crate: str, item: str, hits) -> str:
+    lines = "\n".join(
+        f"  {'::'.join(p['path'])}  [{p['kind']}]" for _, p in sorted(hits, key=lambda e: e[1]["path"])
+    )
+    die(f"'{item}' is ambiguous in {crate}:\n{lines}")
+
+
+def resolve_member(c: Crate, crate: str, item: str) -> "str | None":
+    """`Type::method` / `Trait::CONST` / `Type::assoc_type` resolution: methods
+    and associated items live in the index under their trait/impl container,
+    not in the paths table. Returns the item id and remembers a display path
+    on the side (crate attribute `_member_fqp`)."""
+    segs = item.split("::")
+    parent_path, last = segs[:-1], segs[-1]
+    mine = [(id_, p) for id_, p in c.paths.items() if p.get("crate_id") == c.crate_id]
+    phits = [e for e in mine if e[1]["path"] == [crate] + parent_path] or [
+        e for e in mine if e[1]["path"][-len(parent_path):] == parent_path
+    ]
+    if len(phits) == 1:
+        pid = phits[0][0]
+    else:
+        # parent known by a re-export name (e.g. tokio::sync::Semaphore, whose
+        # canonical path is sync::semaphore::Semaphore) — follow the pub use.
+        t = pub_use_target(c, crate, item, parent_path[-1]) if len(phits) == 0 else None
+        if t is None:
+            return None  # unresolvable/ambiguous parent: let the caller report
+        pid = t
+    parent = c.item(pid)
+    if parent is None:
+        return None
+
+    containers: list[tuple[str, list]] = []
+    inner = parent["inner"]
+    if "trait" in inner:
+        containers.append((c.display_fqp(pid), inner["trait"].get("items", [])))
+    if "impls" in inner.get("struct", {}) or "impls" in inner.get("enum", {}):
+        for iid in inner.get("struct", {}).get("impls", []) or inner.get("enum", {}).get("impls", []):
+            impl = c.item(iid)
+            if impl is None or "impl" not in impl["inner"]:
+                continue
+            im = impl["inner"]["impl"]
+            if im.get("trait"):
+                desc = f"impl {rpath(im['trait'])} for {rtype(im['for'])}"
+            else:
+                desc = c.display_fqp(pid)
+            containers.append((desc, im.get("items", [])))
+
+    matches = []
+    for desc, ids in containers:
+        for mid in ids:
+            m = c.item(mid)
+            if m is not None and m.get("name") == last:
+                matches.append((mid, desc))
+    if len(matches) == 1:
+        mid, _ = matches[0]
+        c._member_fqp = c.display_fqp(pid) + "::" + last
+        return mid
+    if len(matches) > 1:
+        lines = "\n".join(f"  {last} in {desc}" for _, desc in matches)
+        die(f"'{item}' is ambiguous in {crate} (defined in multiple impls):\n{lines}")
+    return None
+
+
+def external_reexport(c: Crate, id_: str, item: str) -> "str | None":
+    """If id points outside this crate's index, find the re-exporting `pub use`."""
+    for it in c.index.values():
+        u = it.get("inner", {}).get("use")
+        if u and str(u.get("id")) == id_:
+            return u.get("source")
+    return None
+
+
+# ------------------------------------------------------------------ main  ---
+
+def main(argv: "list[str]") -> None:
+    ap = argparse.ArgumentParser(
+        prog="rustdoc-search",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=__doc__,
+        epilog="examples:\n"
+                "  rustdoc-search serde                      # list root module contents\n"
+                "  rustdoc-search serde Deserialize          # render one item\n"
+                "  rustdoc-search serde de::Deserializer     # module-qualified path\n"
+                "  rustdoc-search serde de                   # list a submodule\n"
+                "  rustdoc-search tokio Runtime::block_on    # Type::method resolution\n"
+                "  rustdoc-search tokio spawn --version 1.45 # semver ranges redirect\n"
+                "  rustdoc-search serde Deserialize --raw    # full inner JSON",
+    )
+    ap.add_argument("crate", help="crate name, e.g. serde, tokio")
+    ap.add_argument("item", nargs="?", default="", help="item path, e.g. de::Deserializer")
+    ap.add_argument("-V", "--version", default="latest", help="crate version (default: latest)")
+    ap.add_argument("-r", "--refresh", action="store_true", help="re-download the rustdoc JSON")
+    ap.add_argument("--raw", action="store_true", help="dump the item's full inner JSON")
+    args = ap.parse_args(argv)
+
+    if args.crate == "bevy":
+        # Hardcoded exception: the `bevy` crate is an umbrella that only
+        # re-exports from per-domain sub-crates (bevy_app, bevy_ecs, ...), so a
+        # bare root listing is a single useless `bevy_internal` import. With an
+        # item path, `rustdoc-search bevy App` is already routed correctly by
+        # the external re-export branch.
+        print(BEVY_NOTE)
+        return
+
+    version = args.version
+    if version == "latest":
+        version = resolve_latest(args.crate) or "latest"
+
+    data = json.loads(ensure_json(args.crate, version, args.refresh).read_bytes())
+    c = Crate(data)
+
+    if not args.item:
+        root_it = c.item(c.root)
+        fqp = c.fqp(c.root)
+        print(render_module(c, root_it, fqp), end="")
+        return
+
+    id_ = resolve(c, args.crate, args.item)
+    if id_ is None:
+        die(
+            f"No item matching '{args.item}' in {args.crate} {version}. "
+            f"Run 'rustdoc-search {args.crate}' to see what's available."
+        )
+
+    it = c.item(id_)
+    if it is None:
+        # External re-export: the id points outside this crate's index. The
+        # paths table entry (if any) names the true defining crate; fall back
+        # to the re-exporting `use`'s source string.
+        p = c.paths.get(str(id_))
+        if p:
+            full = "::".join(p["path"])
+            ext = p["path"][0]
+            rest = p["path"][1:]
+            print(f"# (external re-export) {args.item}\n")
+            print(f"Resolves to `{full}`, defined in crate **{ext}**.")
+            print(f"Its docs are not in {args.crate}'s rustdoc JSON — fetch the defining crate:\n")
+            print(f"  rustdoc-search {ext} {'::'.join(rest)}")
+            return
+        src = external_reexport(c, id_, args.item)
+        if src:
+            ext = src.split("::")[0]
+            print(f"# (external re-export) {args.item}\n")
+            print(f"Resolves to `{src}`, defined in crate **{ext}**.")
+            print(f"Its docs are not in {args.crate}'s rustdoc JSON — fetch the defining crate:\n")
+            print(f"  rustdoc-search {ext} {src.split('::', 1)[1]}")
+            return
+        die(f"Resolved id {id_} is not in {args.crate}'s index and no re-export source was found.")
+
+    if args.raw:
+        print(json.dumps({k: v for k, v in it.items() if k != "inner"} | {"inner": it["inner"]}, indent=2))
+        return
+
+    print(render_item(c, it, getattr(c, "_member_fqp", None) or c.display_fqp(id_)), end="")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
 
 ################################################################################
 # NOTES ON UPDATING — rustdoc JSON format_version handling
-# (Updated when fv61 landed; this script now handles fv 57–61)
+# (Python rewrite, 2026-07-20; handles fv 57–61; verified fv57, fv60, fv61)
 ################################################################################
 #
 # HOW docs.rs SERVES JSON (the key model)
@@ -287,30 +983,55 @@ jq --arg id "$id" -r '
 #   sit on different fvs because they were last rebuilt with different toolchains:
 #     fv57 : tracing
 #     fv60 : tokio, axum, wgpu, rand, serde, reqwest, sqlx, pyo3, nalgebra,
-#           anyhow, quote
-#     fv61 : clap, egui, bevy_ecs
-#   (as of 2026-07-20; no fv58/59 builds observed in the wild. Crates drift
-#   upward as docs.rs rebuilds them with newer toolchains — serde moved 57→60
-#   and anyhow 59→60 since the previous update of these notes.)
+#            anyhow, quote, serde_json
+#     fv61 : clap(_builder), egui, bevy_ecs
+#   (as of 2026-07-20; crates drift upward as docs.rs rebuilds them.)
 #
-# WHY WE DON'T PIN A SINGLE fv (the v58 lesson)
-#   An earlier version pinned `supported_format_version=57` in the URL. Pinning
-#   ANY single fv 404s/500s for every build that emits a different one, so a pin
-#   to 58 would have broken the fv57 crates AND the fv59/60 crates. Worse, the
-#   old tripwire guessed "58+ is now available" via `$((57+1))+` without ever
-#   verifying fv58 existed — a transient HTTP 500 on the pinned fv57 URL for
-#   bevy_app 0.19.0 set off a FALSE alarm that prompted this rewrite. (bevy_app
-#   0.19.0 fv57 was 10/10 → HTTP 200 minutes later; the 500 was transient.)
-#   => Current design: fetch the un-pinned default `.json.gz`, then validate the
-#      JSON's own `.format_version` against [min, max]_supported_format_version.
-#      The tripwire now reports the REAL number and fires only on a genuinely
-#      unknown schema. DO NOT reintroduce a single pinned fv.
+# WHY WE DON'T PIN A SINGLE fv
+#   Pinning ANY single fv 404s/500s for every build that emits a different one.
+#   (Historical: an fv57-pinned URL plus a `$((57+1))` guess once produced a
+#   false alarm off a transient 500.) Current design: fetch the un-pinned
+#   default `.json.gz`, validate the JSON's own `.format_version` against
+#   [MIN, MAX]_SUPPORTED_FORMAT_VERSION. The tripwire reports the REAL number
+#   and fires only on a genuinely unknown schema. DO NOT pin.
+#
+# KNOWN SCHEMA DRIFTS INSIDE 57–61 (all handled; keep these when bumping)
+#   - struct shape:   fv57 `inner.struct.fields = {Named|Plain: [...]}` +
+#                     `fields_stripped`; fv60+ `inner.struct.kind` =
+#                     {"plain": {fields, has_stripped_fields}} | {"tuple": [ids]}
+#                     | "unit". Tuple-kind field ids may be `null` (private).
+#   - struct_field:   fv57 `{"type": T}` wrapper; fv60+ IS the Type directly.
+#   - function_ptr:   fv57 `{decl, param_names}`; fv60+ `{sig, generic_params,
+#                     header}` (sig same shape as function.sig).
+#   - constraints:    fv61 adds `binding: {"constraint": [GenericBound...]}`
+#                     (assoc-type BOUNDS, `Event<Trigger<'a>: Default>`) next to
+#                     the older `binding: {"type"|"lifetime"}` (= bindings).
+#   - attrs:          strings, `{"other": str}` wrappers, and typed objects
+#                     (`{"must_use": {reason}}`). Feature gates come from the
+#                     string form `#[doc(cfg(feature = "x"))]` — there is NO
+#                     top-level `cfg` field on items.
+#   - paths quirk:    the paths table records CANONICAL defining paths, which
+#                     can double a segment (tokio::task::spawn::spawn); display
+#                     paths prefer the shortest ancestor-module re-export
+#                     (tokio::spawn / tokio::task::spawn). All are valid Rust.
+#
+# FIELDS CONSUMED BY THE RENDERERS (the compatibility surface)
+#   top: format_version, root, paths[id]{crate_id,kind,path}, index[id]
+#   item: name, inner, docs, attrs, deprecation{since,note}
+#   inner.<module|trait|struct|enum|function|use|variant|struct_field|
+#          assoc_type|assoc_const|constant|type_alias>
+#   function: header{is_const,is_async,is_unsafe,abi}, sig{inputs,output,
+#          is_c_variadic}, generics{params,where_predicates}, has_body
+#   types: primitive generic resolved_path tuple slice array borrowed_ref
+#          raw_pointer qualified_path dyn_trait impl_trait function_pointer
+#          never infer; bounds: trait_bound{trait,modifier,generic_params},
+#          outlives, term
 #
 # WHEN TO UPDATE
-#   Bump `max_supported_format_version` (and re-verify the jq) the day a crate's
-#   default JSON reports a format_version ABOVE the current max (the tripwire's
-#   message names the exact number). `min` may rise if old fvs disappear from
-#   docs.rs, but that hasn't happened — fv57 builds are still served.
+#   Bump MAX_SUPPORTED_FORMAT_VERSION (and re-run the verification matrix below)
+#   the day a crate's default JSON reports a format_version ABOVE the max (the
+#   tripwire's message names the exact number). MIN may rise if old fvs
+#   disappear from docs.rs — they haven't (fv57 builds are still served).
 #
 # CHECKING THE CURRENT HIGH-WATER fv
 #     for cr in tokio/latest clap/latest axum/latest wgpu/latest rand/latest \
@@ -319,39 +1040,28 @@ jq --arg id "$id" -r '
 #         | jq -r '"\($cr) -> fv\(.format_version)"'
 #     done
 #
-# DOES THE jq NEED CHANGES? (usually NO)
-#   The schema for the fields this script reads has been stable across fv57–61,
-#   verified by running every renderer (module / trait / struct / enum / function
-#   signature) + path resolution + `pub use` re-export resolution against crates
-#   of each fv. The fields in play are deep, old, structural ones:
-#       .format_version  .root  .paths[]  .index[]  .paths[id].crate_id/.kind/.path
-#       .inner.<module|trait|struct|enum|function|use>  (kind = keys(inner)[0])
-#       .inner.module.items  .inner.trait.items  .inner.enum.variants
-#       .inner.struct.fields.{Named,Plain}
-#       .inner.function.{generics.params[].name, sig.inputs[], has_body}
-#       .inner.use.{name, source, id}
-#   So a typical bump is just raising `max_supported_format_version` — fv61's
-#   own breaking change ("Make `Stability` work with non-self-describing
-#   formats") is serde/rkyv-internal and did not alter the emitted JSON. Only if a
-#   renderer mis-renders on the new fv do you need to touch jq — re-run the
-#   verification matrix below against the new fv and fix what breaks.
-#
-# VERIFICATION MATRIX (run against crates of EACH in-scope fv)
-#     rustdoc-search serde   Deserialize        # trait      (fv60)
-#     rustdoc-search serde                       # root list  (fv60)
-#     rustdoc-search clap_builder ValueEnum --version latest  # trait      (fv61)
-#     rustdoc-search egui    Context --version latest     # struct     (fv61)
-#     rustdoc-search bevy_ecs world::World --version latest  # path res. (fv61)
-#     rustdoc-search tokio   spawn              # function   (fv60)
-#     rustdoc-search tokio                       # root list  (fv60)
-#     rustdoc-search tracing                     # root list  (fv57)
-#     rustdoc-search <crate> <module>::<Item>   # path resolution + `pub use`
-#     rustdoc-search <bad-item>                 # error path
-#     rustdoc-search <missing-crate>            # HTTP-error path
+# VERIFICATION MATRIX — run against crates of EACH in-scope fv, and diff
+# against the item's docs.rs HTML page (declaration, banners, methods):
+#     rustdoc-search serde   Deserialize        # trait + assoc   (fv60)
+#     rustdoc-search serde   de::Error          # provided mths   (fv60)
+#     rustdoc-search serde                       # root list       (fv60)
+#     rustdoc-search serde_json Value            # enum payloads   (fv60)
+#     rustdoc-search tracing instrument::Instrumented  # struct    (fv57)
+#     rustdoc-search tracing                     # root list       (fv57)
+#     rustdoc-search tokio   spawn               # fn + feature    (fv60)
+#     rustdoc-search tokio   fs::read            # async + APIT    (fv60)
+#     rustdoc-search tokio   runtime::RuntimeMetrics  # deprecation (fv60)
+#     rustdoc-search tokio   Runtime::block_on   # Type::member    (fv60)
+#     rustdoc-search egui    Context             # private tuple   (fv61)
+#     rustdoc-search bevy_ecs world::World       # assoc-bound cnstr(fv61)
+#     rustdoc-search bevy_ecs system::System     # assoc types     (fv61)
+#     rustdoc-search clap_builder ValueEnum      # trait           (fv61)
+#     rustdoc-search tracing Subscriber          # external re-export routing
+#     rustdoc-search bevy                        # umbrella note
+#     rustdoc-search <missing-item> / <missing-crate>   # error paths
 #
 # UPSTREAM SCHEMA REFERENCE
 #   FORMAT_VERSION and its per-bump "Latest feature" note live in the
 #   rust-lang/rust tree at src/rustdoc-json-types/lib.rs (the const plus the
-#   comment directly above it; the old src/rustdoc-json-output/CHANGELOG.md path
-#   no longer exists on master). When a new fv lands, read that note and diff it
-#   against the fields listed above to predict whether any jq needs adapting.
+#   comment directly above it). When a new fv lands, read that note and diff it
+#   against FIELDS CONSUMED above to predict whether any renderer needs adapting.
