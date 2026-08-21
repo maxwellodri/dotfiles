@@ -1,4 +1,5 @@
 local M = {}
+local promoted = {}
 M.open_workspace_toml = function()
   local git_root = vim.fn.systemlist('git rev-parse --show-toplevel')[1]
   if vim.v.shell_error ~= 0 then
@@ -20,7 +21,9 @@ M.setup = function(opts)
     cmd = { 'rust-analyzer' },
     root_markers = { 'Cargo.toml', 'rust-project.json' },
     filetypes = { 'rust' },
-    capabilities = opts.capabilities,
+    capabilities = vim.tbl_deep_extend('force', opts.capabilities or {}, {
+      experimental = { serverStatusNotification = true },
+    }),
     on_attach = function(client, bufnr)
       opts.on_attach(client, bufnr)
       vim.diagnostic.enable(true, { bufnr = bufnr })
@@ -165,6 +168,24 @@ M.setup = function(opts)
         end, 500)
       end, "Restart rust-analyzer")
     end,
+    handlers = {
+      -- rust-analyzer reports quiescent once its startup settles:
+      -- promote CPU weight back to full speed (see ~/bin/rust-analyzer).
+      -- MemoryHigh stays for the scope's life, so cold pages keep
+      -- getting swapped out. No timer: RA itself signals completion.
+      ['experimental/serverStatus'] = function(_, result, ctx)
+        if promoted[ctx.client_id] or vim.env.dotfiles_tag ~= 'pc' then return end
+        if not (result and result.quiescent) then return end
+        promoted[ctx.client_id] = true
+        vim.system({ 'sh', '-c', [[
+for pid in $(pgrep -x rust-analyzer); do
+  scope=$(awk -F/ '/^0::/{print $NF}' "/proc/$pid/cgroup")
+  case $scope in
+    rust-analyzer-*) systemctl --user set-property --runtime "$scope" CPUWeight=100 ;;
+  esac
+done]] }, { text = false })
+      end,
+    },
     settings = {
       ['rust-analyzer'] = {
         diagnostics = { enable = false },

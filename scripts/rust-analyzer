@@ -2,26 +2,41 @@
 # Wrapper script for rust-analyzer that uses the current rustup toolchain
 # This ensures rust-analyzer works regardless of which toolchain is active
 
-# Use rustup to find the rust-analyzer binary for the current toolchain
+self=$(readlink -f "$0")
 rust_analyzer_path=$(rustup which rust-analyzer 2>/dev/null)
 
-# Check if rustup found rust-analyzer
-if [ $? -eq 0 ] && [ -n "$rust_analyzer_path" ] && [ -x "$rust_analyzer_path" ]; then
+# rustup lookup failed: fall back to another rust-analyzer on PATH.
+# Never match this wrapper itself, else exec loops forever.
+if [ -z "$rust_analyzer_path" ] || [ ! -x "$rust_analyzer_path" ]; then
+    while IFS= read -r candidate; do
+        if [ "$(readlink -f "$candidate")" != "$self" ]; then
+            rust_analyzer_path=$candidate
+            break
+        fi
+    done < <(type -ap rust-analyzer 2>/dev/null)
+fi
+
+# Check a usable binary was found
+if [ -n "$rust_analyzer_path" ] && [ -x "$rust_analyzer_path" ]; then
     # Execute rust-analyzer with all passed arguments
     if [[ "$dotfiles_tag" == "pc" ]]; then
-        # Optimization for Ryzen 3700X Workstation
-        exec env RAYON_NUM_THREADS=14 "$rust_analyzer_path" "$@"
+        # Ryzen 3700X workstation: start throttled (low cpu share, swap cold
+        # pages past 20G) so a cold-start can't swamp the machine. nvim
+        # promotes CPU weight when RA reports quiescent; the memory cap
+        # stays so RA's cold pages live in swap, not RAM.
+        if systemd-run --user --quiet --scope true >/dev/null 2>&1; then
+            exec systemd-run --user --quiet --scope \
+                --unit="rust-analyzer-$$.scope" \
+                -p CPUWeight=20 -p MemoryHigh=20G \
+                env RAYON_NUM_THREADS=12 "$rust_analyzer_path" "$@"
+        fi
+        exec env RAYON_NUM_THREADS=12 nice -n 10 "$rust_analyzer_path" "$@"
     else
         # Standard execution for other machines (auto-detect threads)
-        exec "$rust_analyzer_path" "$@"
+        exec nice -n 10 "$rust_analyzer_path" "$@"
     fi
 else
-    # Fallback: try to find rust-analyzer in PATH
-    if command -v rust-analyzer >/dev/null 2>&1; then
-        exec rust-analyzer "$@"
-    else
-        echo "Error: rust-analyzer not found in current toolchain or PATH" >&2
-        echo "Try running: rustup component add rust-analyzer" >&2
-        exit 1
-    fi
+    echo "Error: rust-analyzer not found in current toolchain or PATH" >&2
+    echo "Try running: rustup component add rust-analyzer" >&2
+    exit 1
 fi
