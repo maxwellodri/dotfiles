@@ -3,14 +3,38 @@
  * with typed / single-select / multi-select answer modes.
  *
  * Ported from amosblomqvist/pi-config extensions/ask-user-question.ts
- * (https://github.com/amosblomqvist/pi-config). Adapted for this repo:
- *   - imports: @earendil-works/* packages + unscoped `typebox`
- *   - promptGuidelines name the tool explicitly (pi convention)
+ * (https://github.com/amosblomqvist/pi-config), since heavily reworked here.
  *
  * Modes (derived from params):
  *   - no options            → free-form text editor
  *   - options, single       → select list, inline "Custom" editor on row 0
  *   - options + multiSelect → checkbox list + inline "Custom" editor + Submit
+ *
+ * Keys (the complete set — ↑↓ do nothing outside the editor, where they are
+ * its history):
+ *   Tab / ⇧Tab   cycle rows (wrapping)
+ *   Enter        submit from anywhere (custom text on the editor row, the
+ *                focused option otherwise — single; checked options + custom
+ *                text — multi)
+ *   ⇧Enter       newline inside the editor, no-op elsewhere (main-prompt
+ *                parity)
+ *   Ctrl+Space   confirm — select the focused option (single), toggle it and
+ *                move down one (multi); on the Custom row submits the editor
+ *                text (single) / skips ahead (multi); on Submit it finalizes
+ *   ^C           clear the custom editor
+ *   Esc          cancel the question
+ *
+ * Custom carries no checkbox: the custom answer simply IS the editor text at
+ * submit time, omitted when empty/whitespace. It sorts first in results,
+ * mirroring the picker where it is row 0.
+ *
+ * User-authored answers (Custom editor, and free-form text mode) behave like
+ * a regular prompt: `$name` snippets are expanded and `@path` refs inject
+ * their file/dir contents, reusing snippet_expansion.ts / prompt_expansion.ts
+ * directly (relative imports; pi loads extensions with the module cache off,
+ * so each extension gets its own copy — fine, both are stateless for our
+ * use). The transcript shows the raw typed text; the expansion lands in the
+ * model-facing tool result.
  *
  * Single in-flight question at a time: pop-up UI is serialized through a
  * globalThis mutex shared with any future pop-up-style tools, since
@@ -30,6 +54,8 @@ import {
 	wrapTextWithAnsi,
 } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
+import { expandSnippets } from "../snippet_expansion";
+import { buildInjections } from "../prompt_expansion";
 
 interface AskOption {
 	label: string;
@@ -77,8 +103,7 @@ interface AskUserQuestionResultDetails {
 
 const OptionSchema = Type.Object({
 	label: Type.String({
-		description:
-			'Display label for the option. If you recommend an option, place it first and append "(Recommended)" to the label.',
+		description: "Display label for the option.",
 	}),
 	value: Type.Optional(
 		Type.String({
@@ -100,7 +125,7 @@ const AskUserQuestionParams = Type.Object({
 	options: Type.Optional(
 		Type.Array(OptionSchema, {
 			description:
-				"Optional multiple-choice options. Omit or pass an empty array for free-form text input. Users will always be able to choose Custom at the top of the list and type their own answer when options are provided.",
+				"Optional multiple-choice options. Omit or pass an empty array for free-form text input. Users will always be able to use the Custom editor at the top of the list to type their own answer when options are provided.",
 		}),
 	),
 	multiSelect: Type.Optional(
@@ -157,10 +182,10 @@ function formatAnswerForModel(answer: AskAnswer): string {
 
 function answerSortRank(answer: AskAnswer): number {
 	switch (answer.type) {
+		case "custom":
+			return 0; // custom leads, mirroring the picker where it is row 0
 		case "option":
 			return answer.index;
-		case "custom":
-			return Number.MAX_SAFE_INTEGER - 1;
 		case "text":
 			return Number.MAX_SAFE_INTEGER;
 	}
@@ -240,12 +265,11 @@ async function askSingleChoice(
 		let cachedLines: string[] | undefined;
 		let cachedWidth = -1;
 		const editor = new Editor(tui, createEditorTheme(theme));
-
-		editor.onSubmit = (value) => {
-			const trimmed = value.trim();
-			if (!trimmed) return;
-			done({ type: "custom", label: trimmed, value: trimmed });
-		};
+		editor.disableSubmit = true; // Enter is handled by the popup, not the editor
+		if (promptAutocompleteProvider) {
+			// @ file / $ snippet completions, same as the main prompt
+			editor.setAutocompleteProvider(promptAutocompleteProvider);
+		}
 
 		function refresh() {
 			cachedLines = undefined;
@@ -255,22 +279,45 @@ async function askSingleChoice(
 		function handleInput(data: string) {
 			editor.focused = rowIndex === 0;
 
-			if (rowIndex === 0) {
-				// Inline editor row: text goes into the editor, but ↑↓ move
-				// focus to the option rows, ^C clears the text, Esc hops to options.
-				if (matchesKey(data, Key.escape)) {
-					editor.focused = false;
-					rowIndex = 1;
-					refresh();
+			// Enter submits from anywhere: the custom text on the editor row,
+			// the focused option otherwise.
+			if (matchesKey(data, Key.enter)) {
+				if (rowIndex === 0) {
+					const text = editor.getText().trim();
+					if (text) {
+						done({ type: "custom", label: text, value: text });
+					}
 					return;
 				}
-				if (matchesKey(data, Key.up)) {
-					return; // already the top row
-				}
-				if (matchesKey(data, Key.down)) {
-					editor.focused = false;
-					rowIndex = 1;
-					refresh();
+				const selected = allOptions[rowIndex - 1];
+				done({
+					type: "option",
+					label: selected.label,
+					value: selected.value,
+					index: selected.index!,
+				});
+				return;
+			}
+
+			// Tab / ⇧Tab cycle focus through the rows, wrapping at the edges.
+			if (matchesKey(data, Key.tab)) {
+				editor.focused = false;
+				rowIndex = (rowIndex + 1) % (allOptions.length + 1);
+				refresh();
+				return;
+			}
+			if (matchesKey(data, Key.shift("tab"))) {
+				editor.focused = false;
+				rowIndex = (rowIndex + allOptions.length) % (allOptions.length + 1);
+				refresh();
+				return;
+			}
+
+			if (rowIndex === 0) {
+				// Editor row: text goes into the editor (↑↓ are its history,
+				// Enter a no-op). Custom is confirmed via Ctrl+Space or ⇧Enter.
+				if (matchesKey(data, Key.escape)) {
+					done(null);
 					return;
 				}
 				if (matchesKey(data, Key.ctrl("c"))) {
@@ -278,22 +325,20 @@ async function askSingleChoice(
 					refresh();
 					return;
 				}
+				if (matchesKey(data, "ctrl+space")) {
+					const text = editor.getText().trim();
+					if (text) {
+						done({ type: "custom", label: text, value: text });
+					}
+					return;
+				}
 				editor.handleInput(data);
 				refresh();
 				return;
 			}
 
-			if (matchesKey(data, Key.up)) {
-				rowIndex = Math.max(0, rowIndex - 1);
-				refresh();
-				return;
-			}
-			if (matchesKey(data, Key.down)) {
-				rowIndex = Math.min(allOptions.length, rowIndex + 1);
-				refresh();
-				return;
-			}
-			if (matchesKey(data, Key.enter)) {
+			// Option rows: Ctrl+Space confirms the focused option.
+			if (matchesKey(data, "ctrl+space")) {
 				const selected = allOptions[rowIndex - 1];
 				done({
 					type: "option",
@@ -348,9 +393,9 @@ async function askSingleChoice(
 
 			lines.push("");
 			if (rowIndex === 0) {
-				add(theme.fg("dim", " ↑↓ to options • Enter submit custom • ^C clear"));
+				add(theme.fg("dim", " Tab/⇧Tab rows • Enter/Ctrl+Space submit custom • ^C clear • Esc cancel"));
 			} else {
-				add(theme.fg("dim", " ↑↓ navigate • Enter select • Esc cancel"));
+				add(theme.fg("dim", " Tab/⇧Tab rows • Ctrl+Space select • Esc cancel"));
 			}
 
 			add(theme.fg("accent", "─".repeat(width)));
@@ -391,21 +436,11 @@ async function askMultiChoice(
 		let cachedWidth = -1;
 		const selected = new Map<string, AskAnswer>();
 		const editor = new Editor(tui, createEditorTheme(theme));
-
-		editor.onSubmit = (value) => {
-			const trimmed = value.trim();
-			if (!trimmed) {
-				// Empty Enter clears a previously saved custom answer.
-				if (selected.delete("custom")) {
-					editor.setText("");
-					refresh();
-				}
-				return;
-			}
-			selected.set("custom", { type: "custom", label: trimmed, value: trimmed });
-			rowIndex = 1;
-			refresh();
-		};
+		editor.disableSubmit = true; // Enter is handled by the popup, not the editor
+		if (promptAutocompleteProvider) {
+			// @ file / $ snippet completions, same as the main prompt
+			editor.setAutocompleteProvider(promptAutocompleteProvider);
+		}
 
 		function refresh() {
 			cachedLines = undefined;
@@ -426,29 +461,57 @@ async function askMultiChoice(
 			refresh();
 		}
 
+		function submitAnswers() {
+			const answers = Array.from(selected.values());
+			const text = editor.getText().trim();
+			if (text) {
+				answers.push({ type: "custom", label: text, value: text });
+			}
+			if (answers.length > 0) {
+				done(sortAnswers(answers));
+			}
+		}
+
 		function handleInput(data: string) {
 			editor.focused = rowIndex === 0;
 
+			// Enter submits from anywhere: the checked options plus the
+			// custom answer, which is simply the editor text if non-empty.
+			if (matchesKey(data, Key.enter)) {
+				submitAnswers();
+				return;
+			}
+
+			// Tab / ⇧Tab cycle focus through the rows, wrapping at the edges.
+			if (matchesKey(data, Key.tab)) {
+				editor.focused = false;
+				rowIndex = (rowIndex + 1) % (allItems.length + 1);
+				refresh();
+				return;
+			}
+			if (matchesKey(data, Key.shift("tab"))) {
+				editor.focused = false;
+				rowIndex = (rowIndex + allItems.length) % (allItems.length + 1);
+				refresh();
+				return;
+			}
+
 			if (rowIndex === 0) {
-				// Inline editor row: text goes into the editor, but ↑↓ move
-				// focus to the option rows, ^C clears the text, Esc hops to options.
+				// Editor row: no checkbox — the custom answer simply IS the
+				// editor text at submit time. ↑↓ are the editor's history,
+				// Enter a no-op; ^C clears the text.
 				if (matchesKey(data, Key.escape)) {
-					editor.focused = false;
-					rowIndex = 1;
-					refresh();
-					return;
-				}
-				if (matchesKey(data, Key.up)) {
-					return; // already the top row
-				}
-				if (matchesKey(data, Key.down)) {
-					editor.focused = false;
-					rowIndex = 1;
-					refresh();
+					done(null);
 					return;
 				}
 				if (matchesKey(data, Key.ctrl("c"))) {
 					editor.setText("");
+					refresh();
+					return;
+				}
+				if (matchesKey(data, "ctrl+space")) {
+					editor.focused = false; // nothing to confirm here; move along
+					rowIndex = 1;
 					refresh();
 					return;
 				}
@@ -457,32 +520,18 @@ async function askMultiChoice(
 				return;
 			}
 
-			if (matchesKey(data, Key.up)) {
-				rowIndex = Math.max(0, rowIndex - 1);
-				refresh();
-				return;
-			}
-			if (matchesKey(data, Key.down)) {
-				rowIndex = Math.min(allItems.length, rowIndex + 1);
-				refresh();
-				return;
-			}
-
 			const current = allItems[rowIndex - 1];
-			if (matchesKey(data, Key.space)) {
-				if (current.isSubmit) return;
-				toggleOption(current);
-				return;
-			}
 
-			if (matchesKey(data, Key.enter)) {
+			// Ctrl+Space confirms: toggle the focused option and move down
+			// one; on the Submit row, finalize the answers.
+			if (matchesKey(data, "ctrl+space")) {
 				if (current.isSubmit) {
-					if (selected.size > 0) {
-						done(sortAnswers(Array.from(selected.values())));
-					}
+					submitAnswers();
 					return;
 				}
 				toggleOption(current);
+				rowIndex = Math.min(allItems.length, rowIndex + 1);
+				refresh();
 				return;
 			}
 
@@ -510,13 +559,9 @@ async function askMultiChoice(
 			lines.push("");
 
 			editor.focused = rowIndex === 0;
-			const custom = selected.get("custom");
-			const customMarker = custom ? "[x]" : "[ ]";
 			const customPrefix = rowIndex === 0 ? theme.fg("accent", "> ") : "  ";
-			const customRow = `${customMarker} ${customLabel}`;
-			add(
-				`${customPrefix}${rowIndex === 0 ? theme.fg("accent", customRow) : theme.fg(custom ? "success" : "text", customRow)}`,
-			);
+			const customRow = rowIndex === 0 ? theme.fg("accent", customLabel) : theme.fg("text", customLabel);
+			add(`${customPrefix}${customRow}`);
 			for (const line of editor.render(Math.max(1, width - 2))) {
 				add(` ${line}`);
 			}
@@ -527,10 +572,11 @@ async function askMultiChoice(
 				const prefix = isFocused ? theme.fg("accent", "> ") : "  ";
 
 				if (item.isSubmit) {
-					const label = selected.size > 0 ? `✓ ${item.label} (${selected.size} selected)` : `○ ${item.label}`;
+					const pending = selected.size + (editor.getText().trim() ? 1 : 0);
+					const label = pending > 0 ? `✓ ${item.label} (${pending} selected)` : `○ ${item.label}`;
 					const styled = isFocused
 						? theme.fg("accent", label)
-						: theme.fg(selected.size > 0 ? "success" : "dim", label);
+						: theme.fg(pending > 0 ? "success" : "dim", label);
 					add(`${prefix}${styled}`);
 					continue;
 				}
@@ -549,12 +595,13 @@ async function askMultiChoice(
 
 			lines.push("");
 			if (rowIndex === 0) {
-				add(theme.fg("dim", " ↑↓ to options • Enter save custom (empty clears) • ^C clear"));
+				add(theme.fg("dim", " Tab/⇧Tab rows • ^C clear • Enter submit • Esc cancel"));
 			} else {
-				if (selected.size === 0) {
+				const pending = selected.size + (editor.getText().trim() ? 1 : 0);
+				if (pending === 0) {
 					add(theme.fg("warning", " Select at least one answer before submitting."));
 				}
-				add(theme.fg("dim", " ↑↓ navigate • Space toggle • Enter toggle/submit • Esc cancel"));
+				add(theme.fg("dim", " Tab/⇧Tab rows • Ctrl+Space toggle+down • Enter submit • Esc cancel"));
 			}
 
 			add(theme.fg("accent", "─".repeat(width)));
@@ -601,7 +648,69 @@ function withUILock<T>(fn: () => Promise<T>): Promise<T> {
 	return sharedUiLock.withLock(fn);
 }
 
+/**
+ * Run user-authored answer text through the same expansions a regular prompt
+ * gets: `$name` snippet substitution (snippet_expansion.ts) and `@path`
+ * file/dir injection (prompt_expansion.ts). Returns the expanded text plus
+ * any `<file>` blocks to append to the model-facing result. Best-effort:
+ * failures fall back to the raw text.
+ */
+async function expandAnswerText(text: string, ctx: any): Promise<{ text: string; blocks: string[] }> {
+	let expanded = text;
+	try {
+		expanded = expandSnippets(text);
+	} catch {
+		expanded = text;
+	}
+	const blocks: string[] = [];
+	if (expanded.includes("@")) {
+		try {
+			const injections = await buildInjections(expanded, ctx);
+			if (injections.injected > 0) {
+				blocks.push(...injections.blocks);
+			}
+		} catch {
+			// leave @tokens verbatim
+		}
+	}
+	return { text: expanded, blocks };
+}
+
+function withBlocks(text: string, blocks: string[]): string {
+	return blocks.length > 0 ? `${text}\n\n${blocks.join("\n\n")}` : text;
+}
+
+/**
+ * pi's composite autocomplete provider (base `@` + registered wrappers such
+ * as fuzzy-filter and snippet_expansion), captured via transparent no-op
+ * registrations. Wrappers run in REGISTRATION order and this extension loads
+ * before snippet_expansion registers its `$` layer — so besides the
+ * synchronous capture at session_start, a deferred re-registration (setTimeout)
+ * appends our factory last, where it sees the complete composite. Attached to
+ * each Custom editor so answers get the same `@`/`$` completions as the main
+ * prompt.
+ */
+let promptAutocompleteProvider: any = null;
+
 export default function askUserQuestion(pi: ExtensionAPI) {
+	// Capture the main prompt's autocomplete stack for the Custom editor.
+	// Transparent: adds nothing to the chain, just remembers the composite.
+	pi.on("session_start", (_event, ctx) => {
+		const capture = (inner: any) => {
+			promptAutocompleteProvider = inner;
+			return inner;
+		};
+		ctx.ui?.addAutocompleteProvider?.(capture);
+		// The synchronous capture above runs before later-loading extensions
+		// (snippet_expansion's `$`) register their layers — observed as `@`
+		// completing but `$` not. All session_start handlers are synchronous,
+		// so a short deferral re-registers us LAST; the inner we then see is
+		// the complete chain, and every later rebuild keeps us last.
+		setTimeout(() => {
+			ctx.ui?.addAutocompleteProvider?.(capture);
+		}, 100);
+	});
+
 	pi.registerTool({
 		name: "ask_user_question",
 		label: "ask_user_question",
@@ -612,9 +721,9 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 		promptGuidelines: [
 			"Ask exactly one question per ask_user_question call.",
 			"If ask_user_question needs answers to multiple questions, make multiple separate calls instead of combining them into one prompt.",
-			'ask_user_question users can always select "Custom" (list position 1) to type their own answer when options are provided.',
+			'ask_user_question users can always type their own answer via the Custom editor at the top of the list when options are provided; Custom text behaves like a regular prompt ($snippets and @path includes are expanded).',
 			"Use multiSelect: true with ask_user_question only when multiple answers to the same question are needed.",
-			'If you recommend a specific option, make it the first option in the list and add "(Recommended)" at the end of the label.',
+			"Order ask_user_question options with the most likely answer first.",
 			"Prefer ask_user_question over guessing when requirements, preferences, or implementation choices are unclear.",
 			"Use ask_user_question when multiple valid implementation paths exist and the preferred path depends on user choice.",
 		],
@@ -640,9 +749,19 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 					if (answer === undefined) {
 						return cancelledResult(params.question, mode, context);
 					}
-					return buildResult(params.question, context, mode, [
-						{ type: "text", label: answer.trim(), value: answer.trim() },
-					]);
+					const trimmed = answer.trim();
+					if (trimmed.length === 0) {
+						return buildResult(params.question, context, mode, [
+							{ type: "text", label: trimmed, value: trimmed },
+						]);
+					}
+					const { text: expanded, blocks } = await expandAnswerText(trimmed, ctx);
+					return {
+						content: [{ type: "text" as const, text: withBlocks(`User answered: ${expanded}`, blocks) }],
+						details: buildStructuredResult("answered", params.question, mode, [
+							{ type: "text", label: trimmed, value: trimmed },
+						], context),
+					};
 				}
 
 				if (mode === "single-select") {
@@ -650,12 +769,34 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 					if (!answer) {
 						return cancelledResult(params.question, mode, context);
 					}
+					if (answer.type === "custom" && answer.label) {
+						const { text: expanded, blocks } = await expandAnswerText(answer.label, ctx);
+						return {
+							content: [
+								{ type: "text" as const, text: withBlocks(`User selected: Custom: ${expanded}`, blocks) },
+							],
+							details: buildStructuredResult("answered", params.question, mode, [answer], context),
+						};
+					}
 					return buildResult(params.question, context, mode, [answer]);
 				}
 
 				const answers = await askMultiChoice(ctx, params.question, context, options);
 				if (!answers) {
 					return cancelledResult(params.question, mode, context);
+				}
+				const custom = answers.find((a) => a.type === "custom");
+				if (custom && custom.label) {
+					const { text: expanded, blocks } = await expandAnswerText(custom.label, ctx);
+					custom.label = expanded;
+					const text = withBlocks(
+						`User selected:\n${answers.map((answer) => `- ${formatAnswerForModel(answer)}`).join("\n")}`,
+						blocks,
+					);
+					return {
+						content: [{ type: "text" as const, text }],
+						details: buildStructuredResult("answered", params.question, mode, answers, context),
+					};
 				}
 				return buildResult(params.question, context, mode, answers);
 			});
@@ -693,8 +834,12 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 				switch (answer.type) {
 					case "text":
 						return `${theme.fg("success", "✓ ")}${theme.fg("accent", answer.label || "(empty response)")}`;
-					case "custom":
-						return `${theme.fg("success", "✓ ")}${theme.fg("muted", "Custom: ")}${theme.fg("accent", answer.label)}`;
+					case "custom": {
+						// may hold an expanded snippet body — show only its first line
+						const first = answer.label.split("\n")[0].slice(0, 80);
+						const shown = first + (answer.label.length > first.length ? "…" : "");
+						return `${theme.fg("success", "✓ ")}${theme.fg("muted", "Custom: ")}${theme.fg("accent", shown)}`;
+					}
 					case "option":
 						return `${theme.fg("success", "✓ ")}${theme.fg("accent", `${answer.index}. ${answer.label}`)}`;
 				}

@@ -266,7 +266,7 @@ function computeRemaining(ctx: ExtensionContext): number | null {
  * its cost from `remaining` so a run of files can tip later ones onto the paged
  * path. Never throws — per-path failures leave that token verbatim.
  */
-async function buildInjections(text: string, ctx: ExtensionContext): Promise<Injections> {
+export async function buildInjections(text: string, ctx: ExtensionContext): Promise<Injections> {
 	const refs = extractRefs(text);
 	let remaining = computeRemaining(ctx);
 	const blocks: string[] = [];

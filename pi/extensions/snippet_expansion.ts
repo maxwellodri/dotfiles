@@ -213,7 +213,7 @@ function readSnippet(name: string): string | null {
  * pass through untouched. Shared by the context hook (model-facing) and the
  * markdown transformer (display-only).
  */
-function expandSnippets(s: string): string {
+export function expandSnippets(s: string): string {
 	return s.replace(SNIPPET_TOKEN, (whole, boundary: string, name: string) => {
 		const text = readSnippet(name);
 		return text == null ? whole : `${boundary}${text}`;
