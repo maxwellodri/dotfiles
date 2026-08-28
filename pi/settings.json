@@ -2,12 +2,12 @@
   "theme": "gruvbox",
   "defaultProvider": "zai",
   "defaultModel": "glm-5.3",
+  "defaultThinkingLevel": "high",
   "quietStartup": false,
   "extensions": [
     "vendor/pi-mcp-adapter"
   ],
-  "lastChangelogVersion": "0.84.2",
-  "defaultThinkingLevel": "high",
+  "lastChangelogVersion": "0.84.3",
   "hideThinkingBlock": false,
   "steeringMode": "all",
   "followUpMode": "all",
@@ -15,5 +15,13 @@
     "enabled": true,
     "maxRetries": 8,
     "baseDelayMs": 2000
+  },
+  "enabledModels": [
+    "zai/glm-5.3",
+    "zai/glm-5.3-flash"
+  ],
+  "modelThinkingLevels": {
+    "zai/glm-5.3": "high",
+    "zai/glm-5.3-flash": "low"
   }
 }
