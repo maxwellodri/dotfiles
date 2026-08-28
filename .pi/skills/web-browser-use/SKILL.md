@@ -14,9 +14,9 @@ If a task is just "search the web for X", try `websearch` first. Reach for the b
 
 ## Browser, profile & downloads
 
-- The MCP launches **ungoogled-chromium** (`/usr/bin/chromium`, headed) — not Firefox (Playwright doesn't work with this user's Firefox).
+- The MCP launches **ungoogled-chromium** (`/usr/bin/chromium`, headed) — not Firefox (Playwright doesn't work with this user's Firefox). Each pi session (and subagent) gets **its own chromium instance/window/profile**, cloned from a shared template so logins are inherited.
 - **Downloads land in `~/Downloads/pi/`** — both files downloaded via MCP calls (`outputDir`) and manual downloads in the visible window (profile pref). Screenshots taken with a `filename` also save there.
-- Launch config and profile pref seed live in the dotfiles repo at `pi/browser/`. The persistent profile sits at `~/.cache/ms-playwright-mcp/mcp-chrome-<hash>/` — the hash is derived from the config, so config changes create a **fresh profile**; `pi/browser/apply-preferences.sh` re-seeds prefs (run it with the browser closed).
+- Technical details of the underlying architecture (profile locations, template management, env plumbing) are in [TECHNICAL_DETAILS.md](TECHNICAL_DETAILS.md).
 
 ## The MCP gateway
 
