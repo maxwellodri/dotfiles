@@ -29,6 +29,13 @@
  *      text macros, so there's no synthetic read tool-call, just inline
  *      substitution in the (mutable, per-turn) context copy.
  *
+ *   3. **Display expansion** (registerMarkdownTransformer): the same
+ *      substitution applied to user messages just before the TUI renders
+ *      them, so the transcript shows the body instead of `$name`. Display-
+ *      only — the stored session keeps what you typed (the docs are explicit
+ *      that markdown transformers never touch session or model context; the
+ *      model-facing expansion is half 2's job).
+ *
  * Name rules (also enforced by the token regexes):
  *   - `[a-zA-Z0-9_-]+` only — keeps the autocomplete token unambiguous and
  *     side-steps `$5.00` / `$HOME`-style false matches (the run stops at the
@@ -200,7 +207,20 @@ function readSnippet(name: string): string | null {
 }
 
 /**
- * First non-blank line of a snippet, with any leading markdown `#` heading
+ * Replace every `$name` (that resolves to an existing snippet) with its body,
+ * preserving the captured leading boundary (start-of-string or the whitespace
+ * char). Unknown names are left byte-for-byte intact so `$HOME`, `$5`, etc.
+ * pass through untouched. Shared by the context hook (model-facing) and the
+ * markdown transformer (display-only).
+ */
+function expandSnippets(s: string): string {
+	return s.replace(SNIPPET_TOKEN, (whole, boundary: string, name: string) => {
+		const text = readSnippet(name);
+		return text == null ? whole : `${boundary}${text}`;
+	});
+}
+
+/** First non-blank line of a snippet, with any leading markdown `#` heading
  * markers stripped — used as the autocomplete description. Capped so a giant
  * first line can't blow out the popup.
  */
@@ -285,19 +305,9 @@ export default function (pi: ExtensionAPI) {
 		const msg: any = messages[lastUser];
 		const content = msg.content;
 
-		// Replace every `$name` (that resolves to an existing snippet) with its
-		// body, preserving the captured leading boundary (start-of-string or
-		// the whitespace char). Unknown names are left byte-for-byte intact so
-		// `$HOME`, `$5`, etc. pass through untouched.
-		const expand = (s: string): string =>
-			s.replace(SNIPPET_TOKEN, (whole, boundary: string, name: string) => {
-				const text = readSnippet(name);
-				return text == null ? whole : `${boundary}${text}`;
-			});
-
 		let mutated = false;
 		if (typeof content === "string") {
-			const next = expand(content);
+			const next = expandSnippets(content);
 			if (next !== content) {
 				msg.content = next;
 				mutated = true;
@@ -305,7 +315,7 @@ export default function (pi: ExtensionAPI) {
 		} else if (Array.isArray(content)) {
 			for (const part of content) {
 				if (part && part.type === "text" && typeof part.text === "string") {
-					const next = expand(part.text);
+					const next = expandSnippets(part.text);
 					if (next !== part.text) {
 						part.text = next;
 						mutated = true;
@@ -315,5 +325,17 @@ export default function (pi: ExtensionAPI) {
 		}
 
 		if (mutated) return { messages };
+	});
+
+	// --- 3. Display: expand `$name` in the transcript too ---------------------
+	// Display-only mirror of the context hook: the TUI shows the expanded body
+	// where you typed `$name`, while the session file keeps the token. Guarded
+	// to user messages (that's the only place the token can appear), and it
+	// runs on restored messages too, so old turns render expanded as well —
+	// matching what the model saw on that turn. readSnippet is mtime-cached,
+	// keeping the transformer synchronous and cheap as the API requires.
+	pi.registerMarkdownTransformer((markdown, { messageType }) => {
+		if (messageType !== "user") return markdown;
+		return expandSnippets(markdown);
 	});
 }
