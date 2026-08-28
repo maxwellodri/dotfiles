@@ -1,6 +1,7 @@
 /**
- * footer.ts — custom footer for pi that reproduces the built-in one and pins
- * a dim leader-key indicator (N / ?) to the bottom-right corner.
+ * footer.ts — slim custom footer for pi: pwd/git line, a context-window
+ * meter, the model name, and a dim leader-key indicator (N / ?) pinned to
+ * the bottom-right corner.
  *
  * This extension owns the footer ONLY. The indicator state arrives over pi's
  * shared event bus: leader-key.ts emits `leader-key:state` (boolean) when its
@@ -22,15 +23,20 @@
  * ── OTHER FAITHFULNESS GAPS (also unexposed to extensions) ─────────────────
  *  • "(auto)" auto-compaction marker — needs `session.autoCompactionEnabled`
  *    (pi #3831). Left as `""`; add back if exposed.
- *  Everything else (pwd, git, session name, token/cache/cost stats, context %,
- *  model name, provider prefix, experimental "xp", extension statuses) reads
- *  the same live sources pi's own footer uses, via ctx + footerData.
+ *  Everything else (pwd, git, session name, context %, model name, provider
+ *  prefix, experimental "xp", extension statuses) reads the same live sources
+ *  pi's own footer uses, via ctx + footerData.
+ *
+ * ── STATS: CONTEXT METER ONLY ─────────────────────────────────────────────
+ *  The context-window meter (x%/window) is the only usage figure shown.
+ *  Token counts (↑in ↓out, R/W cache) and cost are deliberately omitted:
+ *  the active plan is subscription-backed, so a $ figure is fictional, and
+ *  real quota/usage is one `/glm_rates` away (see glm_rates.ts).
  *
  * Load: auto-discovered from pi/extensions/*.ts (= ~/.pi/agent/extensions);
  * `/reload` after edits. Only ONE custom footer may render.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import type { AssistantMessage } from "@earendil-works/pi-ai";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
@@ -69,38 +75,18 @@ function sanitizeStatusText(text: string): string {
 }
 
 // ──────────────────────────── the custom footer ────────────────────────────
-// Reproduces pi's FooterComponent.render() line-for-line, swapping `session.*`
-// for the live `ctx`/`footerData` equivalents, omitting the thinking-level
-// widget (see header), and appending a 3rd line whose bottom-right cell is the
-// dim N/? leader indicator.
+// Three lines:
+//   1. pwd • git branch • session name
+//   2. context meter (left) • model [+provider] (right)
+//   3. extension statuses (left) • dim N/? leader indicator (right)
+// Layout/truncation logic mirrors pi's FooterComponent; all state is read
+// live from ctx + footerData on each render.
 
 function makeFooter(ctx: any) {
 	return (tui: any, theme: any, footerData: any) => {
 		const unsub = footerData.onBranchChange(() => tui.requestRender());
 
 		const render = (width: number): string[] => {
-			// ----- cumulative usage from ALL session entries -----
-			let totalInput = 0,
-				totalOutput = 0,
-				totalCacheRead = 0,
-				totalCacheWrite = 0,
-				totalCost = 0;
-			let latestCacheHitRate: number | undefined;
-			for (const entry of ctx.sessionManager.getEntries()) {
-				if (entry.type !== "message") continue;
-				const msg = (entry as { message: AssistantMessage }).message;
-				if (msg.role !== "assistant") continue;
-				const u = msg.usage;
-				totalInput += u.input;
-				totalOutput += u.output;
-				totalCacheRead += u.cacheRead;
-				totalCacheWrite += u.cacheWrite;
-				totalCost += u.cost.total;
-				const promptTokens = u.input + u.cacheRead + u.cacheWrite;
-				latestCacheHitRate =
-					promptTokens > 0 ? (u.cacheRead / promptTokens) * 100 : undefined;
-			}
-
 			const model = ctx.model;
 			const contextUsage = ctx.getContextUsage();
 			const contextWindow = contextUsage?.contextWindow ?? model?.contextWindow ?? 0;
@@ -118,19 +104,8 @@ function makeFooter(ctx: any) {
 			const sessionName = ctx.sessionManager.getSessionName();
 			if (sessionName) pwd = `${pwd} • ${sessionName}`;
 
-			// ----- line 2: stats (left) • model/provider (right) -----
+			// ----- line 2: context meter (left) • model/provider (right) -----
 			const statsParts: string[] = [];
-			if (totalInput) statsParts.push(`↑${formatTokens(totalInput)}`);
-			if (totalOutput) statsParts.push(`↓${formatTokens(totalOutput)}`);
-			if (totalCacheRead) statsParts.push(`R${formatTokens(totalCacheRead)}`);
-			if (totalCacheWrite) statsParts.push(`W${formatTokens(totalCacheWrite)}`);
-			if ((totalCacheRead > 0 || totalCacheWrite > 0) && latestCacheHitRate !== undefined) {
-				statsParts.push(`CH${latestCacheHitRate.toFixed(1)}%`);
-			}
-			const usingSubscription = model ? ctx.modelRegistry.isUsingOAuth(model) : false;
-			if (totalCost || usingSubscription) {
-				statsParts.push(`$${totalCost.toFixed(3)}${usingSubscription ? " (sub)" : ""}`);
-			}
 
 			// "(auto)" omitted: session.autoCompactionEnabled is not exposed (pi #3831).
 			const autoIndicator = "";
