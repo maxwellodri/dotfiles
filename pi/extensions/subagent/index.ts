@@ -28,6 +28,7 @@
  */
 
 import { spawn } from "node:child_process";
+import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -43,7 +44,9 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
-import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.ts";
+import { getLeaderRegistry } from "../leader-key";
+import { getHerald } from "../herald";
+import { type AgentConfig, type AgentScope, assertNoReservedAgentNames, discoverAgents } from "./agents.ts";
 
 const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;
@@ -289,6 +292,211 @@ function getPiInvocation(args: string[]): { command: string; args: string[] } {
 
 type OnUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
 
+// --- Project override trust (like nvim's .nvim.lua prompts) ---
+// Running a project-local override is arbitrary repo-controlled prompt content.
+// First use prompts: Trust (persisted, keyed by file path + content hash, so
+// edits re-prompt) / Open in editor (nvim split view; edits adopted) / Deny
+// (re-prompts next time). Persisted under XDG state, not the config dir (which
+// is git-tracked; trust is machine-local).
+
+function overrideTrustStorePath(): string {
+	const stateHome = process.env.XDG_STATE_HOME || path.join(os.homedir(), ".local", "state");
+	return path.join(stateHome, "pi", "subagent-overrides-trust.json");
+}
+
+function loadOverrideTrustStore(): Record<string, string> {
+	try {
+		const parsed = JSON.parse(fs.readFileSync(overrideTrustStorePath(), "utf-8"));
+		return parsed && typeof parsed === "object" ? parsed : {};
+	} catch {
+		return {};
+	}
+}
+
+/**
+ * Stable trust-store key for an override file.
+ *
+ * Identity = the repository's canonical git dir + path relative to the repo
+ * root, so worktrees and symlinked checkouts of the SAME checkout do not
+ * re-prompt (a worktree's `.git` file points back at the main checkout's
+ * gitdir; worktree-specific `worktrees/<name>` suffixes are stripped), while a
+ * different repo — even with identical file content at the same relative path
+ * — never inherits trust. Falls back to the absolute file path when no git
+ * root is found.
+ */
+function safeRealpath(p: string): string {
+	try {
+		return fs.realpathSync(p);
+	} catch {
+		return p;
+	}
+}
+
+function overrideTrustKey(filePath: string): string {
+	const resolved = path.resolve(filePath);
+	let dir = path.dirname(resolved);
+	while (true) {
+		const gitPath = path.join(dir, ".git");
+		if (fs.existsSync(gitPath)) {
+			let canonical = safeRealpath(dir);
+			// Worktree: .git is a file "gitdir: <main>/.git/worktrees/<name>".
+			// Normalize to the main checkout's git dir so all worktrees agree.
+			try {
+				if (fs.statSync(gitPath).isFile()) {
+					const gitdir = fs.readFileSync(gitPath, "utf-8").trim().replace(/^gitdir:\s*/i, "");
+				const mainGit = gitdir.replace(/[\\/]worktrees[\\/][^\\/]+$/, "");
+				if (mainGit !== gitdir) canonical = safeRealpath(path.dirname(mainGit));
+				}
+			} catch {
+				/* keep checkout-root fallback */
+			}
+			return `${canonical}:${path.relative(safeRealpath(dir), safeRealpath(resolved))}`;
+		}
+		const parent = path.dirname(dir);
+		if (parent === dir) return resolved;
+		dir = parent;
+	}
+}
+
+function saveOverrideTrust(path_: string, hash: string): void {
+	const store = loadOverrideTrustStore();
+	store[overrideTrustKey(path_)] = hash;
+	const filePath = overrideTrustStorePath();
+	fs.mkdirSync(path.dirname(filePath), { recursive: true });
+	fs.writeFileSync(filePath, JSON.stringify(store, null, "\t") + "\n", { mode: 0o600 });
+}
+
+function overrideHash(filePath: string): string | null {
+	try {
+		return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Open the override file in nvim for inspection/editing: the agent's current
+ * base prompt in a read-only top split (buffer name states the mode), the
+ * override file focused in the bottom split. Edits are allowed; the caller
+ * re-reads the file (and recomputes trust) after the editor exits.
+ *
+ * Requires the TUI handle published by leader-key (setTui). If unavailable,
+ * surfaces an error instead of fighting the TUI for the terminal.
+ */
+async function openInNvim(agent: AgentConfig): Promise<void> {
+	const tui = getLeaderRegistry().getTui();
+	if (!tui?.stop || !tui.start) throw new Error("TUI handle unavailable (leader-key not loaded or not in TUI mode)");
+	if (!agent.overridePath || agent.baseSystemPrompt === undefined) throw new Error("no override to inspect");
+
+	const editorCmd = process.env.EDITOR || "nvim";
+	const label = agent.override === "append" ? "APPEND_BASE_PROMPT" : "REPLACE_BASE_PROMPT";
+	const dir = "/tmp/pi";
+	const baseTmp = `${dir}/override-base-${Date.now()}.md`;
+	fs.mkdirSync(dir, { recursive: true });
+	fs.writeFileSync(baseTmp, agent.baseSystemPrompt, "utf-8");
+
+	tui.stop();
+	try {
+		process.stdout.write(`Opening ${editorCmd} (base prompt + ${agent.overridePath})\nPi resumes when the editor exits.\n`);
+		await new Promise<number | null>((resolveP) => {
+			// Not spawnSync: a sync child keeps libuv's console-input read alive
+			// after tui.stop(), racing the editor for input (see prompt_in_editor).
+			const child = spawn(editorCmd, [
+				"-c", `edit ${baseTmp}`,
+				"-c", "setlocal readonly nomodifiable",
+				"-c", `file ${label}`,
+				"-c", "set splitbelow",
+				"-c", `split ${agent.overridePath}`,
+			], { stdio: "inherit" });
+			child.on("error", () => resolveP(null));
+			child.on("close", (code) => resolveP(code));
+		});
+	} finally {
+		try {
+			fs.unlinkSync(baseTmp);
+		} catch {
+			/* ignore */
+		}
+		tui.start();
+		tui.requestRender(true); // full re-render: editor used the alt screen
+	}
+}
+
+/**
+ * Gate project-local system-prompt overrides behind an explicit trust prompt.
+ * Options: Trust (persist path+hash of the CURRENT file), Open in editor
+ * (nvim split view; edits allowed), Deny (reject this invocation; re-prompts
+ * next time). Returns the names of rejected agents (empty = all trusted).
+ */
+async function ensureOverridesTrusted(
+	requested: AgentConfig[],
+	hasUI: boolean,
+	select: (title: string, options: string[]) => Promise<string | undefined>,
+): Promise<{ approved: Set<string>; rejected: string[] }> {
+	const approved = new Set<string>();
+	const rejected: string[] = [];
+	const store = loadOverrideTrustStore();
+
+	for (const agent of requested) {
+		if (!agent.override || !agent.overridePath) {
+			approved.add(agent.name);
+			continue;
+		}
+		const hash = overrideHash(agent.overridePath);
+		if (!hash) {
+			rejected.push(agent.name);
+			continue;
+		}
+		if (store[overrideTrustKey(agent.overridePath)] === hash) {
+			approved.add(agent.name);
+			continue;
+		}
+		if (!hasUI) {
+			// Headless/print mode: no way to ask. Fail closed.
+			rejected.push(agent.name);
+			continue;
+		}
+		const modeLabel = agent.override === "append" ? "append" : "replace";
+		const ask = () =>
+			select(
+				`Trust ${modeLabel} override for "${agent.name}"?\n${agent.overridePath}`,
+				["Trust (always)", "Open in editor", "Deny"],
+			);
+		let choice = await ask();
+		while (choice === "Open in editor") {
+			try {
+				await openInNvim(agent);
+				// Edits re-frame the trust decision: adopt the edited content into
+				// the prompt we are about to approve.
+				if (!overrideHash(agent.overridePath)) {
+					rejected.push(agent.name);
+					break;
+				}
+				const edited = fs.readFileSync(agent.overridePath, "utf-8");
+				agent.systemPrompt =
+					agent.override === "append" ? `${agent.baseSystemPrompt}\n\n${edited}` : edited;
+			} catch (err) {
+				await select(`Could not open editor: ${err instanceof Error ? err.message : String(err)}`, ["OK"]);
+			}
+			choice = await ask();
+		}
+		if (choice === "Trust (always)") {
+			// Hash the CURRENT content — the file may have been edited in nvim.
+			const finalHash = overrideHash(agent.overridePath);
+			if (!finalHash) {
+				rejected.push(agent.name);
+				continue;
+			}
+			saveOverrideTrust(agent.overridePath, finalHash);
+			approved.add(agent.name);
+		} else {
+			// "Deny", dismissed dialog, or unknown choice: fail closed.
+			rejected.push(agent.name);
+		}
+	}
+	return { approved, rejected };
+}
+
 async function runSingleAgent(
 	defaultCwd: string,
 	agents: AgentConfig[],
@@ -481,6 +689,10 @@ const SubagentParams = Type.Object({
 });
 
 export default function (pi: ExtensionAPI) {
+	// "append"/"replace" are reserved for project-local system-prompt overrides
+	// (see agents.ts). Squatting on them in the global agents dir is ambiguous.
+	assertNoReservedAgentNames();
+
 	// Inject the discovered agent list into the parent's system prompt each turn
 	// so the parent LLM can pick the right agent (and see project-local ones)
 	// without reading pi/agents/ itself. Recomputed per turn to pick up edits
@@ -493,7 +705,7 @@ export default function (pi: ExtensionAPI) {
 		const hasProject = discovery.agents.some((a) => a.source === "project");
 		const lines = discovery.agents.map(
 			(a) =>
-				`- \`${a.name}\`${a.source === "project" ? " [project]" : ""} — ${firstSentence(a.description)}`,
+				`- \`${a.name}\`${a.source === "project" ? " [project]" : ""}${a.override ? ` [${a.override}-override]` : ""} — ${firstSentence(a.description)}`,
 		);
 
 		const block = [
@@ -556,12 +768,12 @@ export default function (pi: ExtensionAPI) {
 				};
 			}
 
-			if ((agentScope === "project" || agentScope === "both") && confirmProjectAgents && ctx.hasUI) {
-				const requestedAgentNames = new Set<string>();
-				if (params.chain) for (const step of params.chain) requestedAgentNames.add(step.agent);
-				if (params.tasks) for (const t of params.tasks) requestedAgentNames.add(t.agent);
-				if (params.agent) requestedAgentNames.add(params.agent);
+			const requestedAgentNames = new Set<string>();
+			if (params.chain) for (const step of params.chain) requestedAgentNames.add(step.agent);
+			if (params.tasks) for (const t of params.tasks) requestedAgentNames.add(t.agent);
+			if (params.agent) requestedAgentNames.add(params.agent);
 
+			if ((agentScope === "project" || agentScope === "both") && confirmProjectAgents && ctx.hasUI) {
 				const projectAgentsRequested = Array.from(requestedAgentNames)
 					.map((name) => agents.find((a) => a.name === name))
 					.filter((a): a is AgentConfig => a?.source === "project");
@@ -578,6 +790,53 @@ export default function (pi: ExtensionAPI) {
 							content: [{ type: "text", text: "Canceled: project-local agents not approved." }],
 							details: makeDetails(hasChain ? "chain" : hasTasks ? "parallel" : "single")([]),
 						};
+				}
+			}
+
+			// Hard gate for project-local system-prompt overrides (append/replace):
+			// repo-controlled prompt content requires explicit user trust.
+			const requestedAgents = Array.from(requestedAgentNames)
+				.map((name) => agents.find((a) => a.name === name))
+				.filter((a): a is AgentConfig => Boolean(a));
+			const needsTrust = requestedAgents.some(
+				(a) => a.override && a.overridePath && loadOverrideTrustStore()[overrideTrustKey(a.overridePath)] !== overrideHash(a.overridePath),
+			);
+			if (needsTrust) {
+				// Mid-turn modal prompt: herald only pings on turn end, so register
+				// an attention request directly. Fires if the human has been away
+				// longer than the silence threshold and this key hasn't already
+				// been announced since their last interaction.
+				const names = requestedAgents.filter((a) => a.override).map((a) => a.name).join(", ");
+				await getHerald().requestAttention(pi, {
+					key: "override-trust",
+					title: "Human, I need a decision 🙋",
+					body: `Trust prompt: agent override for ${names}`,
+				});
+			}
+			const { approved, rejected } = await ensureOverridesTrusted(
+				requestedAgents,
+				ctx.hasUI && Boolean(ctx.ui?.select),
+				ctx.ui?.select?.bind(ctx.ui),
+			);
+			if (rejected.length > 0) {
+				return {
+					content: [
+						{
+							type: "text",
+							text:
+								`Blocked: project override(s) for ${rejected.map((n) => `"${n}"`).join(", ")} ` +
+								`were not trusted. The user rejected the prompt, no UI was available ` +
+								`to ask, or the override file was unreadable. Do not retry without the user's approval.`,
+						},
+					],
+					details: makeDetails(hasChain ? "chain" : hasTasks ? "parallel" : "single")([]),
+					isError: true,
+				};
+			}
+			// Defence in depth: strip any override that did not get approved.
+			for (const agent of agents) {
+				if (agent.override && !approved.has(agent.name)) {
+					agent.systemPrompt = agent.override === "replace" ? "" : agent.systemPrompt;
 				}
 			}
 

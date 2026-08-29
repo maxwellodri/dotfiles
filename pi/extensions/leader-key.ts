@@ -59,6 +59,7 @@ const LEADER_KEY = "ctrl+x";
 const STATE_CHANNEL = "leader-key:state";
 /** globalThis slot under which the shared binding registry lives. */
 const REGISTRY_KEY = "__piLeaderKey";
+const TUI_KEY = "__piLeaderKeyTui";
 
 /** Minimal slice of the TUI that leader bindings need (alt-screen handoff). */
 export interface LeaderTui {
@@ -108,6 +109,14 @@ export interface LeaderRegistry {
 	resolve(key: string): LeaderBinding | undefined;
 	/** Drop every binding. Used by the host on session_shutdown. */
 	clear(): void;
+	/**
+	 * Publish the live TUI handle so other extensions can suspend the terminal
+	 * (alt-screen handoff, e.g. opening $EDITOR from a tool call). Set by the
+	 * host's setEditorComponent factory each session; other extensions read it
+	 * lazily. stop/start/requestRender only — never draw with it.
+	 */
+	setTui(tui: LeaderTui): void;
+	getTui(): LeaderTui | undefined;
 }
 
 /**
@@ -135,6 +144,15 @@ export function getLeaderRegistry(): LeaderRegistry {
 			clear: () => {
 				map.clear();
 			},
+			// The TUI handle lives in its own globalThis slot, not on the
+			// registry object: the registry may have been created by an older
+			// module copy (pre-setTui) that survives /reload on globalThis, so
+			// attaching methods to it can't be relied on. A dedicated slot is
+			// version-proof.
+			setTui: (tui) => {
+				g[TUI_KEY] = tui;
+			},
+			getTui: () => g[TUI_KEY],
 		};
 		g[REGISTRY_KEY] = reg;
 	}
@@ -190,6 +208,9 @@ export default function (pi: ExtensionAPI) {
 	pi.on("session_start", (_event, ctx) => {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		ctx.ui.setEditorComponent((tui: any, theme: any, keybindings: any) => {
+			// Publish the live TUI handle so other extensions can suspend the
+			// terminal (e.g. alt-screen handoff to nvim from a tool call).
+			getLeaderRegistry().setTui(tui);
 			const ed = new LeaderKeyEditor(tui, theme, keybindings);
 			ed.emit = (armed: boolean) => pi.events.emit(STATE_CHANNEL, armed);
 			return ed;
