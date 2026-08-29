@@ -1,8 +1,13 @@
 /**
  * Agent discovery and configuration.
  *
- * Verbatim from the official pi example (earendil-works/pi). Agent definitions
- * are Markdown files with YAML frontmatter, discovered from:
+ * Based on the official pi example (earendil-works/pi), with one deliberate
+ * deviation: per-file frontmatter parse errors are collected and returned in
+ * `AgentDiscoveryResult.errors` instead of throwing — a single malformed agent
+ * file must not take down the whole extension (load happens both at extension
+ * init via assertNoReservedAgentNames and every turn via before_agent_start).
+ *
+ * Agent definitions are Markdown files with YAML frontmatter, discovered from:
  *   - user agents:    <getAgentDir()>/agents/*.md   (here: pi/agents/*.md)
  *   - project agents: <cwd>/.pi/agents/*.md          (repo-controlled)
  */
@@ -40,10 +45,21 @@ export interface AgentConfig {
 export interface AgentDiscoveryResult {
 	agents: AgentConfig[];
 	projectAgentsDir: string | null;
+	/** Files skipped for bad frontmatter — surfaced to the user, never thrown. */
+	errors: AgentParseError[];
 }
 
-function loadAgentsFromDir(dir: string, source: "user" | "project"): AgentConfig[] {
+export interface AgentParseError {
+	filePath: string;
+	message: string;
+}
+
+function loadAgentsFromDir(
+	dir: string,
+	source: "user" | "project",
+): { agents: AgentConfig[]; errors: AgentParseError[] } {
 	const agents: AgentConfig[] = [];
+	const errors: AgentParseError[] = [];
 
 	if (!fs.existsSync(dir)) {
 		return agents;
@@ -68,9 +84,20 @@ function loadAgentsFromDir(dir: string, source: "user" | "project"): AgentConfig
 			continue;
 		}
 
-		const { frontmatter, body } = parseFrontmatter<Record<string, string>>(content);
+		let frontmatter: Record<string, string>;
+		let body: string;
+		try {
+			({ frontmatter, body } = parseFrontmatter<Record<string, string>>(content));
+		} catch (err) {
+			// e.g. an unquoted value containing ": " — "Nested mappings are not
+			// allowed in compact mappings". First line has the line/col.
+			const detail = err instanceof Error ? err.message.split("\n")[0] : String(err);
+			errors.push({ filePath, message: `bad frontmatter: ${detail}` });
+			continue;
+		}
 
 		if (!frontmatter.name || !frontmatter.description) {
+			errors.push({ filePath, message: "frontmatter missing `name` or `description`" });
 			continue;
 		}
 
@@ -90,7 +117,7 @@ function loadAgentsFromDir(dir: string, source: "user" | "project"): AgentConfig
 		});
 	}
 
-	return agents;
+	return { agents, errors };
 }
 
 function isDirectory(p: string): boolean {
@@ -108,7 +135,7 @@ function isDirectory(p: string): boolean {
  */
 export function assertNoReservedAgentNames(): void {
 	const userDir = path.join(getAgentDir(), "agents");
-	for (const agent of loadAgentsFromDir(userDir, "user")) {
+	for (const agent of loadAgentsFromDir(userDir, "user").agents) {
 		if ((RESERVED_AGENT_NAMES as readonly string[]).includes(agent.name)) {
 			throw new Error(
 				`Agent name "${agent.name}" is reserved for system-prompt overrides ` +
@@ -159,8 +186,12 @@ export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryRe
 	const userDir = path.join(getAgentDir(), "agents");
 	const projectAgentsDir = findNearestProjectAgentsDir(cwd);
 
-	const userAgents = scope === "project" ? [] : loadAgentsFromDir(userDir, "user");
-	const projectAgents = scope === "user" || !projectAgentsDir ? [] : loadAgentsFromDir(projectAgentsDir, "project");
+	const userResult = scope === "project" ? undefined : loadAgentsFromDir(userDir, "user");
+	const projectResult =
+		scope === "user" || !projectAgentsDir ? undefined : loadAgentsFromDir(projectAgentsDir, "project");
+	const userAgents = userResult?.agents ?? [];
+	const projectAgents = projectResult?.agents ?? [];
+	const errors = [...(userResult?.errors ?? []), ...(projectResult?.errors ?? [])];
 
 	const agentMap = new Map<string, AgentConfig>();
 
@@ -189,7 +220,7 @@ export function discoverAgents(cwd: string, scope: AgentScope): AgentDiscoveryRe
 		}
 	}
 
-	return { agents, projectAgentsDir };
+	return { agents, projectAgentsDir, errors };
 }
 
 export function formatAgentList(agents: AgentConfig[], maxItems: number): { text: string; remaining: number } {

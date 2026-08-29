@@ -717,6 +717,14 @@ export default function (pi: ExtensionAPI) {
 				: "Invoke via the `subagent` tool.",
 			"",
 			...lines,
+			...(discovery.errors.length > 0
+				? [
+						"",
+					"### Skipped agent definitions (bad frontmatter — fix or delete the file):",
+					...discovery.errors.map((e) => `- \`${e.filePath}\` — ${e.message}`),
+					"Common cause: an unquoted frontmatter value containing `: ` — quote the whole value.",
+				]
+				: []),
 		].join("\n");
 
 		// Appended at the end so the upstream prefix stays a cache hit; the block
