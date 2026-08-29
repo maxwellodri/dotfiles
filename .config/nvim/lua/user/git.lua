@@ -2,7 +2,8 @@
 -- tree on the right) for every dirty / untracked file in the repo, in a fresh
 -- dedicated tab.
 --
---   :GitSplit        (also bound to nothing by default -- see bottom)
+--   :GitSplit        (not bound to any key by default)
+--   :GitSplitStaged  (also <leader>gs)
 --
 -- Behaviour:
 --   * "Git tree is clean" + early no-op if nothing is dirty/untracked.
@@ -469,9 +470,7 @@ end
 vim.api.nvim_create_user_command('GitSplit', function() M.toggle() end, {})
 vim.api.nvim_create_user_command('GitSplitStaged', function() M.toggle(true) end, {})
 
-vim.keymap.set('n', '<leader>gs', M.toggle,
-  { desc = 'GitSplit: toggle HEAD vs working diff for all dirty files' })
-vim.keymap.set('n', '<leader>gS', function() M.toggle(true) end,
-  { desc = 'GitSplit: toggle HEAD vs working diff for staged files only' })
+vim.keymap.set('n', '<leader>gs', function() M.toggle(true) end,
+  { desc = 'GitSplit: toggle HEAD vs staged diff for staged files only' })
 
 return M
