@@ -1,23 +1,48 @@
 #!/usr/bin/env python3
+"""yts — transcribe a video/audio file or URL, optionally summarise with pi.
+
+Local files (and URLs without captions) are transcribed by whisper.cpp
+(Vulkan GPU) inside the nix devshell at $dotfiles/nix/whisper. URLs that
+already have captions take the fast path: yt-dlp subtitle download, no
+transcription.
+
+Examples:
+  yts video.mp4                     # transcript with [HH:MM:SS] timestamps
+  yts https://www.youtube.com/...   # captions if available, else whisper
+  yts --summary lecture.mkv         # transcript to /tmp file + pi summary
+  yts --model small talk.mp3        # bigger whisper model (auto-downloaded)
+  yts --no-subs <url>               # skip caption fetch, always transcribe
+"""
 
 import argparse
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.request
 from pathlib import Path
 
-AUDIO_EXTENSIONS = {'.mp3', '.wav', '.m4a', '.flac', '.ogg', '.aac', '.wma'}
-VIDEO_EXTENSIONS = {'.mp4', '.mkv', '.webm', '.avi', '.mov', '.wmv', '.flv', '.ts'}
-CONTAINER_NAME = "whisper-transcribe"
-WHISPER_MODEL = "base"
-LAST_USED_FILE = "/tmp/.whisper_last_used"
+# --- $dotfiles guard: transcription env (nix/whisper) and the pi wrapper live there ---
+_dotfiles = os.environ.get("dotfiles", "")
+if not _dotfiles or not Path(_dotfiles).is_dir():
+    print("yts: error: $dotfiles is not set or not a directory (source your shell rc).",
+          file=sys.stderr)
+    sys.exit(1)
+DOTFILES = Path(_dotfiles)
 
-# System prompt for the summary step, run through a headless pi agent.
-# Adapted from fabric's youtube_summary pattern (the trailing INPUT marker is
-# dropped because pi receives the transcript as its input message).
+NIX_SHELL = ["nix", "develop", str(DOTFILES / "nix" / "whisper"), "-c"]
+
+# whisper.cpp models: pacman-managed base.en when present, else auto-download
+# ggml-<model>.bin from ggerganov/whisper.cpp into the cache dir.
+SYSTEM_MODEL = Path("/usr/share/whisper.cpp-model-base.en/ggml-base.en.bin")
+DEFAULT_MODEL = "base.en"
+MODEL_CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "whisper.cpp"
+MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-{model}.bin"
+
+# Summary system prompt, run through a headless pi agent. Adapted from
+# fabric's youtube_summary pattern (the trailing INPUT marker is dropped
+# because pi receives the transcript as its input message).
 SUMMARY_SYSTEM_PROMPT = """\
 # IDENTITY and PURPOSE
 
@@ -63,108 +88,111 @@ The video transcript is provided to you as the input message.
 """
 
 
-def is_youtube_url(s: str) -> bool:
-    pattern = r'y.*o.*u.*t.*u.*b.*e'
-    return bool(re.search(pattern, s, re.IGNORECASE))
+def die(msg: str) -> None:
+    print(f"yts: error: {msg}", file=sys.stderr)
+    sys.exit(1)
 
 
-def get_media_extension(path: str) -> str | None:
-    return Path(path).suffix.lower()
+def run(cmd: list[str]) -> subprocess.CompletedProcess:
+    """Run a tool (whisper-cli/ffmpeg/yt-dlp) inside the nix devshell."""
+    return subprocess.run(NIX_SHELL + cmd, capture_output=True, text=True)
 
 
-def is_audio_file(path: str) -> bool:
-    ext = get_media_extension(path)
-    return ext in AUDIO_EXTENSIONS
+# --- whisper.cpp transcription ---
+
+_TS_LINE_RE = re.compile(r"^\[(\d{2}):(\d{2}):(\d{2})\.\d{3} --> .*\]\s*(.*)$")
 
 
-def is_video_file(path: str) -> bool:
-    ext = get_media_extension(path)
-    return ext in VIDEO_EXTENSIONS
+def normalize_timestamps(out: str) -> str:
+    """Reformat whisper.cpp '[HH:MM:SS.mmm --> HH:MM:SS.mmm] text' to '[HH:MM:SS] text'."""
+    lines = []
+    for line in out.splitlines():
+        m = _TS_LINE_RE.match(line)
+        if m:
+            lines.append(f"[{m.group(1)}:{m.group(2)}:{m.group(3)}] {m.group(4)}")
+        elif line.strip():
+            lines.append(line.strip())
+    return "\n".join(lines)
 
 
-def run_cmd(cmd: list[str], check: bool = True, cwd: str | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, check=check, capture_output=True, text=True, cwd=cwd)
+def resolve_model(name: str) -> Path:
+    """Accept an explicit model path, else the system model, else cache/download."""
+    p = Path(name)
+    if p.is_file():
+        return p
+    if name == DEFAULT_MODEL and SYSTEM_MODEL.is_file():
+        return SYSTEM_MODEL
+    cached = MODEL_CACHE / f"ggml-{name}.bin"
+    if not cached.is_file():
+        MODEL_CACHE.mkdir(parents=True, exist_ok=True)
+        download_model(name, cached)
+    return cached
 
 
-def ensure_container_running() -> None:
-    result = run_cmd(["docker", "ps", "-q", "-f", f"name={CONTAINER_NAME}"], check=False)
-    if result.stdout.strip():
-        return
-    
-    dotfiles = os.environ.get("dotfiles")
-    if not dotfiles:
-        print("Error: $dotfiles environment variable not set.", file=sys.stderr)
-        sys.exit(1)
-    compose_dir = Path(dotfiles) / "docker" / "transcribe"
-    if not compose_dir.exists():
-        print(f"Error: Docker compose directory not found at {compose_dir}", file=sys.stderr)
-        sys.exit(1)
-    
-    image_result = run_cmd(["docker", "images", "-q", "transcribe-whisper"], check=False)
-    if not image_result.stdout.strip():
-        print("Building whisper container (first time setup, may take a few minutes)...")
-        build_result = run_cmd(["docker", "compose", "build"], check=False, cwd=str(compose_dir))
-        if build_result.returncode != 0:
-            print(f"Error building container:\n{build_result.stderr}", file=sys.stderr)
-            sys.exit(1)
-    
-    print("Starting whisper container...")
-    run_cmd(["docker", "compose", "up", "-d"], check=True, cwd=str(compose_dir))
-    print("Container started.")
+def download_model(name: str, dest: Path) -> None:
+    """Stream ggml-<name>.bin to dest with progress, timeout and retry."""
+    url = MODEL_URL.format(model=name)
+    tmp = dest.with_suffix(".part")
+    print(f"yts: downloading whisper model '{name}' ({url})")
+    last_err: Exception | None = None
+    for attempt in range(1, 4):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "yts"})
+            with urllib.request.urlopen(req, timeout=60) as resp, open(tmp, "wb") as f:
+                total = int(resp.headers.get("Content-Length") or 0)
+                done = 0
+                while True:
+                    chunk = resp.read(1 << 20)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    done += len(chunk)
+                    if total:
+                        print(f"\r  {done / 1e6:.0f}/{total / 1e6:.0f} MB",
+                              end="", flush=True)
+            print()
+            tmp.rename(dest)
+            return
+        except Exception as e:
+            last_err = e
+            print(f"\nyts: download attempt {attempt}/3 failed: {e}")
+    tmp.unlink(missing_ok=True)
+    die(f"failed to download model '{name}': {last_err}")
 
 
-def extract_audio(video_path: str, output_path: str) -> None:
-    print(f"Extracting audio from {video_path}...")
-    cmd = [
-        "ffmpeg", "-y", "-i", video_path,
-        "-vn", "-acodec", "libmp3lame", "-q:a", "2",
-        output_path
-    ]
-    run_cmd(cmd)
-    print("Audio extracted.")
+def extract_audio(src: str, dst: str) -> None:
+    print(f"yts: extracting audio to {dst} ...")
+    r = run(["ffmpeg", "-y", "-i", src, "-vn", "-ar", "16000", "-ac", "1",
+             "-c:a", "pcm_s16le", dst])
+    if r.returncode != 0:
+        die(f"ffmpeg failed:\n{r.stderr}")
 
 
-def transcribe_file(file_path: str) -> str:
-    ensure_container_running()
-    
-    input_dir = "/tmp/whisper"
-    os.makedirs(input_dir, exist_ok=True)
-    
-    filename = Path(file_path).stem + ".mp3"
-    container_input = f"/transcribe/input/{filename}"
-    local_input = os.path.join(input_dir, filename)
-    
-    if is_video_file(file_path):
-        extract_audio(file_path, local_input)
-    else:
-        shutil.copy2(file_path, local_input)
-    
-    print(f"Transcribing with faster-whisper ({WHISPER_MODEL})...")
-    
-    script = f'''
-import sys
-from faster_whisper import WhisperModel
-model = WhisperModel("{WHISPER_MODEL}", device="cpu", compute_type="int8", download_root="/models")
-segments, info = model.transcribe("{container_input}", beam_size=5)
-for segment in segments:
-    print(segment.text, flush=True)
-'''
-    
-    cmd = ["docker", "exec", CONTAINER_NAME, "python", "-c", script]
-    result = run_cmd(cmd)
-    
-    transcript = result.stdout.strip()
-    
-    Path(LAST_USED_FILE).touch()
-    
-    return transcript
+def transcribe_audio(wav: str, model: str, lang: str | None, no_timestamps: bool) -> str:
+    model_path = resolve_model(model)
+    cmd = ["whisper-cli", "-m", str(model_path), "-f", wav, "-np"]
+    if lang:
+        cmd += ["-l", lang]
+    if no_timestamps:
+        cmd += ["-nt"]
+    print(f"yts: transcribing with whisper.cpp ({model}) ...")
+    r = run(cmd)
+    if r.returncode != 0:
+        die(f"whisper-cli failed:\n{r.stderr}")
+    return normalize_timestamps(r.stdout.strip())
 
 
-# --- YouTube transcript fetching (yt-dlp + VTT parsing, replaces fabric-ai) ---
-#
-# Mirrors fabric's --transcript-with-timestamps behavior: yt-dlp writes the
-# auto/manual subtitles as a .vtt file, which we parse into "[HH:MM:SS] text"
-# lines, deduping repeats that reappear within TIME_GAP_FOR_REPEATS seconds.
+def transcribe_file(path: str, args) -> tuple[str, str]:
+    """Local media file -> (transcript, display name)."""
+    with tempfile.TemporaryDirectory(prefix="yts-") as tmp:
+        wav = os.path.join(tmp, "audio16k.wav")
+        extract_audio(path, wav)
+        transcript = transcribe_audio(wav, args.model, args.lang, args.no_timestamps)
+    return transcript, Path(path).name
+
+
+# --- caption fetch via yt-dlp + VTT parsing (mirrors fabric's behaviour) ---
+
 _VTT_TAG_RE = re.compile(r"<[^>]*>")
 _VTT_TS_LINE_RE = re.compile(r"^\d+$|^\d{1,2}:\d{2}(:\d{2})?(\.\d{3})?$")
 TIME_GAP_FOR_REPEATS = 10  # seconds; repeats after this gap are kept
@@ -185,7 +213,7 @@ def _vtt_timestamp_to_seconds(ts: str) -> int | None:
 
 
 def vtt_to_timestamped_text(content: str) -> str:
-    """Parse VTT subtitle content into "[HH:MM:SS] text" lines."""
+    """Parse VTT subtitle content into '[HH:MM:SS] text' lines."""
     seen: dict[str, str] = {}  # text -> last timestamp it appeared at
     current_ts = ""
     out: list[str] = []
@@ -227,28 +255,23 @@ def _find_vtt(directory: str, lang: str | None = None) -> str | None:
     return str(paths[0])
 
 
-def transcribe_youtube(url: str) -> str:
-    if not shutil.which("yt-dlp"):
-        print("Error: 'yt-dlp' not found in PATH (required for YouTube transcripts).", file=sys.stderr)
-        sys.exit(1)
-    print(f"Fetching transcript from YouTube: {url}")
-    lang = os.environ.get("YTS_LANG", "en")
+def fetch_url_captions(url: str, lang: str | None) -> tuple[str, str] | None:
+    """Try to fetch existing subtitles. Returns (transcript, title) or None."""
+    lang = lang or "en"
     lang_match = lang[:2]
     lang_opts = f"{lang},{lang_match}.*"
     if lang_match != lang:
         lang_opts += f",{lang_match}"
-    with tempfile.TemporaryDirectory(prefix="yts-youtube-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="yts-subs-") as tmp:
         out_tmpl = os.path.join(tmp, "%(title)s.%(ext)s")
 
         def run_ytdlp(with_lang: bool) -> None:
-            cmd = [
-                "yt-dlp", "--write-subs", "--write-auto-subs", "--skip-download",
-                "--sub-format", "vtt", "-o", out_tmpl,
-            ]
+            cmd = ["yt-dlp", "--write-subs", "--write-auto-subs", "--skip-download",
+                   "--sub-format", "vtt", "--no-playlist", "-o", out_tmpl]
             if with_lang:
                 cmd += ["--sub-langs", lang_opts]
             cmd.append(url)
-            run_cmd(cmd, check=False)
+            run(cmd)
 
         run_ytdlp(with_lang=True)
         vtt = _find_vtt(tmp, lang)
@@ -257,35 +280,52 @@ def transcribe_youtube(url: str) -> str:
             run_ytdlp(with_lang=False)
             vtt = _find_vtt(tmp)
         if vtt is None:
-            print("Error: No transcript (subtitles) available for this video.", file=sys.stderr)
-            sys.exit(1)
+            return None
         content = Path(vtt).read_text(encoding="utf-8", errors="replace")
         transcript = vtt_to_timestamped_text(content)
-
     if not transcript:
-        print("Error: Failed to extract transcript text.", file=sys.stderr)
-        sys.exit(1)
-    return transcript
+        return None
+    return transcript, Path(vtt).stem
 
 
-def find_pi() -> str:
-    """Resolve the dotfiles pi wrapper used to run the summary agent headless."""
-    dotfiles = os.environ.get("dotfiles")
-    if not dotfiles:
-        print("Error: $dotfiles environment variable not set.", file=sys.stderr)
-        sys.exit(1)
-    pi_wrapper = Path(dotfiles) / "scripts" / "pi"
+def transcribe_url(url: str, args) -> tuple[str, str]:
+    """URL -> (transcript, display name). Captions if available, else whisper."""
+    if not args.no_subs:
+        print(f"yts: checking for captions: {url}")
+        caps = fetch_url_captions(url, args.lang)
+        if caps is not None:
+            return caps
+        print("yts: no captions found, falling back to transcription.")
+    else:
+        print(f"yts: --no-subs, downloading audio: {url}")
+    with tempfile.TemporaryDirectory(prefix="yts-audio-") as tmp:
+        out_tmpl = os.path.join(tmp, "%(title)s.%(ext)s")
+        r = run(["yt-dlp", "-f", "bestaudio/best", "--no-playlist", "-o", out_tmpl, url])
+        if r.returncode != 0:
+            die(f"yt-dlp failed:\n{r.stderr}")
+        media = [p for p in Path(tmp).iterdir() if p.is_file()]
+        if not media:
+            die("yt-dlp produced no output file.")
+        wav = os.path.join(tmp, "audio16k.wav")
+        extract_audio(str(media[0]), wav)
+        transcript = transcribe_audio(wav, args.model, args.lang, args.no_timestamps)
+    return transcript, media[0].stem
+
+
+# --- summary via headless pi ---
+
+def clean_name(s: str) -> str:
+    s = re.sub(r"[^A-Za-z0-9._-]+", "_", s).strip("._")
+    return s[:80] or "transcript"
+
+
+def summarize(transcript_path: Path) -> str:
+    """Summarise a transcript file with a headless pi agent (no tools, ephemeral)."""
+    pi_wrapper = DOTFILES / "scripts" / "pi"
     if not pi_wrapper.is_file():
-        print(f"Error: pi wrapper not found at {pi_wrapper}", file=sys.stderr)
-        sys.exit(1)
-    return str(pi_wrapper)
-
-
-def summarize(text: str) -> str:
-    """Summarize a transcript with a headless pi agent (no tools, ephemeral)."""
-    print("Generating summary with pi...")
+        die(f"pi wrapper not found at {pi_wrapper}")
     cmd = [
-        find_pi(),
+        str(pi_wrapper),
         "--print",
         "--no-tools",
         "--no-extensions",
@@ -299,76 +339,72 @@ def summarize(text: str) -> str:
     model = os.environ.get("YTS_MODEL")
     if model:
         cmd += ["--model", model]
-    result = subprocess.run(cmd, input=text, capture_output=True, text=True)
+    print("yts: generating summary with pi ...")
+    result = subprocess.run(cmd, input=transcript_path.read_text(),
+                            capture_output=True, text=True)
     if result.returncode != 0:
-        print("Error: pi failed to generate summary.", file=sys.stderr)
-        if result.stderr.strip():
-            print(result.stderr.strip(), file=sys.stderr)
-        sys.exit(1)
+        print(result.stderr.strip(), file=sys.stderr)
+        die("pi failed to generate summary.")
     summary = result.stdout.strip()
     if not summary:
-        print("Error: pi returned an empty summary.", file=sys.stderr)
-        sys.exit(1)
+        die("pi returned an empty summary.")
     return summary
-
-
-def get_clipboard() -> str:
-    result = run_cmd(["clipboard"], check=False)
-    return result.stdout.strip()
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Transcribe and summarize YouTube videos or local audio/video files.",
+        description="Transcribe a video/audio file or URL (whisper.cpp via nix shell), "
+                    "optionally summarising with a headless pi agent.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  yts https://youtube.com/watch?v=...
-  yts video.mp4
-  yts --no-summary podcast.mp3
-"""
+        epilog="Environment: YTS_LANG (language default), YTS_MODEL (summary LLM model)."
     )
-    parser.add_argument("input", nargs="?", help="YouTube URL or path to audio/video file")
-    parser.add_argument("--no-summary", action="store_true", help="Output raw transcript without summary")
+    parser.add_argument("input", nargs="?", help="URL or path to audio/video file")
+    parser.add_argument("--summary", action="store_true",
+                        help="write transcript to /tmp and summarise it with pi")
+    parser.add_argument("--model", default=DEFAULT_MODEL,
+                        help=f"whisper model name or path (default: {DEFAULT_MODEL})")
+    parser.add_argument("--lang", default=os.environ.get("YTS_LANG"),
+                        help="language hint for transcription and captions (e.g. en, auto)")
+    parser.add_argument("--no-timestamps", action="store_true",
+                        help="omit timestamps from the transcript")
+    parser.add_argument("--no-subs", action="store_true",
+                        help="skip caption fetch for URLs; always transcribe audio")
+    parser.add_argument("--download-model", action="store_true",
+                        help="ensure the whisper model is downloaded/local, then exit")
     args = parser.parse_args()
-    
+
+    if args.download_model:
+        model_path = resolve_model(args.model)
+        print(f"Model ready: {model_path}")
+        return
+
     input_val = args.input
     if not input_val:
-        if not shutil.which("clipboard"):
-            print("Error: No input provided and 'clipboard' command not found.", file=sys.stderr)
-            sys.exit(1)
-        print("No input provided. Reading from clipboard...")
-        input_val = get_clipboard()
+        r = subprocess.run(["clipboard"], capture_output=True, text=True)
+        input_val = r.stdout.strip()
         if not input_val:
-            print("Error: Clipboard is empty.", file=sys.stderr)
-            sys.exit(1)
-        print(f"Using: {input_val}")
-    
-    if os.path.isfile(input_val):
-        if not is_audio_file(input_val) and not is_video_file(input_val):
-            print(f"Error: Unsupported file type. Supported: {AUDIO_EXTENSIONS | VIDEO_EXTENSIONS}", file=sys.stderr)
-            sys.exit(1)
-        transcript = transcribe_file(input_val)
-    elif is_youtube_url(input_val):
-        transcript = transcribe_youtube(input_val)
+            die("no input given and clipboard is empty.")
+
+    if input_val.startswith(("http://", "https://")):
+        transcript, name = transcribe_url(input_val, args)
+    elif os.path.isfile(input_val):
+        transcript, name = transcribe_file(input_val, args)
     else:
-        print(f"Error: Not a YouTube URL or existing file: {input_val}", file=sys.stderr)
-        sys.exit(1)
-    
+        die(f"not a URL or existing file: {input_val}")
+
     if not transcript:
-        print("Error: Failed to get transcript.", file=sys.stderr)
-        sys.exit(1)
-    
-    print("---")
-    
-    if args.no_summary:
+        die("transcription produced no output.")
+
+    if not args.summary:
         print(transcript)
-    else:
-        result = summarize(transcript)
-        print(result)
-    
-    print("---")
-    print("Done.")
+        return
+
+    fd, path = tempfile.mkstemp(prefix=f"yts-transcript-{clean_name(name)}-",
+                                suffix=".txt", dir="/tmp")
+    os.close(fd)
+    Path(path).write_text(transcript + "\n")
+    print(f"Transcript written to {path}\n")
+    print(summarize(Path(path)))
 
 
 if __name__ == "__main__":
