@@ -15,6 +15,10 @@
 --   * <leader>bn / <leader>bp / <leader>bd work from EITHER pane and keep both
 --     in sync: there is one shared "current file" index, and advancing it
 --     updates both panes together. `bd` drops the current file and moves on.
+--   * <leader>gS toggles the diff highlighting. Diff mode is pairwise per
+--     window, so it always applies to BOTH panes (diffoff on one side would
+--     break the pair -- killing the highlighting on both sides anyway) and
+--     file navigation preserves the chosen state.
 --   * `q` (LHS pane only, so the RHS keeps macro recording) closes the session
 --     (the tab); working-tree buffers are left in the buffer list for editing.
 
@@ -30,9 +34,9 @@ local state = nil -- populated by M.open, cleared by M.close
 -- are stripped). A file is skipped if it equals an entry or lives beneath one.
 vim.g.GitSplitIgnore = vim.g.GitSplitIgnore or {}
 
--- the three nav keys bound on every session buffer (LHS + RHS). `q` is bound
--- only on the LHS pane, so it is not part of this set.
-local SESSION_KEYS = { '<leader>bn', '<leader>bp', '<leader>bd' }
+-- the nav keys bound on every session buffer (LHS + RHS). `q` is bound only
+-- on the LHS pane, so it is not part of this set.
+local SESSION_KEYS = { '<leader>bn', '<leader>bp', '<leader>bd', '<leader>gS' }
 
 local function clear_buf_keymaps(b)
   if not vim.api.nvim_buf_is_valid(b) then return end
@@ -211,9 +215,12 @@ local function refresh()
   if ft == '' then ft = vim.filetype.match({ filename = file.abs }) or '' end
   set_lhs_content(state.lhs_buf, state.root, file, ft)
 
-  for _, w in ipairs({ state.lhs_win, state.rhs_win }) do
-    if vim.api.nvim_win_is_valid(w) then
-      pcall(vim.api.nvim_win_call, w, function() vim.cmd('diffthis') end)
+  -- re-enter diff mode unless the highlighting is toggled off (<leader>gS)
+  if not state.hl_off then
+    for _, w in ipairs({ state.lhs_win, state.rhs_win }) do
+      if vim.api.nvim_win_is_valid(w) then
+        pcall(vim.api.nvim_win_call, w, function() vim.cmd('diffthis') end)
+      end
     end
   end
   if vim.api.nvim_win_is_valid(state.lhs_win) then
@@ -244,6 +251,25 @@ end
 
 local function next_file() goto_index((state and state.index or 1) + 1) end
 local function prev_file() goto_index((state and state.index or 1) - 1) end
+
+-- Toggle the diff highlighting on/off (<leader>gS). Diff mode is per-window
+-- but pairwise: taking ONE pane out of diff breaks the pair and drops the
+-- highlighting from BOTH windows anyway (while leaving scrollbind / folds
+-- desynced), so the toggle always applies to both panes at once. refresh()
+-- honours the flag, so cycling files preserves the chosen state.
+local function toggle_hl()
+  if not state then return end
+  state.hl_off = not state.hl_off
+  for _, w in ipairs({ state.lhs_win, state.rhs_win }) do
+    if vim.api.nvim_win_is_valid(w) then
+      pcall(vim.api.nvim_win_call, w, function()
+        vim.cmd(state.hl_off and 'diffoff' or 'diffthis')
+      end)
+    end
+  end
+  repaint()
+  vim.schedule(repaint)
+end
 
 -- Called (deferred) when a working-tree buffer is deleted by any means, so even
 -- a raw `:bd` stays in sync.
@@ -303,6 +329,7 @@ end
 M.next_file = next_file
 M.prev_file = prev_file
 M.delete_current = delete_current
+M.toggle_hl = toggle_hl
 
 --------------------------------------------------------------------------------
 -- session lifecycle
@@ -313,6 +340,7 @@ local function session_keymaps(b)
   vim.keymap.set('n', '<leader>bn', next_file, o)
   vim.keymap.set('n', '<leader>bp', prev_file, o)
   vim.keymap.set('n', '<leader>bd', delete_current, o)
+  vim.keymap.set('n', '<leader>gS', toggle_hl, o)
 end
 
 local function clear_rhs_keymaps(s)
