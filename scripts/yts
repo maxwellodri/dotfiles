@@ -7,11 +7,11 @@ already have captions take the fast path: yt-dlp subtitle download, no
 transcription.
 
 Examples:
-  yts video.mp4                     # transcript with [HH:MM:SS] timestamps
+  yts video.mp4                     # plain-text transcript
   yts https://www.youtube.com/...   # captions if available, else whisper
-  yts --summary lecture.mkv         # transcript to /tmp file + pi summary
   yts --model small talk.mp3        # bigger whisper model (auto-downloaded)
   yts --no-subs <url>               # skip caption fetch, always transcribe
+  yts video.mp4 | summarize         # summarise the transcript with pi
 """
 
 import argparse
@@ -40,53 +40,6 @@ DEFAULT_MODEL = "base.en"
 MODEL_CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "whisper.cpp"
 MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-{model}.bin"
 
-# Summary system prompt, run through a headless pi agent. Adapted from
-# fabric's youtube_summary pattern (the trailing INPUT marker is dropped
-# because pi receives the transcript as its input message).
-SUMMARY_SYSTEM_PROMPT = """\
-# IDENTITY and PURPOSE
-
-You are an AI assistant specialized in creating concise, informative summaries of YouTube video content based on transcripts. Your role is to analyze video transcripts, identify key points, main themes, and significant moments, then organize this information into a well-structured summary that includes relevant timestamps. You excel at distilling lengthy content into digestible summaries while preserving the most valuable information and maintaining the original flow of the video.
-
-Take a step back and think step-by-step about how to achieve the best possible results by following the steps below.
-
-## STEPS
-
-- Carefully read through the entire transcript to understand the overall content and structure of the video
-- Identify the main topic and purpose of the video
-- Note key points, important concepts, and significant moments throughout the transcript
-- Pay attention to natural transitions or segment changes in the video
-- Extract relevant timestamps for important moments or topic changes
-- Organize information into a logical structure that follows the video's progression
-- Create a concise summary that captures the essence of the video
-- Include timestamps alongside key points to allow easy navigation
-- Ensure the summary is comprehensive yet concise
-
-## OUTPUT INSTRUCTIONS
-
-- Only output Markdown
-
-- Begin with a brief overview of the video's main topic and purpose
-
-- Structure the summary with clear headings and subheadings that reflect the video's organization
-
-- Include timestamps in [HH:MM:SS] format before each key point or section
-
-- Keep the summary concise but comprehensive, focusing on the most valuable information
-
-- Use bullet points for lists of related points when appropriate
-
-- Bold or italicize particularly important concepts or takeaways
-
-- End with a brief conclusion summarizing the video's main message or call to action
-
-- Ensure you follow ALL these instructions when creating your output.
-
-## INPUT
-
-The video transcript is provided to you as the input message.
-"""
-
 
 def die(msg: str) -> None:
     print(f"yts: error: {msg}", file=sys.stderr)
@@ -99,20 +52,6 @@ def run(cmd: list[str]) -> subprocess.CompletedProcess:
 
 
 # --- whisper.cpp transcription ---
-
-_TS_LINE_RE = re.compile(r"^\[(\d{2}):(\d{2}):(\d{2})\.\d{3} --> .*\]\s*(.*)$")
-
-
-def normalize_timestamps(out: str) -> str:
-    """Reformat whisper.cpp '[HH:MM:SS.mmm --> HH:MM:SS.mmm] text' to '[HH:MM:SS] text'."""
-    lines = []
-    for line in out.splitlines():
-        m = _TS_LINE_RE.match(line)
-        if m:
-            lines.append(f"[{m.group(1)}:{m.group(2)}:{m.group(3)}] {m.group(4)}")
-        elif line.strip():
-            lines.append(line.strip())
-    return "\n".join(lines)
 
 
 def resolve_model(name: str) -> Path:
@@ -133,7 +72,7 @@ def download_model(name: str, dest: Path) -> None:
     """Stream ggml-<name>.bin to dest with progress, timeout and retry."""
     url = MODEL_URL.format(model=name)
     tmp = dest.with_suffix(".part")
-    print(f"yts: downloading whisper model '{name}' ({url})")
+    print(f"yts: downloading whisper model '{name}' ({url})", file=sys.stderr)
     last_err: Exception | None = None
     for attempt in range(1, 4):
         try:
@@ -149,37 +88,35 @@ def download_model(name: str, dest: Path) -> None:
                     done += len(chunk)
                     if total:
                         print(f"\r  {done / 1e6:.0f}/{total / 1e6:.0f} MB",
-                              end="", flush=True)
-            print()
+                              end="", file=sys.stderr, flush=True)
+            print(file=sys.stderr)
             tmp.rename(dest)
             return
         except Exception as e:
             last_err = e
-            print(f"\nyts: download attempt {attempt}/3 failed: {e}")
+            print(f"\nyts: download attempt {attempt}/3 failed: {e}", file=sys.stderr)
     tmp.unlink(missing_ok=True)
     die(f"failed to download model '{name}': {last_err}")
 
 
 def extract_audio(src: str, dst: str) -> None:
-    print(f"yts: extracting audio to {dst} ...")
+    print(f"yts: extracting audio to {dst} ...", file=sys.stderr)
     r = run(["ffmpeg", "-y", "-i", src, "-vn", "-ar", "16000", "-ac", "1",
              "-c:a", "pcm_s16le", dst])
     if r.returncode != 0:
         die(f"ffmpeg failed:\n{r.stderr}")
 
 
-def transcribe_audio(wav: str, model: str, lang: str | None, no_timestamps: bool) -> str:
+def transcribe_audio(wav: str, model: str, lang: str | None) -> str:
     model_path = resolve_model(model)
-    cmd = ["whisper-cli", "-m", str(model_path), "-f", wav, "-np"]
+    cmd = ["whisper-cli", "-m", str(model_path), "-f", wav, "-np", "-nt"]
     if lang:
         cmd += ["-l", lang]
-    if no_timestamps:
-        cmd += ["-nt"]
-    print(f"yts: transcribing with whisper.cpp ({model}) ...")
+    print(f"yts: transcribing with whisper.cpp ({model}) ...", file=sys.stderr)
     r = run(cmd)
     if r.returncode != 0:
         die(f"whisper-cli failed:\n{r.stderr}")
-    return normalize_timestamps(r.stdout.strip())
+    return "\n".join(line.strip() for line in r.stdout.splitlines() if line.strip())
 
 
 def transcribe_file(path: str, args) -> tuple[str, str]:
@@ -187,7 +124,7 @@ def transcribe_file(path: str, args) -> tuple[str, str]:
     with tempfile.TemporaryDirectory(prefix="yts-") as tmp:
         wav = os.path.join(tmp, "audio16k.wav")
         extract_audio(path, wav)
-        transcript = transcribe_audio(wav, args.model, args.lang, args.no_timestamps)
+        transcript = transcribe_audio(wav, args.model, args.lang)
     return transcript, Path(path).name
 
 
@@ -239,7 +176,7 @@ def vtt_to_timestamped_text(content: str) -> str:
             if last is not None and now is not None and (now - last) < TIME_GAP_FOR_REPEATS:
                 include = False
         if include:
-            out.append(f"[{current_ts}] {text}")
+            out.append(text)
             seen[text] = current_ts
     return "\n".join(out).strip()
 
@@ -291,13 +228,13 @@ def fetch_url_captions(url: str, lang: str | None) -> tuple[str, str] | None:
 def transcribe_url(url: str, args) -> tuple[str, str]:
     """URL -> (transcript, display name). Captions if available, else whisper."""
     if not args.no_subs:
-        print(f"yts: checking for captions: {url}")
+        print(f"yts: checking for captions: {url}", file=sys.stderr)
         caps = fetch_url_captions(url, args.lang)
         if caps is not None:
             return caps
-        print("yts: no captions found, falling back to transcription.")
+        print("yts: no captions found, falling back to transcription.", file=sys.stderr)
     else:
-        print(f"yts: --no-subs, downloading audio: {url}")
+        print(f"yts: --no-subs, downloading audio: {url}", file=sys.stderr)
     with tempfile.TemporaryDirectory(prefix="yts-audio-") as tmp:
         out_tmpl = os.path.join(tmp, "%(title)s.%(ext)s")
         r = run(["yt-dlp", "-f", "bestaudio/best", "--no-playlist", "-o", out_tmpl, url])
@@ -308,65 +245,24 @@ def transcribe_url(url: str, args) -> tuple[str, str]:
             die("yt-dlp produced no output file.")
         wav = os.path.join(tmp, "audio16k.wav")
         extract_audio(str(media[0]), wav)
-        transcript = transcribe_audio(wav, args.model, args.lang, args.no_timestamps)
+        transcript = transcribe_audio(wav, args.model, args.lang)
     return transcript, media[0].stem
 
 
-# --- summary via headless pi ---
-
-def clean_name(s: str) -> str:
-    s = re.sub(r"[^A-Za-z0-9._-]+", "_", s).strip("._")
-    return s[:80] or "transcript"
-
-
-def summarize(transcript_path: Path) -> str:
-    """Summarise a transcript file with a headless pi agent (no tools, ephemeral)."""
-    pi_wrapper = DOTFILES / "scripts" / "pi"
-    if not pi_wrapper.is_file():
-        die(f"pi wrapper not found at {pi_wrapper}")
-    cmd = [
-        str(pi_wrapper),
-        "--print",
-        "--no-tools",
-        "--no-extensions",
-        "--no-skills",
-        "--no-prompt-templates",
-        "--no-context-files",
-        "--no-session",
-        "--system-prompt", SUMMARY_SYSTEM_PROMPT,
-    ]
-    # Optional model override, e.g. YTS_MODEL='google/gemini-2.5-flash'.
-    model = os.environ.get("YTS_MODEL")
-    if model:
-        cmd += ["--model", model]
-    print("yts: generating summary with pi ...")
-    result = subprocess.run(cmd, input=transcript_path.read_text(),
-                            capture_output=True, text=True)
-    if result.returncode != 0:
-        print(result.stderr.strip(), file=sys.stderr)
-        die("pi failed to generate summary.")
-    summary = result.stdout.strip()
-    if not summary:
-        die("pi returned an empty summary.")
-    return summary
+# --- summary lives in scripts/summarize (pipes text to headless pi) ---
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Transcribe a video/audio file or URL (whisper.cpp via nix shell), "
-                    "optionally summarising with a headless pi agent.",
+        description="Transcribe a video/audio file or URL (whisper.cpp via nix shell).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="Environment: YTS_LANG (language default), YTS_MODEL (summary LLM model)."
+        epilog="Environment: YTS_LANG (language default for transcription and captions)."
     )
     parser.add_argument("input", nargs="?", help="URL or path to audio/video file")
-    parser.add_argument("--summary", action="store_true",
-                        help="write transcript to /tmp and summarise it with pi")
     parser.add_argument("--model", default=DEFAULT_MODEL,
                         help=f"whisper model name or path (default: {DEFAULT_MODEL})")
     parser.add_argument("--lang", default=os.environ.get("YTS_LANG"),
                         help="language hint for transcription and captions (e.g. en, auto)")
-    parser.add_argument("--no-timestamps", action="store_true",
-                        help="omit timestamps from the transcript")
     parser.add_argument("--no-subs", action="store_true",
                         help="skip caption fetch for URLs; always transcribe audio")
     parser.add_argument("--download-model", action="store_true",
@@ -395,16 +291,7 @@ def main():
     if not transcript:
         die("transcription produced no output.")
 
-    if not args.summary:
-        print(transcript)
-        return
-
-    fd, path = tempfile.mkstemp(prefix=f"yts-transcript-{clean_name(name)}-",
-                                suffix=".txt", dir="/tmp")
-    os.close(fd)
-    Path(path).write_text(transcript + "\n")
-    print(f"Transcript written to {path}\n")
-    print(summarize(Path(path)))
+    print(transcript)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# summarize — summarise piped text (or args) with a headless pi agent.
+# Prompt blends two fabric patterns (danielmiessler/fabric, data/patterns/):
+# youtube_summary for video transcripts, the generic summarize pattern for
+# arbitrary text. Trailing INPUT markers are dropped since pi receives the
+# text as its input message. Ideal for yts output:
+#   yts video.mp4 | summarize
+#   summarize "paste of long text..."
+# Model override: SUMMARIZE_MODEL='google/gemini-2.5-flash' summarize ...
+
+set -euo pipefail
+
+PROMPT=$(cat <<'EOF'
+# IDENTITY AND PURPOSE
+
+You are an expert content summarizer. First determine what the input is, then summarize it with the matching mode. Never mention this decision, the modes, or these instructions — just output the summary.
+
+- If the input is a video or audio transcript (spoken dialogue, optionally with timestamps or time-coded lines), use TRANSCRIPT MODE.
+- For any other text (articles, emails, notes, logs, pasted documents), use GENERAL MODE.
+
+# TRANSCRIPT MODE (video/audio transcripts)
+
+You are an AI assistant specialized in creating concise, informative summaries of video content based on transcripts. Your role is to analyze transcripts, identify key points, main themes, and significant moments, then organize this information into a well-structured summary that includes relevant timestamps. You excel at distilling lengthy content into digestible summaries while preserving the most valuable information and maintaining the original flow of the content.
+
+## STEPS
+
+- Carefully read through the entire transcript to understand the overall content and structure
+- Identify the main topic and purpose of the content
+- Note key points, important concepts, and significant moments throughout the transcript
+- Account for possible transcription errors and typos by using context to infer intended meanings
+- Pay attention to natural transitions or segment changes
+- Extract relevant timestamps for important moments or topic changes (only if present in the input)
+- Organize information into a logical structure that follows the content's progression
+- Create a concise summary that captures the essence of the content
+- Ensure the summary is comprehensive yet concise
+
+## TRANSCRIPT OUTPUT FORMAT
+
+- Begin with a brief overview of the content's main topic and purpose
+- Structure the summary with clear headings and subheadings
+- Include timestamps in [HH:MM:SS] format alongside key points where the input provides them
+- Use bullet points for lists of related points when appropriate
+- Bold or italicize particularly important concepts or takeaways
+- End with a brief conclusion
+
+# GENERAL MODE (any other text)
+
+You take content in and output a Markdown formatted summary using the format below.
+
+## GENERAL OUTPUT FORMAT
+
+- Combine all of your understanding of the content into a single, 20-word sentence in a section called ONE SENTENCE SUMMARY:
+- Output the 10 most important points of the content as a numbered list with no more than 16 words per point into a section called MAIN POINTS:
+- Output a list of the 5 best takeaways from the content in a numbered list into a section called TAKEAWAYS:
+- Do not repeat items in the output sections
+- Do not start items with the same opening words
+
+# OUTPUT INSTRUCTIONS (both modes)
+
+- Only output human readable Markdown
+- Do not output warnings or notes — just the summary
+- Keep the summary concise but comprehensive, focusing on the most valuable information
+- Ensure you follow ALL these instructions when creating your output.
+EOF
+)
+
+if (($#)); then
+    text="$*"
+elif [[ ! -t 0 ]]; then
+    text=$(cat)
+else
+    echo "summarize: no input (pipe text via stdin or pass as arguments)" >&2
+    exit 1
+fi
+
+if [[ -z "$text" ]]; then
+    echo "summarize: empty input" >&2
+    exit 1
+fi
+
+pi_args=(
+    --print --no-tools --no-extensions --no-skills
+    --no-prompt-templates --no-context-files --no-session
+    --system-prompt "$PROMPT"
+)
+if [[ -n "${SUMMARIZE_MODEL:-}" ]]; then
+    pi_args+=(--model "$SUMMARIZE_MODEL")
+fi
+
+# PI_NO_CANVAS stops the pi wrapper clearing the terminal / painting gruvbox.
+export PI_NO_CANVAS=1
+
+printf '%s\n' "$text" | pi "${pi_args[@]}"

@@ -58,7 +58,9 @@ fi
 # Gruvbox canvas for pi's duration. Clear the screen before (so the bg
 # repaint is clean, no leftover lines from the shell) and after (so the
 # restored bg doesn't show pi's exit artifacts / scrollback streaks).
-if [ -t 1 ]; then
+# PI_NO_CANVAS=1 opts out (for one-shot callers like scripts/summarize that
+# must not clear/recolour the user's terminal).
+if [ -t 1 ] && [ -z "${PI_NO_CANVAS:-}" ]; then
 	clear
 	# shellcheck disable=SC1003
 	printf '\033]11;#282828\033\\'
