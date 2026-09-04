@@ -78,11 +78,15 @@ If Playwright MCP tools are not available, note it to the user but continue — 
 
 ### 2. Gather context (if needed)
 
-If the user specifies a hardware requirement (e.g. "DDR5 RAM", "PCIe 4.0 NVMe"), trust their spec. Only check the local machine if they explicitly ask to verify compatibility. Do not assume they want parts for this machine.
+If the user specifies a hardware requirement (e.g. "DDR5 RAM", "PCIe 4.0 NVMe"), trust their spec. Only check the local machine if they explicitly ask to verify compatibility. Do not assume they want parts for the local machine.
+
+If several items are requested (OR if additional items get added to the metaphorical shopping cart), and its implied they are together, e.g. a mini pc and a NIC -> verify intra-item compatibility, both intially and as you search for items.
 
 ### 3. Price comparison with staticICE (first port of call)
 
 Use Playwright to search [staticICE](https://www.staticice.com.au) — an AU price aggregator that lists products from dozens of stores sorted by price. It gives instant across-store comparisons and is the fastest way to find the best price.
+
+**Scope: new retail only.** staticICE indexes storefronts with retail SKUs (MSY, Scorptec, PCCG, etc.). It does NOT cover second-hand listings (eBay used, Gumtree, Facebook Marketplace, liquidators) — verified empirically: `qotom` (a niche brand sold mostly via eBay/AliExpress) returns zero results. For 2nd-hand gear, skip staticICE entirely and go to step 3.5.
 
 ```text
 https://www.staticice.com.au/cgi-bin/search.cgi?q={query}
@@ -99,6 +103,21 @@ Run separate staticICE queries for each product variant or model number. staticI
 - Finding the cheapest price across ALL AU stores (including smaller ones like MSY, CCPU, CPL)
 - Verifying stock status and last-updated timestamps
 - Comparing exact model numbers
+
+### 3.5 Second-hand gear (eBay AU)
+
+eBay AU is the primary 2nd-hand storefront. Search pages render server-side (no JS wait needed) — scrape with Playwright:
+
+```text
+https://www.ebay.com.au/sch/i.html?_nkw={query}&LH_BIN=1&_sop=15
+```
+
+- `LH_BIN=1` — Buy It Now only; `_sop=15` — price + postage ascending
+- Extraction: `document.body.innerText`, slice from `indexOf('Sort:')` — rows contain title, condition, price, delivery, seller feedback inline
+- `LH_PrefLoc=3` ("Australia only") is **invalid** on ebay.com.au and returns an error page. Do not use it — filter by reading "+AU $x delivery" / "from <country>" vs "Free delivery" / "Click & Collect" in the rows instead
+- Prefer local sellers (free delivery / click & collect). Overseas shipping on small PCs and thin clients is typically AU$70–100 and destroys the price
+- Discovery first via `websearch "site:ebay.com.au {query}"`, then scrape the search page for live prices
+- Listings churn fast — item pages found via websearch are often ended/dead by the time you scrape; verify against a live search page before presenting
 
 ### 4. Search with websearch (supplementary discovery)
 
@@ -183,7 +202,7 @@ User may ask to narrow results, check more stores, open product pages, or compar
 
 - [ ] Build mode gate enforced — refused if in build mode
 - [ ] Pre-flight check passed (websearch functional)
-- [ ] staticICE checked as first port of call (if Playwright available)
+- [ ] staticICE checked as first port of call (if Playwright available; skipped for second-hand gear — eBay AU, step 3.5)
 - [ ] `websearch` used for supplementary product discovery
 - [ ] At least 2 stores represented in results (AU storefronts first)
 - [ ] All prices in AUD

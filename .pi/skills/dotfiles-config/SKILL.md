@@ -166,6 +166,7 @@ Rust tools in `rust/` are compiled and symlinked to `$bin`.
 | `rust/dirsort` | Directory sorting tool |
 | `rust/qz` | Project switcher & tmux session manager |
 | `rust/herald` | Notification/message daemon |
+| `rust/chess-bench` | Lib: benchmark coding agents via tiny chess bots (Elo vs Stockfish) |
 
 **After editing ANY file under `rust/`:**
 1. Run `bash rust/install.sh` — this builds all crates in release mode and symlinks them to `$bin`

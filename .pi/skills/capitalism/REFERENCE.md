@@ -72,7 +72,7 @@ websearch "headphones site:amazon.com.au OR site:jbhifi.com.au"
 | Scorptec | `https://www.scorptec.com.au/search/go?w={query}&view=grid&cnt=30` | $100+ | JS-heavy, use `innerText` parsing |
 | PCCaseGear | `https://www.pccasegear.com/search?query={query}` | $50+ | Very JS-heavy, may need `browser_wait_for` |
 | Umart | `https://www.umart.com.au/search?q={query}` | TBD | AU PC parts |
-| eBay AU | `https://www.ebay.com.au/sch/i.html?_nkw={query}` | Varies | |
+| eBay AU | `https://www.ebay.com.au/sch/i.html?_nkw={query}&LH_BIN=1&_sop=15` | Varies | **Primary for 2nd-hand gear** (staticICE has zero used-listing coverage). BIN + price+postage asc. Server-rendered. `LH_PrefLoc=3` is invalid on .com.au — filter by delivery text in rows instead. Watch for overseas sellers with AU$70–100 postage |
 | JB Hi-Fi | `https://www.jbhifi.com.au/search?q={query}` | TBD | AU tech/entertainment |
 | Harvey Norman | `https://www.harveynorman.com.au/search?q={query}` | TBD | AU general retailer |
 | Mwave | **Unreliable** | — | URL structure broken/changed; skip for now |
@@ -129,6 +129,20 @@ document.querySelectorAll('[data-component-type="s-search-result"]').forEach(el 
   // ...
 });
 ```
+
+### eBay AU
+
+- **URL:** always add `&LH_BIN=1&_sop=15` (Buy It Now, price+postage ascending) to the `sch/i.html` search URL
+- **Extraction:** rows are not reliably selectable via CSS classes (layout varies); parse `innerText` sliced from the results marker:
+
+```javascript
+const t = document.body.innerText;
+const i = t.indexOf('Sort:');
+t.substring(i, i + 3000); // parse rows: title | condition | AU $price | delivery | seller feedback
+```
+
+- **Location filter:** `LH_PrefLoc=3` returns "Invalid preferred item location" on ebay.com.au. Read each row's "+AU $x delivery" / "from United States" / "Click & Collect" text instead
+- **Churn:** listings end quickly — re-verify item IDs against a fresh search page before presenting
 
 ### Scorptec
 
