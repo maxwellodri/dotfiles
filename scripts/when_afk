@@ -1,16 +1,39 @@
 #!/bin/bash
+# when_afk — gate a command on the user going AFK:   when_afk [minutes] && cmd
+#
+# Two parts in one script:
+#   afk_idle()  prints current idle time in ms (xprintidle). Sourced and called
+#               per-poll by pi/extensions/when_afk.ts, which runs its own loop.
+#               Wayland migration: change only this function's body.
+#   main()      the poll loop: poll afk_idle() every POLL_INTERVAL seconds;
+#               once idle exceeds the threshold, notify + re-check after 5s
+#               (came-back guard). Exit 0 = AFK confirmed, 1 = came back or INT.
+#
+# Executed directly -> run main; sourced -> only define the functions.
 
-IDLE_THRESHOLD=$(( ${1:-120} * 60000 ))
+afk_idle() {
+	xprintidle
+}
 
-trap 'exit 1' INT
-POLL_INTERVAL=${POLL_INTERVAL:-60}        # seconds between checks
+main() {
+	local idle_threshold=$(( ${1:-120} * 60000 ))
 
-while true; do
-  idle=$(xprintidle)
-  if [ "$idle" -gt "$IDLE_THRESHOLD" ]; then
-    notify-send "AFK detected" "Idle for $(( idle / 1000 ))s"
-    sleep 5
-    [ "$(xprintidle)" -gt "$IDLE_THRESHOLD" ] && exit 0 || exit 1
-  fi
-  sleep "$POLL_INTERVAL"
-done
+	trap 'exit 1' INT
+	local poll_interval=${POLL_INTERVAL:-60} # seconds between checks
+
+	while true; do
+		local idle
+		idle=$(afk_idle)
+		if [ "$idle" -gt "$idle_threshold" ]; then
+			notify-send "AFK detected" "Idle for $(( idle / 1000 ))s"
+			sleep 5
+			[ "$(afk_idle)" -gt "$idle_threshold" ] && exit 0 || exit 1
+		fi
+		sleep "$poll_interval"
+	done
+}
+
+# python __main__ equivalent: run only when executed, not when sourced
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+	main "$@"
+fi
