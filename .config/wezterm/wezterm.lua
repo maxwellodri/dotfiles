@@ -5,7 +5,7 @@ local config = {}
 config.front_end = "Software"
 config.max_fps = 60
 
--- Disable multiplexer — we use tmux
+-- I use tmux btw
 config.unix_domains = {}
 config.skip_close_confirmation_for_processes_named = { "*" }
 config.window_close_confirmation = "NeverPrompt"
@@ -14,7 +14,7 @@ config.window_close_confirmation = "NeverPrompt"
 config.font = wezterm.font("RiceManFontFamily")
 config.font_size = 12
 
--- Colors (from alacritty config)
+-- Colors
 config.colors = {
 	foreground = "#e5e5e5",
 	background = "#141720",
@@ -72,10 +72,10 @@ config.keys = {
 	},
 }
 
--- Disable tabs (we use tmux)
+-- Disable tabs (tmux user btw)
 config.enable_tab_bar = false
 
--- Disable hyperlink rules (hints = [] in alacritty)
+-- 🙅‍♂️ no hyperlinks
 config.hyperlink_rules = {}
 
 return config
