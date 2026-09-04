@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# generate_wifi_qr — render a scannable "join this WiFi" QR code (WIFI:T:...)
+# for a NetworkManager connection.
+#
+# TUI-only: fzf picks the connection, sudo auth goes through pinentry-curses
+# via sudo-askpass-dotfiles, so the sudo password never enters this script.
+
+. "${XDG_CONFIG_HOME:-$HOME/.config}/sh/shutil.sh"
+
+imgviewer=$(get_imgviewer) || exit 1
+
+for cmd in nmcli qrencode fzf pinentry-curses "$imgviewer"; do
+    command -v "$cmd" >/dev/null 2>&1 || { echo "Error: $cmd is not installed" >&2; exit 1; }
+done
+[ -x "$HOME/bin/sudo-askpass-dotfiles" ] || {
+    echo "Error: ~/bin/sudo-askpass-dotfiles missing (run ./helper_scripts/custom_bin_scripts.sh)" >&2
+    exit 1
+}
+
+die() {
+    echo "Error: $1" >&2
+    command -v notify-send >/dev/null 2>&1 && notify-send -u critical "generate_wifi_qr" "$1"
+    exit 1
+}
+
+# Force the curses pinentry regardless of $DISPLAY/WAYLAND_DISPLAY.
+export SUDO_ASKPASS="$HOME/bin/sudo-askpass-dotfiles"
+export PINENTRY_MODE=cli
+
+nmcli_secret() { # nmcli_secret <field> <connection>
+    sudo -A nmcli -s -g "$1" connection show "$2"
+}
+
+# Escape special characters per the WIFI QR code spec (\ ; , : ").
+qr_escape() { sed -e 's/\\/\\\\/g' -e 's/\([;,:"]\)/\\\1/g'; }
+
+# --- pick a connection: active ones first, auto-pick if only one is saved
+# (nmcli -t doesn't escape ':' in names, so names containing ':' may parse wrong)
+mapfile -t entries < <(nmcli -t -f NAME,TYPE,DEVICE connection show | awk -F: '
+    $2 == "802-11-wireless" {
+        if ($3 != "") active = active "* " $1 "\n"
+        else inactive = inactive "  " $1 "\n"
+    }
+    END { printf "%s%s", active, inactive }')
+(( ${#entries[@]} )) || { echo "No saved WiFi connections found" >&2; exit 1; }
+
+if (( ${#entries[@]} == 1 )); then
+    selection=${entries[0]}
+else
+    selection=$(printf '%s\n' "${entries[@]}" |
+        fzf --prompt="WiFi network: " --border=rounded --height=40%) || exit 1
+fi
+con_name=${selection#[* ] } # strip the active/inactive marker
+
+ssid=$(nmcli -g 802-11-wireless.ssid connection show "$con_name")
+[ -n "$ssid" ] || die "Connection '$con_name' has no SSID"
+
+# --- map NetworkManager security to the QR payload's T: field
+key_mgmt=$(nmcli -g 802-11-wireless-security.key-mgmt connection show "$con_name")
+wep_type=$(nmcli -g 802-11-wireless-security.wep-key-type connection show "$con_name")
+
+case "$key_mgmt" in
+    wpa-psk|sae)       qr_type=WPA; secret_field=802-11-wireless-security.psk ;;
+    wpa-eap|ieee8021x) die "'$ssid' is WPA-Enterprise; not encodable in a WiFi QR code" ;;
+    owe)               die "'$ssid' uses OWE (enhanced open); not encodable in a WiFi QR code" ;;
+    "")
+        if [ -n "$wep_type" ] && [ "$wep_type" != 0 ]; then
+            qr_type=WEP; secret_field=802-11-wireless-security.wep-key0
+        else
+            qr_type=nopass
+        fi
+        ;;
+    *) die "Unsupported key management '$key_mgmt' for '$ssid'" ;;
+esac
+
+ssid_esc=$(printf '%s' "$ssid" | qr_escape)
+
+if [ "$qr_type" = nopass ]; then
+    payload=$(printf 'WIFI:T:nopass;S:%s;;' "$ssid_esc")
+else
+    psk=$(nmcli_secret "$secret_field" "$con_name") ||
+        die "Could not read password for '$ssid' (sudo auth failed?)"
+    [ -n "$psk" ] || die "No password stored for '$ssid'"
+    payload=$(printf 'WIFI:T:%s;S:%s;P:%s;;' "$qr_type" "$ssid_esc" "$(printf '%s' "$psk" | qr_escape)")
+    unset psk
+fi
+
+printf '%s' "$payload" | qrencode -o - -l H -s 10 | "$imgviewer" -
+unset payload ssid ssid_esc key_mgmt wep_type
