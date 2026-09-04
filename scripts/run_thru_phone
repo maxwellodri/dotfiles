@@ -1,0 +1,467 @@
+#!/usr/bin/env bash
+#
+# run_thru_phone - run a command inside a network namespace whose ONLY uplink
+# is the USB-tethered phone. The ns rides on a veth pair NAT'ed (MASQUERADE)
+# out of the phone's USB ethernet interface, which STAYS on the host under
+# NetworkManager the whole time - so interception is KERNEL-LEVEL and works
+# for ANY process: pacman, curl, firefox, steam, statically-linked binaries -
+# all of it egresses through the phone, while the host and every other program
+# keep using the normal uplink (the Huawei HiLink modem). Because NM keeps
+# renewing the lease, the ns effectively lasts until the phone is unplugged.
+#
+#   run_thru_phone curl https://api.ipify.org   # -> phone's carrier IP
+#   run_thru_phone sh -c 'sleep 5 && curl ...'  # compound cmds: wrap in sh -c
+#   run_thru_phone sudo pacman -Syu             # update Arch via the phone
+#   run_thru_phone --status                     # ns state + egress IP
+#   run_thru_phone --toggle                     # flip the WHOLE MACHINE's
+#                                              # default route to/from the
+#                                              # phone (for when Felix is down)
+#
+# Lifecycle: there is none to manage. The first run builds the ns (one sudo);
+# later runs reuse it while it is healthy (one quick sudo, no setup), and a
+# run that finds it dead (phone unplugged/replugged with a new subnet, NM
+# restarted, whatever) tears it down and rebuilds it automatically. The ns
+# persists between commands and costs nothing while idle.
+#
+# Dual-uplink hygiene: NetworkManager grabs the phone when plugged and races
+# the modem for the default route (both get metric 100 - the "takeover" you
+# see). The script counteracts this by marking the phone's NM connection
+# profile ipv4/ipv6.never-default (persists across replugs - NM may still
+# configure the iface, but it can never install a default route).
+#
+# DHCP strategy (the subtle bit): Android's tethering DHCP server ACKs where
+# an OFFER is expected, so strict clients (dhcpcd) can never complete a lease
+# against it - NM's client copes. So the lease is negotiated and RENEWED by NM
+# on the host (harmless: never-default keeps the host on the modem), and the
+# ns is bridged onto it: veth pair + a MASQUERADE rule + a policy-routing
+# table whose default goes via the phone. The phone only forwards/NATs for
+# clients with a completed lease - MASQUERADE'ed traffic arrives as NM's own
+# registered address, so it sails through.
+#
+# Commands run in the FOREGROUND with the caller's tty preserved, so
+# password-prompting sudo inside works: `run_thru_phone sudo pacman -Syu`.
+#
+# --toggle (whole-machine mode): flips the host's default route onto the phone
+# by letting NM install it at metric 1 - the modem's default route stays at
+# metric 100, demoted but not deleted, so it wins again the moment the phone's
+# route disappears (toggle OFF, or the phone is unplugged). Toggling OFF
+# restores never-default on the phone's profile; the phone keeps its LAN link.
+# Coexists with a live per-program ns (both egress via the phone either way).
+# Normally no sudo is needed (session polkit allows nmcli); where elevation
+# is required it goes through shutil.sh's run_elevated, never raw sudo.
+#
+# Tether iface is auto-detected: the physical iface with carrier that is not
+# the modem (identified by its fixed HiLink subnet 192.168.8.0/24 or its NM
+# profile name). Override with PHONE_IFACE=... if the detection is ambiguous.
+#
+# Requires: ip, iptables, nmcli (DHCP is negotiated and renewed by NM - see
+# above), runuser, net.ipv4.ip_forward=1 (left on; docker wants it too).
+# Root is obtained via sudo (shutil.sh's run_elevated). Host networking is
+# barely touched: one veth pair, one MASQUERADE rule, one routing table -
+# all self-healing/removed on the next rebuild. The phone iface itself is
+# never moved or reconfigured.
+#
+# The wrapped command ALWAYS runs as the invoking (non-root) user via runuser,
+# never as root - enforced by target_user(). There is NO shell in the exec
+# chain, so compound commands must be wrapped: `sh -c 'sleep 5 && curl ...'`
+# (quote it, or YOUR shell eats the && and runs the rest outside the ns).
+set -euo pipefail
+
+REPO_ROOT="$(git -C "$(dirname "$(realpath "$0")")" rev-parse --show-toplevel)"
+[ -f "$REPO_ROOT/.config/sh/shutil.sh" ] || { echo "shutil.sh not found" >&2; exit 1; }
+# shellcheck source=.config/sh/shutil.sh
+. "$REPO_ROOT/.config/sh/shutil.sh"
+
+# ---- netns plumbing (override via env if needed) ----------------------------
+NS="${PHONE_NETNS:-phone}"               # netns name
+IFACE="${PHONE_IFACE:-}"                 # tether iface; auto-detected if empty
+MODEM_CON="${PHONE_MODEM_CON:-Huawei-E3722}"  # modem's NM profile (never the phone)
+VR="${PHONE_NETNS_VETH_ROOT:-vph0}"       # veth endpoint on the host
+VN="${PHONE_NETNS_VETH_NS:-vph1}"         # veth endpoint in the netns
+NS_IP=10.200.2.2                          # netns veth ip
+ROOT_IP=10.200.2.1                        # host veth ip
+SUBNET=10.200.2.0/24
+TABLE=50                                  # policy table for ns egress
+IFACE_FILE="/run/${NS}.iface"            # remembers phone iface for teardown
+
+# ---- helpers -----------------------------------------------------------------
+die() { echo "run_thru_phone: $*" >&2; exit 1; }
+
+usage() {
+    sed -n '3,66p' "$0" | sed 's/^# \{0,1\}//'
+    echo
+    echo "usage: run_thru_phone --status|--toggle"
+    echo "       run_thru_phone [--] <command> [args...]"
+    echo "       run_thru_phone sh -c '<compound command>'   (no shell in the chain)"
+    echo "       PHONE_IFACE=<iface> run_thru_phone ..."
+}
+
+ns_exists() { [ -e "/run/netns/$NS" ]; }   # stat-based: works for non-root callers
+
+# The only non-loopback iface left in the ns (empty if the phone was unplugged
+# and the USB netdev went away with it).
+ns_live_iface() {
+    ip -n "$NS" -o link show 2>/dev/null | awk -F': ' '$2 != "lo" {print $2; exit}'
+}
+
+# Resolve the user the wrapped command must run as, and REFUSE root. We always
+# escalate to enter the netns, then drop straight back - the program is never
+# root. Sets the global $user.
+target_user() {
+    user="${SUDO_USER:-$USER}"
+    local uid
+    uid="$(id -u "$user" 2>/dev/null)" || die "unknown user '$user'"
+    (( uid != 0 )) || die "refusing to run a wrapped command as root; invoke as a normal user"
+}
+
+# Auto-detect the phone's USB-tether iface: physical (real hardware behind it
+# in sysfs), present, and NOT the modem. The modem is identified explicitly
+# (fixed HiLink subnet or its NM profile), so detection stays correct in every
+# state: modem up, modem down, or the phone itself currently holding the
+# default route in --toggle mode. Carrier logic: RNDIS-style devices only
+# report carrier while IFF_UP, so an admin-down iface (read: after a `down`)
+# reports nothing - count presence in sysfs (USB netdevs vanish on unplug) and
+# skip only on a definitive carrier "0".
+iface_candidates() {
+    local ifc name carrier
+    for ifc in /sys/class/net/*; do
+        name="${ifc##*/}"
+        [[ "$name" == "lo" ]] && continue
+        [[ -e "$ifc/device" ]] || continue                       # virtual: bridges, veth, wg, docker
+        carrier="$(cat "$ifc/carrier" 2>/dev/null || true)"
+        [[ "$carrier" == "0" ]] && continue                      # definitively no link
+        is_modem "$name" && continue
+        printf '%s\n' "$name"
+    done
+}
+
+is_modem() {
+    ip -4 addr show dev "$1" 2>/dev/null | grep -qE 'inet 192\.168\.8\.' && return 0
+    [[ "$(nm_con_bound "$1")" == "$MODEM_CON" ]]
+}
+
+# The NM connection currently ACTIVE on an iface (empty if none).
+nm_con_for() {
+    command -v nmcli >/dev/null 2>&1 || return 0
+    nmcli -t -f GENERAL.CONNECTION device show "$1" 2>/dev/null | cut -d: -f2-
+}
+
+# NM profiles BOUND to an iface whether active or not (e.g. Samsung-tether
+# while the device is unmanaged/disconnected). The interface-name binding only
+# exists in per-profile settings dumps, not in list mode, so walk the names.
+nm_con_bound() {
+    command -v nmcli >/dev/null 2>&1 || return 0
+    local name
+    while IFS= read -r name; do
+        [[ -n "$name" ]] || continue
+        [[ "$(nmcli -g connection.interface-name connection show "$name" 2>/dev/null)" == "$1" ]] \
+            && printf '%s\n' "$name"
+    done < <(nmcli -t -f NAME connection show 2>/dev/null)
+}
+
+# The connection profile to use for an iface: the active one if any, else the
+# first profile bound to it.
+nm_iface_con() {
+    local con
+    con="$(nm_con_for "$1")"
+    if [[ -z "$con" || "$con" == "--" ]]; then
+        con="$(nm_con_bound "$1")"
+        con="${con%%$'\n'*}"
+    fi
+    printf '%s\n' "$con"
+}
+
+detect_iface() {
+    local cands
+    mapfile -t cands < <(iface_candidates 2>/dev/null)
+    case ${#cands[@]} in
+        1) echo "${cands[0]}" ;;
+        0) die "no tether candidate found - plug the phone / enable USB tethering, or set PHONE_IFACE" ;;
+        *) die "multiple candidates: ${cands[*]} - disambiguate with PHONE_IFACE=<iface>" ;;
+    esac
+}
+
+# Keep NM honest, best-effort (headless boxes without NM just skip this):
+# mark the phone's connection profile never-default for v4 AND v6 - this
+# persists in the profile, so even a fresh plug can't steal the default route
+# from the modem while NM still owns the iface. Skipped in --toggle ON state,
+# where the profile is deliberately allowed a default route.
+nm_neutralize() {
+    local iface="$1" con
+    command -v nmcli >/dev/null 2>&1 || return 0
+    whole_machine_on "$iface" && return 0
+    con="$(nm_iface_con "$iface")"
+    if [[ -n "$con" && "$con" != "--" ]]; then
+        nmcli connection modify "$con" ipv4.never-default yes ipv6.never-default yes 2>/dev/null || true
+        # reapply so a stray default route (auto-created profile, etc.)
+        # disappears NOW rather than at the next activation
+        nmcli device reapply "$iface" >/dev/null 2>&1 || true
+    fi
+}
+
+# Ensure NM has a live lease on the phone iface on the host (its client copes
+# with this phone's server, which ACKs where an OFFER is expected - dhcpcd
+# cannot complete against it; see header), and keeps renewing it. never-default
+# (nm_neutralize) keeps the modem the host's default the whole time. Prints
+# "<gw> <dns>" for the ns plumbing. The iface itself is NOT moved or frozen.
+nm_lease_params() {
+    local iface="$1" addr="" gw="" dns="" i
+    command -v nmcli >/dev/null 2>&1 || die "needs NetworkManager"
+    nm device set "$iface" managed yes >/dev/null 2>&1 || true
+    nmcli -g GENERAL.STATE device show "$iface" 2>/dev/null | grep -q '^100' || \
+        nm device connect "$iface" >/dev/null || die "NM could not activate $iface - is USB tethering on?"
+    for (( i = 0; i < 30; i++ )); do
+        addr="$(nmcli -g IP4.ADDRESS device show "$iface" 2>/dev/null | head -1)"
+        [[ -n "$addr" ]] && break
+        sleep 1
+    done
+    [[ -n "$addr" ]] || die "no DHCP lease on $iface after 30s - check the phone's tethering"
+    gw="$(nmcli -g IP4.GATEWAY device show "$iface" 2>/dev/null | head -1)"
+    dns="$(nmcli -g IP4.DNS device show "$iface" 2>/dev/null | head -1)"
+    # Android tether: DHCP server == DNS == gateway; NM often reports the
+    # gateway property empty for never-default connections.
+    [[ -n "$gw" ]] || gw="${dns%% *}"
+    [[ -n "$gw" ]] || die "lease has neither gateway nor DNS - can't route the ns"
+    printf '%s %s\n' "$gw" "${dns:-$gw}"
+}
+
+# ---- namespace lifecycle (all root-side) ------------------------------------
+# $2..$3 are the lease params (see nm_lease_params). Architecture (same as
+# run_thru_proxy's underlay): the phone iface STAYS on the host under NM,
+# which keeps renewing its lease - the session lasts until unplug. The ns
+# gets a veth pair; its traffic is policy-routed via the phone (table $TABLE)
+# and MASQUERADE'ed, so the phone sees its own registered NM address as the
+# client - which is the only thing it forwards for.
+setup_ns() {
+    [[ $EUID -eq 0 ]] || die "setup_ns must run as root"
+    local iface="$1" gw="$2" dns="$3"
+    ns_exists && die "netns '$NS' already exists"
+    [[ -e "/sys/class/net/$iface" ]] || die "iface '$iface' vanished - replug the phone?"
+    command -v iptables >/dev/null || die "iptables not installed"
+    [[ "$(sysctl -n net.ipv4.ip_forward)" == "1" ]] || die "net.ipv4.ip_forward must be 1"
+
+    # No rollback traps by design: a half-built ns fails the next run's
+    # health check and is torn down + rebuilt automatically (self-healing).
+    echo "$iface" > "$IFACE_FILE"
+
+    # namespace + loopback. Ensure /run/netns is world-traversable so non-root
+    # callers can detect the ns (ip netns add can create it 700 under umask 077).
+    ip netns add "$NS"
+    chmod 755 /run/netns 2>/dev/null || true
+    ip -n "$NS" link set lo up
+
+    # veth pair: host <-> netns. The ns' ONLY path out, riding the phone.
+    ip link add "$VR" type veth peer name "$VN"
+    ip link set "$VN" netns "$NS"
+    ip addr add "$ROOT_IP/24" dev "$VR"
+    ip link set "$VR" up
+    ip -n "$NS" addr add "$NS_IP/24" dev "$VN"
+    ip -n "$NS" link set "$VN" up
+    ip -n "$NS" route add default via "$ROOT_IP" dev "$VN"
+
+    # Steer ns-sourced packets onto the phone (src-based policy routing into
+    # a dedicated table whose default is the phone's gateway), then NAT them
+    # out as NM's registered client address. Pre-del first: leftovers from a
+    # SIGKILL'd run would otherwise duplicate.
+    ip rule del pref 100 from "$SUBNET" lookup "$TABLE" 2>/dev/null || true
+    ip rule add pref 100 from "$SUBNET" lookup "$TABLE"
+    ip route replace table "$TABLE" default via "$gw" dev "$iface"
+    iptables -t nat -D POSTROUTING -s "$SUBNET" -o "$iface" -j MASQUERADE 2>/dev/null || true
+    iptables -t nat -A POSTROUTING -s "$SUBNET" -o "$iface" -j MASQUERADE
+
+    # The phone arms forwarding for a lease some time after granting it
+    # (observed up to ~30s on a fresh lease; instant when long-held).
+    # Best-effort - if the phone has no uplink of its own we still bring the
+    # ns up and let the command speak for itself.
+    local i=0
+    while (( i++ < 15 )); do
+        ip netns exec "$NS" ping -c1 -W2 8.8.8.8 >/dev/null 2>&1 && break
+        sleep 1
+    done
+
+    write_ns_resolv_conf "$dns"
+}
+
+# /etc/netns/$NS/resolv.conf is bind-mounted over /etc/resolv.conf for every
+# `ip netns exec` process. $1 is the (space/comma-separated) DNS list from
+# NM's lease; falls back to public resolvers if the lease is mute. NB: must
+# be world-readable - sudo inherits the caller's umask (often 077), which
+# would otherwise break DNS for the dropped command.
+write_ns_resolv_conf() {
+    local dns="${1:-}"
+    dns="${dns//,/ }"
+    [[ -n "$dns" ]] || dns="1.1.1.1 9.9.9.9"
+    install -d -m 755 "/etc/netns/$NS"
+    # shellcheck disable=SC2086  # word-split: multiple servers from the lease
+    { printf 'nameserver %s\n' $dns; } > "/etc/netns/$NS/resolv.conf"
+    chmod 644 "/etc/netns/$NS/resolv.conf"
+}
+
+teardown_ns() {
+    [[ $EUID -eq 0 ]] || return 0
+    local iface=""
+    [[ -f "$IFACE_FILE" ]] && iface="$(cat "$IFACE_FILE" 2>/dev/null)"
+    # Kill anything still living in the ns, then remove our three additions
+    # to the host: veth (deletes both ends), policy rule, routing table,
+    # MASQUERADE rule. The phone iface itself is untouched - NM owns it.
+    ip netns pids "$NS" 2>/dev/null | xargs -r kill 2>/dev/null || true
+    ip link del "$VR" 2>/dev/null || true
+    ip rule del pref 100 from "$SUBNET" lookup "$TABLE" 2>/dev/null || true
+    if [[ -n "$iface" ]]; then
+        ip route flush table "$TABLE" 2>/dev/null || true
+        iptables -t nat -D POSTROUTING -s "$SUBNET" -o "$iface" -j MASQUERADE 2>/dev/null || true
+    fi
+    ip netns del "$NS" 2>/dev/null || true
+    rm -rf "/etc/netns/$NS" "$IFACE_FILE" 2>/dev/null || true
+}
+
+# Health: the ns exists AND traffic traverses the phone through it.
+ns_healthy() {
+    ns_exists && ip netns exec "$NS" ping -c1 -W1 8.8.8.8 >/dev/null 2>&1
+}
+
+# report the egress IP seen from inside the ns (empty string if unreachable)
+probe_ns() {
+    ip netns exec "$NS" curl -sS --max-time 8 https://api.ipify.org 2>/dev/null || true
+}
+
+# ---- management commands -----------------------------------------------------
+cmd_status() {
+    if ! ns_exists; then echo "state: down (nothing built yet - any run builds it)"; return; fi
+    if (( EUID != 0 )); then run_elevated "$0" --status; return; fi
+    echo "state: up (netns '$NS')"
+    local iface; iface="$(ns_live_iface)"
+    local phone=""
+    [[ -f "$IFACE_FILE" ]] && phone="$(cat "$IFACE_FILE" 2>/dev/null)"
+    echo "  veth:   ${iface:-<gone>}  (phone iface: ${phone:-?}, NM-managed on host)"
+    ip -n "$NS" -o route | sed 's/^/  /'
+    [[ -f "/etc/netns/$NS/resolv.conf" ]] && sed 's/^/  dns:   /' "/etc/netns/$NS/resolv.conf"
+    local ip; ip="$(probe_ns)"; echo "  egress: ${ip:-<unreachable - next run rebuilds it>}"
+}
+
+# default action: run the given command inside the netns (as the invoking user)
+run_default() {
+    [[ $# -ge 1 ]] || { usage; exit 2; }
+    target_user
+    # single root half: reuse a healthy ns, or tear down + rebuild a dead
+    # one, then exec the command in the FOREGROUND with our tty - so an
+    # inner sudo can prompt (pacman et al).
+    run_elevated "$0" __run__ "$user" -- "$@"
+}
+
+# root side of run_default: ensure a healthy ns, then run the command.
+ensure_ns() {
+    [[ $EUID -eq 0 ]] || die "internal error: ensure_ns needs root"
+    if ns_exists && ! ns_healthy; then
+        echo "run_thru_phone: ns up but egress dead - rebuilding" >&2
+        teardown_ns
+    fi
+    if ! ns_exists; then
+        local iface="${IFACE:-}" gw dns
+        [[ -n "$iface" ]] || iface="$(detect_iface)"
+        nm_neutralize "$iface"
+        # shellcheck disable=SC2034  # dns captures the remainder incl. spaces
+        read -r gw dns <<< "$(nm_lease_params "$iface")"
+        setup_ns "$iface" "$gw" "$dns"
+    fi
+}
+
+# ---- whole-machine mode: --toggle -------------------------------------------
+# nmcli wrapper: try as the session user first (polkit allows it from desktop
+# sessions); fall back to elevated (shutil.sh run_elevated - GUI askpass or
+# terminal sudo, never raw sudo) when polkit denies, e.g. over ssh.
+nm() {
+    nmcli "$@" 2>/dev/null && return 0
+    run_elevated nmcli "$@"
+}
+
+# True when the phone holds a DELIBERATE whole-machine default (--toggle ON
+# installs it at metric 1). Stray NM defaults (metric 100/101) don't count -
+# they're takeover noise to be neutralized, not user intent.
+whole_machine_on() {
+    ip -o -4 route show default 2>/dev/null | awk -v dev="$1" '
+        $5 == dev {
+            for (i = 6; i < NF; i++)
+                if ($i == "metric" && $(i+1) == 1) f = 1
+        }
+        END { exit !f }'
+}
+
+# Flip the WHOLE MACHINE between modem and phone as default uplink. ON: the
+# phone's NM profile is allowed a default route at metric 1 - the modem's
+# default (metric 100) is demoted, not deleted, and resumes the instant the
+# phone's route vanishes. OFF: never-default is restored on the profile, the
+# phone keeps only its LAN link. If the per-program netns is up, it is torn
+# down first - the iface can only live in one place.
+cmd_toggle() {
+    command -v nmcli >/dev/null 2>&1 || die "--toggle needs NetworkManager"
+    local cands iface con
+    if [[ -n "$IFACE" ]]; then
+        iface="$IFACE"
+    else
+        mapfile -t cands < <(iface_candidates 2>/dev/null)
+        case ${#cands[@]} in
+            0) echo "run_thru_phone: no phone iface detected - nothing to toggle" >&2; exit 0 ;;
+            1) iface="${cands[0]}" ;;
+            *) die "multiple candidates: ${cands[*]} - disambiguate with PHONE_IFACE=<iface>" ;;
+        esac
+    fi
+
+    # NB: coexists happily with a running per-program ns - the phone iface
+    # now stays on the host either way, and both paths egress via it.
+
+    if whole_machine_on "$iface"; then
+        con="$(nm_iface_con "$iface")"
+        [[ -n "$con" ]] || die "no NM connection for $iface; 'nmcli device connect $iface' once first"
+        nm connection modify "$con" ipv4.never-default yes ipv6.never-default yes \
+            || die "nmcli connection modify failed"
+        nm device reapply "$iface" >/dev/null 2>&1 || nm connection up "$con" >/dev/null 2>&1 || true
+        echo "whole-machine tether OFF - phone keeps its LAN link, no default route"
+    else
+        nm device set "$iface" managed yes >/dev/null 2>&1 || true
+        con="$(nm_iface_con "$iface")"
+        if [[ -z "$con" ]]; then
+            nm device connect "$iface" >/dev/null || die "could not activate $iface"
+            con="$(nm_iface_con "$iface")"
+        fi
+        [[ -n "$con" ]] || die "no NM connection materialised for $iface"
+        nm connection modify "$con" \
+            ipv4.never-default no ipv4.route-metric 1 \
+            ipv6.never-default no ipv6.route-metric 1 \
+            || die "nmcli connection modify failed"
+        nm device reapply "$iface" >/dev/null 2>&1 || nm connection up "$con" >/dev/null 2>&1 || true
+        echo "whole-machine tether ON - phone default at metric 1, modem demoted to 100"
+        local egress="" i=0
+        while (( i++ < 10 )) && [[ -z "$egress" ]]; do
+            egress="$(curl -sS --max-time 3 https://api.ipify.org 2>/dev/null)"
+            [[ -z "$egress" ]] && sleep 0.5
+        done
+        echo "egress: ${egress:-<no answer yet>}"
+    fi
+    ip -o -4 route show default | sed 's/^/  /'
+}
+
+# ---- dispatch ----------------------------------------------------------------
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    --status) shift; cmd_status; exit $? ;;
+    --toggle) shift; cmd_toggle; exit $? ;;
+    __run__)  # internal: sudo re-entry - ensure a healthy ns, then run
+        shift
+        euser="${1:-}"
+        [[ "${2:-}" == "--" ]] && shift 2 || shift
+        [[ $EUID -eq 0 ]] || die "internal error: __run__ needs root"
+        [[ -n "$euser" ]] || die "internal error: no target user"
+        (( $(id -u "$euser") != 0 )) || die "refusing to run a wrapped command as root"
+        ensure_ns
+        # FOREGROUND, with our stdin/stdout/tty: an inner sudo can prompt.
+        # The ns deliberately OUTLIVES the command (rebuilt on a later run if
+        # dead) - there is no teardown here. Ctrl-C hits the command (and us)
+        # normally; teardown_ns kills ns stragglers on the next rebuild if
+        # anything daemonizes and survives the terminal signal.
+        exec ip netns exec "$NS" runuser -u "$euser" -- "$@"
+        ;;
+    --) shift; run_default "$@" ;;
+    "") usage; exit 0 ;;
+    *) run_default "$@" ;;
+esac
