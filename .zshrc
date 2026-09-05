@@ -12,7 +12,7 @@ HISTSIZE=5000
 HISTFILE=~/.cache/histfile
 SAVEHIST=$HISTSIZE
 HISTDUP=erase
-HISTORY_IGNORE='(git push --force*)'
+HISTORY_IGNORE='(git push --force*|git commit --amend*)'
 setopt appendhistory
 setopt sharehistory
 setopt hist_ignore_space
