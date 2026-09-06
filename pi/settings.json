@@ -9,6 +9,7 @@
   ],
   "lastChangelogVersion": "0.84.3",
   "hideThinkingBlock": false,
+  "doubleEscapeAction": "none",
   "steeringMode": "all",
   "followUpMode": "all",
   "retry": {
