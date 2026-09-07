@@ -39,14 +39,58 @@ import { resolve } from "node:path";
 
 export type SetCwdResult = "switched" | "noop" | "cancelled" | "failed";
 
+/**
+ * Replacement-session context slice available inside afterSwitch — the
+ * fresh ReplacedSessionContext pi hands to withSession, typed structurally
+ * so set-cwd needs no further imports.
+ */
+export interface ReplacementCtx {
+	/**
+	 * Inject a custom message bound to the NEW session. With triggerTurn
+	 * false while idle: persisted entry + TUI card now, model context next
+	 * turn — no turn triggered.
+	 */
+	sendMessage(
+		message: { customType: string; content: string; display: boolean; details?: unknown },
+		options?: { triggerTurn?: boolean; deliverAs?: "steer" | "followUp" | "nextTurn" },
+	): Promise<void>;
+	ui: { notify(message: string, level: "info" | "error" | "warning"): Promise<void> | void };
+}
+
 /** The shared surface other extensions consume via getCwdApi(). */
 export interface CwdApi {
 	/**
 	 * Move pi's working directory to `target` by carrying the session.
 	 * Must be called from a command handler (`ExtensionCommandContext`).
 	 * `target` may be relative to ctx.cwd or start with `~`.
+	 *
+	 * `opts.message` replaces the default "cwd → <abs>" notify (false
+	 * silences it). `opts.afterSwitch` runs in the replacement session
+	 * (rctx.sendMessage etc. bound to the NEW session — the caller's own
+	 * pi/ctx are stale by then, which is exactly why this hook exists).
+	 * `opts.preallocatedSession` switches onto a session file returned by
+	 * prepareCwd() instead of forking a fresh one — used by callers that
+	 * must validate the carry BEFORE an irreversible action.
 	 */
-	setCwd(ctx: ExtensionCommandContext, target: string): Promise<SetCwdResult>;
+	setCwd(
+		ctx: ExtensionCommandContext,
+		target: string,
+		opts?: {
+			message?: string | false;
+			afterSwitch?: (rctx: ReplacementCtx) => Promise<void>;
+			preallocatedSession?: string;
+		},
+	): Promise<SetCwdResult>;
+
+	/**
+	 * Validate the current session and pre-allocate the carry target for
+	 * `target` WITHOUT switching. Throws (nothing changed) when the source
+	 * session is unreadable/invalid or the target is not a directory —
+	 * exactly the failures that must surface BEFORE e.g. removing the
+	 * worktree the session lives in. Hand the returned file back to setCwd
+	 * via opts.preallocatedSession.
+	 */
+	prepareCwd(ctx: ExtensionCommandContext, target: string): Promise<string>;
 }
 
 /** globalThis slot under which the shared api lives (see leader-key.ts). */
@@ -55,15 +99,25 @@ const API_KEY = "__piSetCwd";
 export function getCwdApi(): CwdApi {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const g = globalThis as { [key: string]: any };
-	let api = g[API_KEY] as CwdApi | undefined;
-	if (!api) {
-		api = { setCwd: setCwdImpl };
-		g[API_KEY] = api;
-	}
-	return api;
+	const api = (g[API_KEY] ?? {}) as Partial<CwdApi>;
+	// Re-bind every /reload: the object stays shared across module copies,
+	// but the bound implementations must be the freshest ones (and older
+	// slots must gain new methods like prepareCwd).
+	api.setCwd = setCwdImpl;
+	api.prepareCwd = prepareCwdImpl;
+	g[API_KEY] = api;
+	return api as CwdApi;
 }
 
-async function setCwdImpl(ctx: ExtensionCommandContext, target: string): Promise<SetCwdResult> {
+async function setCwdImpl(
+	ctx: ExtensionCommandContext,
+	target: string,
+	opts?: {
+		message?: string | false;
+		afterSwitch?: (rctx: ReplacementCtx) => Promise<void>;
+		preallocatedSession?: string;
+	},
+): Promise<SetCwdResult> {
 	const abs = resolveTarget(ctx.cwd, target);
 	if (!existsSync(abs) || !statSync(abs).isDirectory()) {
 		await ctx.ui.notify(`setCwd: not a directory: ${abs}`, "error");
@@ -73,11 +127,30 @@ async function setCwdImpl(ctx: ExtensionCommandContext, target: string): Promise
 
 	let sessionFile: string | undefined;
 	try {
-		sessionFile = prepareTargetSession(ctx, abs);
+		if (opts?.preallocatedSession) {
+			if (!existsSync(opts.preallocatedSession)) {
+				throw new Error("preallocated session file vanished");
+			}
+			sessionFile = opts.preallocatedSession;
+		} else {
+			sessionFile = prepareTargetSession(ctx, abs);
+		}
 		const result = await ctx.switchSession(sessionFile, {
 			withSession: async (rctx) => {
 				// Replacement context only — old ctx is stale by now.
-				await rctx.ui.notify(`cwd → ${abs}`, "info");
+				if (opts?.message !== false) {
+					await rctx.ui.notify(opts?.message ?? `cwd → ${abs}`, "info");
+				}
+				try {
+					await opts?.afterSwitch?.(rctx);
+				} catch (error) {
+					// Surface, don't swallow: a dropped afterSwitch is invisible
+					// otherwise (see the nextTurn-queue loss this caught).
+					await rctx.ui.notify(
+						`afterSwitch failed: ${error instanceof Error ? error.message : String(error)}`,
+						"error",
+					);
+				}
 			},
 		});
 		return result.cancelled ? "cancelled" : "switched";
@@ -93,41 +166,57 @@ async function setCwdImpl(ctx: ExtensionCommandContext, target: string): Promise
 	}
 }
 
+/** See CwdApi.prepareCwd — validate + pre-allocate, no switch. */
+async function prepareCwdImpl(ctx: ExtensionCommandContext, target: string): Promise<string> {
+	const abs = resolveTarget(ctx.cwd, target);
+	if (!existsSync(abs) || !statSync(abs).isDirectory()) {
+		throw new Error(`prepareCwd: not a directory: ${abs}`);
+	}
+	if (samePath(abs, ctx.cwd)) {
+		throw new Error(`prepareCwd: already in ${abs} (nothing to carry)`);
+	}
+	return prepareTargetSession(ctx, abs);
+}
+
+/**
+ * Resolve the session store the way pi core does (main.js):
+ * PI_CODING_AGENT_SESSION_DIR env, else the current session's own dir.
+ * MUST be passed explicitly to forkFrom/create — their fallback default is
+ * <agentDir>/sessions/<encoded-cwd>/, which with PI_CODING_AGENT_DIR
+ * redirected lands INSIDE the config repo (and /resume never lists it,
+ * losing carried sessions across restarts).
+ */
+function resolveSessionDir(ctx: ExtensionCommandContext): string {
+	return process.env.PI_CODING_AGENT_SESSION_DIR || ctx.sessionManager.getSessionDir();
+}
+
 /**
  * Allocate a session file at `target` carrying the current conversation.
- * Three cases, mirroring what pi-worktree's session.ts does:
+ * Two cases, mirroring what pi-worktree's session.ts does:
  *  1. persisted session, disk leaf in sync → SessionManager.forkFrom
- *  2. history exists but not cleanly persistable  → manual copy of the
- *     active branch into a fresh session at the target
- *  3. empty session → plain SessionManager.create at the target
+ *  2. anything else → manual write of the active branch (possibly empty —
+ *     SessionManager.create() only allocates the path, the file itself is
+ *     written by writeManualSession)
  */
 function prepareTargetSession(ctx: ExtensionCommandContext, target: string): string {
 	const sourceFile = ctx.sessionManager.getSessionFile();
 	const leaf = ctx.sessionManager.getLeafId();
+	const sessionDir = resolveSessionDir(ctx);
 
 	if (sourceFile && existsSync(sourceFile)) {
-		const persisted = SessionManager.open(sourceFile);
+		const persisted = SessionManager.open(sourceFile, sessionDir);
 		if (persisted.getLeafId() === leaf) {
-			const forked = SessionManager.forkFrom(sourceFile, target);
+			const forked = SessionManager.forkFrom(sourceFile, target, sessionDir);
 			const file = forked.getSessionFile();
 			if (!file || !existsSync(file)) {
 				throw new Error("pi did not create the target session file");
 			}
 			return file;
 		}
-		return writeManualSession(ctx, target, sourceFile, leaf);
+		return writeManualSession(ctx, target, sessionDir, sourceFile, leaf);
 	}
 
-	if (ctx.sessionManager.getBranch().length > 0) {
-		return writeManualSession(ctx, target, undefined, leaf);
-	}
-
-	const fresh = SessionManager.create(target);
-	const file = fresh.getSessionFile();
-	if (!file || !existsSync(file)) {
-		throw new Error("pi did not create the target session file");
-	}
-	return file;
+	return writeManualSession(ctx, target, sessionDir, undefined, leaf);
 }
 
 /**
@@ -140,11 +229,12 @@ function prepareTargetSession(ctx: ExtensionCommandContext, target: string): str
 function writeManualSession(
 	ctx: ExtensionCommandContext,
 	target: string,
+	sessionDir: string,
 	sourceFile: string | undefined,
 	expectedLeaf: string | null,
 ): string {
 	const entries: readonly SessionEntry[] = ctx.sessionManager.getBranch();
-	const created = SessionManager.create(target, undefined, sourceFile ? { parentSession: sourceFile } : undefined);
+	const created = SessionManager.create(target, sessionDir, sourceFile ? { parentSession: sourceFile } : undefined);
 	const file = created.getSessionFile();
 	const header = created.getHeader();
 	if (!file || !header) throw new Error("pi did not allocate a target session.");
@@ -152,7 +242,7 @@ function writeManualSession(
 	const document = [header, ...entries].map((entry) => JSON.stringify(entry)).join("\n");
 	writeFileSync(file, `${document}\n`, { encoding: "utf-8", flag: "wx", mode: 0o600 });
 
-	const verified = SessionManager.open(file);
+	const verified = SessionManager.open(file, sessionDir);
 	if (!samePath(verified.getCwd(), target) || verified.getLeafId() !== expectedLeaf) {
 		throw new Error("target session failed verification (cwd/leaf mismatch)");
 	}
