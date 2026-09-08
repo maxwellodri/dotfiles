@@ -20,3 +20,9 @@ echo "Building herald..."
 cargo build --release || exit 1
 ln -sf "$dotfiles/rust/herald/target/release/herald" "$bin"
 echo "Linked $(realpath "$dotfiles/rust/herald/target/release/herald") to $bin"
+
+cd "$dotfiles/rust/xidle" || exit 1
+echo "Building xidle..."
+cargo build --release || exit 1
+ln -sf "$dotfiles/rust/xidle/target/release/xidle" "$bin"
+echo "Linked $(realpath "$dotfiles/rust/xidle/target/release/xidle") to $bin"

@@ -1,0 +1,16 @@
+[package]
+name = "xidle"
+version = "0.1.0"
+edition = "2021"
+authors = ["Maxwell Odri <maxwellodri@gmail.com>"]
+description = "Print ms since the last real X input (XSync IDLETIME) — immune to screensaver inhibition"
+
+[dependencies]
+anyhow = "1.0"
+x11rb = { version = "0.13", features = ["sync"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

@@ -2,9 +2,11 @@
 # when_afk — gate a command on the user going AFK:   when_afk [minutes] && cmd
 #
 # Two parts in one script:
-#   afk_idle()  prints current idle time in ms (xprintidle). Sourced and called
-#               per-poll by pi/extensions/when_afk.ts, which runs its own loop.
-#               Wayland migration: change only this function's body.
+#   afk_idle()  prints current idle time in ms (xidle — XSync IDLETIME,
+#               resets only on real input; media players/screensaver
+#               inhibition do not affect it, unlike xprintidle). Sourced and
+#               called per-poll by pi/extensions/when_afk.ts, which runs its
+#               own loop. Wayland migration: change only this function's body.
 #   main()      the poll loop: poll afk_idle() every POLL_INTERVAL seconds;
 #               once idle exceeds the threshold, notify + re-check after 5s
 #               (came-back guard). Exit 0 = AFK confirmed, 1 = came back or INT.
@@ -12,7 +14,7 @@
 # Executed directly -> run main; sourced -> only define the functions.
 
 afk_idle() {
-	xprintidle
+	xidle
 }
 
 main() {

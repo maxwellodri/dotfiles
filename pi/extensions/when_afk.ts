@@ -129,7 +129,7 @@ export default function (pi: ExtensionAPI) {
 			if (queued !== q) return;
 			const idle = await afkIdle();
 			if (queued !== q) return;
-			if (idle === null) settle("cancelled", "afk_idle() failed — is when_afk on PATH? xprintidle installed?");
+			if (idle === null) settle("cancelled", "afk_idle() failed — is when_afk on PATH? xidle installed?");
 			else if (idle > thresholdMs) fire();
 			else settle("cancelled", "activity during confirm window");
 		};
@@ -138,7 +138,7 @@ export default function (pi: ExtensionAPI) {
 			if (queued !== q) return;
 			const idle = await afkIdle();
 			if (queued !== q) return;
-			if (idle === null) settle("cancelled", "afk_idle() failed — is when_afk on PATH? xprintidle installed?");
+			if (idle === null) settle("cancelled", "afk_idle() failed — is when_afk on PATH? xidle installed?");
 			else if (idle > thresholdMs) q.timer = setTimeout(confirm, CONFIRM_MS);
 			else q.timer = setTimeout(tick, POLL_MS);
 		};
