@@ -36,7 +36,21 @@ esac
 export CARGO_BUILD_JOBS
 NICE=(nice -n 19 ionice -c 3)
 
-PI_BIN="${PI_BIN:-$HOME/.local/bin/pi}"
+# Locate the real pi binary. The pi.dev install.sh's npm-prefix layout has
+# moved between machines/generations: older installs symlink ~/.local/bin/pi,
+# newer ones put the whole prefix at ~/.local/share/npm (bin at
+# ~/.local/share/npm/bin/pi). Probe known candidates, first hit wins; PI_BIN
+# still overrides for exotic cases. Deliberately NO `command -v pi` fallback:
+# this wrapper is itself on PATH as ~/bin/pi, so that would recurse forever.
+if [ -z "${PI_BIN:-}" ]; then
+	for candidate in "$HOME/.local/bin/pi" "$HOME/.local/share/npm/bin/pi"; do
+		if [ -x "$candidate" ]; then
+			PI_BIN="$candidate"
+			break
+		fi
+	done
+fi
+: "${PI_BIN:?pi wrapper: no pi binary found (tried ~/.local/bin/pi and ~/.local/share/npm/bin/pi); install pi or set PI_BIN}"
 
 # pi's subcommands and the help/version flags must be argv[1] to be recognized;
 # prepending --session-dir (or anything else) demotes them into agent prompts

@@ -24,6 +24,7 @@ unzip
 xorg
 xorg-xinit
 nodejs
+uv
 neovim
 imagemagick
 xclip
@@ -106,6 +107,7 @@ at
 #yt-dlp-ejs
 deno
 alacritty
+chromium
 inotify-tools
 keychain
 autossh
