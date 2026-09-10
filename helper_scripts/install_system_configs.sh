@@ -209,8 +209,8 @@ if [ "$dotfile_tag" = "pc" ]; then
 fi
 
 # host-specific (per-tag) files
-if [ -f "system_configs/host-specific/$dotfile_tag/etc/wireguard/wg0.conf" ]; then
-    copy_host_file "$dotfile_tag" "etc/wireguard/wg0.conf" "/etc/wireguard" true "600" "root"
+if [ -f "system_configs/host-specific/$dotfile_tag/etc/wireguard/wg-vps.conf" ]; then
+    copy_host_file "$dotfile_tag" "etc/wireguard/wg-vps.conf" "/etc/wireguard" true "600" "root"
 fi
 if [ -f "system_configs/host-specific/$dotfile_tag/etc/wireguard/wg-mullvad.conf" ]; then
     copy_host_file "$dotfile_tag" "etc/wireguard/wg-mullvad.conf" "/etc/wireguard" true "600" "root"

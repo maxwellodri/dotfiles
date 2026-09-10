@@ -101,7 +101,7 @@ load_mullvad_conf() {
     [[ -n "$MV_PEER" ]]  || die "conf missing [Peer] PublicKey: $CONF"
     [[ -n "$MV_EP" ]]    || die "conf missing [Peer] Endpoint: $CONF"
     [[ -n "$MV_EP_IP" ]] || die "conf Endpoint has no host part: $CONF"
-    [[ -n "$MV_KEY" ]]   || MV_KEY="/etc/wireguard/wg0.key"
+    [[ -n "$MV_KEY" ]]   || MV_KEY="/etc/wireguard/wg-mullvad.key"
 }
 
 # Early validation for the netns paths (up / run-a-command / ephemeral): require

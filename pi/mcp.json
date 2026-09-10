@@ -10,7 +10,8 @@
 			"cwd": "${dotfiles}/pi/browser",
 			"env": {
 				"PLAYWRIGHT_MCP_USER_DATA_DIR": "${PI_BROWSER_PROFILE_DIR}"
-			}
+			},
+			"lifecycle": "lazy"
 		},
 		"blender": {
 			"command": "uv",
