@@ -1,6 +1,6 @@
 #!/bin/sh
 GRACE_PERIOD=86400   # 24 hours
-REPOS="$HOME/source/dotfiles $HOME/source/mykaelium $HOME/source/st $HOME/source/dmenu $HOME/source/dwm ~/.password-store"
+REPOS="$HOME/source/dotfiles $HOME/source/mykaelium $HOME/source/st $HOME/source/dmenu $HOME/source/dwm $HOME/source/private $HOME/Documents/notes ~/.password-store"
 dirty_repos=""
 
 for repo in $REPOS; do
