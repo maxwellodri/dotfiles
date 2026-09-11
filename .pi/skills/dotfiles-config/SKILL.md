@@ -54,6 +54,16 @@ Editing the symlinked location edits the repo file, but it's clearer to work dir
 
 **After completing edits to any file under `rust/`**, run `bash rust/install.sh` as the verification step (equivalent to running lint/typecheck in other projects). This replaces `cargo build` / `cargo check` — it builds all crates in release mode and symlinks them to `$bin`.
 
+### 3.6. TypeScript Check (pi extensions)
+
+**After completing edits to any `.ts` file in this repo** (e.g. `pi/extensions/`), run the type check:
+
+```sh
+cd pi/extensions && tsc -p .
+```
+
+`pi/extensions/tsconfig.json` maps the `@earendil-works/*` / `typebox` bare imports to the npm-installed pi package so the check resolves; pi itself ignores the tsconfig (extensions load via jiti). `tsc` comes from the pacman `typescript` package.
+
 ### 4. Adding New Configs
 
 **For adding NEW configs to the system:**

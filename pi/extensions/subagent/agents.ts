@@ -62,14 +62,14 @@ function loadAgentsFromDir(
 	const errors: AgentParseError[] = [];
 
 	if (!fs.existsSync(dir)) {
-		return agents;
+		return { agents, errors };
 	}
 
 	let entries: fs.Dirent[];
 	try {
 		entries = fs.readdirSync(dir, { withFileTypes: true });
 	} catch {
-		return agents;
+		return { agents, errors };
 	}
 
 	for (const entry of entries) {

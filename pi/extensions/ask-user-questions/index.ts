@@ -43,7 +43,7 @@
  * Load: auto-discovered from pi/extensions/ask-user-questions/index.ts;
  * `/reload` after edits.
  */
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import {
 	Editor,
 	type EditorTheme,
@@ -246,7 +246,7 @@ function buildResult(question: string, context: string | undefined, mode: AskUse
 }
 
 async function askSingleChoice(
-	ctx: any,
+	ctx: ExtensionContext,
 	question: string,
 	context: string | undefined,
 	options: AskOption[],
@@ -415,7 +415,7 @@ async function askSingleChoice(
 }
 
 async function askMultiChoice(
-	ctx: any,
+	ctx: ExtensionContext,
 	question: string,
 	context: string | undefined,
 	options: AskOption[],

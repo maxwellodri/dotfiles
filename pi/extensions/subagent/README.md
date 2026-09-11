@@ -50,10 +50,11 @@ time). "Open in editor" opens nvim (or `$EDITOR`) in an alt-screen handoff
 with the agent's base prompt in a read-only top split — its buffer name states
 whether the override is appended to or replaces it — and the override file
 focused below; edits are allowed and adopted into the approved prompt. Trust
-is keyed by file path + content hash, persisted to
-`$XDG_STATE_HOME/pi/subagent-overrides-trust.json` — editing the file
-re-prompts. Denial (or no UI available to ask, e.g. print mode) fails closed:
-the invocation errors out with the override stripped.
+is keyed by file path + content hash, persisted via the shared trust gate
+(`pi/extensions/trust-gate.ts`) to `$XDG_STATE_HOME/pi/trust-gate.json` under
+the `subagent-override` namespace — editing the file re-prompts. Denial (or no
+UI available to ask, e.g. print mode) fails closed: the invocation errors out
+with the override stripped.
 
 Ships with two agents:
 

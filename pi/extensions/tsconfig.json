@@ -1,0 +1,36 @@
+{
+	// Type-check only: `cd pi/extensions && tsc -p .`
+	// pi loads these files itself (jiti + its own alias map), so this config
+	// exists purely for `tsc` — it maps the bare specifiers pi's loader
+	// aliases (dist/core/extensions/loader.js getAliases) to the npm install.
+	"compilerOptions": {
+		"noEmit": true,
+		"strict": true,
+		"target": "esnext",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		// subagent/index.ts imports "./agents.ts" with the extension
+		"allowImportingTsExtensions": true,
+		"skipLibCheck": true,
+		"lib": ["esnext"],
+		"paths": {
+			"@earendil-works/pi-coding-agent": [
+				"/home/maxwell/.local/share/npm/lib/node_modules/@earendil-works/pi-coding-agent/dist/index.d.ts"
+			],
+			"@earendil-works/pi-agent-core": [
+				"/home/maxwell/.local/share/npm/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-agent-core/dist/index.d.ts"
+			],
+			"@earendil-works/pi-tui": [
+				"/home/maxwell/.local/share/npm/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-tui/dist/index.d.ts"
+			],
+			// Extensions get the compat entrypoint (superset), same as the loader
+			"@earendil-works/pi-ai": [
+				"/home/maxwell/.local/share/npm/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/compat.d.ts"
+			],
+			"typebox": [
+				"/home/maxwell/.local/share/npm/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/typebox/build/index.d.mts"
+			]
+		}
+	},
+	"include": ["**/*.ts"]
+}

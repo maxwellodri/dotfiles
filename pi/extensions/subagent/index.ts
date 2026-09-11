@@ -28,7 +28,6 @@
  */
 
 import { spawn } from "node:child_process";
-import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -46,12 +45,15 @@ import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import { getLeaderRegistry } from "../leader-key";
 import { getHerald } from "../herald";
+import { getTrustGate } from "../trust-gate";
 import { type AgentConfig, type AgentScope, assertNoReservedAgentNames, discoverAgents } from "./agents.ts";
 
 const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;
 const COLLAPSED_ITEM_COUNT = 10;
 const PER_TASK_OUTPUT_CAP = 50 * 1024;
+/** Namespace for project-local override trust in the shared trust-gate. */
+const TRUST_NS = "subagent-override";
 
 /** First sentence of an agent description, for the terse system-prompt listing. */
 function firstSentence(text: string): string {
@@ -292,87 +294,13 @@ function getPiInvocation(args: string[]): { command: string; args: string[] } {
 
 type OnUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
 
-// --- Project override trust (like nvim's .nvim.lua prompts) ---
-// Running a project-local override is arbitrary repo-controlled prompt content.
-// First use prompts: Trust (persisted, keyed by file path + content hash, so
-// edits re-prompt) / Open in editor (nvim split view; edits adopted) / Deny
-// (re-prompts next time). Persisted under XDG state, not the config dir (which
-// is git-tracked; trust is machine-local).
-
-function overrideTrustStorePath(): string {
-	const stateHome = process.env.XDG_STATE_HOME || path.join(os.homedir(), ".local", "state");
-	return path.join(stateHome, "pi", "subagent-overrides-trust.json");
-}
-
-function loadOverrideTrustStore(): Record<string, string> {
-	try {
-		const parsed = JSON.parse(fs.readFileSync(overrideTrustStorePath(), "utf-8"));
-		return parsed && typeof parsed === "object" ? parsed : {};
-	} catch {
-		return {};
-	}
-}
-
-/**
- * Stable trust-store key for an override file.
- *
- * Identity = the repository's canonical git dir + path relative to the repo
- * root, so worktrees and symlinked checkouts of the SAME checkout do not
- * re-prompt (a worktree's `.git` file points back at the main checkout's
- * gitdir; worktree-specific `worktrees/<name>` suffixes are stripped), while a
- * different repo — even with identical file content at the same relative path
- * — never inherits trust. Falls back to the absolute file path when no git
- * root is found.
- */
-function safeRealpath(p: string): string {
-	try {
-		return fs.realpathSync(p);
-	} catch {
-		return p;
-	}
-}
-
-function overrideTrustKey(filePath: string): string {
-	const resolved = path.resolve(filePath);
-	let dir = path.dirname(resolved);
-	while (true) {
-		const gitPath = path.join(dir, ".git");
-		if (fs.existsSync(gitPath)) {
-			let canonical = safeRealpath(dir);
-			// Worktree: .git is a file "gitdir: <main>/.git/worktrees/<name>".
-			// Normalize to the main checkout's git dir so all worktrees agree.
-			try {
-				if (fs.statSync(gitPath).isFile()) {
-					const gitdir = fs.readFileSync(gitPath, "utf-8").trim().replace(/^gitdir:\s*/i, "");
-				const mainGit = gitdir.replace(/[\\/]worktrees[\\/][^\\/]+$/, "");
-				if (mainGit !== gitdir) canonical = safeRealpath(path.dirname(mainGit));
-				}
-			} catch {
-				/* keep checkout-root fallback */
-			}
-			return `${canonical}:${path.relative(safeRealpath(dir), safeRealpath(resolved))}`;
-		}
-		const parent = path.dirname(dir);
-		if (parent === dir) return resolved;
-		dir = parent;
-	}
-}
-
-function saveOverrideTrust(path_: string, hash: string): void {
-	const store = loadOverrideTrustStore();
-	store[overrideTrustKey(path_)] = hash;
-	const filePath = overrideTrustStorePath();
-	fs.mkdirSync(path.dirname(filePath), { recursive: true });
-	fs.writeFileSync(filePath, JSON.stringify(store, null, "\t") + "\n", { mode: 0o600 });
-}
-
-function overrideHash(filePath: string): string | null {
-	try {
-		return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
-	} catch {
-		return null;
-	}
-}
+// --- Project override trust ---
+// Repo-controlled prompt content is gated through the shared trust-gate
+// extension (../trust-gate): path+content-hash store, Trust/Open-in-editor/
+// Deny prompt, fail-closed headless. The editor UX (nvim split with the base
+// prompt read-only above the override) stays here as the gate's `inspect` hook,
+// and approved prompts are rebuilt from the file AFTER gating so edits made in
+// the inspector are what runs.
 
 /**
  * Open the override file in nvim for inspection/editing: the agent's current
@@ -420,81 +348,6 @@ async function openInNvim(agent: AgentConfig): Promise<void> {
 		tui.start();
 		tui.requestRender(true); // full re-render: editor used the alt screen
 	}
-}
-
-/**
- * Gate project-local system-prompt overrides behind an explicit trust prompt.
- * Options: Trust (persist path+hash of the CURRENT file), Open in editor
- * (nvim split view; edits allowed), Deny (reject this invocation; re-prompts
- * next time). Returns the names of rejected agents (empty = all trusted).
- */
-async function ensureOverridesTrusted(
-	requested: AgentConfig[],
-	hasUI: boolean,
-	select: (title: string, options: string[]) => Promise<string | undefined>,
-): Promise<{ approved: Set<string>; rejected: string[] }> {
-	const approved = new Set<string>();
-	const rejected: string[] = [];
-	const store = loadOverrideTrustStore();
-
-	for (const agent of requested) {
-		if (!agent.override || !agent.overridePath) {
-			approved.add(agent.name);
-			continue;
-		}
-		const hash = overrideHash(agent.overridePath);
-		if (!hash) {
-			rejected.push(agent.name);
-			continue;
-		}
-		if (store[overrideTrustKey(agent.overridePath)] === hash) {
-			approved.add(agent.name);
-			continue;
-		}
-		if (!hasUI) {
-			// Headless/print mode: no way to ask. Fail closed.
-			rejected.push(agent.name);
-			continue;
-		}
-		const modeLabel = agent.override === "append" ? "append" : "replace";
-		const ask = () =>
-			select(
-				`Trust ${modeLabel} override for "${agent.name}"?\n${agent.overridePath}`,
-				["Trust (always)", "Open in editor", "Deny"],
-			);
-		let choice = await ask();
-		while (choice === "Open in editor") {
-			try {
-				await openInNvim(agent);
-				// Edits re-frame the trust decision: adopt the edited content into
-				// the prompt we are about to approve.
-				if (!overrideHash(agent.overridePath)) {
-					rejected.push(agent.name);
-					break;
-				}
-				const edited = fs.readFileSync(agent.overridePath, "utf-8");
-				agent.systemPrompt =
-					agent.override === "append" ? `${agent.baseSystemPrompt}\n\n${edited}` : edited;
-			} catch (err) {
-				await select(`Could not open editor: ${err instanceof Error ? err.message : String(err)}`, ["OK"]);
-			}
-			choice = await ask();
-		}
-		if (choice === "Trust (always)") {
-			// Hash the CURRENT content — the file may have been edited in nvim.
-			const finalHash = overrideHash(agent.overridePath);
-			if (!finalHash) {
-				rejected.push(agent.name);
-				continue;
-			}
-			saveOverrideTrust(agent.overridePath, finalHash);
-			approved.add(agent.name);
-		} else {
-			// "Deny", dismissed dialog, or unknown choice: fail closed.
-			rejected.push(agent.name);
-		}
-	}
-	return { approved, rejected };
 }
 
 async function runSingleAgent(
@@ -802,12 +655,13 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			// Hard gate for project-local system-prompt overrides (append/replace):
-			// repo-controlled prompt content requires explicit user trust.
+			// repo-controlled prompt content requires explicit user trust (trust-gate).
+			const gate = getTrustGate();
 			const requestedAgents = Array.from(requestedAgentNames)
 				.map((name) => agents.find((a) => a.name === name))
 				.filter((a): a is AgentConfig => Boolean(a));
 			const needsTrust = requestedAgents.some(
-				(a) => a.override && a.overridePath && loadOverrideTrustStore()[overrideTrustKey(a.overridePath)] !== overrideHash(a.overridePath),
+				(a) => a.override && a.overridePath && !gate.isTrusted(TRUST_NS, a.overridePath),
 			);
 			if (needsTrust) {
 				// Mid-turn modal prompt: herald only pings on turn end, so register
@@ -821,11 +675,23 @@ export default function (pi: ExtensionAPI) {
 					body: `Trust prompt: agent override for ${names}`,
 				});
 			}
-			const { approved, rejected } = await ensureOverridesTrusted(
-				requestedAgents,
-				ctx.hasUI && Boolean(ctx.ui?.select),
-				ctx.ui?.select?.bind(ctx.ui),
-			);
+			const approved = new Set<string>();
+			const rejected: string[] = [];
+			for (const agent of requestedAgents) {
+				if (!agent.override || !agent.overridePath) {
+					approved.add(agent.name);
+					continue;
+				}
+				const ok = await gate.confirm(TRUST_NS, {
+					label: `${agent.override} override for "${agent.name}"`,
+					path: agent.overridePath,
+					hasUI: ctx.hasUI && Boolean(ctx.ui?.select),
+					select: ctx.ui?.select?.bind(ctx.ui),
+					inspect: () => openInNvim(agent),
+				});
+				if (ok) approved.add(agent.name);
+				else rejected.push(agent.name);
+			}
 			if (rejected.length > 0) {
 				return {
 					content: [
@@ -841,9 +707,16 @@ export default function (pi: ExtensionAPI) {
 					isError: true,
 				};
 			}
-			// Defence in depth: strip any override that did not get approved.
+			// Defence in depth + editor adoption: strip overrides that did not get
+			// approved; rebuild approved ones from the file as it stands NOW (it may
+			// have been edited in the inspector during gating).
 			for (const agent of agents) {
-				if (agent.override && !approved.has(agent.name)) {
+				if (!agent.override) continue;
+				if (approved.has(agent.name) && agent.overridePath) {
+					const body = fs.readFileSync(agent.overridePath, "utf-8");
+					agent.systemPrompt =
+						agent.override === "append" ? `${agent.baseSystemPrompt}\n\n${body}` : body;
+				} else {
 					agent.systemPrompt = agent.override === "replace" ? "" : agent.systemPrompt;
 				}
 			}

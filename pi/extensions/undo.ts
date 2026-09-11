@@ -153,7 +153,7 @@ export default function (pi: ExtensionAPI) {
 			// Repopulate the prompt with the undone message so it can be tweaked
 			// and resent. The submit path clears the editor on the way in; doing
 			// this AFTER navigateTree means it is the final write to the box.
-			ctx.ui.setEditorText(messageToText(userEntry.message.content));
+			ctx.ui.setEditorText(messageToText((userEntry.message as { content: unknown }).content));
 			ctx.ui.notify("Undid last turn", "info");
 		},
 	});

@@ -107,6 +107,7 @@ polkit-gnome
 at
 #yt-dlp-ejs
 deno
+typescript
 alacritty
 chromium
 inotify-tools

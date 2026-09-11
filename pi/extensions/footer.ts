@@ -36,7 +36,7 @@
  * Load: auto-discovered from pi/extensions/*.ts (= ~/.pi/agent/extensions);
  * `/reload` after edits. Only ONE custom footer may render.
  */
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ReadonlyFooterDataProvider } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
@@ -83,7 +83,7 @@ function sanitizeStatusText(text: string): string {
 // live from ctx + footerData on each render.
 
 function makeFooter(ctx: any) {
-	return (tui: any, theme: any, footerData: any) => {
+	return (tui: any, theme: any, footerData: ReadonlyFooterDataProvider) => {
 		const unsub = footerData.onBranchChange(() => tui.requestRender());
 
 		const render = (width: number): string[] => {
@@ -172,7 +172,7 @@ function makeFooter(ctx: any) {
 			if (statuses.size > 0) {
 				statusLeft = Array.from(statuses.entries())
 					.sort(([a], [b]) => a.localeCompare(b))
-					.map(([, text]: [string, string]) => sanitizeStatusText(text))
+					.map(([, text]) => sanitizeStatusText(text))
 					.join(" ");
 			}
 			const indicator = theme.fg("dim", leaderArmed ? "?" : "N");
