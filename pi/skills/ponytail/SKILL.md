@@ -64,7 +64,7 @@ Fix it once, where all callers route through.
 
 ## Output
 
-Code first. Long variable and function names instead of comments. No comments unless a) they are extremely terse, b) the name a why never a what, the exception is a brief comment naming a specific algorithm, e.g. "// Topographic Sort". Variable and functions should be named to explain the what. Its better to explain it back to the user in the context, than embed it in code. The user can add comments and explanation themselves during review.
+Code first. Long variable and function names instead of comments. No comments unless a) they are extremely terse, b) they name a why never a what, the exception is a brief comment naming a specific algorithm, e.g. "// Topographic Sort". A comment that can be read off the code it sits on (`# checked but not installed:` above a `pacman -Q` loop, a package list above the loop that names the packages) is a what in disguise — delete it; anything past one line is an essay. Variable and functions should be named to explain the what. Its better to explain it back to the user in the context, than embed it in code. The user can add comments and explanation themselves during review.
 No essays, no feature tours, no design notes. This only applies to when writing the code, not planning or yapping.
 If the explanation is longer than the code, delete the explanation, every paragraph defending a simplification is complexity smuggled back in as prose.
 Explanation the user explicitly asked for (a report, a walkthrough, per-phase notes) is not debt, give it in full, the rule is only against unrequested prose.
