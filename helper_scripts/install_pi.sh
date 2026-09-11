@@ -2,14 +2,16 @@
 ############################
 # Bootstraps pi (pi.dev) on a fresh machine.
 #  - Already installed -> report and skip the installer.
-#  - Missing -> ensure pacman deps (nodejs, npm, uv), then run the official
-#    pi.dev installer with our committed npmrc in force.
+#  - Missing -> warn about missing pacman deps (nodejs, npm, uv), then run
+#    the official pi.dev installer with our committed npmrc in force.
 #  - Always -> (re)install the vendored pi-mcp-adapter deps if missing
 #    (node_modules is gitignored by design; see pi/.gitignore).
+#  - Always -> unpack the VDH chromium extension that pi/browser/
+#    playwright-config.json --load-extensions (missing dir = "Manifest file
+#    is missing or unreadable" spam on every browser launch).
 ############################
 
 dir="$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel)"
-. "$dir/.config/sh/shutil.sh"
 
 # pi.dev's installer derives its install location from `npm prefix -g` at
 # install time (falls back to ~/.local when that's not user-writable — how pc
@@ -44,17 +46,13 @@ if [ -n "$pi_bin" ]; then
 else
     echo "Installing pi..."
 
-    # pacman deps: nodejs/npm (pi is an npm-distributed bundle; its installer
-    # refuses to run without npm) and uv (pi/mcp.json's blender server runs
-    # via `uv run`; uv also manages that project's Python interpreter).
     if command -v pacman >/dev/null 2>&1; then
         missing=""
         for pkg in nodejs npm uv; do
             pacman -Q "$pkg" >/dev/null 2>&1 || missing="$missing $pkg"
         done
         if [ -n "$missing" ]; then
-            echo "Installing pacman packages:$missing"
-            run_elevated pacman -S --needed $missing || exit 1
+            echo "WARNING: missing pacman packages:$missing — install them manually" >&2
         fi
     fi
 
@@ -76,4 +74,31 @@ if [ -f "$adapter/package.json" ] && command -v npm >/dev/null 2>&1; then
         echo "Installing vendored pi-mcp-adapter deps..."
         (cd "$adapter" && npm ci --omit=dev)
     fi
+fi
+
+# Chromium extension (Video Download Helper) for the playwright MCP browser.
+# Path must match pi/browser/playwright-config.json's --load-extension.
+# Idempotent: skip when an unpacked copy (manifest.json present) exists.
+# CRX = binary header + plain zip, so cut at the first zip magic and unzip.
+vdh_dir="$XDG_DATA_HOME/pi-browser-extensions/vdh"
+if [ -f "$vdh_dir/manifest.json" ]; then
+    echo "Chromium extension (VDH) already installed ($vdh_dir)"
+else
+    echo "Installing Chromium extension (VDH)..."
+    tmp="$(mktemp -d)"
+    # Chrome Web Store CRX endpoint; prodversion just needs to be recent.
+    zip_magic="$(printf 'PK\003\004')"
+    if curl -fsSL -o "$tmp/vdh.crx" \
+        'https://clients2.google.com/service/update2/crx?response=redirect&prodversion=131.0.6778.85&acceptformat=crx2,crx3&x=id%3Dlmjnegcaeklhafolokijcfjliaokphfk%26uc%3D' &&
+        zip_at="$(grep -abo "$zip_magic" "$tmp/vdh.crx" | head -n1 | cut -d: -f1)" &&
+        tail -c "+$((zip_at + 1))" "$tmp/vdh.crx" > "$tmp/vdh.zip" &&
+        unzip -q "$tmp/vdh.zip" -d "$tmp/vdh"
+    then
+        mkdir -p "$(dirname "$vdh_dir")"
+        rm -rf "$vdh_dir"  # partial/unmanifested leftovers only (manifest checked above)
+        mv "$tmp/vdh" "$vdh_dir"
+    else
+        echo "VDH install failed — pi browser will warn about a missing extension" >&2
+    fi
+    rm -rf "$tmp"
 fi
