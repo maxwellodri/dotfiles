@@ -12,7 +12,10 @@
  *
  * Keys (the complete set — ↑↓ do nothing outside the editor, where they are
  * its history):
- *   Tab / ⇧Tab   cycle rows (wrapping)
+ *   Tab / ⇧Tab   cycle rows (wrapping). EXCEPTION on the editor row: while
+ *                the editor's completion dropdown (`@`/`$`) is open, Tab
+ *                accepts the completion and Esc closes the dropdown instead
+ *                of cycling / cancelling the question (main-prompt parity)
  *   Enter        submit from anywhere (custom text on the editor row, the
  *                focused option otherwise — single; checked options + custom
  *                text — multi)
@@ -279,6 +282,19 @@ async function askSingleChoice(
 		function handleInput(data: string) {
 			editor.focused = rowIndex === 0;
 
+			// While the editor's completion dropdown (`@`/`$`) is open, Tab and
+			// Esc belong to the editor — accept the completion / close the
+			// dropdown — exactly like the main prompt, instead of cycling rows
+			// away mid-token or cancelling the whole question. Enter still
+			// submits and ⇧Tab still cycles.
+			if (rowIndex === 0 && editor.isShowingAutocomplete()) {
+				if (matchesKey(data, Key.tab) || matchesKey(data, Key.escape)) {
+					editor.handleInput(data);
+					refresh();
+					return;
+				}
+			}
+
 			// Enter submits from anywhere: the custom text on the editor row,
 			// the focused option otherwise.
 			if (matchesKey(data, Key.enter)) {
@@ -393,7 +409,7 @@ async function askSingleChoice(
 
 			lines.push("");
 			if (rowIndex === 0) {
-				add(theme.fg("dim", " Tab/⇧Tab rows • Enter/Ctrl+Space submit custom • ^C clear • Esc cancel"));
+				add(theme.fg("dim", " Tab completes when list open • Tab/⇧Tab rows • Enter/Ctrl+Space submit • ^C clear • Esc cancel"));
 			} else {
 				add(theme.fg("dim", " Tab/⇧Tab rows • Ctrl+Space select • Esc cancel"));
 			}
@@ -474,6 +490,19 @@ async function askMultiChoice(
 
 		function handleInput(data: string) {
 			editor.focused = rowIndex === 0;
+
+			// While the editor's completion dropdown (`@`/`$`) is open, Tab and
+			// Esc belong to the editor — accept the completion / close the
+			// dropdown — exactly like the main prompt, instead of cycling rows
+			// away mid-token or cancelling the whole question. Enter still
+			// submits and ⇧Tab still cycles.
+			if (rowIndex === 0 && editor.isShowingAutocomplete()) {
+				if (matchesKey(data, Key.tab) || matchesKey(data, Key.escape)) {
+					editor.handleInput(data);
+					refresh();
+					return;
+				}
+			}
 
 			// Enter submits from anywhere: the checked options plus the
 			// custom answer, which is simply the editor text if non-empty.
@@ -595,7 +624,7 @@ async function askMultiChoice(
 
 			lines.push("");
 			if (rowIndex === 0) {
-				add(theme.fg("dim", " Tab/⇧Tab rows • ^C clear • Enter submit • Esc cancel"));
+				add(theme.fg("dim", " Tab completes when list open • Tab/⇧Tab rows • ^C clear • Enter submit • Esc cancel"));
 			} else {
 				const pending = selected.size + (editor.getText().trim() ? 1 : 0);
 				if (pending === 0) {
