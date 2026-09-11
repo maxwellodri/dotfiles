@@ -264,7 +264,17 @@ async function notify(pi: ExtensionAPI, opts: HeraldNotifyOptions): Promise<void
 	const tmuxInfo = await getTmuxInfo(pi);
 	const body = `${opts.body}${tmuxInfo}`;
 	try {
-		await pi.exec("herald", ["message", "--title", opts.title, "--sound", body]);
+		await pi.exec("herald", [
+			"message",
+			"--title",
+			opts.title,
+			"--sound",
+			"--tag",
+			"pi",
+			"--tag",
+			"work_done",
+			body,
+		]);
 		log(`notified: ${body}`);
 	} catch (e) {
 		log(`herald failed: ${e instanceof Error ? e.message : String(e)}`);

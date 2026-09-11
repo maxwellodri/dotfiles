@@ -86,4 +86,4 @@ if [[ -n "$TMUX" ]]; then
   BODY="$BODY in tmux session '$SESSION'"
 fi
 
-(( ELAPSED >= 30 )) && herald message --title "Download complete" --sound "$BODY"
+(( ELAPSED >= 30 )) && herald message --title "Download complete" --sound --tag aria_dl --tag work_done "$BODY"

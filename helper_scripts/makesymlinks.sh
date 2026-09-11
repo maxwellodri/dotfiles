@@ -40,6 +40,7 @@ alacritty=".config/alacritty/"
 wezterm=".config/wezterm/"
 desktop_apps=".local/share/applications/default_handler.desktop .local/share/applications/wine.desktop"
 sshconfig=.ssh/config
+heraldcfg=.config/herald/config.toml
 
 
 ########### Meta Variables
@@ -50,8 +51,8 @@ zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam"
 files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $pamgnupg $gitconfig $npm $faucet $systemd"
 
 ###########
-pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $eww $desktop_apps $sshconfig" #platform specific dotfiles
-hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $qz $eww $desktop_apps $sshconfig"
+pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $eww $desktop_apps $sshconfig $heraldcfg" #platform specific dotfiles
+hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $qz $eww $desktop_apps $sshconfig $heraldcfg"
 
 ##########
 

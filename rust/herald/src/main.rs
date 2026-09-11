@@ -1,6 +1,6 @@
 use std::fs;
 use std::io::{self, Read, Write};
-use std::path::Path;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use chrono::{Local, TimeZone};
@@ -12,6 +12,11 @@ use tracing_subscriber::EnvFilter;
 
 const SOCKET_PATH: &str = "/tmp/herald.sock";
 const TMUX_SESSION: &str = "herald_daemon";
+
+/// Socket path; overridable via $HERALD_SOCKET (testing, secondary instances).
+fn socket_path() -> PathBuf {
+    std::env::var_os("HERALD_SOCKET").map_or_else(|| PathBuf::from(SOCKET_PATH), PathBuf::from)
+}
 
 // ── Wire protocol ────────────────────────────────────────────
 
@@ -27,6 +32,10 @@ enum Message {
         play_sound: bool,
         store: bool,
         ping: bool,
+        /// Routing tags; at least one required for the daemon to display.
+        /// Missing field = old sender, treated as untagged -> skipped.
+        #[serde(default)]
+        tags: Vec<String>,
     },
     #[serde(rename = "remove")]
     Remove { id: Option<u64> },
@@ -205,6 +214,47 @@ fn epoch_now() -> String {
     format!("{}", d.as_secs())
 }
 
+// ── Config ──────────────────────────────────────────────────
+
+/// Daemon config, read once at startup from
+/// $XDG_CONFIG_HOME/herald/config.toml (i.e. ~/.config/herald/config.toml).
+#[derive(Debug, Default, Deserialize)]
+struct Config {
+    /// Tags this daemon displays/stores. Empty = accept all tagged messages.
+    #[serde(default)]
+    subscribe: Vec<String>,
+}
+
+/// A notification is accepted iff it carries >=1 tag and (when `subscribe` is
+/// non-empty) at least one of them intersects `subscribe`.
+fn accepts(config: &Config, tags: &[String]) -> bool {
+    !tags.is_empty()
+        && (config.subscribe.is_empty() || tags.iter().any(|t| config.subscribe.contains(t)))
+}
+
+fn load_config() -> Config {
+    let path = directories::ProjectDirs::from("", "", "herald")
+        .expect("failed to determine config directory")
+        .config_dir()
+        .join("config.toml");
+    match fs::read_to_string(&path) {
+        Ok(s) => match toml::from_str::<Config>(&s) {
+            Ok(c) => {
+                info!(path = %path.display(), subscribe = ?c.subscribe, "loaded config");
+                c
+            }
+            Err(e) => {
+                error!(%e, path = %path.display(), "invalid config.toml; accepting all");
+                Config::default()
+            }
+        },
+        Err(_) => {
+            info!("no config.toml; accepting all tagged notifications");
+            Config::default()
+        }
+    }
+}
+
 // ── CLI ──────────────────────────────────────────────────────
 
 #[derive(Parser)]
@@ -239,6 +289,9 @@ enum Commands {
         /// Persist to store
         #[arg(long, conflicts_with = "ping")]
         store: bool,
+        /// Routing tag (repeatable); at least one required unless --ping
+        #[arg(long)]
+        tag: Vec<String>,
         /// The message body
         body: Vec<String>,
     },
@@ -287,9 +340,19 @@ fn main() -> io::Result<()> {
             no_sound,
             ping,
             store,
+            mut tag,
             body,
         } => {
             let play_sound = if ping { !no_sound } else { sound };
+
+            // --ping implies the work_done tag; explicit tags are kept too.
+            if ping {
+                tag.push("work_done".to_string());
+            }
+            if tag.is_empty() {
+                eprintln!("error: message requires at least one --tag (e.g. --tag work_done)");
+                std::process::exit(2);
+            }
 
             if ping {
                 let header = std::env::var("TMUX")
@@ -319,6 +382,7 @@ fn main() -> io::Result<()> {
                     play_sound,
                     store: false,
                     ping: true,
+                    tags: tag,
                 })
             } else {
                 if title.is_none() && !sound && body.is_empty() {
@@ -337,6 +401,7 @@ fn main() -> io::Result<()> {
                     play_sound,
                     store: store && has_content,
                     ping: false,
+                    tags: tag,
                 })
             }
         }
@@ -408,7 +473,7 @@ fn main() -> io::Result<()> {
             Ok(())
         }
         Commands::Eww => {
-            let alive = std::os::unix::net::UnixStream::connect(SOCKET_PATH).is_ok();
+            let alive = std::os::unix::net::UnixStream::connect(socket_path()).is_ok();
             let store = Store::load();
             let eww_msgs: Vec<EwwMessage> = store
                 .messages
@@ -460,15 +525,16 @@ async fn run_daemon() -> io::Result<()> {
         )
         .init();
 
-    let path = Path::new(SOCKET_PATH);
+    let path = socket_path();
     if path.exists() {
-        fs::remove_file(path)?;
+        fs::remove_file(&path)?;
     }
 
-    let listener = tokio::net::UnixListener::bind(SOCKET_PATH)?;
-    info!("listening on {SOCKET_PATH}");
+    let listener = tokio::net::UnixListener::bind(&path)?;
+    info!(path = %path.display(), "listening");
 
     let store = Arc::new(Mutex::new(Store::load()));
+    let config = Arc::new(load_config());
 
     loop {
         tokio::select! {
@@ -481,8 +547,9 @@ async fn run_daemon() -> io::Result<()> {
                     }
                 };
                 let store = store.clone();
+                let config = config.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = handle_client(stream, store).await {
+                    if let Err(e) = handle_client(stream, store, config).await {
                         error!(%e, "client error");
                     }
                 });
@@ -491,7 +558,11 @@ async fn run_daemon() -> io::Result<()> {
     }
 }
 
-async fn handle_client(stream: tokio::net::UnixStream, store: Arc<Mutex<Store>>) -> io::Result<()> {
+async fn handle_client(
+    stream: tokio::net::UnixStream,
+    store: Arc<Mutex<Store>>,
+    config: Arc<Config>,
+) -> io::Result<()> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     let mut buf = String::new();
@@ -514,7 +585,7 @@ async fn handle_client(stream: tokio::net::UnixStream, store: Arc<Mutex<Store>>)
     let resp = match &msg {
         Message::Kill { sender_pid } => {
             info!(sender_pid, "received kill, shutting down");
-            let _ = fs::remove_file(SOCKET_PATH);
+            let _ = fs::remove_file(socket_path());
             // TODO: graceful shutdown via tokio::sync::Notify or similar
             std::process::exit(0);
         }
@@ -525,51 +596,58 @@ async fn handle_client(stream: tokio::net::UnixStream, store: Arc<Mutex<Store>>)
             play_sound,
             store: should_store,
             ping,
+            tags,
         } => {
-            let id = if *should_store {
-                let stored = StoredMessage {
-                    id: 0,
-                    message: msg.clone(),
-                    received_at: epoch_now(),
+            if !accepts(&config, tags) {
+                info!(?tags, "skipped notification: no subscribed tag");
+                Response::Ok {
+                    msg: "skipped: no subscribed tag".to_string(),
+                }
+            } else {
+                let id = if *should_store {
+                    let stored = StoredMessage {
+                        id: 0,
+                        message: msg.clone(),
+                        received_at: epoch_now(),
+                    };
+                    store.lock().unwrap().insert(stored)
+                } else {
+                    0
                 };
-                store.lock().unwrap().insert(stored)
-            } else {
-                0
-            };
 
-            info!(
-                id,
-                header, body, notify, play_sound, ping, "received notification"
-            );
+                info!(
+                    id,
+                    header, body, notify, play_sound, ping, "received notification"
+                );
 
-            let hint_id = if *ping {
-                "ping".to_string()
-            } else {
-                format!("{id}")
-            };
+                let hint_id = if *ping {
+                    "ping".to_string()
+                } else {
+                    format!("{id}")
+                };
 
-            if *notify {
-                let header = header.clone();
-                let body = body.clone();
-                tokio::spawn(async move {
-                    match tokio::process::Command::new("notify-send")
-                        .arg("--hint")
-                        .arg(format!(
-                            "string:x-canonical-private-synchronous:herald-{hint_id}"
-                        ))
-                        .arg(&header)
-                        .arg(&body)
-                        .status()
-                        .await
-                    {
-                        Ok(s) => info!(header, exit = s.code(), "notify-send"),
-                        Err(e) => error!(%e, "notify-send failed"),
-                    }
-                });
-            }
-            if *play_sound {
-                tokio::spawn(async move {
-                    match tokio::process::Command::new("sh")
+                if *notify {
+                    let header = header.clone();
+                    let body = body.clone();
+                    tokio::spawn(async move {
+                        match tokio::process::Command::new("notify-send")
+                            .arg("--hint")
+                            .arg(format!(
+                                "string:x-canonical-private-synchronous:herald-{hint_id}"
+                            ))
+                            .arg(&header)
+                            .arg(&body)
+                            .status()
+                            .await
+                        {
+                            Ok(s) => info!(header, exit = s.code(), "notify-send"),
+                            Err(e) => error!(%e, "notify-send failed"),
+                        }
+                    });
+                }
+                if *play_sound {
+                    tokio::spawn(async move {
+                        match tokio::process::Command::new("sh")
                         .arg("-c")
                         .arg(
                             "ffmpeg -f lavfi -i 'sine=frequency=400:duration=0.2' \
@@ -591,11 +669,12 @@ async fn handle_client(stream: tokio::net::UnixStream, store: Arc<Mutex<Store>>)
                         Ok(s) => info!(exit = s.code(), "paplay"),
                         Err(e) => error!(%e, "paplay failed"),
                     }
-                });
-            }
+                    });
+                }
 
-            Response::Ok {
-                msg: format!("notification {id} stored"),
+                Response::Ok {
+                    msg: format!("notification {id} stored"),
+                }
             }
         }
         Message::Remove { id } => {
@@ -647,7 +726,7 @@ fn send_message(msg: Message) -> io::Result<()> {
     use std::os::unix::net::UnixStream;
 
     let json = serde_json::to_string(&msg).unwrap();
-    let mut stream = UnixStream::connect(SOCKET_PATH)?;
+    let mut stream = UnixStream::connect(socket_path())?;
     stream.write_all(json.as_bytes())?;
     Ok(())
 }
@@ -656,7 +735,7 @@ fn send_and_recv(msg: Message) -> io::Result<String> {
     use std::os::unix::net::UnixStream;
 
     let json = serde_json::to_string(&msg).unwrap();
-    let mut stream = UnixStream::connect(SOCKET_PATH)?;
+    let mut stream = UnixStream::connect(socket_path())?;
     stream.write_all(json.as_bytes())?;
     // Shut down write side so daemon sees EOF
     stream.shutdown(std::net::Shutdown::Write)?;

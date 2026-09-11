@@ -1,0 +1,8 @@
+# herald daemon config. Read once at daemon start.
+#
+# Notifications must carry >= 1 tag (`herald message --tag ...`); messages whose
+# tags don't intersect `subscribe` are skipped (logged, never stored or shown).
+# Empty list = accept every tagged message.
+#
+# Known tags in use: pi, work_done, aria_dl
+subscribe = ["pi", "work_done", "aria_dl"]

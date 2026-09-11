@@ -27,6 +27,15 @@
  *   ^C           clear the custom editor
  *   Esc          cancel the question
  *
+ * RPC degradation (ctx.mode === "rpc", e.g. under a remote bridge such as
+ * paseo): ctx.ui.custom() returns undefined without a terminal, which would
+ * make every select-mode question silently resolve "cancelled". Select
+ * modes instead fall back to the dialog sub-protocol (select/input/editor —
+ * all round-trip as remote cards): single → ctx.ui.select with a trailing
+ * Custom pseudo-option plus ctx.ui.input follow-up; multi → ctx.ui.editor
+ * taking one answer per line. Text mode already uses ctx.ui.editor and
+ * works unchanged.
+ *
  * Custom carries no checkbox: the custom answer simply IS the editor text at
  * submit time, omitted when empty/whitespace. It sorts first in results,
  * mirroring the picker where it is row 0.
@@ -649,6 +658,66 @@ async function askMultiChoice(
 	});
 }
 
+/**
+ * RPC single-select: option labels as a select dialog, Custom as a trailing
+ * pseudo-option that chains into an input dialog. Dismissed dialog or empty
+ * custom text → null (cancelled), matching the TUI popup's null paths.
+ */
+async function askSingleChoiceRpc(
+	ctx: ExtensionContext,
+	question: string,
+	context: string | undefined,
+	options: AskOption[],
+): Promise<AskAnswer | null> {
+	const title = context ? `${question}\n\n${context}` : question;
+	const customLabel = getCustomLabel(options);
+	const choice = await ctx.ui.select(title, [...options.map((option) => option.label), customLabel]);
+	if (choice === undefined) return null;
+	const index = options.findIndex((option) => option.label === choice);
+	if (index !== -1) {
+		return { type: "option", label: options[index].label, value: options[index].value, index: index + 1 };
+	}
+	// Not an option label → the Custom row; empty/dismissed input cancels.
+	const text = (await ctx.ui.input("Type your answer"))?.trim();
+	return text ? { type: "custom", label: text, value: text } : null;
+}
+
+/**
+ * RPC multi-select: a free-form editor accepting one answer per line. Lines
+ * matching an option label become option answers; unmatched lines collapse
+ * into a single custom answer joined by newlines — same result shape the TUI
+ * popup produces (any options + one custom).
+ */
+async function askMultiChoiceRpc(
+	ctx: ExtensionContext,
+	question: string,
+	context: string | undefined,
+	options: AskOption[],
+): Promise<AskAnswer[] | null> {
+	const title =
+		(context ? `${question}\n\n${context}` : question) +
+		"\n\nEnter one answer per line — an option label or your own text.";
+	const raw = await ctx.ui.editor(title);
+	if (raw === undefined) return null;
+	const answers: AskAnswer[] = [];
+	const customs: string[] = [];
+	for (const line of raw.split("\n")) {
+		const text = line.trim();
+		if (!text) continue;
+		const index = options.findIndex((option) => option.label === text);
+		if (index !== -1) {
+			answers.push({ type: "option", label: options[index].label, value: options[index].value, index: index + 1 });
+		} else {
+			customs.push(text);
+		}
+	}
+	if (customs.length > 0) {
+		const label = customs.join("\n");
+		answers.push({ type: "custom", label, value: label });
+	}
+	return answers.length > 0 ? sortAnswers(answers) : null;
+}
+
 // Shared UI mutex. ctx.ui.custom()/editor can only handle one active call at
 // a time, so ALL pop-up-style tools must serialize against each other, not
 // just against themselves. Stashed on globalThis so separate extension files
@@ -794,7 +863,8 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 				}
 
 				if (mode === "single-select") {
-					const answer = await askSingleChoice(ctx, params.question, context, options);
+					const askSingle = ctx.mode === "rpc" ? askSingleChoiceRpc : askSingleChoice;
+					const answer = await askSingle(ctx, params.question, context, options);
 					if (!answer) {
 						return cancelledResult(params.question, mode, context);
 					}
@@ -810,7 +880,8 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 					return buildResult(params.question, context, mode, [answer]);
 				}
 
-				const answers = await askMultiChoice(ctx, params.question, context, options);
+				const askMulti = ctx.mode === "rpc" ? askMultiChoiceRpc : askMultiChoice;
+				const answers = await askMulti(ctx, params.question, context, options);
 				if (!answers) {
 					return cancelledResult(params.question, mode, context);
 				}
