@@ -174,11 +174,169 @@ function createEditorTheme(theme: any): EditorTheme {
 	};
 }
 
-function addWrapped(lines: string[], text: string, width: number, indent = ""): void {
-	const contentWidth = Math.max(1, width - indent.length);
-	for (const line of wrapTextWithAnsi(text, contentWidth)) {
-		lines.push(truncateToWidth(`${indent}${line}`, width));
+// ─────────────────────── height-aware layout ───────────────────────
+// A ctx.ui.custom() component taller than the terminal pushes the status
+// line / footer (and any live transcript updates) above the visible fold;
+// pi-tui then falls back to full clear-and-repaint per update, which reads
+// as constant flicker in a short tmux split (upstream pi issue #4021 —
+// "please send an issue to the extension to fix their UI so it honors the
+// terminal viewport height"). Cap the popup to the pane: reserve rows for
+// the status line + footer around the editor container, and when the full
+// card does not fit, compress — descriptions, then details/hints, then
+// window the option list around the focused row with ↑/↓ counters — so
+// status + popup + footer always fit the viewport and rendering stays
+// differential.
+
+/** Rows pi renders around the editor container: status (~2) + footer (3) + 1 breathing. */
+const POPUP_RESERVED_ROWS = 6;
+/** Never render fewer popup lines than this, however tiny the pane. */
+const MIN_POPUP_ROWS = 8;
+
+/** Live line budget for the popup: terminal rows minus the reserved chrome. */
+function popupBudget(tui: any): number {
+	const rows = tui?.terminal?.rows;
+	const height = typeof rows === "number" && rows > 0 ? rows : 50;
+	return Math.max(MIN_POPUP_ROWS, height - POPUP_RESERVED_ROWS);
+}
+
+/** Wrap text to width but keep at most maxLines lines, marking a cut with …. */
+function clampWrapped(text: string, width: number, maxLines: number, indent = ""): string[] {
+	const wrapped = wrapTextWithAnsi(text, Math.max(1, width - indent.length));
+	if (wrapped.length <= maxLines) {
+		return wrapped.map((line) => truncateToWidth(`${indent}${line}`, width));
 	}
+	const kept = wrapped.slice(0, maxLines);
+	const last = kept[maxLines - 1] ?? "";
+	kept[maxLines - 1] = `${last.slice(0, Math.max(0, last.length - 1))}…`;
+	return kept.map((line) => truncateToWidth(`${indent}${line}`, width));
+}
+
+/**
+ * Window [from, to) over `count` option rows that fits `avail` lines,
+ * centered on the focused option when possible. Marker lines ("…↑N more")
+ * eat into the available rows so the returned window always fits.
+ */
+function optionWindow(count: number, focused: number, avail: number): { from: number; to: number } {
+	if (count <= 0 || avail <= 0) return { from: 0, to: 0 };
+	// Two marker lines cost one option row each; reserve conservatively.
+	let slots = Math.min(count, Math.max(1, avail - (count > avail ? 2 : 0)));
+	const center = Math.min(Math.max(focused, 0), count - 1);
+	let from = Math.max(0, Math.min(center - Math.floor(slots / 2), count - slots));
+	from = Math.max(0, from);
+	return { from, to: Math.min(count, from + slots) };
+}
+
+interface PopupSection {
+	/** Pre-styled option label line. */
+	line: string;
+	/** Pre-styled description lines (droppable). */
+	desc?: string[];
+}
+
+/**
+ * Assemble the popup card under `budget` lines. Sections compress in
+ * priority order: descriptions → blank padding + hints → details →
+ * question clamp → option window → hard slice (bottom rule stays last).
+ * When the full card fits (usual case on roomy panes) the layout is
+ * identical to the uncapped one.
+ */
+function renderCappedPopup(args: {
+	width: number;
+	budget: number;
+	theme: any;
+	question: string;
+	context?: string;
+	customLabelLine: string;
+	editorLines: string[];
+	options: PopupSection[];
+	focusedOption: number; // index into options; -1 when the editor row has focus
+	submitLine?: string;
+	hints: string[];
+}): string[] {
+	const { width, budget, theme, question, context, customLabelLine, editorLines, options, focusedOption, submitLine, hints } = args;
+	const add = (lines: string[], text: string) => lines.push(truncateToWidth(text, width));
+	const topRule = () => theme.fg("accent", "─".repeat(width));
+
+	// Fixed overhead: rules + custom row (label + editor) + submit (multi).
+	const submitCount = submitLine ? 1 : 0;
+	const overhead = 2 /* rules */ + 1 + editorLines.length + submitCount;
+
+	const questionFull = wrapTextWithAnsi(theme.fg("text", ` ${question}`), width);
+	const contextFull = context ? wrapTextWithAnsi(theme.fg("muted", ` ${context}`), width) : [];
+	const descTotal = options.reduce((n, o) => n + (o.desc?.length ?? 0), 0);
+	const extras = (context ? contextFull.length + 1 : 0) + 1 /* padding */ + hints.length;
+
+	// Roomy pane: everything fits — render the full card.
+	if (overhead + questionFull.length + options.length + descTotal + extras <= budget) {
+		const lines: string[] = [];
+		add(lines, topRule());
+		for (const line of questionFull) add(lines, truncateToWidth(line, width));
+		if (context) {
+			lines.push("");
+			for (const line of contextFull) add(lines, truncateToWidth(line, width));
+		}
+		lines.push("");
+		add(lines, customLabelLine);
+		for (const line of editorLines) add(lines, line);
+		for (const option of options) {
+			add(lines, option.line);
+			for (const line of option.desc ?? []) add(lines, line);
+		}
+		if (submitLine) add(lines, submitLine);
+		lines.push("");
+		for (const hint of hints) add(lines, hint);
+		add(lines, topRule());
+		return lines;
+	}
+
+	// Tight pane: compress. Descriptions and details go first.
+	// Question: clamp to 2 wrapped lines (1 on degenerate panes).
+	const questionMax = budget < overhead + options.length + 3 ? 1 : 2;
+	const questionLines = clampWrapped(theme.fg("text", ` ${question}`), width, questionMax);
+
+	// Option window: rows left after rules, question, custom row, and a
+	// floor of one hint/padding line.
+	const maxOptionRows = Math.max(1, budget - overhead - questionLines.length - 1);
+	const window = optionWindow(options.length, focusedOption, maxOptionRows);
+
+	// Progressive sparse builds: drop padding, then ↑/↓ markers, before
+	// ever letting the hard slice eat an option row.
+	const buildTight = (withBlank: boolean, withMarkers: boolean): string[] => {
+		const lines: string[] = [];
+		add(lines, topRule());
+		for (const line of questionLines) add(lines, line);
+		if (withBlank) lines.push("");
+		add(lines, customLabelLine);
+		for (const line of editorLines) add(lines, line);
+		if (withMarkers && window.from > 0) {
+			add(lines, theme.fg("dim", `   …↑ ${window.from} more`));
+		}
+		for (let i = window.from; i < window.to; i++) {
+			add(lines, options[i].line);
+		}
+		if (withMarkers && window.to < options.length) {
+			add(lines, theme.fg("dim", `   …↓ ${options.length - window.to} more`));
+		}
+		if (submitLine) add(lines, submitLine);
+		if (lines.length + hints.length + 1 <= budget) {
+			lines.push("");
+			for (const hint of hints) add(lines, hint);
+		}
+		add(lines, topRule());
+		return lines;
+	};
+
+	let lines = buildTight(true, true);
+	if (lines.length > budget) lines = buildTight(false, true);
+	if (lines.length > budget) lines = buildTight(false, false);
+
+	// Degenerate pane: hard slice, keeping the closing rule as the last line.
+	if (lines.length > budget) {
+		const sliced = lines.slice(0, Math.max(1, budget - 1));
+		sliced.push(topRule());
+		return sliced;
+	}
+	return lines;
 }
 
 function formatAnswerForModel(answer: AskAnswer): string {
@@ -276,6 +434,7 @@ async function askSingleChoice(
 		let rowIndex = 0;
 		let cachedLines: string[] | undefined;
 		let cachedWidth = -1;
+		let cachedHeight = -1;
 		const editor = new Editor(tui, createEditorTheme(theme));
 		editor.disableSubmit = true; // Enter is handled by the popup, not the editor
 		if (promptAutocompleteProvider) {
@@ -379,53 +538,50 @@ async function askSingleChoice(
 		}
 
 		function render(width: number): string[] {
-			// The cache MUST be keyed on width: pi-tui calls requestRender() but NOT
-			// invalidate() on terminal resize, so render() can be re-entered with a
-			// new width. Returning stale wider lines trips the TUI width guard and
-			// crashes the process.
-			if (cachedLines && cachedWidth === width) return cachedLines;
-
-			const lines: string[] = [];
-			const add = (text: string) => lines.push(truncateToWidth(text, width));
-
-			add(theme.fg("accent", "─".repeat(width)));
-			addWrapped(lines, theme.fg("text", ` ${question}`), width);
-			if (context) {
-				lines.push("");
-				addWrapped(lines, theme.fg("muted", ` ${context}`), width);
-			}
-			lines.push("");
+			// The cache MUST be keyed on width AND height: pi-tui calls
+			// requestRender() but NOT invalidate() on terminal resize, so render()
+			// can be re-entered with new dimensions. Returning stale wider lines
+			// trips the TUI width guard and crashes the process; a stale taller
+			// layout re-triggers the small-pane flicker this cap exists to fix.
+			const height = tui?.terminal?.rows;
+			if (cachedLines && cachedWidth === width && cachedHeight === height) return cachedLines;
 
 			editor.focused = rowIndex === 0;
 			const customPrefix = rowIndex === 0 ? theme.fg("accent", "> ") : "  ";
 			const customRow = rowIndex === 0 ? theme.fg("accent", customLabel) : theme.fg("text", customLabel);
-			add(`${customPrefix}${customRow}`);
-			for (const line of editor.render(Math.max(1, width - 2))) {
-				add(` ${line}`);
-			}
+			const editorLines = editor.render(Math.max(1, width - 2)).map((line: string) => ` ${line}`);
 
-			for (let i = 0; i < allOptions.length; i++) {
-				const option = allOptions[i];
-				const selected = rowIndex === i + 1;
-				const prefix = selected ? theme.fg("accent", "> ") : "  ";
-				const label = `${option.index}. ${option.label}`;
-				const styled = selected ? theme.fg("accent", label) : theme.fg("text", label);
-				add(`${prefix}${styled}`);
-				if (option.description) {
-					addWrapped(lines, theme.fg("muted", option.description), width, "     ");
-				}
-			}
+			const lines = renderCappedPopup({
+				width,
+				budget: popupBudget(tui),
+				theme,
+				question,
+				context,
+				customLabelLine: `${customPrefix}${customRow}`,
+				editorLines,
+				options: allOptions.map((option, i) => {
+					const selected = rowIndex === i + 1;
+					const prefix = selected ? theme.fg("accent", "> ") : "  ";
+					const label = `${option.index}. ${option.label}`;
+					return {
+						line: `${prefix}${selected ? theme.fg("accent", label) : theme.fg("text", label)}`,
+						desc: option.description
+							? wrapTextWithAnsi(theme.fg("muted", option.description), Math.max(1, width - 5)).map(
+									(l: string) => truncateToWidth(`     ${l}`, width),
+								)
+							: undefined,
+					};
+				}),
+				focusedOption: rowIndex - 1,
+				hints:
+					rowIndex === 0
+						? [theme.fg("dim", " Tab completes when list open • Tab/⇧Tab rows • Enter/Ctrl+Space submit • ^C clear • Esc cancel")]
+						: [theme.fg("dim", " Tab/⇧Tab rows • Ctrl+Space select • Esc cancel")],
+			});
 
-			lines.push("");
-			if (rowIndex === 0) {
-				add(theme.fg("dim", " Tab completes when list open • Tab/⇧Tab rows • Enter/Ctrl+Space submit • ^C clear • Esc cancel"));
-			} else {
-				add(theme.fg("dim", " Tab/⇧Tab rows • Ctrl+Space select • Esc cancel"));
-			}
-
-			add(theme.fg("accent", "─".repeat(width)));
 			cachedLines = lines;
 			cachedWidth = width;
+			cachedHeight = height;
 			return lines;
 		}
 
@@ -459,6 +615,7 @@ async function askMultiChoice(
 		let rowIndex = 0;
 		let cachedLines: string[] | undefined;
 		let cachedWidth = -1;
+		let cachedHeight = -1;
 		const selected = new Map<string, AskAnswer>();
 		const editor = new Editor(tui, createEditorTheme(theme));
 		editor.disableSubmit = true; // Enter is handled by the popup, not the editor
@@ -579,72 +736,64 @@ async function askMultiChoice(
 		}
 
 		function render(width: number): string[] {
-			// The cache MUST be keyed on width: pi-tui calls requestRender() but NOT
-			// invalidate() on terminal resize, so render() can be re-entered with a
-			// new width. Returning stale wider lines trips the TUI width guard and
-			// crashes the process.
-			if (cachedLines && cachedWidth === width) return cachedLines;
-
-			const lines: string[] = [];
-			const add = (text: string) => lines.push(truncateToWidth(text, width));
-
-			add(theme.fg("accent", "─".repeat(width)));
-			addWrapped(lines, theme.fg("text", ` ${question}`), width);
-			if (context) {
-				lines.push("");
-				addWrapped(lines, theme.fg("muted", ` ${context}`), width);
-			}
-			lines.push("");
+			// See the single-select render for the width+height cache rationale.
+			const height = tui?.terminal?.rows;
+			if (cachedLines && cachedWidth === width && cachedHeight === height) return cachedLines;
 
 			editor.focused = rowIndex === 0;
 			const customPrefix = rowIndex === 0 ? theme.fg("accent", "> ") : "  ";
 			const customRow = rowIndex === 0 ? theme.fg("accent", customLabel) : theme.fg("text", customLabel);
-			add(`${customPrefix}${customRow}`);
-			for (const line of editor.render(Math.max(1, width - 2))) {
-				add(` ${line}`);
-			}
+			const editorLines = editor.render(Math.max(1, width - 2)).map((line: string) => ` ${line}`);
+			const pending = selected.size + (editor.getText().trim() ? 1 : 0);
 
-			for (let i = 0; i < allItems.length; i++) {
-				const item = allItems[i];
+			const optionSections: PopupSection[] = choiceItems.map((item, i) => {
 				const isFocused = rowIndex === i + 1;
 				const prefix = isFocused ? theme.fg("accent", "> ") : "  ";
-
-				if (item.isSubmit) {
-					const pending = selected.size + (editor.getText().trim() ? 1 : 0);
-					const label = pending > 0 ? `✓ ${item.label} (${pending} selected)` : `○ ${item.label}`;
-					const styled = isFocused
-						? theme.fg("accent", label)
-						: theme.fg(pending > 0 ? "success" : "dim", label);
-					add(`${prefix}${styled}`);
-					continue;
-				}
-
 				const checked = selected.has(item.id);
 				const marker = checked ? "[x]" : "[ ]";
 				const label = `${marker} ${item.index}. ${item.label}`;
-				const styled = isFocused
-					? theme.fg("accent", label)
-					: theme.fg(checked ? "success" : "text", label);
-				add(`${prefix}${styled}`);
-				if (item.description) {
-					addWrapped(lines, theme.fg("muted", item.description), width, "     ");
-				}
-			}
+				return {
+					line: `${prefix}${isFocused ? theme.fg("accent", label) : theme.fg(checked ? "success" : "text", label)}`,
+					desc: item.description
+						? wrapTextWithAnsi(theme.fg("muted", item.description), Math.max(1, width - 5)).map(
+								(l: string) => truncateToWidth(`     ${l}`, width),
+								)
+						: undefined,
+				};
+			});
 
-			lines.push("");
+			const submitIsFocused = rowIndex === allItems.length;
+			const submitPrefix = submitIsFocused ? theme.fg("accent", "> ") : "  ";
+			const submitLabel = pending > 0 ? `✓ ${submitItem.label} (${pending} selected)` : `○ ${submitItem.label}`;
+			const submitLine = `${submitPrefix}${submitIsFocused ? theme.fg("accent", submitLabel) : theme.fg(pending > 0 ? "success" : "dim", submitLabel)}`;
+
+			const hints: string[] = [];
 			if (rowIndex === 0) {
-				add(theme.fg("dim", " Tab completes when list open • Tab/⇧Tab rows • ^C clear • Enter submit • Esc cancel"));
+				hints.push(theme.fg("dim", " Tab completes when list open • Tab/⇧Tab rows • ^C clear • Enter submit • Esc cancel"));
 			} else {
-				const pending = selected.size + (editor.getText().trim() ? 1 : 0);
 				if (pending === 0) {
-					add(theme.fg("warning", " Select at least one answer before submitting."));
+					hints.push(theme.fg("warning", " Select at least one answer before submitting."));
 				}
-				add(theme.fg("dim", " Tab/⇧Tab rows • Ctrl+Space toggle+down • Enter submit • Esc cancel"));
+				hints.push(theme.fg("dim", " Tab/⇧Tab rows • Ctrl+Space toggle+down • Enter submit • Esc cancel"));
 			}
 
-			add(theme.fg("accent", "─".repeat(width)));
+			const lines = renderCappedPopup({
+				width,
+				budget: popupBudget(tui),
+				theme,
+				question,
+				context,
+				customLabelLine: `${customPrefix}${customRow}`,
+				editorLines,
+				options: optionSections,
+				focusedOption: rowIndex - 1 >= choiceItems.length ? choiceItems.length - 1 : rowIndex - 1,
+				submitLine,
+				hints,
+			});
+
 			cachedLines = lines;
 			cachedWidth = width;
+			cachedHeight = height;
 			return lines;
 		}
 
