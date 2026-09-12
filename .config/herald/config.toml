@@ -6,3 +6,18 @@
 #
 # Known tags in use: pi, work_done, aria_dl
 subscribe = ["pi", "work_done", "aria_dl"]
+
+# Cross-machine bus via self-hosted ntfy. Token is read from
+# $XDG_DATA_HOME/herald/ntfy_token (~/.local/share/herald/ntfy_token, chmod 600):
+#   pass show <host>-ntfy-token > ~/.local/share/herald/ntfy_token
+# Without a token the daemon logs an error and stays local-only.
+[ntfy]
+url = "https://ntfy.odri.xyz"
+# desk = "notify-desk"      # machine-to-machine envelope topic
+# phone = "notify-phone"    # human-readable topic the phone app subscribes to
+# presence = "presence"     # cache-less xidle beacons
+# interval_secs = 15        # beacon period
+# stale_secs = 45           # presence older than this is ignored
+# active_idle_ms = 120000   # machine idle below this = "in use"
+# token = "tk_..."          # inline (tests only — never real tokens in dotfiles)
+# token_file = "/path"      # default: ~/.local/share/herald/ntfy_token

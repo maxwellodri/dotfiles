@@ -46,6 +46,7 @@ libnotify
 entr
 acpi
 openssh
+bind #dig (bind-tools was merged into bind)
 eza
 newsboat
 git

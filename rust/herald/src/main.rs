@@ -1,7 +1,10 @@
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+use tokio::io::AsyncBufReadExt;
 
 use chrono::{Local, TimeZone};
 use clap::{Parser, Subcommand};
@@ -223,6 +226,74 @@ struct Config {
     /// Tags this daemon displays/stores. Empty = accept all tagged messages.
     #[serde(default)]
     subscribe: Vec<String>,
+    /// When set, the daemon joins the cross-machine bus (see NtfyConfig).
+    #[serde(default)]
+    ntfy: Option<NtfyConfig>,
+}
+
+/// [ntfy] — self-hosted ntfy server acting as the message bus. Absent = the
+/// daemon stays local-only (no presence, no cross-machine routing).
+#[derive(Debug, Clone, Deserialize)]
+struct NtfyConfig {
+    url: String,
+    /// Bearer token, inline (tests only — don't put real tokens in dotfiles).
+    #[serde(default)]
+    token: Option<String>,
+    /// Token file (default: $XDG_DATA_HOME/herald/ntfy_token, mode 600).
+    /// Fill via `pass show <host>-ntfy-token > ~/.local/share/herald/ntfy_token`.
+    #[serde(default)]
+    token_file: Option<PathBuf>,
+    #[serde(default = "default_desk_topic")]
+    desk: String,
+    #[serde(default = "default_phone_topic")]
+    phone: String,
+    #[serde(default = "default_presence_topic")]
+    presence: String,
+    #[serde(default = "default_interval_secs")]
+    interval_secs: u64,
+    /// Presence entries older than this are stale (3x interval by default).
+    #[serde(default = "default_stale_secs")]
+    stale_secs: u64,
+    /// Machine idle below this counts as "in use".
+    #[serde(default = "default_active_idle_ms")]
+    active_idle_ms: u64,
+}
+
+fn default_desk_topic() -> String {
+    "notify-desk".into()
+}
+fn default_phone_topic() -> String {
+    "notify-phone".into()
+}
+fn default_presence_topic() -> String {
+    "presence".into()
+}
+fn default_interval_secs() -> u64 {
+    15
+}
+fn default_stale_secs() -> u64 {
+    45
+}
+fn default_active_idle_ms() -> u64 {
+    120_000
+}
+
+impl NtfyConfig {
+    /// Inline token, else first line of `token_file` (default
+    /// $XDG_DATA_HOME/herald/ntfy_token). None = bus misconfigured.
+    fn resolve_token(&self) -> Option<String> {
+        if let Some(t) = &self.token {
+            return Some(t.trim().to_string());
+        }
+        let p = self
+            .token_file
+            .clone()
+            .unwrap_or_else(|| data_dir().join("ntfy_token"));
+        fs::read_to_string(p)
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    }
 }
 
 /// A notification is accepted iff it carries >=1 tag and (when `subscribe` is
@@ -252,6 +323,169 @@ fn load_config() -> Config {
             info!("no config.toml; accepting all tagged notifications");
             Config::default()
         }
+    }
+}
+
+// ── Bus (ntfy) ───────────────────────────────────────────────
+
+/// Shared bus state. Every message carries a uuid + originating machine;
+/// daemons skip their own echoes and uuids they've already displayed.
+/// A machine is "active" when its presence beacon (idle ms from xidle) is
+/// fresh and below `active_idle_ms`.
+#[derive(Clone)]
+struct Bus {
+    cfg: NtfyConfig,
+    token: String,
+    machine: String,
+    /// machine -> (idle_ms, received_at)
+    presence: Arc<Mutex<HashMap<String, (u64, Instant)>>>,
+    /// uuids already displayed/published (trim periodically, not LRU-precise)
+    seen: Arc<Mutex<HashSet<String>>>,
+}
+
+impl Bus {
+    fn new(cfg: NtfyConfig, token: String) -> Self {
+        let machine = fs::read_to_string("/etc/hostname")
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| "unknown".into());
+        Self {
+            cfg,
+            token,
+            machine,
+            presence: Arc::new(Mutex::new(HashMap::new())),
+            seen: Arc::new(Mutex::new(HashSet::new())),
+        }
+    }
+
+    fn mark_seen(&self, uuid: &str) -> bool {
+        let mut seen = self.seen.lock().unwrap();
+        if seen.len() > 512 {
+            seen.clear();
+        }
+        seen.insert(uuid.to_string())
+    }
+
+    fn fresh_idle(&self, machine: &str) -> Option<u64> {
+        self.presence
+            .lock()
+            .unwrap()
+            .get(machine)
+            .filter(|(_, at)| at.elapsed() < Duration::from_secs(self.cfg.stale_secs))
+            .map(|(idle, _)| *idle)
+    }
+
+    /// Own idle: fresh beacon value if available, else probe xidle now.
+    async fn my_idle(&self) -> Option<u64> {
+        if let Some(idle) = self.fresh_idle(&self.machine) {
+            return Some(idle);
+        }
+        self.probe_idle().await
+    }
+
+    /// Probe xidle once; refreshes the presence map entry on success.
+    async fn probe_idle(&self) -> Option<u64> {
+        let out = tokio::process::Command::new("xidle").output().await.ok()?;
+        let idle: u64 = String::from_utf8_lossy(&out.stdout).trim().parse().ok()?;
+        self.presence
+            .lock()
+            .unwrap()
+            .insert(self.machine.clone(), (idle, Instant::now()));
+        Some(idle)
+    }
+
+    /// Is any machine (including this one) currently in use?
+    fn any_machine_active(&self) -> bool {
+        let stale = Duration::from_secs(self.cfg.stale_secs);
+        self.presence
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|(_, (idle, at))| at.elapsed() < stale && *idle < self.cfg.active_idle_ms)
+    }
+
+    /// Should this machine ring? Unknown idle fails open (ring).
+    async fn i_am_active(&self) -> bool {
+        match self.my_idle().await {
+            Some(idle) => idle < self.cfg.active_idle_ms,
+            None => true,
+        }
+    }
+
+    /// POST a JSON publish body to the ntfy root endpoint. Best-effort.
+    async fn publish(&self, body: serde_json::Value, cache_off: bool) {
+        let mut cmd = tokio::process::Command::new("curl");
+        cmd.args([
+            "-sf",
+            "--max-time",
+            "10",
+            "-H",
+            &format!("Authorization: Bearer {}", self.token),
+        ]);
+        if cache_off {
+            cmd.args(["-H", "Cache: no"]);
+        }
+        let status = cmd
+            .arg("-d")
+            .arg(body.to_string())
+            .arg(&self.cfg.url)
+            .status()
+            .await;
+        match status {
+            Ok(s) if s.success() => {}
+            Ok(s) => error!(
+                exit = s.code(),
+                topic = body["topic"].as_str().unwrap_or("?"),
+                "ntfy publish failed"
+            ),
+            Err(e) => error!(%e, "curl spawn failed"),
+        }
+    }
+
+    /// Fan out a socket-originated notification: envelope to the desk topic
+    /// (other daemons), human-readable copy to the phone topic when no
+    /// machine is in use.
+    async fn publish_notification(&self, msg: &Message, uuid: &str, phone: bool) {
+        let mut env = serde_json::to_value(msg).unwrap_or_default();
+        env["uuid"] = serde_json::json!(uuid);
+        env["machine"] = serde_json::json!(self.machine);
+        self.publish(
+            serde_json::json!({
+                "topic": self.cfg.desk,
+                "title": "herald",
+                "message": env.to_string(),
+            }),
+            false,
+        )
+        .await;
+        if phone
+            && let Message::Notification {
+                header, body, tags, ..
+            } = msg
+        {
+            self.publish(
+                serde_json::json!({
+                    "topic": self.cfg.phone,
+                    "title": header,
+                    "message": body,
+                    "tags": tags,
+                }),
+                false,
+            )
+            .await;
+        }
+    }
+
+    async fn publish_beacon(&self, idle_ms: u64) {
+        self.publish(
+            serde_json::json!({
+                "topic": self.cfg.presence,
+                "message": format!("{} {idle_ms}", self.machine),
+            }),
+            true,
+        )
+        .await;
     }
 }
 
@@ -516,6 +750,276 @@ fn main() -> io::Result<()> {
     }
 }
 
+// ── Delivery ─────────────────────────────────────────────
+
+fn gen_uuid() -> String {
+    use std::os::unix::fs::FileExt;
+    let mut buf = [0u8; 16];
+    if let Ok(f) = fs::File::open("/dev/urandom")
+        && f.read_exact_at(&mut buf, 0).is_ok()
+    {
+        return buf.iter().map(|b| format!("{b:02x}")).collect();
+    }
+    format!(
+        "{}-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0),
+        std::process::id()
+    )
+}
+
+/// Unified handling for socket- and bus-originated notifications: tag gate,
+/// presence-gated ring, store, then fan out to the bus (socket origin only,
+/// so bus messages can never loop).
+async fn deliver(
+    store: &Arc<Mutex<Store>>,
+    config: &Config,
+    bus: Option<&Bus>,
+    msg: &Message,
+) -> Response {
+    let Message::Notification {
+        header,
+        body,
+        notify,
+        play_sound,
+        store: should_store,
+        ping,
+        tags,
+    } = msg
+    else {
+        unreachable!("deliver called on non-notification")
+    };
+
+    if !accepts(config, tags) {
+        info!(?tags, "skipped notification: no subscribed tag");
+        return Response::Ok {
+            msg: "skipped: no subscribed tag".to_string(),
+        };
+    }
+
+    // Ring only when this machine is the one in use; unknown idle fails open.
+    let i_am_active = match bus {
+        Some(b) => b.i_am_active().await,
+        None => true,
+    };
+
+    let id = if *should_store {
+        let stored = StoredMessage {
+            id: 0,
+            message: msg.clone(),
+            received_at: epoch_now(),
+        };
+        store.lock().unwrap().insert(stored)
+    } else {
+        0
+    };
+
+    info!(
+        id,
+        header,
+        body,
+        notify,
+        play_sound,
+        ping,
+        active = i_am_active,
+        "received notification"
+    );
+
+    let hint_id = if *ping {
+        "ping".to_string()
+    } else {
+        format!("{id}")
+    };
+
+    if *notify {
+        if i_am_active {
+            let header = header.clone();
+            let body = body.clone();
+            tokio::spawn(async move {
+                match tokio::process::Command::new("notify-send")
+                    .arg("--hint")
+                    .arg(format!(
+                        "string:x-canonical-private-synchronous:herald-{hint_id}"
+                    ))
+                    .arg(&header)
+                    .arg(&body)
+                    .status()
+                    .await
+                {
+                    Ok(s) => info!(header, exit = s.code(), "notify-send"),
+                    Err(e) => error!(%e, "notify-send failed"),
+                }
+            });
+        } else {
+            info!(id, "notify suppressed: machine not in use");
+        }
+    }
+    if *play_sound && i_am_active {
+        tokio::spawn(async move {
+            match tokio::process::Command::new("sh")
+                .arg("-c")
+                .arg(
+                    "ffmpeg -f lavfi -i 'sine=frequency=400:duration=0.2' \
+                             -f lavfi -i 'sine=frequency=800:duration=0.2' \
+                             -f lavfi -i 'sine=frequency=400:duration=0.2' \
+                             -f lavfi -i 'sine=frequency=800:duration=0.2' \
+                             -f lavfi -i 'sine=frequency=400:duration=0.2' \
+                             -f lavfi -i 'sine=frequency=800:duration=0.2' \
+                             -f lavfi -i 'sine=frequency=400:duration=0.2' \
+                             -f lavfi -i 'sine=frequency=800:duration=0.2' \
+                             -f lavfi -i 'sine=frequency=400:duration=0.2' \
+                             -filter_complex '[0:a][1:a][2:a][3:a][4:a][5:a][6:a][7:a][8:a]concat=n=9:v=0:a=1[out]' \
+                             -map '[out]' -f s16le -ar 44100 -ac 1 - 2>/dev/null \
+                             | paplay --raw --rate=44100 --channels=1 --format=s16le --volume=131070"
+                )
+                .status()
+                .await
+            {
+                Ok(s) => info!(exit = s.code(), "paplay"),
+                Err(e) => error!(%e, "paplay failed"),
+            }
+        });
+    }
+
+    // Fan out to the bus (socket origin only). Phone copy goes out only when
+    // no machine is in use (self included, via own beacon).
+    let mut routed = String::new();
+    if let Some(bus) = bus {
+        let uuid = gen_uuid();
+        bus.mark_seen(&uuid);
+        let phone = !bus.any_machine_active();
+        bus.publish_notification(msg, &uuid, phone).await;
+        routed = format!(" -> bus {uuid}{}", if phone { " +phone" } else { "" });
+    }
+
+    Response::Ok {
+        msg: format!("notification {id}{routed}"),
+    }
+}
+
+/// Periodically publish own idle (xidle) as a cache-less presence beacon.
+async fn beacon_task(bus: Bus) {
+    let mut warned = false;
+    loop {
+        match bus.probe_idle().await {
+            Some(idle) => bus.publish_beacon(idle).await,
+            None => {
+                if !warned {
+                    error!("xidle unavailable; no self presence (display fails open)");
+                    warned = true;
+                }
+            }
+        }
+        tokio::time::sleep(Duration::from_secs(bus.cfg.interval_secs)).await;
+    }
+}
+
+/// Subscribe to the desk + presence topics; NDJSON stream, reconnect with
+/// since=<last id> so restarts bridge the gap without replaying history.
+async fn subscribe_task(bus: Bus, store: Arc<Mutex<Store>>, config: Arc<Config>) {
+    let last_id_path = data_dir().join("ntfy_last_id");
+    let mut since: Option<String> = fs::read_to_string(&last_id_path)
+        .ok()
+        .map(|s| s.trim().to_string());
+    loop {
+        let mut url = format!("{}/{},{}/json", bus.cfg.url, bus.cfg.desk, bus.cfg.presence);
+        if let Some(id) = &since {
+            url.push_str(&format!("?since={id}"));
+        }
+
+        let child = tokio::process::Command::new("curl")
+            .args([
+                "-sN",
+                "-H",
+                &format!("Authorization: Bearer {}", bus.token),
+                &url,
+            ])
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn();
+
+        match child {
+            Ok(mut child) => {
+                if let Some(out) = child.stdout.take() {
+                    let mut lines = tokio::io::BufReader::new(out).lines();
+                    while let Ok(Some(line)) = lines.next_line().await {
+                        let line = line.trim().to_string();
+                        if line.is_empty() {
+                            continue;
+                        }
+                        if let Err(e) = handle_stream_line(
+                            &bus,
+                            &store,
+                            &config,
+                            &line,
+                            &last_id_path,
+                            &mut since,
+                        )
+                        .await
+                        {
+                            error!(%e, raw = %line, "bad stream line");
+                        }
+                    }
+                }
+                info!("ntfy stream ended; reconnecting");
+            }
+            Err(e) => error!(%e, "curl spawn failed"),
+        }
+        tokio::time::sleep(Duration::from_secs(2)).await;
+    }
+}
+
+async fn handle_stream_line(
+    bus: &Bus,
+    store: &Arc<Mutex<Store>>,
+    config: &Config,
+    line: &str,
+    last_id_path: &std::path::Path,
+    since: &mut Option<String>,
+) -> Result<(), serde_json::Error> {
+    let v: serde_json::Value = serde_json::from_str(line)?;
+    if let Some(id) = v["id"].as_str() {
+        *since = Some(id.to_string());
+        let _ = fs::write(last_id_path, id);
+    }
+    if v["event"].as_str() != Some("message") {
+        return Ok(());
+    }
+    match v["topic"].as_str().unwrap_or_default() {
+        t if t == bus.cfg.presence => {
+            // "machine idle_ms"
+            let mut it = v["message"].as_str().unwrap_or_default().split_whitespace();
+            if let (Some(m), Some(idle)) =
+                (it.next(), it.next().and_then(|x| x.parse::<u64>().ok()))
+            {
+                bus.presence
+                    .lock()
+                    .unwrap()
+                    .insert(m.to_string(), (idle, Instant::now()));
+                info!(machine = m, idle, "presence");
+            }
+        }
+        t if t == bus.cfg.desk => {
+            let env: serde_json::Value =
+                serde_json::from_str(v["message"].as_str().unwrap_or_default())?;
+            let uuid = env["uuid"].as_str().unwrap_or_default().to_string();
+            let machine = env["machine"].as_str().unwrap_or_default().to_string();
+            if machine == bus.machine {
+                return Ok(()); // own echo
+            }
+            if uuid.is_empty() || !bus.mark_seen(&uuid) {
+                return Ok(()); // duplicate
+            }
+            let notif: Message = serde_json::from_value(env)?;
+            deliver(store, config, Some(bus), &notif).await;
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 // ── Daemon (async) ───────────────────────────────────────────
 
 async fn run_daemon() -> io::Result<()> {
@@ -535,6 +1039,18 @@ async fn run_daemon() -> io::Result<()> {
 
     let store = Arc::new(Mutex::new(Store::load()));
     let config = Arc::new(load_config());
+    let bus = config.ntfy.clone().and_then(|c| match c.resolve_token() {
+        Some(token) => Some(Bus::new(c, token)),
+        None => {
+            error!("[ntfy] configured but no token (inline `token` or token file); bus disabled");
+            None
+        }
+    });
+    if let Some(b) = &bus {
+        tokio::spawn(beacon_task(b.clone()));
+        tokio::spawn(subscribe_task(b.clone(), store.clone(), config.clone()));
+        info!(machine = %b.machine, "bus enabled");
+    }
 
     loop {
         tokio::select! {
@@ -548,8 +1064,9 @@ async fn run_daemon() -> io::Result<()> {
                 };
                 let store = store.clone();
                 let config = config.clone();
+                let bus = bus.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = handle_client(stream, store, config).await {
+                    if let Err(e) = handle_client(stream, store, config, bus).await {
                         error!(%e, "client error");
                     }
                 });
@@ -562,6 +1079,7 @@ async fn handle_client(
     stream: tokio::net::UnixStream,
     store: Arc<Mutex<Store>>,
     config: Arc<Config>,
+    bus: Option<Bus>,
 ) -> io::Result<()> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -589,94 +1107,7 @@ async fn handle_client(
             // TODO: graceful shutdown via tokio::sync::Notify or similar
             std::process::exit(0);
         }
-        Message::Notification {
-            header,
-            body,
-            notify,
-            play_sound,
-            store: should_store,
-            ping,
-            tags,
-        } => {
-            if !accepts(&config, tags) {
-                info!(?tags, "skipped notification: no subscribed tag");
-                Response::Ok {
-                    msg: "skipped: no subscribed tag".to_string(),
-                }
-            } else {
-                let id = if *should_store {
-                    let stored = StoredMessage {
-                        id: 0,
-                        message: msg.clone(),
-                        received_at: epoch_now(),
-                    };
-                    store.lock().unwrap().insert(stored)
-                } else {
-                    0
-                };
-
-                info!(
-                    id,
-                    header, body, notify, play_sound, ping, "received notification"
-                );
-
-                let hint_id = if *ping {
-                    "ping".to_string()
-                } else {
-                    format!("{id}")
-                };
-
-                if *notify {
-                    let header = header.clone();
-                    let body = body.clone();
-                    tokio::spawn(async move {
-                        match tokio::process::Command::new("notify-send")
-                            .arg("--hint")
-                            .arg(format!(
-                                "string:x-canonical-private-synchronous:herald-{hint_id}"
-                            ))
-                            .arg(&header)
-                            .arg(&body)
-                            .status()
-                            .await
-                        {
-                            Ok(s) => info!(header, exit = s.code(), "notify-send"),
-                            Err(e) => error!(%e, "notify-send failed"),
-                        }
-                    });
-                }
-                if *play_sound {
-                    tokio::spawn(async move {
-                        match tokio::process::Command::new("sh")
-                        .arg("-c")
-                        .arg(
-                            "ffmpeg -f lavfi -i 'sine=frequency=400:duration=0.2' \
-                             -f lavfi -i 'sine=frequency=800:duration=0.2' \
-                             -f lavfi -i 'sine=frequency=400:duration=0.2' \
-                             -f lavfi -i 'sine=frequency=800:duration=0.2' \
-                             -f lavfi -i 'sine=frequency=400:duration=0.2' \
-                             -f lavfi -i 'sine=frequency=800:duration=0.2' \
-                             -f lavfi -i 'sine=frequency=400:duration=0.2' \
-                             -f lavfi -i 'sine=frequency=800:duration=0.2' \
-                             -f lavfi -i 'sine=frequency=400:duration=0.2' \
-                             -filter_complex '[0:a][1:a][2:a][3:a][4:a][5:a][6:a][7:a][8:a]concat=n=9:v=0:a=1[out]' \
-                             -map '[out]' -f s16le -ar 44100 -ac 1 - 2>/dev/null \
-                             | paplay --raw --rate=44100 --channels=1 --format=s16le --volume=131070"
-                        )
-                        .status()
-                        .await
-                    {
-                        Ok(s) => info!(exit = s.code(), "paplay"),
-                        Err(e) => error!(%e, "paplay failed"),
-                    }
-                    });
-                }
-
-                Response::Ok {
-                    msg: format!("notification {id} stored"),
-                }
-            }
-        }
+        Message::Notification { .. } => deliver(&store, &config, bus.as_ref(), &msg).await,
         Message::Remove { id } => {
             if let Some(id) = id {
                 if store.lock().unwrap().remove(*id) {
