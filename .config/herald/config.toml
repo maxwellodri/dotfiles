@@ -1,11 +1,17 @@
-# herald daemon config. Read once at daemon start.
+# herald daemon config. Read once at daemon start; ${VAR} references expand
+# from the daemon's environment at startup (e.g. $dotfile_tag from .zprofile).
 #
 # Notifications must carry >= 1 tag (`herald message --tag ...`); messages whose
 # tags don't intersect `subscribe` are skipped (logged, never stored or shown).
 # Empty list = accept every tagged message.
 #
+# machine_tag is implicitly added to every locally-originated notification, so
+# local messages always pass subscribe; remote machines can target this box
+# explicitly with the same tag.
+#
 # Known tags in use: pi, work_done, aria_dl
-subscribe = ["pi", "work_done", "aria_dl"]
+machine_tag = "${dotfile_tag}"
+subscribe = ["${dotfile_tag}", "pi", "work_done", "aria_dl"]
 
 # Cross-machine bus via self-hosted ntfy. Token is read from
 # $XDG_DATA_HOME/herald/ntfy_token (~/.local/share/herald/ntfy_token, chmod 600):

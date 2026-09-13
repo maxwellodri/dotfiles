@@ -226,6 +226,11 @@ struct Config {
     /// Tags this daemon displays/stores. Empty = accept all tagged messages.
     #[serde(default)]
     subscribe: Vec<String>,
+    /// Implicitly added to every locally-originated notification (after ${VAR}
+    /// expansion), so local messages always pass `subscribe`; remote machines
+    /// can target this box explicitly with the same tag.
+    #[serde(default)]
+    machine_tag: Option<String>,
     /// When set, the daemon joins the cross-machine bus (see NtfyConfig).
     #[serde(default)]
     ntfy: Option<NtfyConfig>,
@@ -303,6 +308,25 @@ fn accepts(config: &Config, tags: &[String]) -> bool {
         && (config.subscribe.is_empty() || tags.iter().any(|t| config.subscribe.contains(t)))
 }
 
+/// Expand ${VAR} from the daemon's environment. Unknown vars -> empty string.
+fn expand_env(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut rest = s;
+    while let Some(start) = rest.find("${") {
+        out.push_str(&rest[..start]);
+        rest = &rest[start + 2..];
+        match rest.find('}') {
+            Some(end) => {
+                out.push_str(&std::env::var(&rest[..end]).unwrap_or_default());
+                rest = &rest[end + 1..];
+            }
+            None => out.push_str("${"),
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
 fn load_config() -> Config {
     let path = directories::ProjectDirs::from("", "", "herald")
         .expect("failed to determine config directory")
@@ -310,8 +334,39 @@ fn load_config() -> Config {
         .join("config.toml");
     match fs::read_to_string(&path) {
         Ok(s) => match toml::from_str::<Config>(&s) {
-            Ok(c) => {
-                info!(path = %path.display(), subscribe = ?c.subscribe, "loaded config");
+            Ok(mut c) => {
+                c.machine_tag = c
+                    .machine_tag
+                    .take()
+                    .map(|t| expand_env(&t))
+                    .filter(|t| !t.is_empty());
+                c.subscribe = c
+                    .subscribe
+                    .iter()
+                    .map(|t| expand_env(t))
+                    .filter(|t| !t.is_empty())
+                    .collect();
+                if let Some(n) = &mut c.ntfy {
+                    n.url = expand_env(&n.url);
+                    n.desk = expand_env(&n.desk);
+                    n.phone = expand_env(&n.phone);
+                    n.presence = expand_env(&n.presence);
+                    n.token = n
+                        .token
+                        .take()
+                        .map(|t| expand_env(&t))
+                        .filter(|t| !t.is_empty());
+                    n.token_file = n
+                        .token_file
+                        .take()
+                        .map(|p| PathBuf::from(expand_env(&p.to_string_lossy())));
+                }
+                info!(
+                    path = %path.display(),
+                    subscribe = ?c.subscribe,
+                    machine_tag = ?c.machine_tag,
+                    "loaded config"
+                );
                 c
             }
             Err(e) => {
@@ -1092,13 +1147,22 @@ async fn handle_client(
         return Ok(());
     }
 
-    let msg: Message = match serde_json::from_str(trimmed) {
+    let mut msg: Message = match serde_json::from_str(trimmed) {
         Ok(m) => m,
         Err(e) => {
             error!(%e, raw = trimmed, "failed to deserialize message");
             return Ok(());
         }
     };
+
+    // Locally-originated notifications implicitly carry this machine's tag,
+    // so they always pass our own `subscribe` filter. Bus messages do not.
+    if let Some(mt) = &config.machine_tag
+        && let Message::Notification { tags, .. } = &mut msg
+        && !tags.contains(mt)
+    {
+        tags.push(mt.clone());
+    }
 
     let resp = match &msg {
         Message::Kill { sender_pid } => {
