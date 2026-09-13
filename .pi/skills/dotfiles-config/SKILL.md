@@ -59,10 +59,10 @@ Editing the symlinked location edits the repo file, but it's clearer to work dir
 **After completing edits to any `.ts` file in this repo** (e.g. `pi/extensions/`), run the type check:
 
 ```sh
-cd pi/extensions && tsc -p .
+nix run "$dotfiles/pi/flake"#typecheck
 ```
 
-`pi/extensions/tsconfig.json` maps the `@earendil-works/*` / `typebox` bare imports to the npm-installed pi package so the check resolves; pi itself ignores the tsconfig (extensions load via jiti). `tsc` comes from the pacman `typescript` package.
+It type-checks `$PI_CODING_AGENT_DIR/extensions` (default: `$dotfiles/pi/extensions`) against the nix-built pi package — the flake generates the `@earendil-works/*` / `typebox` path mappings into the nix store (`pi/extensions/tsconfig.json` holds only the strictness settings). `helper_scripts/install_pi.sh` runs it as a post-install check too. `node`/`npm`/`tsc` all come from the flake (`nix shell "$dotfiles/pi/flake"#toolchain`); no host nodejs/typescript needed.
 
 ### 4. Adding New Configs
 

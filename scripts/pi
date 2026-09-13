@@ -1,34 +1,19 @@
 #!/usr/bin/env bash
 # Pi launcher wrapper.
-#  - Points Pi at the dotfiles-managed config dir (no symlinks needed).
-#  - Keeps runtime junk (sessions, packages, trust, logs) out of the repo.
-#  - Paints a gruvbox-dark canvas for pi's duration: OSC 11 sets the pane
-#    default bg, which pi clears/fills its inter-panel gaps with; OSC 111
-#    restores the original on exit. Per-pane in tmux (verified), so other
-#    panes and the wezterm window are never affected.
-#  - Reads the z.ai API key from pass; the value never touches disk/history.
-#
-# Subcommands (update/list/install/...) and --help/--version are exec'd straight
-# through (they need no key/session/canvas and must stay argv[1]); the normal
-# coding-agent invocation is run as a child so the EXIT trap can reset the bg.
 set -euo pipefail
 
 : "${dotfiles:?pi wrapper: \$dotfiles is not set (source your shell rc).}"
 
 export PI_CODING_AGENT_DIR="$dotfiles/pi"
 export PI_CODING_AGENT_SESSION_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi/sessions"
-mkdir -p "$PI_CODING_AGENT_SESSION_DIR"
+#Ensure that private repo has symlinked pi sessions
+if [ ! -L "$PI_CODING_AGENT_SESSION_DIR" ] || [ ! -d "$PI_CODING_AGENT_SESSION_DIR" ]; then
+	echo "pi wrapper: $PI_CODING_AGENT_SESSION_DIR is not a symlink into ~/source/private/pi/\$dotfile_tag" >&2
+	echo "run ~/source/private/install.sh to set it up (or symlink it manually)" >&2
+	exit 1
+fi
 
-# Resource limits so pi agents can't freeze the box. Each rustc process is
-# memory-heavy (~1-2GB); CARGO_BUILD_JOBS bounds the parallel RSS footprint,
-# and nice + ionice deprioritize the whole agent subtree. Both are kernel
-# attributes inherited on fork(), so every bash tool subprocess and every
-# cargo it runs inherits the low CPU/disk priority. CARGO_BUILD_JOBS is an
-# exported env var, likewise inherited by the entire subtree.
-# Force parallelism by host (overrides the ambient CARGO_BUILD_JOBS from
-# .zshrc_extra, which is tuned for interactive cargo). pi agents run in the
-# background, so we clamp harder to keep the box responsive.
-# hackerman is the heavy workstation so keep more headroom.
+#Cargo / niceness limits 🥺
 case "${dotfile_tag:-}" in
   hackerman) CARGO_BUILD_JOBS=2 ;;
   *)         CARGO_BUILD_JOBS=4 ;;
@@ -36,44 +21,29 @@ esac
 export CARGO_BUILD_JOBS
 NICE=(nice -n 19 ionice -c 3)
 
-# Locate the real pi binary. The pi.dev install.sh's npm-prefix layout has
-# moved between machines/generations: older installs symlink ~/.local/bin/pi,
-# newer ones put the whole prefix at ~/.local/share/npm (bin at
-# ~/.local/share/npm/bin/pi). Probe known candidates, first hit wins; PI_BIN
-# still overrides for exotic cases. Deliberately NO `command -v pi` fallback:
-# this wrapper is itself on PATH as ~/bin/pi, so that would recurse forever.
 if [ -z "${PI_BIN:-}" ]; then
-	for candidate in "$HOME/.local/bin/pi" "$HOME/.local/share/npm/bin/pi"; do
-		if [ -x "$candidate" ]; then
-			PI_BIN="$candidate"
-			break
-		fi
-	done
+	PI_BIN="$dotfiles/pi/flake/result/bin/pi"
 fi
-: "${PI_BIN:?pi wrapper: no pi binary found (tried ~/.local/bin/pi and ~/.local/share/npm/bin/pi); install pi or set PI_BIN}"
+if [ ! -x "$PI_BIN" ]; then
+	echo "pi not installed — run $(realpath -m "$dotfiles/helper_scripts/install_pi.sh") to install" >&2
+	exit 1
+fi
 
-# pi's subcommands and the help/version flags must be argv[1] to be recognized;
-# prepending --session-dir (or anything else) demotes them into agent prompts
-# (e.g. 'pi list' would launch the AI with "list" as the prompt). They also need
-# no API key, session dir, or themed canvas, so exec them through untouched.
-# PI_CODING_AGENT_DIR is still exported above so list/config/update manage the
-# dotfiles-managed extensions rather than the default location.
 case "${1:-}" in
-	install|remove|uninstall|update|list|config|--help|-h|--version|-v)
+	update)
+		installer="$(realpath -m "$dotfiles/helper_scripts/install_pi.sh")"
+		echo "pi is nix-managed — updating via $installer"
+		exec sh "$installer" ;;
+	install|remove|uninstall|list|config|--help|-h|--version|-v)
 		exec "$PI_BIN" "$@" ;;
 esac
 
-# API key from pass. Evaluated here only; passed to pi via its env.
 if ! ZAI_API_KEY="$(pass zai_pi_api_key)"; then
 	echo "pi wrapper: failed to read 'zai_pi_api_key' from pass" >&2
 	exit 1
 fi
 
-# Gruvbox canvas for pi's duration. Clear the screen before (so the bg
-# repaint is clean, no leftover lines from the shell) and after (so the
-# restored bg doesn't show pi's exit artifacts / scrollback streaks).
-# PI_NO_CANVAS=1 opts out (for one-shot callers like scripts/summarize that
-# must not clear/recolour the user's terminal).
+# Gruvbox canvas for to match theme.
 if [ -t 1 ] && [ -z "${PI_NO_CANVAS:-}" ]; then
 	clear
 	# shellcheck disable=SC1003

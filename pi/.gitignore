@@ -19,3 +19,6 @@ mcp-onboarding.json
 
 # Vendored extension deps (reinstalled per-machine via `npm install --omit=dev`).
 node_modules/
+
+# nix build out-link created by helper_scripts/install_pi.sh (per machine).
+flake/result

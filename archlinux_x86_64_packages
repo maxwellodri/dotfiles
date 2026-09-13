@@ -115,4 +115,5 @@ inotify-tools
 keychain
 autossh
 nix
+sops
 #pass-secret-service-bin #AUR: org.freedesktop.secrets provider backed by pass (replaces gnome-keyring)
