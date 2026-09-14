@@ -201,3 +201,5 @@ alias untar='tar -zxvf'
 
 command -v ytop > /dev/null && alias htop="ytop -asm -c monokai"
 
+[ -e "$HOME/.config/sh/shrc.private" ] && source "$HOME/.config/sh/shrc.private"
+

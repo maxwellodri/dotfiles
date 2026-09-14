@@ -12,7 +12,7 @@ dotfiles=.config/dotfiles/
 qz=.config/qz/
 zathura=.config/zathura/zathurarc
 terminator=.config/terminator/config
-sh=.config/sh/
+sh=".config/sh/shrc .config/sh/shutil.sh"
 pam=.pam_environment
 picom=.config/picom/picom.conf
 dunst=.config/dunst/dunstrc
@@ -90,6 +90,14 @@ case $1 in
 
     echo "$tag" > "$PWD/.dotfile_tag"
 
+# Old layout symlinked the whole ~/.config/sh dir into this repo; replace it
+# with a real dir so file-level links (shrc, shutil.sh) and machine-local
+# files (shrc.private, linked from private's installer) can coexist.
+if [ -L "$HOME/.config/sh" ]; then
+    rm "$HOME/.config/sh"
+fi
+mkdir -p "$HOME/.config/sh"
+
 # Iterate through files and remove trailing slash if it's a directory
 for file in $files; do
     if [ -d "$file" ] && [[ "$file" == */ ]]; then
@@ -131,9 +139,6 @@ for file in $files; do
                                 chmod 600 "$src"
             ;;
         "$i3statusconfig")      src="$dir/$file.$tag"
-            ;;
-
-        "$sh")                  src="$dir/.config/sh/shrc"
             ;;
 
         "$zathura")             src="$dir/.config/zathura/zathurarc"
