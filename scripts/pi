@@ -41,9 +41,13 @@ case "${1:-}" in
 		exec "$PI_BIN" "$@" ;;
 esac
 
-if ! ZAI_API_KEY="$(pass zai_pi_api_key)"; then
-	echo "pi wrapper: failed to read 'zai_pi_api_key' from pass" >&2
-	exit 1
+# Cached key skips the gpg round-trip for frequent respawns (nvim's pi.lua
+# oneshot children export this after the first pass read).
+if [ -z "${ZAI_API_KEY:-}" ]; then
+	if ! ZAI_API_KEY="$(pass zai_pi_api_key)"; then
+		echo "pi wrapper: failed to read 'zai_pi_api_key' from pass" >&2
+		exit 1
+	fi
 fi
 
 # Gruvbox canvas for to match theme.
