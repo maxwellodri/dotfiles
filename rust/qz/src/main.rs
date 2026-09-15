@@ -1,12 +1,27 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use indexmap::IndexMap;
 use regex::Regex;
 use serde::Deserialize;
+use std::collections::BTreeMap;
 use std::env;
-use std::io::{BufRead, Write};
+use std::io::{BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+
+// tmux commands: exec directly when qz runs inline (stdout is a tty); print
+// them when captured by the zsh widget (qz_switch puts output in BUFFER)
+fn run_or_print(commands: &[String]) {
+    if std::io::stdout().is_terminal() {
+        for cmd in commands {
+            Command::new("sh").arg("-c").arg(cmd).status().ok();
+        }
+    } else {
+        for cmd in commands {
+            println!("{}", cmd);
+        }
+    }
+}
 
 #[derive(Parser)]
 #[command(
@@ -39,6 +54,11 @@ enum Commands {
         tmux: bool,
         #[arg(long, help = "Exclude tmux projects (requires --clean)")]
         notmux: bool,
+    },
+    /// Rebuild a saved session from the last tmux-resurrect snapshot
+    Resurrect {
+        #[arg(help = "Session name; omit for picker")]
+        name: Option<String>,
     },
 }
 
@@ -239,6 +259,238 @@ fn setup_window_panes(session: &str, window: &str, win: &Window, path: &Path) {
     }
 }
 
+struct ResPane {
+    active: bool,
+    dir: String,
+    command: Option<String>,
+}
+
+struct ResWindow {
+    name: String,
+    active: bool,
+    layout: String,
+    panes: Vec<ResPane>,
+}
+
+fn resurrect_dir() -> PathBuf {
+    dirs::data_dir()
+        .unwrap_or_else(|| PathBuf::from("$HOME/.local/share"))
+        .join("tmux/resurrect")
+}
+
+// tmux-resurrect save format (tab separated):
+//   pane <session> <widx> <wactive> <wflags> <pidx> <title> <dir> <pactive> <curcmd> :<full_command>
+//   window <session> <widx> :<name> <wactive> <wflags> <layout> <automatic_rename>
+// full_command is empty for a bare shell; dir has spaces escaped as "\ ".
+fn parse_resurrect(path: &Path) -> Result<IndexMap<String, Vec<ResWindow>>> {
+    let content = std::fs::read_to_string(path)
+        .with_context(|| format!("Reading resurrect save {}", path.display()))?;
+    let mut windows: BTreeMap<(String, usize), (String, bool, String)> = BTreeMap::new();
+    let mut panes: BTreeMap<(String, usize), BTreeMap<usize, ResPane>> = BTreeMap::new();
+
+    for line in content.lines() {
+        let f: Vec<&str> = line.split('\t').collect();
+        match f.first().copied() {
+            Some("window") if f.len() >= 7 => {
+                let name = f[3].strip_prefix(':').unwrap_or(f[3]).to_string();
+                windows.insert(
+                    (f[1].to_string(), f[2].parse().unwrap_or(0)),
+                    (name, f[4] == "1", f[6].to_string()),
+                );
+            }
+            Some("pane") if f.len() >= 11 => {
+                let pane = ResPane {
+                    active: f[8] == "1",
+                    dir: f[7].strip_prefix(':').unwrap_or(f[7]).replace("\\ ", " "),
+                    command: f[10]
+                        .strip_prefix(':')
+                        .filter(|s| !s.is_empty())
+                        .map(String::from),
+                };
+                panes
+                    .entry((f[1].to_string(), f[2].parse().unwrap_or(0)))
+                    .or_default()
+                    .insert(f[5].parse().unwrap_or(0), pane);
+            }
+            _ => {}
+        }
+    }
+
+    let mut sessions: IndexMap<String, Vec<ResWindow>> = IndexMap::new();
+    for ((sess, widx), (name, active, layout)) in windows {
+        let win_panes: Vec<ResPane> = panes
+            .remove(&(sess.clone(), widx))
+            .unwrap_or_default()
+            .into_values()
+            .collect();
+        sessions.entry(sess).or_default().push(ResWindow {
+            name,
+            active,
+            layout,
+            panes: win_panes,
+        });
+    }
+    Ok(sessions)
+}
+
+fn resurrect_session(name: &str, wins: &[ResWindow]) -> Result<()> {
+    let home = env::var("HOME").unwrap_or_else(|_| ".".into());
+    let first_dir = wins[0]
+        .panes
+        .first()
+        .map(|p| p.dir.clone())
+        .unwrap_or_else(|| home.clone());
+
+    Command::new("tmux")
+        .args([
+            "new-session",
+            "-d",
+            "-s",
+            name,
+            "-n",
+            &wins[0].name,
+            "-c",
+            &first_dir,
+        ])
+        .status()
+        .context("Creating tmux session")?;
+
+    for w in &wins[1..] {
+        let dir = w.panes.first().map(|p| p.dir.as_str()).unwrap_or(&home);
+        Command::new("tmux")
+            .args(["new-window", "-t", name, "-n", &w.name, "-c", dir])
+            .status()
+            .ok();
+    }
+
+    for (wi, w) in wins.iter().enumerate() {
+        let target = format!("{}:{}", name, wi);
+        for p in &w.panes[1..] {
+            Command::new("tmux")
+                .args(["split-window", "-t", &target, "-c", &p.dir])
+                .status()
+                .ok();
+        }
+        if !w.layout.is_empty() {
+            Command::new("tmux")
+                .args(["select-layout", "-t", &target, &w.layout])
+                .status()
+                .ok();
+        }
+        for (pi, p) in w.panes.iter().enumerate() {
+            let pane_target = format!("{}.{}", target, pi);
+            if let Some(cmd) = &p.command {
+                Command::new("tmux")
+                    .args(["send-keys", "-t", &pane_target, cmd, "C-m"])
+                    .status()
+                    .ok();
+            }
+            if p.active {
+                Command::new("tmux")
+                    .args(["select-pane", "-t", &pane_target])
+                    .status()
+                    .ok();
+            }
+        }
+    }
+
+    if let Some((ai, _)) = wins.iter().enumerate().find(|(_, w)| w.active) {
+        Command::new("tmux")
+            .args(["select-window", "-t", &format!("{}:{}", name, ai)])
+            .status()
+            .ok();
+    }
+    Ok(())
+}
+
+fn cmd_resurrect(gui: bool, name: Option<String>) -> Result<()> {
+    // per-session snapshots archived by _tmux_resurrect_save (resurrect's
+    // `last` only holds live sessions, so dead ones vanish from it)
+    let sdir = resurrect_dir().join("sessions");
+    let snap_path = |name: &str| sdir.join(format!("{}.txt", name.replace('/', "_")));
+    if !sdir.is_dir() {
+        bail!(
+            "No resurrect snapshots at {} — trigger a save first (any pane/window change)",
+            sdir.display()
+        );
+    }
+
+    let selected = match name {
+        Some(n) => {
+            if !snap_path(&n).exists() {
+                bail!("No snapshot for session '{}'", n);
+            }
+            n
+        }
+        None => {
+            let mut names: Vec<String> = std::fs::read_dir(&sdir)
+                .with_context(|| format!("Reading {}", sdir.display()))?
+                .filter_map(|e| e.ok())
+                .filter_map(|e| {
+                    let p = e.path();
+                    if p.extension().is_some_and(|x| x == "txt") {
+                        p.file_stem().map(|s| s.to_string_lossy().into_owned())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            names.sort();
+            if names.is_empty() {
+                bail!("No snapshots in {}", sdir.display());
+            }
+            let labels: Vec<(String, String)> = names
+                .into_iter()
+                .map(|s| {
+                    let label = if tmux_session_exists(&s) {
+                        format!("{} 🖥👻", s)
+                    } else {
+                        s.clone()
+                    };
+                    (label, s)
+                })
+                .collect();
+            let input = labels
+                .iter()
+                .map(|(l, _)| l.as_str())
+                .collect::<Vec<_>>()
+                .join("\n");
+            let mut args: Vec<&str> = vec!["--no-sort", "--border=rounded"];
+            args.extend(FZF_COLORS);
+            args.extend(FZF_BINDS);
+            let picked = if gui {
+                run_dmenu(&input, "Resurrect")
+            } else {
+                run_fzf(&input, &args)
+            };
+            match picked.as_deref().and_then(|l| {
+                labels
+                    .iter()
+                    .find(|(label, _)| label == l)
+                    .map(|(_, s)| s.clone())
+            }) {
+                Some(s) => s,
+                None => return Ok(()),
+            }
+        }
+    };
+
+    if !tmux_session_exists(&selected) {
+        let sessions = parse_resurrect(&snap_path(&selected))?;
+        // snapshot file is sanitized; the session key inside is the real name
+        let (name, wins) = sessions
+            .iter()
+            .next()
+            .with_context(|| format!("Snapshot for '{}' has no sessions", selected))?;
+        if wins.is_empty() {
+            bail!("Snapshot for '{}' has no windows", selected);
+        }
+        resurrect_session(name, wins)?;
+    }
+    run_or_print(&[format!("tmux attach-session -t '{}'", selected)]);
+    Ok(())
+}
+
 fn is_text_file(path: &Path) -> bool {
     std::fs::File::open(path)
         .map(|mut f| {
@@ -412,15 +664,13 @@ fn cmd_switch(gui: bool) -> Result<()> {
                     }
                 }
                 Action::Eval(commands) => {
-                    for cmd in commands {
-                        println!("{}", cmd);
-                    }
+                    run_or_print(commands);
                 }
                 Action::TmuxCreateAndAttach { name } => {
                     if let Some(project) = config.projects.get(name) {
                         tmux_create_session(name, project)?;
                     }
-                    println!("tmux attach-session -t '{}'", name);
+                    run_or_print(&[format!("tmux attach-session -t '{}'", name)]);
                 }
                 Action::NewSession => {
                     let name_input = if gui {
@@ -442,7 +692,7 @@ fn cmd_switch(gui: bool) -> Result<()> {
                     if let Some(name) = name_input {
                         let name: String = name.trim().to_string();
                         if !name.is_empty() {
-                            println!("tmux new-session -s '{}'", name);
+                            run_or_print(&[format!("tmux new-session -s '{}'", name)]);
                         }
                     }
                 }
@@ -676,6 +926,7 @@ fn main() -> Result<()> {
             tmux,
             notmux,
         }) => cmd_list(clean, tmux, notmux)?,
+        Some(Commands::Resurrect { name }) => cmd_resurrect(cli.gui, name)?,
         None => {
             Cli::parse_from(["qz", "--help"]);
         }

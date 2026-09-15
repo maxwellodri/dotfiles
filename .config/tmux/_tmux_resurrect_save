@@ -1,0 +1,22 @@
+#!/bin/sh
+# Serialize tmux-resurrect saves.
+#
+# The autosave hooks (tmux.conf) fire several save.sh instances in quick
+# succession on structural bursts (new/split/kill), and resurrect's save is
+# not concurrency-safe: same-second saves share a timestamped filename, and
+# the dedup branch (files_differ -> rm) can unlink a file out from under
+# `last`, leaving it dangling ("No resurrect save" in qz resurrect).
+# flock queues concurrent callers; the last save in a burst captures the
+# final state. continuum is pointed here via @resurrect-save-script-path.
+#
+# `last` only holds live sessions (a dead one is gone from the next save),
+# so each save also archives a per-session slice under sessions/: dead
+# sessions stay resurrectable. awk's ">" truncates each file once per run
+# (live sessions overwrite, dead ones keep their last snapshot); qz
+# resurrect reads these.
+dir="${XDG_DATA_HOME:-$HOME/.local/share}/tmux/resurrect"
+mkdir -p "$dir/sessions"
+exec 9>"$dir/.save.lock"
+flock -w 10 9 || exit 0
+"$HOME/.config/tmux/plugins/resurrect/scripts/save.sh" quiet
+awk -F'\t' -v d="$dir/sessions" '$1 == "pane" || $1 == "window" { n = $2; gsub("/", "_", n); print > (d "/" n ".txt") }' "$dir/last"
