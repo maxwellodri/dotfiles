@@ -34,6 +34,9 @@ case "${1:-}" in
 		installer="$(realpath -m "$dotfiles/helper_scripts/install_pi.sh")"
 		echo "pi is nix-managed — updating via $installer"
 		exec sh "$installer" ;;
+	typecheck)
+		# nix-built tsc vs the nix-built pi's .d.ts (see pi/flake/flake.nix)
+		exec nix run "$dotfiles/pi/flake"#typecheck -- "$PI_CODING_AGENT_DIR/extensions" ;;
 	install|remove|uninstall|list|config|--help|-h|--version|-v)
 		exec "$PI_BIN" "$@" ;;
 esac
