@@ -18,10 +18,10 @@ _daemon_alacritty
 [ -f "$bin/monitor.sh" ] && "$bin/monitor.sh"
 background_set.sh &
 "$bin/set_kb_map" &
-rm -f ~/.cache/tsp_ytdlp/*
+rm -rf ~/.cache/tsp_ytdlp/*
 tmux kill-session -t herald 2>/dev/null
-$bin/herald daemon --tmux
+"$bin"/herald daemon --tmux
 tmux kill-session -t tsp_ytdlp
-#tmux new-session -d -s tsp_ytdlp 'tsp_ytdlp --daemon'
+#tmux new-session -d -s tsp_ytdlp 'tsp_ytdlp daemon'
 
 echo "Done startup"
