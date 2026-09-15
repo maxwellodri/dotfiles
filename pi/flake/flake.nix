@@ -108,7 +108,7 @@
             type = "app";
             program = toString (pkgs.writers.writeBash "pi-typecheck" ''
               set -euo pipefail
-              extdir="''${1:-''${PI_CODING_AGENT_DIR:-}/extensions}"
+              extdir="$(realpath "''${1:-''${PI_CODING_AGENT_DIR:-}/extensions}")"
               if [ ! -f "$extdir/tsconfig.json" ]; then
                 echo "pi-typecheck: no tsconfig.json in '$extdir'" >&2
                 echo "usage: nix run <flake>#typecheck -- <pi/extensions dir>  (or set PI_CODING_AGENT_DIR)" >&2
@@ -130,10 +130,12 @@
                 }
               }
               EOF
+              # tsc isn't on this script's PATH (writers.writeBash adds no
+              # packages) — call the nixpkgs typescript binary directly.
               # tsc resolves include/extends paths against the config they
               # were declared in, so the inherited "include": ["**/*.ts"]
               # still points at $extdir.
-              ( cd "$extdir" && tsc --project "$tmp/tsconfig.json" )
+              ( cd "$extdir" && ${pkgs.lib.getExe pkgs.typescript} --project "$tmp/tsconfig.json" )
             '');
           };
         });
