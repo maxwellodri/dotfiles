@@ -22,21 +22,21 @@ export CARGO_BUILD_JOBS
 NICE=(nice -n 19 ionice -c 3)
 
 if [ -z "${PI_BIN:-}" ]; then
-	PI_BIN="$dotfiles/pi/flake/result/bin/pi"
+	PI_BIN="$dotfiles/flake/result/bin/pi"
 fi
 if [ ! -x "$PI_BIN" ]; then
-	echo "pi not installed — run $(realpath -m "$dotfiles/helper_scripts/install_pi.sh") to install" >&2
+	echo "pi not installed — run $(realpath -m "$dotfiles/helper_scripts/install_flake.sh") to install" >&2
 	exit 1
 fi
 
 case "${1:-}" in
 	update)
-		installer="$(realpath -m "$dotfiles/helper_scripts/install_pi.sh")"
+		installer="$(realpath -m "$dotfiles/helper_scripts/install_flake.sh")"
 		echo "pi is nix-managed — updating via $installer"
 		exec sh "$installer" ;;
 	typecheck)
-		# nix-built tsc vs the nix-built pi's .d.ts (see pi/flake/flake.nix)
-		exec nix run "$dotfiles/pi/flake"#typecheck -- "$PI_CODING_AGENT_DIR/extensions" ;;
+		# nix-built tsc vs the nix-built pi's .d.ts (see flake/pi.nix)
+		exec nix run "$dotfiles/flake"#typecheck -- "$PI_CODING_AGENT_DIR/extensions" ;;
 	install|remove|uninstall|list|config|--help|-h|--version|-v)
 		exec "$PI_BIN" "$@" ;;
 esac

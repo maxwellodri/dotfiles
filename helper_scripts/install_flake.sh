@@ -1,15 +1,21 @@
 #!/bin/bash
 ############################
-# Installs/updates pi (pi.dev) via nix.
+# Installs/updates everything from the repo-wide flake/:
 #
-# pi/flake/flake.nix builds the pi npm package hermetically — node, npm and
-# tsc all come from the flake, so no pacman nodejs/npm/typescript are needed
-# (uv still comes from the host; the blender MCP server needs it). Re-running
-# this script is the updater: it checks the npm registry for a newer release,
-# bumps the pinned version + hashes in pi/flake/flake.nix and rebuilds.
-# The result is linked at pi/flake/result — the `scripts/pi` wrapper runs it.
+#   #pi          pi (pi.dev), built hermetically from npm — node, npm and
+#                tsc all come from the flake, so no pacman nodejs/npm/
+#                typescript are needed (uv still comes from the host; the
+#                blender MCP server needs it)
+#   #default     dotfiles-env: pi + tmux + tmux plugins (resurrect,
+#                continuum), linked at flake/result — the `scripts/pi`
+#                wrapper and $bin/tmux run from it
+#   #toolchain   node + tsc, used below for the vendored adapter deps
+#
+# Re-running is the updater: it checks the npm registry for a newer pi
+# release, bumps the pinned version + hashes in flake/pi.nix and rebuilds.
 #
 # Also runs on every bootstrap regardless:
+#   - $bin/tmux + .config/tmux/plugins symlinks into flake/result
 #   - vendored pi-mcp-adapter deps (node_modules is gitignored by design;
 #     see pi/.gitignore) — npm ci via the flake's bundled npm
 #   - VDH chromium extension unpack for pi/browser/playwright-config.json's
@@ -20,7 +26,8 @@
 set -eu
 
 dir="$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel)"
-flake="$dir/pi/flake"
+flake="$dir/flake"
+bin="${bin:-$HOME/bin}"
 
 : "${XDG_DATA_HOME:=$HOME/.local/share}"; export XDG_DATA_HOME
 
@@ -29,17 +36,19 @@ if ! command -v nix >/dev/null 2>&1; then
     exit 1
 fi
 
-# Flakes only see git-tracked files; an untracked flake.nix yields confusing
+# Flakes only see git-tracked files; an untracked flake yields confusing
 # "file not found" errors rather than a build.
-if ! git -C "$dir" ls-files --error-unmatch pi/flake/flake.nix >/dev/null 2>&1; then
-    echo "pi/flake/flake.nix is not tracked by git — run: git add pi/flake" >&2
-    exit 1
-fi
+for tracked in flake/flake.nix flake/integrities.json; do
+    if ! git -C "$dir" ls-files --error-unmatch "$tracked" >/dev/null 2>&1; then
+        echo "$tracked is not tracked by git — run: git add flake/" >&2
+        exit 1
+    fi
+done
 
 command -v uv >/dev/null 2>&1 ||
     echo "WARNING: uv not found — the blender MCP server needs it" >&2
 
-# --- Update check ---------------------------------------------------------
+# --- pi update check ------------------------------------------------------
 # Latest release per the npm registry; the flake pins the version.
 registry_latest() {
     curl -fsSL "https://registry.npmjs.org/@earendil-works/pi-coding-agent/latest" |
@@ -52,7 +61,7 @@ registry_integrity() { # registry_integrity <name> <version>
         jq -r --arg v "$2" '.versions[$v].dist.integrity'
 }
 
-current="$(sed -n 's/^[[:space:]]*version = "\([^"]*\)";/\1/p' "$flake/flake.nix" | head -n1)"
+current="$(sed -n 's/^[[:space:]]*version = "\([^"]*\)";/\1/p' "$flake/pi.nix" | head -n1)"
 latest="$(registry_latest)"
 
 if [ "$current" = "$latest" ]; then
@@ -97,7 +106,7 @@ else
         if [ "$attr" = version ]; then new="$latest"; else
             new="sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
         fi
-        sed -i "s|^\([[:space:]]*\)$attr = \"[^\"]*\";|\1$attr = \"$new\";|" "$flake/flake.nix"
+        sed -i "s|^\([[:space:]]*\)$attr = \"[^\"]*\";|\1$attr = \"$new\";|" "$flake/pi.nix"
     done
     trap - EXIT
     rm -rf "$tmp"
@@ -113,7 +122,7 @@ set -o pipefail
 echo "Building pi via nix — first build on a machine fetches ~400MB of deps, be patient..."
 attempt=0
 while :; do
-    if build="$(nix build "$flake#pi" --out-link "$flake/result" -L 2>&1 | tee /dev/stderr)"; then
+    if build="$(nix build "$flake#pi" --no-link -L 2>&1 | tee /dev/stderr)"; then
         break
     fi
     attempt=$((attempt + 1))
@@ -129,10 +138,20 @@ while :; do
         attr=srcHash
     fi
     echo "absorbing $attr -> $got"
-    sed -i "s|^\([[:space:]]*\)$attr = \"[^\"]*\";|\1$attr = \"$got\";|" "$flake/flake.nix"
+    sed -i "s|^\([[:space:]]*\)$attr = \"[^\"]*\";|\1$attr = \"$got\";|" "$flake/pi.nix"
 done
 
+# Link the repo-wide default (dotfiles-env: pi + tmux + plugins); keeps
+# flake/result/bin/{pi,tmux} + share/tmux-plugins under one out-link.
+echo "Building dotfiles-env (pi + tmux + plugins)..."
+nix build "$flake#default" --out-link "$flake/result" -L
+
 echo "pi $latest built: $(readlink "$flake/result")"
+
+mkdir -p "$bin"
+ln -sfn "$flake/result/bin/tmux" "$bin/tmux"
+ln -sfn ../../flake/result/share/tmux-plugins "$dir/.config/tmux/plugins"
+echo "tmux $("$bin/tmux" -V | awk '{print $2}'), plugins: $(readlink "$dir/.config/tmux/plugins")"
 
 # Legacy npm-managed installs from the pre-nix installer; informational only.
 for legacy in "$XDG_DATA_HOME/npm/bin/pi" "$HOME/.local/bin/pi"; do
