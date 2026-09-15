@@ -69,7 +69,14 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("agent_settled", (_event, ctx) => {
 		// Always record (rendering is toggled separately). Skip scripted runs.
-		if (ctx.mode !== "tui") return;
+		// A session replacement (resume/-c, /new, fork) can leave this instance
+		// stale but still bound for a final settle — touching ctx throws. Skip;
+		// the rebound instance's own handler records the stamp.
+		try {
+			if (ctx.mode !== "tui") return;
+		} catch {
+			return;
+		}
 		pi.appendEntry<SettledStampData>(CUSTOM_TYPE, { ts: Date.now() });
 	});
 

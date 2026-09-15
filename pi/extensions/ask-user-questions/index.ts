@@ -1,14 +1,24 @@
 /**
- * ask-user-questions — `ask_user_question` tool: interactive single question
- * with typed / single-select / multi-select answer modes.
+ * ask-user-questions — `ask_user_question` tool: interactive questions with
+ * typed / checkbox answer modes.
  *
  * Ported from amosblomqvist/pi-config extensions/ask-user-question.ts
  * (https://github.com/amosblomqvist/pi-config), since heavily reworked here.
  *
- * Modes (derived from params):
+ * Batching: one call asks `question` plus any `additional_questions` —
+ * sequential popups ("Question 2 of 3: …") under one UI lock. Esc on a
+ * later question keeps earlier answers: the result reports the partial
+ * answers plus which questions went unanswered. Batch closely related
+ * questions this way; unrelated decisions want separate calls.
+ *
+ * Modes per question (derived from params):
  *   - no options            → free-form text editor
- *   - options, single       → select list, inline "Custom" editor on row 0
- *   - options + multiSelect → checkbox list + inline "Custom" editor + Submit
+ *   - options               → checkbox list + inline "Custom" editor + Submit
+ *
+ * Options are *parts of an answer*, not alternatives: the user checks any
+ * number of them and can type extra detail into the Custom editor (row 0,
+ * default focus — prefer it for detail); everything checked and typed is
+ * combined into one answer. There is deliberately no single-select mode.
  *
  * Keys (the complete set — ↑↓ do nothing outside the editor, where they are
  * its history):
@@ -16,25 +26,20 @@
  *                the editor's completion dropdown (`@`/`$`) is open, Tab
  *                accepts the completion and Esc closes the dropdown instead
  *                of cycling / cancelling the question (main-prompt parity)
- *   Enter        submit from anywhere (custom text on the editor row, the
- *                focused option otherwise — single; checked options + custom
- *                text — multi)
+ *   Enter        submit from anywhere (checked options + custom text)
  *   ⇧Enter       newline inside the editor, no-op elsewhere (main-prompt
  *                parity)
- *   Ctrl+Space   confirm — select the focused option (single), toggle it and
- *                move down one (multi); on the Custom row submits the editor
- *                text (single) / skips ahead (multi); on Submit it finalizes
+ *   Ctrl+Space   confirm — toggle the focused option and move down one; on
+ *                the Custom row skips ahead to the first option; on Submit
+ *                it finalizes
  *   ^C           clear the custom editor
  *   Esc          cancel the question
  *
  * RPC degradation (ctx.mode === "rpc", e.g. under a remote bridge such as
  * paseo): ctx.ui.custom() returns undefined without a terminal, which would
- * make every select-mode question silently resolve "cancelled". Select
- * modes instead fall back to the dialog sub-protocol (select/input/editor —
- * all round-trip as remote cards): single → ctx.ui.select with a trailing
- * Custom pseudo-option plus ctx.ui.input follow-up; multi → ctx.ui.editor
- * taking one answer per line. Text mode already uses ctx.ui.editor and
- * works unchanged.
+ * make every user-select question silently resolve "cancelled". User-select
+ * falls back to ctx.ui.editor taking one answer per line (option labels or
+ * your own text). Text mode already uses ctx.ui.editor and works unchanged.
  *
  * Custom carries no checkbox: the custom answer simply IS the editor text at
  * submit time, omitted when empty/whitespace. It sorts first in results,
@@ -102,15 +107,36 @@ interface CustomAnswer {
 
 type AskAnswer = TextAnswer | OptionAnswer | CustomAnswer;
 type AskUserQuestionStatus = "answered" | "cancelled" | "unavailable";
-type AskUserQuestionMode = "text" | "single-select" | "multi-select";
+type AskUserQuestionMode = "text" | "user-select";
 
 interface AskUserQuestionResultDetails {
 	status: AskUserQuestionStatus;
+	/** Single-question calls (back-compat shape). */
+	question?: string;
+	context?: string;
+	mode?: AskUserQuestionMode;
+	answers?: AskAnswer[];
+	/** Multi-question calls: per-question results in ask order. */
+	questions?: QuestionResult[];
+	message?: string;
+}
+
+/** One question's spec: the top-level params for the first, additional_questions entries after. */
+interface QuestionSpec {
+	question: string;
+	context?: string;
+	options: AskOption[];
+}
+
+interface QuestionResult {
 	question: string;
 	context?: string;
 	mode: AskUserQuestionMode;
+	status: "answered" | "cancelled" | "unavailable";
 	answers: AskAnswer[];
-	message?: string;
+	/** Text mode: the expanded answer ($snippets/@path) for the model-facing
+	 *  content — answers[].label keeps the raw typed text for the transcript. */
+	expandedAnswer?: string;
 }
 
 const OptionSchema = Type.Object({
@@ -127,7 +153,7 @@ const OptionSchema = Type.Object({
 
 const AskUserQuestionParams = Type.Object({
 	question: Type.String({
-		description: "The single question to ask the user. Ask exactly one question per tool call.",
+		description: "The first question to ask the user.",
 	}),
 	details: Type.Optional(
 		Type.String({
@@ -137,13 +163,25 @@ const AskUserQuestionParams = Type.Object({
 	options: Type.Optional(
 		Type.Array(OptionSchema, {
 			description:
-				"Optional multiple-choice options. Omit or pass an empty array for free-form text input. Users will always be able to use the Custom editor at the top of the list to type their own answer when options are provided.",
+				"Optional suggested parts of the answer. The user can check any number of them and type extra detail in the Custom editor; everything is combined into the answer. Omit for free-form text input.",
 		}),
 	),
-	multiSelect: Type.Optional(
-		Type.Boolean({
-			description: "Set to true to allow multiple answers to be selected for a question.",
-		}),
+	additional_questions: Type.Optional(
+		Type.Array(
+			Type.Object({
+				question: Type.String({ description: "The question to ask." }),
+				details: Type.Optional(
+					Type.String({ description: "Optional extra context or instructions shown under the question." }),
+				),
+				options: Type.Optional(
+					Type.Array(OptionSchema, { description: "Optional suggested parts of the answer, as for the first question." }),
+				),
+			}),
+			{
+				description:
+					"Extra questions asked sequentially in the same call. Batch closely related questions here; use separate calls for unrelated decisions.",
+			},
+		),
 	),
 });
 
@@ -339,17 +377,6 @@ function renderCappedPopup(args: {
 	return lines;
 }
 
-function formatAnswerForModel(answer: AskAnswer): string {
-	switch (answer.type) {
-		case "text":
-			return answer.label;
-		case "custom":
-			return `Custom: ${answer.label}`;
-		case "option":
-			return `${answer.index}. ${answer.label}`;
-	}
-}
-
 function answerSortRank(answer: AskAnswer): number {
 	switch (answer.type) {
 		case "custom":
@@ -365,234 +392,28 @@ function sortAnswers(answers: AskAnswer[]): AskAnswer[] {
 	return [...answers].sort((a, b) => answerSortRank(a) - answerSortRank(b));
 }
 
-function buildStructuredResult(
-	status: AskUserQuestionStatus,
-	question: string,
-	mode: AskUserQuestionMode,
-	answers: AskAnswer[],
-	context?: string,
-	message?: string,
-) {
-	return {
-		status,
-		question,
-		context,
-		mode,
-		answers,
-		message,
-	} as AskUserQuestionResultDetails;
+/** The answer as one string: all parts — checked options and typed text — appended together. */
+function answerPartsText(answers: AskAnswer[]): string {
+	return sortAnswers(answers)
+		.map((answer) => answer.label)
+		.join("; ");
 }
 
-function cancelledResult(question: string, mode: AskUserQuestionMode, context?: string) {
-	const message = "User cancelled the question";
-	return {
-		content: [{ type: "text" as const, text: message }],
-		details: buildStructuredResult("cancelled", question, mode, [], context, message),
-	};
+const textPart = (content: string) => ({ type: "text" as const, text: content });
+
+function modeFor(spec: QuestionSpec): AskUserQuestionMode {
+	return spec.options.length === 0 ? "text" : "user-select";
 }
 
-function unavailableResult(question: string, mode: AskUserQuestionMode, message: string, context?: string) {
-	return {
-		content: [{ type: "text" as const, text: message }],
-		details: buildStructuredResult("unavailable", question, mode, [], context, message),
-	};
+function toResult(spec: QuestionSpec, status: QuestionResult["status"], answers: AskAnswer[]): QuestionResult {
+	return { question: spec.question, context: spec.context, mode: modeFor(spec), status, answers };
 }
 
-function buildResult(question: string, context: string | undefined, mode: AskUserQuestionMode, answers: AskAnswer[]) {
-	let text: string;
-	if (mode === "text") {
-		const answer = answers[0];
-		text = answer.label.trim().length > 0 ? `User answered: ${answer.label}` : "User submitted an empty response";
-	} else if (mode === "single-select") {
-		text = `User selected: ${formatAnswerForModel(answers[0])}`;
-	} else {
-		text = `User selected:\n${answers.map((answer) => `- ${formatAnswerForModel(answer)}`).join("\n")}`;
-	}
-
-	return {
-		content: [{ type: "text" as const, text }],
-		details: buildStructuredResult("answered", question, mode, answers, context),
-	};
-}
-
-async function askSingleChoice(
-	ctx: ExtensionContext,
-	question: string,
-	context: string | undefined,
-	options: AskOption[],
-): Promise<AskAnswer | null> {
-	const customLabel = getCustomLabel(options);
-	// Row 0 is the inline Custom editor (focus starts there, keystrokes go
-	// straight into it); options occupy rows 1..n.
-	const allOptions: DisplayOption[] = options.map((option, index) => ({
-		...option,
-		id: `option:${index}`,
-		index: index + 1,
-	}));
-
-	return ctx.ui.custom<AskAnswer | null>((tui: any, theme: any, _kb: any, done: (result: AskAnswer | null) => void) => {
-		let rowIndex = 0;
-		let cachedLines: string[] | undefined;
-		let cachedWidth = -1;
-		let cachedHeight = -1;
-		const editor = new Editor(tui, createEditorTheme(theme));
-		editor.disableSubmit = true; // Enter is handled by the popup, not the editor
-		if (promptAutocompleteProvider) {
-			// @ file / $ snippet completions, same as the main prompt
-			editor.setAutocompleteProvider(promptAutocompleteProvider);
-		}
-
-		function refresh() {
-			cachedLines = undefined;
-			tui.requestRender();
-		}
-
-		function handleInput(data: string) {
-			editor.focused = rowIndex === 0;
-
-			// While the editor's completion dropdown (`@`/`$`) is open, Tab and
-			// Esc belong to the editor — accept the completion / close the
-			// dropdown — exactly like the main prompt, instead of cycling rows
-			// away mid-token or cancelling the whole question. Enter still
-			// submits and ⇧Tab still cycles.
-			if (rowIndex === 0 && editor.isShowingAutocomplete()) {
-				if (matchesKey(data, Key.tab) || matchesKey(data, Key.escape)) {
-					editor.handleInput(data);
-					refresh();
-					return;
-				}
-			}
-
-			// Enter submits from anywhere: the custom text on the editor row,
-			// the focused option otherwise.
-			if (matchesKey(data, Key.enter)) {
-				if (rowIndex === 0) {
-					const text = editor.getText().trim();
-					if (text) {
-						done({ type: "custom", label: text, value: text });
-					}
-					return;
-				}
-				const selected = allOptions[rowIndex - 1];
-				done({
-					type: "option",
-					label: selected.label,
-					value: selected.value,
-					index: selected.index!,
-				});
-				return;
-			}
-
-			// Tab / ⇧Tab cycle focus through the rows, wrapping at the edges.
-			if (matchesKey(data, Key.tab)) {
-				editor.focused = false;
-				rowIndex = (rowIndex + 1) % (allOptions.length + 1);
-				refresh();
-				return;
-			}
-			if (matchesKey(data, Key.shift("tab"))) {
-				editor.focused = false;
-				rowIndex = (rowIndex + allOptions.length) % (allOptions.length + 1);
-				refresh();
-				return;
-			}
-
-			if (rowIndex === 0) {
-				// Editor row: text goes into the editor (↑↓ are its history,
-				// Enter a no-op). Custom is confirmed via Ctrl+Space or ⇧Enter.
-				if (matchesKey(data, Key.escape)) {
-					done(null);
-					return;
-				}
-				if (matchesKey(data, Key.ctrl("c"))) {
-					editor.setText("");
-					refresh();
-					return;
-				}
-				if (matchesKey(data, "ctrl+space")) {
-					const text = editor.getText().trim();
-					if (text) {
-						done({ type: "custom", label: text, value: text });
-					}
-					return;
-				}
-				editor.handleInput(data);
-				refresh();
-				return;
-			}
-
-			// Option rows: Ctrl+Space confirms the focused option.
-			if (matchesKey(data, "ctrl+space")) {
-				const selected = allOptions[rowIndex - 1];
-				done({
-					type: "option",
-					label: selected.label,
-					value: selected.value,
-					index: selected.index!,
-				});
-				return;
-			}
-			if (matchesKey(data, Key.escape)) {
-				done(null);
-			}
-		}
-
-		function render(width: number): string[] {
-			// The cache MUST be keyed on width AND height: pi-tui calls
-			// requestRender() but NOT invalidate() on terminal resize, so render()
-			// can be re-entered with new dimensions. Returning stale wider lines
-			// trips the TUI width guard and crashes the process; a stale taller
-			// layout re-triggers the small-pane flicker this cap exists to fix.
-			const height = tui?.terminal?.rows;
-			if (cachedLines && cachedWidth === width && cachedHeight === height) return cachedLines;
-
-			editor.focused = rowIndex === 0;
-			const customPrefix = rowIndex === 0 ? theme.fg("accent", "> ") : "  ";
-			const customRow = rowIndex === 0 ? theme.fg("accent", customLabel) : theme.fg("text", customLabel);
-			const editorLines = editor.render(Math.max(1, width - 2)).map((line: string) => ` ${line}`);
-
-			const lines = renderCappedPopup({
-				width,
-				budget: popupBudget(tui),
-				theme,
-				question,
-				context,
-				customLabelLine: `${customPrefix}${customRow}`,
-				editorLines,
-				options: allOptions.map((option, i) => {
-					const selected = rowIndex === i + 1;
-					const prefix = selected ? theme.fg("accent", "> ") : "  ";
-					const label = `${option.index}. ${option.label}`;
-					return {
-						line: `${prefix}${selected ? theme.fg("accent", label) : theme.fg("text", label)}`,
-						desc: option.description
-							? wrapTextWithAnsi(theme.fg("muted", option.description), Math.max(1, width - 5)).map(
-									(l: string) => truncateToWidth(`     ${l}`, width),
-								)
-							: undefined,
-					};
-				}),
-				focusedOption: rowIndex - 1,
-				hints:
-					rowIndex === 0
-						? [theme.fg("dim", " Tab completes when list open • Tab/⇧Tab rows • Enter/Ctrl+Space submit • ^C clear • Esc cancel")]
-						: [theme.fg("dim", " Tab/⇧Tab rows • Ctrl+Space select • Esc cancel")],
-			});
-
-			cachedLines = lines;
-			cachedWidth = width;
-			cachedHeight = height;
-			return lines;
-		}
-
-		return {
-			render,
-			invalidate: () => {
-				cachedLines = undefined;
-			},
-			handleInput,
-		};
-	});
+/** Model-facing line per question for multi-question results. */
+function questionLine(result: QuestionResult): string {
+	if (result.status !== "answered") return `- ${result.question}: (unanswered)`;
+	const parts = result.mode === "text" ? result.expandedAnswer ?? "" : answerPartsText(result.answers);
+	return `- ${result.question}: ${parts || "(empty response)"}`;
 }
 
 async function askMultiChoice(
@@ -736,7 +557,11 @@ async function askMultiChoice(
 		}
 
 		function render(width: number): string[] {
-			// See the single-select render for the width+height cache rationale.
+			// The cache MUST be keyed on width AND height: pi-tui calls
+		// requestRender() but NOT invalidate() on terminal resize, so render()
+		// can be re-entered with new dimensions. Returning stale wider lines
+		// trips the TUI width guard and crashes the process; a stale taller
+		// layout re-triggers the small-pane flicker this cap exists to fix.
 			const height = tui?.terminal?.rows;
 			if (cachedLines && cachedWidth === width && cachedHeight === height) return cachedLines;
 
@@ -808,31 +633,9 @@ async function askMultiChoice(
 }
 
 /**
- * RPC single-select: option labels as a select dialog, Custom as a trailing
- * pseudo-option that chains into an input dialog. Dismissed dialog or empty
- * custom text → null (cancelled), matching the TUI popup's null paths.
- */
-async function askSingleChoiceRpc(
-	ctx: ExtensionContext,
-	question: string,
-	context: string | undefined,
-	options: AskOption[],
-): Promise<AskAnswer | null> {
-	const title = context ? `${question}\n\n${context}` : question;
-	const customLabel = getCustomLabel(options);
-	const choice = await ctx.ui.select(title, [...options.map((option) => option.label), customLabel]);
-	if (choice === undefined) return null;
-	const index = options.findIndex((option) => option.label === choice);
-	if (index !== -1) {
-		return { type: "option", label: options[index].label, value: options[index].value, index: index + 1 };
-	}
-	// Not an option label → the Custom row; empty/dismissed input cancels.
-	const text = (await ctx.ui.input("Type your answer"))?.trim();
-	return text ? { type: "custom", label: text, value: text } : null;
-}
-
-/**
- * RPC multi-select: a free-form editor accepting one answer per line. Lines
+ * RPC fallback (ctx.mode === "rpc", e.g. under a remote bridge such as
+ * paseo): ctx.ui.custom() returns undefined without a terminal, so the popup
+ * degrades to a free-form editor accepting one answer per line. Lines
  * matching an option label become option answers; unmatched lines collapse
  * into a single custom answer joined by newlines — same result shape the TUI
  * popup produces (any options + one custom).
@@ -954,7 +757,13 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 		// so a short deferral re-registers us LAST; the inner we then see is
 		// the complete chain, and every later rebuild keeps us last.
 		setTimeout(() => {
-			ctx.ui?.addAutocompleteProvider?.(capture);
+			try {
+				ctx.ui?.addAutocompleteProvider?.(capture);
+			} catch {
+				// Session was replaced/reloaded inside the deferral window: this
+				// ctx is stale and throws on access. Skip — the new session's own
+				// session_start re-registers with its fresh ctx.
+			}
 		}, 100);
 	});
 
@@ -962,100 +771,129 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 		name: "ask_user_question",
 		label: "ask_user_question",
 		description:
-			"Ask the user a single question and pause execution until they answer. Use this when requirements are ambiguous, user preferences are needed, a decision would materially affect implementation, or you need confirmation before proceeding. Ask exactly one question per tool call, and prefer multiple separate tool calls over bundling unrelated questions together.",
+			"Ask the user one or more related questions and pause execution until they answer. Use this when requirements are ambiguous, user preferences are needed, a decision would materially affect implementation, or you need confirmation before proceeding. Closely related questions can be batched via additional_questions.",
 		promptSnippet:
-			"Use ask_user_question to ask exactly one clarifying question, missing-requirement question, preference question, or decision question before continuing.",
+			"Use ask_user_question to ask clarifying questions, missing-requirement questions, preference questions, or decision questions before continuing.",
 		promptGuidelines: [
-			"Ask exactly one question per ask_user_question call.",
-			"If ask_user_question needs answers to multiple questions, make multiple separate calls instead of combining them into one prompt.",
-			'ask_user_question users can always type their own answer via the Custom editor at the top of the list when options are provided; Custom text behaves like a regular prompt ($snippets and @path includes are expanded).',
-			"Use multiSelect: true with ask_user_question only when multiple answers to the same question are needed.",
+			"Batch closely related questions into one ask_user_question call via additional_questions; use separate calls for unrelated decisions.",
+			"Options are suggested parts of the answer, not alternatives: the user can check any number of them and type extra detail in the Custom editor, and everything is combined into one answer.",
+			"Omit options for free-form input.",
+			'Custom editor text behaves like a regular prompt ($snippets and @path includes are expanded).',
 			"Order ask_user_question options with the most likely answer first.",
 			"Prefer ask_user_question over guessing when requirements, preferences, or implementation choices are unclear.",
-			"Use ask_user_question when multiple valid implementation paths exist and the preferred path depends on user choice.",
 		],
 		parameters: AskUserQuestionParams,
 
 		async execute(_toolCallId, params, signal, _onUpdate, ctx) {
-			const options = normalizeOptions(params.options);
-			const context = params.details?.trim() || undefined;
-			const mode: AskUserQuestionMode = options.length === 0 ? "text" : params.multiSelect ? "multi-select" : "single-select";
+			const specs: QuestionSpec[] = [
+				{
+					question: params.question,
+					context: params.details?.trim() || undefined,
+					options: normalizeOptions(params.options),
+				},
+				...(params.additional_questions ?? []).map((q) => ({
+					question: q.question,
+					context: q.details?.trim() || undefined,
+					options: normalizeOptions(q.options),
+				})),
+			];
+			const multi = specs.length > 1;
 
 			if (signal?.aborted) {
-				return cancelledResult(params.question, mode, context);
+				return multi
+					? { content: [textPart("User cancelled the questions")], details: { status: "cancelled", questions: specs.map((s) => toResult(s, "cancelled", [])), message: "User cancelled the questions" } }
+					: { content: [textPart("User cancelled the question")], details: { status: "cancelled", question: specs[0].question, context: specs[0].context, mode: modeFor(specs[0]), answers: [], message: "User cancelled the question" } };
 			}
 
 			if (!ctx.hasUI) {
-				return unavailableResult(params.question, mode, "ask_user_question requires interactive mode UI", context);
+				const message = "ask_user_question requires interactive mode UI";
+				return multi
+					? { content: [textPart(message)], details: { status: "unavailable", questions: specs.map((s) => toResult(s, "unavailable", [])), message } }
+					: { content: [textPart(message)], details: { status: "unavailable", question: specs[0].question, context: specs[0].context, mode: modeFor(specs[0]), answers: [], message } };
 			}
 
 			return withUILock(async () => {
-				if (mode === "text") {
-					const editorTitle = context ? `${params.question}\n\n${context}` : params.question;
-					const answer = await ctx.ui.editor(editorTitle);
-					if (answer === undefined) {
-						return cancelledResult(params.question, mode, context);
+				const results: QuestionResult[] = [];
+				const blocks: string[] = [];
+
+				for (let i = 0; i < specs.length; i++) {
+					const spec = specs[i];
+					const mode = modeFor(spec);
+					const title = multi ? `Question ${i + 1} of ${specs.length}: ${spec.question}` : spec.question;
+
+					if (mode === "text") {
+						const answer = await ctx.ui.editor(spec.context ? `${title}\n\n${spec.context}` : title);
+						if (answer === undefined) break; // Esc: keep what we have
+						const trimmed = answer.trim();
+						let expanded = trimmed;
+						if (trimmed) {
+							const expansion = await expandAnswerText(trimmed, ctx);
+							expanded = expansion.text;
+							blocks.push(...expansion.blocks);
+						}
+						// answers keep the RAW typed text (transcript parity with the old
+						// shape); the expansion rides along for the model-facing text only
+						results.push({ question: spec.question, context: spec.context, mode, status: "answered", answers: trimmed ? [{ type: "text", label: trimmed, value: trimmed }] : [], expandedAnswer: trimmed ? expanded : undefined });
+					} else {
+						const askSelect = ctx.mode === "rpc" ? askMultiChoiceRpc : askMultiChoice;
+						const answers = await askSelect(ctx, title, spec.context, spec.options);
+						if (!answers) break; // Esc: keep what we have
+						const custom = answers.find((a) => a.type === "custom");
+						if (custom?.label) {
+							const expansion = await expandAnswerText(custom.label, ctx);
+							custom.label = expansion.text;
+							blocks.push(...expansion.blocks);
+						}
+						results.push({ question: spec.question, context: spec.context, mode, status: "answered", answers });
 					}
-					const trimmed = answer.trim();
-					if (trimmed.length === 0) {
-						return buildResult(params.question, context, mode, [
-							{ type: "text", label: trimmed, value: trimmed },
-						]);
+				}
+				// Unanswered tail (Esc mid-way): mark cancelled so the model sees what it missed.
+				for (let i = results.length; i < specs.length; i++) results.push(toResult(specs[i], "cancelled", []));
+
+				if (!multi) {
+					const spec = specs[0];
+					const r = results[0];
+					if (r.status !== "answered") {
+						return { content: [textPart("User cancelled the question")], details: { status: "cancelled", question: spec.question, context: spec.context, mode: r.mode, answers: [], message: "User cancelled the question" } };
 					}
-					const { text: expanded, blocks } = await expandAnswerText(trimmed, ctx);
+					if (r.mode === "text") {
+						const text = r.answers.length ? `User answered: ${r.expandedAnswer ?? r.answers[0].label}` : "User submitted an empty response";
+						return { content: [textPart(withBlocks(text, blocks))], details: { status: "answered", question: spec.question, context: spec.context, mode: "text", answers: r.answers } };
+					}
 					return {
-						content: [{ type: "text" as const, text: withBlocks(`User answered: ${expanded}`, blocks) }],
-						details: buildStructuredResult("answered", params.question, mode, [
-							{ type: "text", label: trimmed, value: trimmed },
-						], context),
+						content: [textPart(withBlocks(`User answered: ${answerPartsText(r.answers)}`, blocks))],
+						details: { status: "answered", question: spec.question, context: spec.context, mode: "user-select", answers: r.answers },
 					};
 				}
 
-				if (mode === "single-select") {
-					const askSingle = ctx.mode === "rpc" ? askSingleChoiceRpc : askSingleChoice;
-					const answer = await askSingle(ctx, params.question, context, options);
-					if (!answer) {
-						return cancelledResult(params.question, mode, context);
-					}
-					if (answer.type === "custom" && answer.label) {
-						const { text: expanded, blocks } = await expandAnswerText(answer.label, ctx);
-						return {
-							content: [
-								{ type: "text" as const, text: withBlocks(`User selected: Custom: ${expanded}`, blocks) },
-							],
-							details: buildStructuredResult("answered", params.question, mode, [answer], context),
-						};
-					}
-					return buildResult(params.question, context, mode, [answer]);
-				}
-
-				const askMulti = ctx.mode === "rpc" ? askMultiChoiceRpc : askMultiChoice;
-				const answers = await askMulti(ctx, params.question, context, options);
-				if (!answers) {
-					return cancelledResult(params.question, mode, context);
-				}
-				const custom = answers.find((a) => a.type === "custom");
-				if (custom && custom.label) {
-					const { text: expanded, blocks } = await expandAnswerText(custom.label, ctx);
-					custom.label = expanded;
-					const text = withBlocks(
-						`User selected:\n${answers.map((answer) => `- ${formatAnswerForModel(answer)}`).join("\n")}`,
-						blocks,
-					);
+				const answered = results.filter((r) => r.status === "answered");
+				if (answered.length === specs.length) {
 					return {
-						content: [{ type: "text" as const, text }],
-						details: buildStructuredResult("answered", params.question, mode, answers, context),
+						content: [textPart(withBlocks(`User answered:\n${results.map(questionLine).join("\n")}`, blocks))],
+						details: { status: "answered", questions: results },
 					};
 				}
-				return buildResult(params.question, context, mode, answers);
+				const message = `User cancelled after ${answered.length} of ${specs.length} questions`;
+				const unanswered = results.filter((r) => r.status !== "answered").map((r) => r.question).join("; ");
+				return {
+					content: [
+						textPart(
+							withBlocks(
+								`${message}; answered questions kept:\n${answered.map(questionLine).join("\n") || "(none)"}\nUnanswered: ${unanswered}`,
+								blocks,
+							),
+						),
+					],
+					details: { status: "cancelled", questions: results, message },
+				};
 			});
 		},
-
 		renderCall(args, theme) {
 			const options = normalizeOptions(args.options as Array<{ label: string; value?: string; description?: string }> | undefined);
 			let text = theme.fg("toolTitle", theme.bold("ask_user_question ")) + theme.fg("muted", args.question);
-			if (args.multiSelect) {
-				text += theme.fg("dim", " [multi-select]");
+			const extra = (args.additional_questions as { question: string }[] | undefined)?.length ?? 0;
+			if (extra > 0) {
+				text += theme.fg("dim", ` +${extra}`);
 			}
 			if (options.length > 0) {
 				const labels = [getCustomLabel(options), ...options.map((option) => option.label)].join(", ");
@@ -1071,6 +909,37 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 				return new Text(first?.type === "text" ? first.text : "", 0, 0);
 			}
 
+			const renderPart = (answer: AskAnswer): string => {
+				switch (answer.type) {
+					case "text":
+						return theme.fg("accent", answer.label || "(empty response)");
+					case "custom": {
+						// may hold an expanded snippet body — show only its first line
+						const first = answer.label.split("\n")[0].slice(0, 80);
+						const shown = first + (answer.label.length > first.length ? "…" : "");
+						return `${theme.fg("muted", "Custom: ")}${theme.fg("accent", shown)}`;
+					}
+					case "option":
+						return theme.fg("accent", `${answer.index}. ${answer.label}`);
+				}
+			};
+
+			// Multi-question results: one block per question — parts are the answer.
+			if (details.questions) {
+				const lines: string[] = [];
+				for (const q of details.questions) {
+					if (q.status !== "answered") {
+						lines.push(`${theme.fg("warning", "✗ ")}${theme.fg("muted", q.question)}`);
+						continue;
+					}
+					const parts = sortAnswers(q.answers).map(renderPart);
+					lines.push(`${theme.fg("success", "✓ ")}${theme.fg("accent", q.question)}${parts.length ? "" : theme.fg("muted", " — (empty response)")}`);
+					for (const part of parts) lines.push(`${theme.fg("dim", "      ")}${part}`);
+				}
+				if (details.status === "cancelled" && details.message) lines.push(theme.fg("warning", details.message));
+				return new Text(lines.join("\n"), 0, 0);
+			}
+
 			if (details.status === "cancelled") {
 				return new Text(theme.fg("warning", details.message || "Cancelled"), 0, 0);
 			}
@@ -1079,21 +948,11 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 				return new Text(theme.fg("warning", details.message || "ask_user_question unavailable"), 0, 0);
 			}
 
-			const lines = details.answers.map((answer) => {
-				switch (answer.type) {
-					case "text":
-						return `${theme.fg("success", "✓ ")}${theme.fg("accent", answer.label || "(empty response)")}`;
-					case "custom": {
-						// may hold an expanded snippet body — show only its first line
-						const first = answer.label.split("\n")[0].slice(0, 80);
-						const shown = first + (answer.label.length > first.length ? "…" : "");
-						return `${theme.fg("success", "✓ ")}${theme.fg("muted", "Custom: ")}${theme.fg("accent", shown)}`;
-					}
-					case "option":
-						return `${theme.fg("success", "✓ ")}${theme.fg("accent", `${answer.index}. ${answer.label}`)}`;
-				}
-			});
-			return new Text(lines.join("\n"), 0, 0);
+			const answers = details.answers ?? [];
+			if (answers.length === 0) {
+				return new Text(`${theme.fg("success", "✓ ")}${theme.fg("muted", "(empty response)")}`, 0, 0);
+			}
+			return new Text(answers.map((answer) => `${theme.fg("success", "✓ ")}${renderPart(answer)}`).join("\n"), 0, 0);
 		},
 	});
 }
