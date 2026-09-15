@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ############################
 # Installs/updates pi (pi.dev) via nix.
 #
@@ -106,9 +106,14 @@ fi
 # --- Build (with hash autofix) --------------------------------------------
 # First build after a version bump fails on the tarball hash, the next on the
 # npm-deps hash; each failure reports the correct value, so absorb them.
+# tee mirrors nix's output to stderr so progress stays visible (a machine's
+# first build fetches ~400MB of npm deps and takes a while); pipefail keeps
+# nix's exit status through the pipe.
+set -o pipefail
+echo "Building pi via nix — first build on a machine fetches ~400MB of deps, be patient..."
 attempt=0
 while :; do
-    if build="$(nix build "$flake#pi" --out-link "$flake/result" 2>&1)"; then
+    if build="$(nix build "$flake#pi" --out-link "$flake/result" -L 2>&1 | tee /dev/stderr)"; then
         break
     fi
     attempt=$((attempt + 1))
