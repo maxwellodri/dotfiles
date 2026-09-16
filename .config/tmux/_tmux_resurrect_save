@@ -9,14 +9,26 @@
 # flock queues concurrent callers; the last save in a burst captures the
 # final state. continuum is pointed here via @resurrect-save-script-path.
 #
-# `last` only holds live sessions (a dead one is gone from the next save),
-# so each save also archives a per-session slice under sessions/: dead
+# resurrect's dedup (files_differ -> rm) can delete the timestamped file
+# `last` points at when two saves land in the same wall-second (identical
+# filenames): `last` dangles until the next differing save heals it, and
+# every hook firing in between would error out (tmux: "returned 2").
+# So: heal `last` to the newest surviving snapshot, never exit nonzero.
+#
+# `last` also only holds live sessions (a dead one is gone from the next
+# save), so each save archives a per-session slice under sessions/: dead
 # sessions stay resurrectable. awk's ">" truncates each file once per run
 # (live sessions overwrite, dead ones keep their last snapshot); qz
 # resurrect reads these.
 dir="${XDG_DATA_HOME:-$HOME/.local/share}/tmux/resurrect"
-mkdir -p "$dir/sessions"
-exec 9>"$dir/.save.lock"
+mkdir -p "$dir/sessions" || exit 0
+exec 9>"$dir/.save.lock" || exit 0
 flock -w 10 9 || exit 0
 "$HOME/.config/tmux/plugins/resurrect/scripts/save.sh" quiet
-awk -F'\t' -v d="$dir/sessions" '$1 == "pane" || $1 == "window" { n = $2; gsub("/", "_", n); print > (d "/" n ".txt") }' "$dir/last"
+if [ ! -e "$dir/last" ]; then
+    newest="$(ls -t "$dir"/tmux_resurrect_*.txt 2>/dev/null | head -n1)"
+    [ -n "$newest" ] && ln -sfn "${newest##*/}" "$dir/last"
+fi
+[ -e "$dir/last" ] &&
+    awk -F'\t' -v d="$dir/sessions" '$1 == "pane" || $1 == "window" { n = $2; gsub("/", "_", n); print > (d "/" n ".txt") }' "$dir/last"
+exit 0
