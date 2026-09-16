@@ -26,6 +26,8 @@
  *   pi/user-scripts/browser-template.sh
  * then close it; every future session clones that state. Clones taken while
  * the template window is open may miss the most recent unflushed logins.
+ * Promote a live session's state back into the template (manual, merging)
+ * with pi/user-scripts/browser-snapshot.sh — see TECHNICAL_DETAILS.md.
  *
  * NOT RE-CLONED: an existing /tmp/pi/chromium/<sid> is reused as-is (same
  * boot, e.g. pi --resume); after reboot it is rebuilt from the template.

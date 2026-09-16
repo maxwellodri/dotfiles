@@ -4,6 +4,7 @@
 			"command": "npx",
 			"args": [
 				"@playwright/mcp@0.0.78",
+				"--sandbox",
 				"--config",
 				"playwright-config.json"
 			],

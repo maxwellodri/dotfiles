@@ -65,6 +65,99 @@ set — so agents would see/close each other's tabs. Rejected.)
   timeout — expected, harmless.
 - `playwright_browser_close` closes only that session's chromium.
 
+## Snapshot workflow (promote session state → template)
+
+`pi/user-scripts/browser-snapshot.sh` — MANUAL ONLY, never automatic:
+
+```sh
+browser-snapshot.sh              # snapshot the CURRENT pi session's browser
+browser-snapshot.sh <session-id> # any session under /tmp/pi/chromium/
+browser-snapshot.sh <dir>        # any explicit chromium profile dir
+```
+
+1. Interact with a session's browser (log in, install, set defaults).
+2. Close that browser first — the script refuses to run while chromium holds
+   the source (or template) profile, since cookies/storage flush on exit.
+   NB: `playwright_browser_close` closes the page but leaves the chromium
+   PROCESS alive holding the profile — kill the main proc (pgrep -f
+   "--user-data-dir=<profile>" | kill non-`--type=` procs); the next MCP
+   navigate respawns the browser cleanly.
+3. Confirm the prompt (`--yes` to skip).
+
+Semantics: **merging** rsync (no `--delete`) — the template keeps state it
+already has; snapshots layer on top, so you can accumulate logins from
+several sessions. Same EXCLUDES as the clone path, plus session-restore junk
+(`Default/Sessions`, `Session Storage`, `Top Sites`, `Crashpad`) so a
+snapshot's open tabs don't become the template's startup tabs.
+
+## VDH welcome tab (patched 2026-09-16)
+
+VDH is loaded via `--load-extension`, which Chromium treats as a **fresh
+install on every browser start** → `runtime.onInstalled(reason:"install")`
+→ VDH opens `downloadhelper.net/welcome` each session. (Persisting it as a
+properly-installed unpacked extension via a hand-written `Preferences` entry
+does NOT work — modern Chromium ignores/prunes it; tested.)
+
+Fix (THREE parts — all required):
+1. Patched the local unpacked copy at
+   `~/.local/share/pi-browser-extensions/vdh/service/main.js` — in the
+   `onInstalled` listener, the `install` branch no longer calls
+   `tabs.create` (only sets `first_version_installed`), and the `update`
+   branch no longer opens the changelog (`(a||u)&&tabs.create({url:xm})` →
+   `void(a||u)`). REAPPLY after replacing/updating the extension directory.
+2. Bumped `manifest.json` version (10.5.24.2 → 10.5.24.3).
+3. **Cleared the service-worker script cache** — `Default/Service Worker` —
+   from the session profile AND the template. THIS was the hidden one:
+   chromium serves the cached (pre-patch) SW script even after the file
+   changes AND the version bump, for `--load-extension` extensions. Clones
+   inherit the template's cache, so every session kept running old code.
+   After any future extension patch: bump version + delete
+   `Default/Service Worker` in template + affected profiles (browser closed).
+
+Verified: fresh profiles (Xvfb) and warm profiles open exactly ONE tab; VDH
+service worker still loads.
+
+## Launch flags: sandbox + infobar (debugged 2026-09-15)
+
+Two warnings Chromium shows as a bar under the toolbar, and their fixes
+(both in `pi/browser/playwright-config.json` + `pi/mcp.json`):
+
+1. `--no-sandbox`: Playwright defaults `chromiumSandbox: false`, and the MCP
+   *forces* it false as a CLI-level override (merge order: defaults < config
+   file < env < CLI, and the action handler pre-sets `sandbox: false` unless
+   `--sandbox` is passed). So the config key alone never wins — you need
+   `"chromiumSandbox": true` in launchOptions **and** `--sandbox` in the
+   mcp.json args. Verified: no `--no-sandbox` on any process, real sandbox.
+2. `--disable-blink-features=AutomationControlled`: the MCP hardcodes this
+   anti-detection flag for chromium (skipped only if your args already
+   contain some `--disable-blink-features` variant). Chromium's bad-flags
+   infobar flags the switch regardless of value (empty value does NOT help);
+   `--test-type` (chromedriver's official switch) suppresses the bar while
+   keeping the stealth flag → `"--test-type"` in launchOptions args.
+
+### Debugging traps that cost hours — check these first
+
+- **The bar only appears on persistent contexts.** `chromium.launch()` +
+  `newPage()` (incognito-style) never shows it — only `launchPersistentContext`
+  (what the MCP uses) does. Reproduce with persistent contexts.
+- **The VDH extension's welcome tab steals focus and never shows the bar**;
+  infobars attach to the tab active at creation. Always `tabs select 0` (or
+  `page.bringToFront()`) before judging presence.
+- **Chromium shows one bad flag at a time** — fixing `--no-sandbox` reveals
+  the *next* bad flag. After any flag change, re-check for a new bar.
+- **dwm parks hidden-tag windows off-screen** (negative x, outside the
+  xrandr bounding box) and without a compositor X cannot capture them —
+  `maim`/`import` return solid garbage. For visual checks that must not touch
+  the user's display, run the MCP server against a private `Xvfb :31` and
+  `import -display :31 -window root` (worked well; `xvfb-run` also fine).
+- **The gateway reads `mcp.json`/config only when spawning the MCP server**
+  (lazy, on first browser use) and will not respawn a killed server mid-
+  session (`connect` only refreshes cached metadata; calls return "Not
+  connected"). Config edits require a pi restart to take effect in-session.
+- Verify flags via `tr '\0' '\n' < /proc/<pid>/cmdline` — use *substring*
+  greps (`grep -o -- '--test-type[=]*'`); exact-line `-x` checks produced a
+  false negative once (possibly an exec race).
+
 ## Relevant upstream facts (playwright-mcp 0.0.78, verified in source)
 
 - Default profile: `~/.cache/ms-playwright-mcp/mcp-<browserToken>-<sha256(client cwd)[0:7]>`.
