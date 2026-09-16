@@ -889,15 +889,10 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 			});
 		},
 		renderCall(args, theme) {
-			const options = normalizeOptions(args.options as Array<{ label: string; value?: string; description?: string }> | undefined);
 			let text = theme.fg("toolTitle", theme.bold("ask_user_question ")) + theme.fg("muted", args.question);
 			const extra = (args.additional_questions as { question: string }[] | undefined)?.length ?? 0;
 			if (extra > 0) {
 				text += theme.fg("dim", ` +${extra}`);
-			}
-			if (options.length > 0) {
-				const labels = [getCustomLabel(options), ...options.map((option) => option.label)].join(", ");
-				text += `\n${theme.fg("dim", `  Options: ${labels}`)}`;
 			}
 			return new Text(text, 0, 0);
 		},
@@ -909,22 +904,22 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 				return new Text(first?.type === "text" ? first.text : "", 0, 0);
 			}
 
+			// Plain answer line(s): parts joined with "; " — custom text truncated to its
+			// first line since it may hold an expanded snippet/@file body.
 			const renderPart = (answer: AskAnswer): string => {
 				switch (answer.type) {
 					case "text":
-						return theme.fg("accent", answer.label || "(empty response)");
+						return answer.label || "(empty response)";
 					case "custom": {
-						// may hold an expanded snippet body — show only its first line
 						const first = answer.label.split("\n")[0].slice(0, 80);
-						const shown = first + (answer.label.length > first.length ? "…" : "");
-						return `${theme.fg("muted", "Custom: ")}${theme.fg("accent", shown)}`;
+						return first + (answer.label.length > first.length ? "…" : "");
 					}
 					case "option":
-						return theme.fg("accent", `${answer.index}. ${answer.label}`);
+						return answer.label;
 				}
 			};
 
-			// Multi-question results: one block per question — parts are the answer.
+			// Multi-question results: question line then answer line, per question.
 			if (details.questions) {
 				const lines: string[] = [];
 				for (const q of details.questions) {
@@ -933,8 +928,8 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 						continue;
 					}
 					const parts = sortAnswers(q.answers).map(renderPart);
-					lines.push(`${theme.fg("success", "✓ ")}${theme.fg("accent", q.question)}${parts.length ? "" : theme.fg("muted", " — (empty response)")}`);
-					for (const part of parts) lines.push(`${theme.fg("dim", "      ")}${part}`);
+					lines.push(theme.fg("muted", q.question));
+					lines.push(parts.length ? theme.fg("accent", parts.join("; ")) : theme.fg("muted", "(empty response)"));
 				}
 				if (details.status === "cancelled" && details.message) lines.push(theme.fg("warning", details.message));
 				return new Text(lines.join("\n"), 0, 0);
@@ -950,9 +945,9 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 
 			const answers = details.answers ?? [];
 			if (answers.length === 0) {
-				return new Text(`${theme.fg("success", "✓ ")}${theme.fg("muted", "(empty response)")}`, 0, 0);
+				return new Text(theme.fg("muted", "(empty response)"), 0, 0);
 			}
-			return new Text(answers.map((answer) => `${theme.fg("success", "✓ ")}${renderPart(answer)}`).join("\n"), 0, 0);
+			return new Text(theme.fg("accent", sortAnswers(answers).map(renderPart).join("; ")), 0, 0);
 		},
 	});
 }
