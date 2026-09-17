@@ -17,15 +17,21 @@ while [[ $# -gt 0 ]]; do
     --cookies)       COOKIES="${2:?--cookies requires an argument}"; shift 2 ;;
     --limit)         LIMIT="${2:?--limit requires an argument}";     shift 2 ;;
     --default-limit) LIMIT=500K; shift ;;
+    --vps)           VPS=1; shift ;;
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
+
+VPS_HOST=maxwell@odri.xyz      # --vps: aria2c runs here instead of locally
+VPS_DL_DIR=/home/maxwell/Downloads
 
 if [[ -z "$URL" ]]; then
   echo "Usage: $(basename "$0") --url <url> [--file <file>] [--cookies <file>] [--limit <speed> | --default-limit]" >&2
   echo "  --file          optional: when omitted, aria2c autodetects the name from the URL." >&2
   echo "  --limit <speed> caps bandwidth using aria2c syntax, e.g. '500K', '1M', '2M' (0 = unlimited)." >&2
   echo "  --default-limit shorthand for --limit 500K." >&2
+  echo "  --vps           download on the VPS ($VPS_HOST) into ~/Downloads via ssh;" >&2
+  echo "                  with --file, only the basename is kept." >&2
   exit 1
 fi
 
@@ -38,7 +44,11 @@ ARIA_ARGS=(
   --summary-interval=60       # periodic progress line on long downloads
 )
 
-if [[ -n "$FILE" ]]; then
+if [[ -n "$VPS" ]]; then
+  ARIA_ARGS+=(-d "$VPS_DL_DIR")
+  # With --file, only the basename applies; ~/Downloads is the fixed destination.
+  [[ -n "$FILE" ]] && ARIA_ARGS+=(-o "$(basename "$FILE")")
+elif [[ -n "$FILE" ]]; then
   # Explicit output path: split into directory + filename for aria2c.
   ARIA_ARGS+=(
     -d "$(dirname "$FILE")"   # output directory
@@ -54,7 +64,14 @@ fi
 if [[ -n "$COOKIES" ]]; then
   if grep -q $'\t' "$COOKIES"; then
     # Netscape cookies.txt format → let aria2c parse it
-    ARIA_ARGS+=(--load-cookies="$COOKIES")
+    if [[ -n "$VPS" ]]; then
+      # The cookie file is local; ship it over and clean it up after the run.
+      REMOTE_COOKIE="/tmp/aria_dl_cookies.$$"
+      scp -q "$COOKIES" "$VPS_HOST:$REMOTE_COOKIE"
+      ARIA_ARGS+=(--load-cookies="$REMOTE_COOKIE")
+    else
+      ARIA_ARGS+=(--load-cookies="$COOKIES")
+    fi
   else
     # Raw "name=value; name2=value2" string, as curl_dl used to send it
     ARIA_ARGS+=(--header="Cookie: $(cat "$COOKIES")")
@@ -62,8 +79,19 @@ if [[ -n "$COOKIES" ]]; then
 fi
 
 START=$(date +%s)
-aria2c "${ARIA_ARGS[@]}" "$URL"
+if [[ -n "$VPS" ]]; then
+  # %q-quote every arg before handing them to the remote shell: ssh joins
+  # argv into one command string, and cookie headers contain spaces.
+  # shellcheck disable=SC2029 # client-side expansion is the point here
+  ssh "$VPS_HOST" "aria2c$(printf ' %q' "${ARIA_ARGS[@]}" "$URL")"
+else
+  aria2c "${ARIA_ARGS[@]}" "$URL"
+fi
 RC=$?
+
+if [[ -n "$REMOTE_COOKIE" ]]; then
+  ssh "$VPS_HOST" rm -f "$REMOTE_COOKIE"
+fi
 ELAPSED=$(( $(date +%s) - START ))
 
 # Don't claim success on a failed download.
