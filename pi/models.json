@@ -1,0 +1,59 @@
+{
+  "providers": {
+    "openrouter": {
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "api": "openai-completions",
+      "apiKey": "$OPENROUTER_API_KEY",
+      "models": [
+        {
+          "id": "z-ai/glm-5.3-flash",
+          "name": "GLM 5.3 Flash (OpenRouter)",
+          "reasoning": true,
+          "input": [
+            "text"
+          ],
+          "contextWindow": 1000000,
+          "maxTokens": 131072,
+          "cost": {
+            "input": 0.09,
+            "output": 0.3,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "compat": {
+            "supportsStore": false,
+            "supportsDeveloperRole": false
+          }
+        },
+        {
+          "id": "openai/gpt-oss-120b",
+          "name": "GPT OSS 120B (OpenRouter)",
+          "reasoning": true,
+          "input": [
+            "text"
+          ],
+          "contextWindow": 131072,
+          "maxTokens": 40960,
+          "cost": {
+            "input": 0.037,
+            "output": 0.17,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "compat": {
+            "supportsStore": false,
+            "supportsDeveloperRole": false
+          },
+          "samplingParams": {
+            "provider": {
+              "order": [
+                "Groq",
+                "Cerebras"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

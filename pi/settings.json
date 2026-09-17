@@ -23,6 +23,9 @@
   ],
   "modelThinkingLevels": {
     "zai/glm-5.3": "high",
-    "zai/glm-5.3-flash": "low"
+    "zai/glm-5.3-flash": "low",
+    "cerebras/gpt-oss-120b": "low",
+    "openrouter/z-ai/glm-5.3-flash": "low",
+    "openrouter/openai/gpt-oss-120b": "low"
   }
 }

@@ -90,6 +90,10 @@ local function upstream_color()
   return bold_color
 end
 
+local function pi_oneshots_component()
+  return require('user.pi').statusline()
+end
+
 require('lualine').setup {
   options = {
     icons_enabled = true,
@@ -171,6 +175,7 @@ require('lualine').setup {
     lualine_y = {'progress'},
     lualine_z = {
       'location',
+      pi_oneshots_component,
       {
         git_diff_component,
         icon = '',
@@ -228,6 +233,7 @@ require('lualine').setup {
     lualine_y = {'progress'},
     lualine_z = {
       'location',
+      pi_oneshots_component,
       {
         git_diff_component,
         icon = '',

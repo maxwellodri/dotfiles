@@ -50,6 +50,14 @@ if [ -z "${ZAI_API_KEY:-}" ]; then
 	fi
 fi
 
+# OpenRouter serves the nvim oneshot models (gpt-oss via Groq/Cerebras
+# routes); soft-fail — zai stays the required key.
+if [ -z "${OPENROUTER_API_KEY:-}" ]; then
+	if OPENROUTER_API_KEY="$(pass openrouter_api_key 2>/dev/null)"; then
+		export OPENROUTER_API_KEY
+	fi
+fi
+
 # Gruvbox canvas for to match theme.
 if [ -t 1 ] && [ -z "${PI_NO_CANVAS:-}" ]; then
 	clear
