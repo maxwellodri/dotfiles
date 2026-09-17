@@ -1,8 +1,10 @@
 {
   description = "dotfiles-wide flake: tmux + plugins, pi";
 
-  # Update: nix flake lock --update-input nixpkgs (from this dir).
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/eaad089433ca2bb662274377d33df3d0e51ef28b";
+  # Update: helper_scripts/install_flake.sh --update (what `pi update` runs)
+  # — rolls this lock (nixos-unstable; the lock pins the rev) plus the pi pin in pi.nix. Bare
+  # `nix flake update` from this dir works for the lock alone.
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
   outputs = { self, nixpkgs }:
     let

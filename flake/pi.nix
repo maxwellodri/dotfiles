@@ -16,6 +16,15 @@ let
 
   nodejs = pkgs.nodejs_24; # pi needs >=22.19
 
+  # npm's supply-chain cooldown for everything pi spawns through npm/npx
+  # (package installs, MCP servers): version resolution only picks
+  # releases at least this many DAYS old (npm >= 11.10; the env var sits
+  # below CLI flags and above ~/.npmrc). pi's own `pi update --self` and
+  # managed-installer `npm ci` pass --min-release-age=0 explicitly and
+  # stay exempt; `npm ci` on pinned lockfiles ignores the gate, so the
+  # vendored-adapter installs are unaffected.
+  npmMinReleaseAgeDays = 7;
+
   # The published npm-shrinkwrap.json is prod-only (no devDependencies
   # entries, though package.json still lists them — `npm ci` refuses
   # that mismatch) and omits `integrity` for the @earendil-works
@@ -63,8 +72,8 @@ let
 
     # pi spawns node/npx/npm as children (MCP servers via npx, package
     # installs): give it the nix-bundled node so no host nodejs is
-    # needed. Children inherit this PATH.
-    makeWrapperArgs = "--prefix PATH : ${pkgs.lib.makeBinPath [ nodejs ]}";
+    # needed. Children inherit this PATH (and the cooldown env var).
+    makeWrapperArgs = "--set npm_config_min_release_age ${toString npmMinReleaseAgeDays} --prefix PATH : ${pkgs.lib.makeBinPath [ nodejs ]}";
   };
 in
 {

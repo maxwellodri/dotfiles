@@ -32,8 +32,8 @@ fi
 case "${1:-}" in
 	update)
 		installer="$(realpath -m "$dotfiles/helper_scripts/install_flake.sh")"
-		echo "pi is nix-managed — updating via $installer"
-		exec sh "$installer" ;;
+		echo "pi is nix-managed — updating via $installer --update"
+		exec "$installer" --update ;;
 	typecheck)
 		# nix-built tsc vs the nix-built pi's .d.ts (see flake/pi.nix)
 		exec nix run "$dotfiles/flake"#typecheck -- "$PI_CODING_AGENT_DIR/extensions" ;;

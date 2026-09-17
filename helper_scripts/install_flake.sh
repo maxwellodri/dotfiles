@@ -11,8 +11,16 @@
 #                wrapper and $bin/tmux run from it
 #   #toolchain   node + tsc, used below for the vendored adapter deps
 #
-# Re-running is the updater: it checks the npm registry for a newer pi
-# release, bumps the pinned version + hashes in flake/pi.nix and rebuilds.
+# Modes:
+#   ./install_flake.sh            install/link from the pins as-is; the only
+#                                 network is nix's own fetching on cache
+#                                 misses (the first build downloads ~400MB)
+#   ./install_flake.sh --update   the updater (what `pi update` runs): bump
+#                                 flake.lock inputs (nixpkgs), then pin the
+#                                 newest pi release at least
+#                                 MIN_RELEASE_AGE_DAYS old — the npm
+#                                 cooldown, mirroring the min-release-age
+#                                 gate the pi wrapper sets in flake/pi.nix
 #
 # Also runs on every bootstrap regardless:
 #   - $bin/tmux + .config/tmux/plugins symlinks into flake/result
@@ -25,11 +33,34 @@
 
 set -eu
 
+update=0
+case "${1:-}" in
+    --update) update=1 ;;
+    "") ;;
+    *) echo "usage: install_flake.sh [--update]" >&2; exit 2 ;;
+esac
+
 dir="$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel)"
 flake="$dir/flake"
 bin="${bin:-$HOME/bin}"
 
 : "${XDG_DATA_HOME:=$HOME/.local/share}"; export XDG_DATA_HOME
+
+# dist.integrity for name@version straight from the packument.
+registry_integrity() { # registry_integrity <name> <version>
+    curl -fsSL "https://registry.npmjs.org/$1" |
+        jq -r --arg v "$2" '.versions[$v].dist.integrity'
+}
+
+# Full packument (has the .time map the cooldown needs).
+registry_packument() {
+    curl -fsSL "https://registry.npmjs.org/@earendil-works/pi-coding-agent"
+}
+
+registry_latest() {
+    curl -fsSL "https://registry.npmjs.org/@earendil-works/pi-coding-agent/latest" |
+        jq -r .version
+}
 
 if ! command -v nix >/dev/null 2>&1; then
     echo "nix not found — install it first (see archlinux_x86_64_packages)" >&2
@@ -48,68 +79,85 @@ done
 command -v uv >/dev/null 2>&1 ||
     echo "WARNING: uv not found — the blender MCP server needs it" >&2
 
-# --- pi update check ------------------------------------------------------
-# Latest release per the npm registry; the flake pins the version.
-registry_latest() {
-    curl -fsSL "https://registry.npmjs.org/@earendil-works/pi-coding-agent/latest" |
-        jq -r .version
-}
-
-# dist.integrity for name@version straight from the packument.
-registry_integrity() { # registry_integrity <name> <version>
-    curl -fsSL "https://registry.npmjs.org/$1" |
-        jq -r --arg v "$2" '.versions[$v].dist.integrity'
-}
+# --- pi update (--update only) -------------------------------------------
+# Plain runs never query the registry; the flake pins the version.
+MIN_RELEASE_AGE_DAYS=7
 
 current="$(sed -n 's/^[[:space:]]*version = "\([^"]*\)";/\1/p' "$flake/pi.nix" | head -n1)"
-latest="$(registry_latest)"
+pi_version="$current"
 
-if [ "$current" = "$latest" ]; then
-    echo "pi $current is the latest release"
-else
-    echo "Updating pi: $current -> $latest"
+if [ "$update" = 1 ]; then
+    # Rolling inputs (nixpkgs); pi itself is version-pinned in pi.nix.
+    if (cd "$flake" && nix flake update); then
+        echo "flake.lock inputs updated"
+    else
+        echo "WARNING: nix flake update failed — continuing on the existing lock" >&2
+    fi
 
-    # Regenerate integrities.json from the NEW tarball's npm-shrinkwrap.json:
-    # upstream omits `integrity` for the @earendil-works workspace siblings,
-    # and nixpkgs' npm-deps fetcher refuses those. Sibling versions may differ
-    # from pi's own, so read them from the lock instead of assuming.
-    tmp="$(mktemp -d)"
-    trap 'rm -rf "$tmp"' EXIT
-    curl -fsSL -o "$tmp/pi.tgz" \
-        "https://registry.npmjs.org/@earendil-works/pi-coding-agent/-/pi-coding-agent-$latest.tgz"
-    tar -xzf "$tmp/pi.tgz" -C "$tmp" package/npm-shrinkwrap.json
+    # Newest plain x.y.z release published at least MIN_RELEASE_AGE_DAYS
+    # days ago (registry .time has ISO timestamps with millis).
+    cutoff=$(($(date +%s) - MIN_RELEASE_AGE_DAYS * 86400))
+    target="$(registry_packument | jq -r --argjson cutoff "$cutoff" '
+        .time | to_entries
+        | map(select(.key | test("^[0-9]+\\.[0-9]+\\.[0-9]+$")))
+        | map(select((.value | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) <= $cutoff))
+        | map(.key) | join("\n")
+    ' | sort -V | tail -n1)"
+    [ -n "$target" ] || target="$current"
 
-    missing_integrities='
-      [.packages | to_entries[]
-       | select((.value.resolved // "") | test("registry.npmjs.org"))
-       | select(.value | has("integrity") | not)]
-    '
-    jq -r "$missing_integrities |
-        sort_by(.key) | .[] |
-        [(.key | split(\"node_modules/\") | last), .value.version] | @tsv
-    " "$tmp/package/npm-shrinkwrap.json" > "$tmp/deps.tsv"
-    need="$(wc -l < "$tmp/deps.tsv")"
-    while IFS="$(printf '\t')" read -r name ver; do
-        ih="$(registry_integrity "$name" "$ver")"
-        [ -n "$ih" ] && [ "$ih" != "null" ] ||
-            { echo "no dist.integrity for $name@$ver on the registry" >&2; exit 1; }
-        printf '%s\t%s\n' "$name" "$ih"
-    done < "$tmp/deps.tsv" > "$tmp/integrities.tsv"
-    got="$(wc -l < "$tmp/integrities.tsv")"
-    [ "$need" = "$got" ] || { echo "integrity fetch incomplete ($got/$need)" >&2; exit 1; }
-    jq -Rn '[inputs | split("\t") | select(length == 2) | {key: .[0], value: .[1]}] | from_entries' \
-        "$tmp/integrities.tsv" > "$flake/integrities.json"
+    latest="$(registry_latest || true)"
+    if [ -n "$latest" ] && [ "$target" != "$latest" ]; then
+        echo "npm cooldown: latest $latest is under ${MIN_RELEASE_AGE_DAYS}d old — considering $target"
+    fi
 
-    # Bump the version; blank the hashes so the build below fails with fresh
-    # "got: sha256-..." values that get fed back in automatically.
-    for attr in version srcHash npmDepsHash; do
-        if [ "$attr" = version ]; then new="$latest"; else
-            new="sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-        fi
-        sed -i "s|^\([[:space:]]*\)$attr = \"[^\"]*\";|\1$attr = \"$new\";|" "$flake/pi.nix"
-    done
-    trap - EXIT
-    rm -rf "$tmp"
+    if [ "$target" != "$current" ]; then
+        echo "Updating pi: $current -> $target"
+
+        # Regenerate integrities.json from the NEW tarball's npm-shrinkwrap.json:
+        # upstream omits `integrity` for the @earendil-works workspace siblings,
+        # and nixpkgs' npm-deps fetcher refuses those. Sibling versions may differ
+        # from pi's own, so read them from the lock instead of assuming.
+        tmp="$(mktemp -d)"
+        trap 'rm -rf "$tmp"' EXIT
+        curl -fsSL -o "$tmp/pi.tgz" \
+            "https://registry.npmjs.org/@earendil-works/pi-coding-agent/-/pi-coding-agent-$target.tgz"
+        tar -xzf "$tmp/pi.tgz" -C "$tmp" package/npm-shrinkwrap.json
+
+        missing_integrities='
+          [.packages | to_entries[]
+           | select((.value.resolved // "") | test("registry.npmjs.org"))
+           | select(.value | has("integrity") | not)]
+        '
+        jq -r "$missing_integrities |
+            sort_by(.key) | .[] |
+            [(.key | split(\"node_modules/\") | last), .value.version] | @tsv
+        " "$tmp/package/npm-shrinkwrap.json" > "$tmp/deps.tsv"
+        need="$(wc -l < "$tmp/deps.tsv")"
+        while IFS="$(printf '\t')" read -r name ver; do
+            ih="$(registry_integrity "$name" "$ver")"
+            [ -n "$ih" ] && [ "$ih" != "null" ] ||
+                { echo "no dist.integrity for $name@$ver on the registry" >&2; exit 1; }
+            printf '%s\t%s\n' "$name" "$ih"
+        done < "$tmp/deps.tsv" > "$tmp/integrities.tsv"
+        got="$(wc -l < "$tmp/integrities.tsv")"
+        [ "$need" = "$got" ] || { echo "integrity fetch incomplete ($got/$need)" >&2; exit 1; }
+        jq -Rn '[inputs | split("\t") | select(length == 2) | {key: .[0], value: .[1]}] | from_entries' \
+            "$tmp/integrities.tsv" > "$flake/integrities.json"
+
+        # Bump the version; blank the hashes so the build below fails with fresh
+        # "got: sha256-..." values that get fed back in automatically.
+        for attr in version srcHash npmDepsHash; do
+            if [ "$attr" = version ]; then new="$target"; else
+                new="sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+            fi
+            sed -i "s|^\([[:space:]]*\)$attr = \"[^\"]*\";|\1$attr = \"$new\";|" "$flake/pi.nix"
+        done
+        trap - EXIT
+        rm -rf "$tmp"
+        pi_version="$target"
+    else
+        echo "pi $current is the newest release at least ${MIN_RELEASE_AGE_DAYS}d old"
+    fi
 fi
 
 # --- Build (with hash autofix) --------------------------------------------
@@ -146,7 +194,7 @@ done
 echo "Building dotfiles-env (pi + tmux + plugins)..."
 nix build "$flake#default" --out-link "$flake/result" -L
 
-echo "pi $latest built: $(readlink "$flake/result")"
+echo "pi $pi_version built: $(readlink "$flake/result")"
 
 mkdir -p "$bin"
 ln -sfn "$flake/result/bin/tmux" "$bin/tmux"
