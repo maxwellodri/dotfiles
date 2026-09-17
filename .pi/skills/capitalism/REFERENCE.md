@@ -1,38 +1,31 @@
 # Reference
 
-## websearch Script
+## `web_search` Tool
 
-Wraps the Brave Search API with AU/EN defaults. On `$PATH` as bare `websearch` (the export is in `.config/sh/shrc`); the script itself lives under `pi/scripts/` in the dotfiles repo.
+Brave Search API, exposed as a pi tool (extension: `pi/extensions/websearch.ts` in the dotfiles repo). Params: `query` (required), `count` (1–20, default 10).
 
 ### Usage
 
-```bash
+```
 # Basic text search (default, 10 results)
-websearch "wireless headphones Australia buy"
+web_search { query: "wireless headphones Australia buy" }
 
-# Raw JSON output (-j) for programmatic parsing
-websearch -j "DDR5-5600 32GB RAM kit"
-
-# Fewer results (-n)
-websearch -n 5 "vital wheat gluten buy Australia"
-
-# Pipe query via stdin
-echo "Baldur's Gate 3 cheapest price" | websearch
+# Fewer results
+web_search { query: "vital wheat gluten buy Australia", count: 5 }
 
 # Store-scoped queries using site: operator
-websearch "headphones site:amazon.com.au OR site:jbhifi.com.au"
+web_search { query: "headphones site:amazon.com.au OR site:jbhifi.com.au" }
 ```
 
-### Hardcoded Defaults
+### Defaults
 
-- **Country:** `au`
-- **Language:** `en`
-- **Count:** 10 results (overridable with `-n`)
+- **Country / language:** derived from the OS locale (`en_AU.UTF-8` → `au` / `en`); omitted when locale is unparseable
+- **Count:** 10 results (overridable with `count`)
 - **HTML stripping:** description text has HTML tags removed
 
 ### Output Format
 
-**Default (text):**
+**Text:**
 ```
 1. Title
    https://url
@@ -43,11 +36,11 @@ websearch "headphones site:amazon.com.au OR site:jbhifi.com.au"
    Description text
 ```
 
-**JSON (`-j`):** Full Brave API response. Key path: `.web.results[]` with `.title`, `.url`, `.description`.
+**Structured:** `details.results[]` with `.title`, `.url`, `.description`.
 
 ### Dependencies
 
-- `curl`, `jq`, `pass` (with `brave_search_api_key` stored)
+- `pass` (with `brave_search_api_key` stored) — the tool fetches the key itself
 
 ### Query Tips
 
@@ -98,7 +91,7 @@ websearch "headphones site:amazon.com.au OR site:jbhifi.com.au"
 
 ### Food / Specialty Ingredients
 
-No dedicated stores — use websearch with "Australia" for items like vital wheat gluten, specialty flours, etc.
+No dedicated stores — use web_search with "Australia" for items like vital wheat gluten, specialty flours, etc.
 
 ### International (fallback only)
 
@@ -174,7 +167,7 @@ for (let i = 0; i < lines.length; i++) {
 
 ## Playwright MCP Tools
 
-Optional — only needed when websearch results lack sufficient detail.
+Optional — only needed when web_search results lack sufficient detail.
 
 ### Navigation and Reading
 
@@ -203,8 +196,8 @@ Optional — only needed when websearch results lack sufficient detail.
 ## Extraction Hierarchy
 
 1. **staticICE** — first port of call. Instant across-store price comparison via Playwright. Best for finding the cheapest price for a known product.
-2. **`websearch`** — primary discovery tool. Fast, no browser needed. Results include title, URL, description. Sufficient for most queries.
-3. **`websearch -j`** — same data as structured JSON for programmatic parsing
+2. **`web_search`** — primary discovery tool. Fast, no browser needed. Results include title, URL, description. Sufficient for most queries.
+3. **`web_search` `details.results`** — same data structured, for programmatic parsing
 4. **Playwright `browser_evaluate` with selectors** — for detailed store page data (specs, exact prices, stock)
 5. **`document.body.innerText` parsing** — for JS-heavy sites where DOM is hidden (Scorptec)
 6. **`browser_snapshot` + manual reading** — for pages where evaluate returns empty

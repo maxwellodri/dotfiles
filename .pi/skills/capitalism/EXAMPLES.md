@@ -1,20 +1,20 @@
 # Examples
 
-## Example 1: Simple Product Search (websearch only)
+## Example 1: Simple Product Search (web_search only)
 
 **User:** "find me wireless headphones under $100"
 
 **Agent does:**
-1. Runs pre-flight check — websearch OK
+1. Runs pre-flight check — web_search OK
 2. Runs broad discovery:
    ```
-   websearch "wireless headphones under 100 AUD buy Australia"
+   web_search "wireless headphones under 100 AUD buy Australia"
    ```
 3. Runs store-scoped search:
    ```
-   websearch "wireless headphones under $100 site:amazon.com.au OR site:jbhifi.com.au"
+   web_search "wireless headphones under $100 site:amazon.com.au OR site:jbhifi.com.au"
    ```
-4. Builds comparison table from websearch results
+4. Builds comparison table from web_search results
 
 | Product | Price (AUD) | Shipping | Rating | Availability | Store | Link |
 |---------|-------------|----------|--------|--------------|-------|------|
@@ -22,7 +22,7 @@
 | Anker Soundcore Q30 | $79.99 | $9.95 | 4.5/5 | In stock | Amazon AU | [link](https://...) |
 | JBL Tune 770NC | $129.00 | Free (over $50) | 4.4/5 | In stock | JB Hi-Fi | [link](https://...) |
 
-**Agent feedback:** "websearch alone provided sufficient detail for all three stores. No Playwright needed. Harvey Norman didn't appear in results — could try a targeted query."
+**Agent feedback:** "web_search alone provided sufficient detail for all three stores. No Playwright needed. Harvey Norman didn't appear in results — could try a targeted query."
 
 ---
 
@@ -31,12 +31,12 @@
 **User:** "find me 32GB DDR5-5600 RAM kit"
 
 **Agent does:**
-1. Runs pre-flight check — websearch OK, Playwright available
+1. Runs pre-flight check — web_search OK, Playwright available
 2. Trusts user's spec (DDR5-5600, 32GB) — does not check local machine
 3. **staticICE first** — navigates to `https://www.staticice.com.au/cgi-bin/search.cgi?q=32GB+DDR5-5600`
    - Extracts `document.body.innerText.substring(0, 3000)` to get all prices across stores
    - Instantly sees cheapest prices from MSY, CPL, Scorptec, PCCG, Umart, etc.
-4. Websearch for supplementary discovery (Amazon-only listings, new products)
+4. web_search for supplementary discovery (Amazon-only listings, new products)
 5. If needed, Playwright deep-dive on specific store pages for specs (CAS latency, stock)
 6. Presents:
 
@@ -46,7 +46,7 @@
 | Corsair Vengeance 32GB DDR5-5600 | $134.00 | Free (over $100) | 5600MHz | CL36 | In stock | PCCaseGear | [link](https://...) |
 | Kingston Fury Beast 32GB DDR5-5600 | $119.00 | $8.50 | 5600MHz | CL38 | In stock | Umart | [link](https://...) |
 
-**Agent feedback:** "staticICE found the cheapest price instantly across 15+ stores. Websearch supplemented with Amazon listings. staticICE also revealed MSY had the same Kingston kit for $115 — wouldn't have found that without it."
+**Agent feedback:** "staticICE found the cheapest price instantly across 15+ stores. web_search supplemented with Amazon listings. staticICE also revealed MSY had the same Kingston kit for $115 — wouldn't have found that without it."
 
 ---
 
@@ -55,10 +55,10 @@
 **User:** "find me the cheapest price for Baldur's Gate 3"
 
 **Agent does:**
-1. Runs pre-flight check — websearch OK
+1. Runs pre-flight check — web_search OK
 2. Searches IsThereAnyDeal and stores:
    ```
-   websearch "Baldur's Gate 3 cheapest price Australia buy"
+   web_search "Baldur's Gate 3 cheapest price Australia buy"
    ```
 3. Presents:
 
@@ -78,10 +78,10 @@
 **User:** "find me vital wheat gluten"
 
 **Agent does:**
-1. Runs pre-flight check — websearch OK
+1. Runs pre-flight check — web_search OK
 2. Broad search:
    ```
-   websearch "vital wheat gluten buy Australia"
+   web_search "vital wheat gluten buy Australia"
    ```
 3. Presents whatever AU sources appear (health food stores, online grocers, Amazon AU)
 
@@ -108,9 +108,9 @@
 **User:** "find me a 27" 4K monitor under $500"
 
 **Agent does:**
-1. Runs pre-flight — websearch OK, Playwright available
+1. Runs pre-flight — web_search OK, Playwright available
 2. staticICE search for "27 inch 4K monitor" — gets broad pricing
-3. websearch for supplementary discovery
+3. web_search for supplementary discovery
 4. Tries Playwright deep-dive on a few top results
 5. On Scorptec page, extraction works fine (innerText parsing)
 6. On Harvey Norman page, all extraction methods fail (JS-heavy, image-based pricing, anti-bot)
@@ -129,4 +129,4 @@
 | Dell S2722QC | $399.00 | Free | 4.5/5 | In stock | Amazon AU | [link](https://...) |
 | Samsung S27A600U | ⚠ manual review | TBD | — | — | Harvey Norman | [link](https://...) |
 
-**Agent feedback:** "1 product page left open in browser for manual review (Harvey Norman — extraction failed due to JS-heavy layout). websearch + staticICE covered everything else."
+**Agent feedback:** "1 product page left open in browser for manual review (Harvey Norman — extraction failed due to JS-heavy layout). web_search + staticICE covered everything else."

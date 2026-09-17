@@ -4,11 +4,9 @@ set -euo pipefail
 ERRORS=()
 WARNINGS=()
 
-for cmd in curl jq pass; do
-    if ! command -v "$cmd" &>/dev/null; then
-        ERRORS+=("$cmd is not installed — required by websearch")
-    fi
-done
+if ! command -v pass &>/dev/null; then
+    ERRORS+=("pass is not installed — required by web_search")
+fi
 
 if [ ${#ERRORS[@]} -eq 0 ]; then
     if ! pass brave_search_api_key &>/dev/null; then
@@ -24,7 +22,7 @@ if [ ${#ERRORS[@]} -gt 0 ]; then
     exit 1
 fi
 
-echo "PASS: websearch ready (curl, jq, pass with brave_search_api_key)"
+echo "PASS: web_search ready (pass with brave_search_api_key)"
 echo ""
 
 BINARY="/usr/bin/chromium"
@@ -42,9 +40,9 @@ if [ ${#WARNINGS[@]} -gt 0 ]; then
         echo "  - $w"
     done
     echo ""
-    echo "The skill works fully without Playwright using websearch alone."
+    echo "The skill works fully without Playwright using web_search alone."
     echo "Playwright is only needed for scraping individual store pages when"
-    echo "websearch results lack sufficient detail (specs, shipping, stock)."
+    echo "web_search results lack sufficient detail (specs, shipping, stock)."
 else
     echo "PASS: Playwright available (optional deep-dive tool)"
     echo ""

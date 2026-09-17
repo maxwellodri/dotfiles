@@ -22,7 +22,7 @@ description: Search for products, compare prices across stores, check availabili
 
 | Tool | Purpose | Required |
 |------|---------|----------|
-| `websearch` | Brave Search API wrapper. Primary product discovery and price comparison. AU/EN defaults, clean text output or raw JSON with `-j`. On `$PATH` — invoke as bare `websearch`. | Yes |
+| `web_search` | Brave Search pi tool (extension `pi/extensions/websearch.ts`). Primary product discovery and price comparison. Params: `{query, count?}`; locale-derived country/language. Text output plus structured `details.results`. | Yes |
 | staticICE (`staticice.com.au`) | AU price aggregator. First port of call for comparing prices across all AU stores at once. Playwright is needed to scrape it. | No (but strongly recommended) |
 | Playwright MCP | Browser automation for scraping staticICE and deep-diving individual store pages (detailed specs, shipping thresholds, stock verification). **Browsing is read-only (no disk modifications) — it IS planning.** | No |
 
@@ -48,8 +48,8 @@ than calling `playwright_*` tools by name.
 ## Quick Start
 
 1. User describes what they need: "find me wireless headphones under $100"
-2. Run pre-flight check — verify `websearch` is functional
-3. Search using `websearch` for broad discovery, then store-specific queries
+2. Run pre-flight check — verify `web_search` is functional
+3. Search using `web_search` for broad discovery, then store-specific queries
 4. If more detail is needed (specs, shipping, stock), optionally use Playwright to scrape individual store pages
 5. Extract prices, ratings, availability into a comparison table (all AUD)
 6. Present table sorted by best value
@@ -64,7 +64,7 @@ If your harness distinguishes **build mode** (no side effects) from **plan mode*
 
 > Capitalism skill requires plan mode. Browsing stores and comparing prices is research (read-only, no disk modifications). Re-invoke with plan mode enabled so I can structure research, compare deals, and present findings properly.
 
-Do not proceed with any browsing, websearch queries, or Playwright navigation outside plan mode. Playwright browsing IS planning — it only reads web pages and never modifies files on disk.
+Do not proceed with any browsing, web_search queries, or Playwright navigation outside plan mode. Playwright browsing IS planning — it only reads web pages and never modifies files on disk.
 
 ### 1. Pre-flight
 
@@ -72,9 +72,9 @@ Do not proceed with any browsing, websearch queries, or Playwright navigation ou
 bash scripts/capitalism_check.sh
 ```
 
-This checks that `websearch` dependencies are met (curl, jq, pass with `brave_search_api_key`). Playwright checks are optional — the skill is fully functional without it.
+This checks that `web_search` dependencies are met (pass with `brave_search_api_key`). Playwright checks are optional — the skill is fully functional without it.
 
-If Playwright MCP tools are not available, note it to the user but continue — `websearch` handles most product research without a browser.
+If Playwright MCP tools are not available, note it to the user but continue — `web_search` handles most product research without a browser.
 
 ### 2. Gather context (if needed)
 
@@ -116,27 +116,24 @@ https://www.ebay.com.au/sch/i.html?_nkw={query}&LH_BIN=1&_sop=15
 - Extraction: `document.body.innerText`, slice from `indexOf('Sort:')` — rows contain title, condition, price, delivery, seller feedback inline
 - `LH_PrefLoc=3` ("Australia only") is **invalid** on ebay.com.au and returns an error page. Do not use it — filter by reading "+AU $x delivery" / "from <country>" vs "Free delivery" / "Click & Collect" in the rows instead
 - Prefer local sellers (free delivery / click & collect). Overseas shipping on small PCs and thin clients is typically AU$70–100 and destroys the price
-- Discovery first via `websearch "site:ebay.com.au {query}"`, then scrape the search page for live prices
-- Listings churn fast — item pages found via websearch are often ended/dead by the time you scrape; verify against a live search page before presenting
+- Discovery first via `web_search "site:ebay.com.au {query}"`, then scrape the search page for live prices
+- Listings churn fast — item pages found via web_search are often ended/dead by the time you scrape; verify against a live search page before presenting
 
-### 4. Search with websearch (supplementary discovery)
+### 4. Search with web_search (supplementary discovery)
 
-After staticICE, use `websearch` for supplementary discovery — finding products that staticICE might not index (new releases, Amazon-only listings, niche items):
+After staticICE, use `web_search` for supplementary discovery — finding products that staticICE might not index (new releases, Amazon-only listings, niche items):
 
 **Broad discovery:**
 ```bash
-websearch "wireless headphones under 100 AUD buy Australia"
+web_search "wireless headphones under 100 AUD buy Australia"
 ```
 
 **Store-scoped searches** (target specific stores from REFERENCE.md):
 ```bash
-websearch "wireless headphones site:amazon.com.au OR site:jbhifi.com.au OR site:scorptec.com.au"
+web_search "wireless headphones site:amazon.com.au OR site:jbhifi.com.au OR site:scorptec.com.au"
 ```
 
-**Structured extraction** (when you want to parse results programmatically):
-```bash
-websearch -j "DDR5-5600 32GB RAM kit Australia"
-```
+**Structured results** (when you want to parse programmatically): call `web_search` and read `details.results[]` from the tool result — title, url, description per entry.
 
 Each result includes: title, URL, description (HTML tags stripped). Build the comparison table directly from these fields.
 
@@ -146,14 +143,14 @@ Repeat with varied queries to cover different stores and product variants.
 
 ### 5. Deep-dive with Playwright (optional)
 
-If `websearch` results lack sufficient detail (missing prices, specs, stock status, shipping info), use Playwright MCP to scrape individual store pages:
+If `web_search` results lack sufficient detail (missing prices, specs, stock status, shipping info), use Playwright MCP to scrape individual store pages:
 
-1. `browser_navigate` to the product page URL from `websearch` results
+1. `browser_navigate` to the product page URL from `web_search` results
 2. `browser_wait_for` — wait for content to load (especially Scorptec, PCCG — JS-heavy)
 3. `browser_snapshot` or `browser_evaluate` to extract structured product data
 4. Follow the [fallback hierarchy](REFERENCE.md) if extraction fails (selectors → innerText → snapshot → webfetch)
 
-This step is optional. Skip it if `websearch` results already provide enough detail for the comparison table.
+This step is optional. Skip it if `web_search` results already provide enough detail for the comparison table.
 
 ### 6. Preserve un-extractable pages (Playwright only)
 
@@ -190,7 +187,7 @@ If any tabs were preserved, add a note: "N product page(s) left open in browser 
 
 After presenting results, briefly note:
 - Any difficulties encountered (missing prices, blocked queries, sparse results)
-- Whether Playwright was needed or `websearch` alone sufficed
+- Whether Playwright was needed or `web_search` alone sufficed
 - Suggestions for improving this skill, scripts, or workflow
 - Stores that would be useful to add
 
@@ -201,13 +198,13 @@ User may ask to narrow results, check more stores, open product pages, or compar
 ## Review Checklist
 
 - [ ] Build mode gate enforced — refused if in build mode
-- [ ] Pre-flight check passed (websearch functional)
+- [ ] Pre-flight check passed (web_search functional)
 - [ ] staticICE checked as first port of call (if Playwright available; skipped for second-hand gear — eBay AU, step 3.5)
-- [ ] `websearch` used for supplementary product discovery
+- [ ] `web_search` used for supplementary product discovery
 - [ ] At least 2 stores represented in results (AU storefronts first)
 - [ ] All prices in AUD
 - [ ] Free shipping noted where threshold is met (no membership assumptions)
-- [ ] Playwright used only when websearch results were insufficient (or not at all)
+- [ ] Playwright used only when web_search results were insufficient (or not at all)
 - [ ] User pinged for any CAPTCHA/login walls (Playwright only)
 - [ ] Un-extractable product pages preserved as open tabs (Playwright only, not closed/navigated away)
 - [ ] Preserved tabs noted in comparison table with `⚠ manual review`

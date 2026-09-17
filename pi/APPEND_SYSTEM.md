@@ -4,7 +4,6 @@
 * CLI tools (these are in your PATH)
 ```bash
 rustdoc-search #search docs.rs (check --help), use to confirm type/function/trait signatures (internally parses json -> markdown)
-websearch #find keyword-driven search results (brave api, check --help); use to verify information and fact check claims
 gh #github cli, use when interacting with github
 ```
 

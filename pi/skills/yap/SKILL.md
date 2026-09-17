@@ -32,7 +32,7 @@ You must **not** use any tool that reads from or interacts with the current proj
 ### Allowed tools
 
 - `webfetch` — fetching external URLs for reference material
-- `websearch` — searching the web for information
+- `web_search` — searching the web for information
 - `question` — asking the user clarifying questions
 - `skill` — loading other skills if needed
 
