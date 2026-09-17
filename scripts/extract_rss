@@ -1,27 +1,39 @@
 #!/usr/bin/env bash
+# extract_rss <youtube-channel-or-video-url> — resolve to a channel id and add
+# the SELF-HOSTED feed (http://127.0.0.1:3001/<cid>, the youtube-rss server on
+# the VPS, reached via the autossh LocalForward in ~/.ssh/config) to newsboat.
+# youtube.com/feeds/videos.xml is not consulted: it flaps 404/500 globally
+# since 2026 and per-channel feeds die permanently. The channel id comes from
+# page JSON instead, which keeps working during feed outages.
 if [ -z "$1" ]; then
-    echo "Usage: $0 <youtube-channel-url>"
+    echo "Usage: $0 <youtube-channel-or-video-url>"
     exit 1
 fi
 url="$1"
-# Fetch page and extract RSS feed URL
-rss_url=$(curl -s "$url" | grep -oP 'type="application/rss\+xml"[^>]*href="\K[^"]+')
-if [ -n "$rss_url" ]; then
-    if [[ -n $WAYLAND_DISPLAY ]]; then
-        echo "$rss_url" | wl-copy
-        notify-send "RSS Feed Found"
-        sed -i "1i\\$rss_url" ~/.config/newsboat/urls
-        nohup alacritty --hold -e sh -c 'nvim ~/.config/newsboat/urls; exec zsh' > /dev/null 2>&1 &
-    elif [[ -n $DISPLAY ]]; then
-        echo "$rss_url" | xclip -selection clipboard
-        notify-send "RSS Feed Found"
-        sed -i "1i\\$rss_url" ~/.config/newsboat/urls
-        nohup alacritty --hold -e sh -c 'nvim ~/.config/newsboat/urls; exec zsh' > /dev/null 2>&1 &
-    else
-        sed -i "1i\\$rss_url" ~/.config/newsboat/urls
-        echo "$rss_url"
-    fi
-else
-    notify-send "RSS Feed Error" "No RSS feed found for $url"
+html=$(curl -sL "$url")
+# channel pages: externalId; watch pages: channelId (both [\w-]+ — ids contain hyphens)
+cid=$(grep -oP '"externalId":"\K[\w-]+' <<<"$html" | head -1)
+[ -z "$cid" ] && cid=$(grep -oP '"channelId":"\K[\w-]+' <<<"$html" | head -1)
+if [ -z "$cid" ]; then
+    notify-send "RSS Feed Error" "No channel id found for $url"
+    echo "error: no channel id found for $url" >&2
     exit 1
+fi
+feed_url="http://127.0.0.1:3001/$cid"
+
+# ~/.config/newsboat/urls may be a symlink into a repo (e.g. ~/source/private);
+# sed -i renames over the path and would replace the symlink with a plain file
+urls_file=$(readlink -f ~/.config/newsboat/urls) || urls_file=~/.config/newsboat/urls
+sed -i "1i\\$feed_url" "$urls_file"
+
+if [[ -n $WAYLAND_DISPLAY ]] || [[ -n $DISPLAY ]]; then
+    if [[ -n $WAYLAND_DISPLAY ]]; then
+        echo "$feed_url" | wl-copy
+    else
+        echo "$feed_url" | xclip -selection clipboard
+    fi
+    notify-send "RSS Feed Added" "$feed_url"
+    nohup alacritty --hold -e sh -c "nvim '$urls_file'; exec zsh" > /dev/null 2>&1 &
+else
+    echo "$feed_url"
 fi
