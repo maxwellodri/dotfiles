@@ -58,6 +58,12 @@ if [ -z "${OPENROUTER_API_KEY:-}" ]; then
 	fi
 fi
 
+if [ -z "${OPENCODE_API_KEY:-}" ]; then
+	if OPENCODE_API_KEY="$(pass zen_opencode_api_key 2>/dev/null)"; then
+		export OPENCODE_API_KEY
+	fi
+fi
+
 # Gruvbox canvas for to match theme.
 if [ -t 1 ] && [ -z "${PI_NO_CANVAS:-}" ]; then
 	clear
