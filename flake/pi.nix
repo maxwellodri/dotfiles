@@ -129,5 +129,6 @@ in
       # still points at $extdir.
       ( cd "$extdir" && ${pkgs.lib.getExe pkgs.typescript} --project "$tmp/tsconfig.json" )
     '');
+    meta.description = "typecheck pi extensions against the nix-built pi's type definitions";
   };
 }
