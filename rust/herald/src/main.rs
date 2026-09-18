@@ -1217,20 +1217,38 @@ async fn handle_client(
 
 // ── Client helpers (sync) ────────────────────────────────────
 
-fn send_message(msg: Message) -> io::Result<()> {
+fn connect() -> io::Result<std::os::unix::net::UnixStream> {
     use std::os::unix::net::UnixStream;
 
+    let path = socket_path();
+    UnixStream::connect(&path).map_err(|e| {
+        if matches!(
+            e.kind(),
+            io::ErrorKind::ConnectionRefused
+                | io::ErrorKind::NotFound
+                | io::ErrorKind::PermissionDenied
+        ) {
+            eprintln!(
+                "herald: daemon not running ({e} at {}); start it with 'herald daemon --tmux'",
+                path.display()
+            );
+            std::process::exit(1);
+        } else {
+            e
+        }
+    })
+}
+
+fn send_message(msg: Message) -> io::Result<()> {
     let json = serde_json::to_string(&msg).unwrap();
-    let mut stream = UnixStream::connect(socket_path())?;
+    let mut stream = connect()?;
     stream.write_all(json.as_bytes())?;
     Ok(())
 }
 
 fn send_and_recv(msg: Message) -> io::Result<String> {
-    use std::os::unix::net::UnixStream;
-
     let json = serde_json::to_string(&msg).unwrap();
-    let mut stream = UnixStream::connect(socket_path())?;
+    let mut stream = connect()?;
     stream.write_all(json.as_bytes())?;
     // Shut down write side so daemon sees EOF
     stream.shutdown(std::net::Shutdown::Write)?;
