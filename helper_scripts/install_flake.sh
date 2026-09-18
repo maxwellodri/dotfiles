@@ -1,29 +1,42 @@
 #!/bin/bash
 ############################
-# Installs/updates everything from the repo-wide flake/:
+# Installs/updates everything built by the nix_config flake (pkgs/):
 #
-#   #pi          pi (pi.dev), built hermetically from npm — node, npm and
-#                tsc all come from the flake, so no pacman nodejs/npm/
-#                typescript are needed (uv still comes from the host; the
-#                blender MCP server needs it)
-#   #default     dotfiles-env: pi + tmux + tmux plugins (resurrect,
-#                continuum), linked at flake/result — the `scripts/pi`
-#                wrapper and $bin/tmux run from it
-#   #toolchain   node + tsc, used below for the vendored adapter deps
+#   nixcfg#pi            pi (pi.dev), built hermetically from npm — node,
+#                        npm and tsc all come from the flake, so no pacman
+#                        nodejs/npm/typescript are needed (uv still comes
+#                        from the host; the blender MCP server needs it)
+#   nixcfg#dotfiles-env  pi + tmux + tmux plugins (resurrect, continuum),
+#                        out-linked at flake/result — the `scripts/pi`
+#                        wrapper and $bin/tmux run from it
+#   nixcfg#toolchain     node + tsc, used below for the vendored adapter deps
+#
+# The nix_config repo is private, so it is consumed via a local clone at
+# ${NIX_CONFIG_DIR:-$HOME/source/nix_config} (auto-cloned over ssh if
+# missing). NixOS hosts don't run this script at all: vps.nix installs
+# dotfiles-env system-wide and install.sh links flake/result ->
+# /run/current-system/sw instead.
 #
 # Modes:
-#   ./install_flake.sh            install/link from the pins as-is; the only
-#                                 network is nix's own fetching on cache
-#                                 misses (the first build downloads ~400MB)
-#   ./install_flake.sh --update   the updater (what `pi update` runs): bump
-#                                 flake.lock inputs (nixpkgs), then pin the
-#                                 newest pi release at least
-#                                 MIN_RELEASE_AGE_DAYS old — the npm
-#                                 cooldown, mirroring the min-release-age
-#                                 gate the pi wrapper sets in flake/pi.nix
+#   ./install_flake.sh                install/link from the pins as-is; the
+#                                     only network is nix's own fetching on
+#                                     cache misses (the first build
+#                                     downloads ~400MB)
+#   ./install_flake.sh --update       the updater (what `pi update` runs):
+#                                     pin the newest pi release at least
+#                                     MIN_RELEASE_AGE_DAYS old — the npm
+#                                     cooldown, mirroring the min-release-age
+#                                     gate set in nix_config's pkgs/pi.nix.
+#                                     Does NOT bump flake.lock: that also
+#                                     pins the VPS's nixpkgs and deploy
+#                                     tooling — bump deliberately instead.
+#   ./install_flake.sh --update-inputs  `nix flake update` in nix_config
+#                                     (nixpkgs + deploy-rs/sops/disko pins
+#                                     — affects the next VPS deploy; test it)
 #
 # Also runs on every bootstrap regardless:
-#   - $bin/tmux + .config/tmux/plugins symlinks into flake/result
+#   - $bin/tmux + .config/tmux/plugins symlinks into flake/result (swapped
+#     atomically via rename(2) — running sessions keep their store paths)
 #   - vendored pi-mcp-adapter deps (node_modules is gitignored by design;
 #     see pi/.gitignore) — npm ci via the flake's bundled npm
 #   - VDH chromium extension unpack for pi/browser/playwright-config.json's
@@ -34,17 +47,57 @@
 set -eu
 
 update=0
+update_inputs=0
 case "${1:-}" in
     --update) update=1 ;;
+    --update-inputs) update_inputs=1 ;;
     "") ;;
-    *) echo "usage: install_flake.sh [--update]" >&2; exit 2 ;;
+    *) echo "usage: install_flake.sh [--update|--update-inputs]" >&2; exit 2 ;;
 esac
 
 dir="$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel)"
-flake="$dir/flake"
+nixcfg="${NIX_CONFIG_DIR:-$HOME/source/nix_config}"
+pi_nix="$nixcfg/pkgs/pi.nix"
 bin="${bin:-$HOME/bin}"
 
 : "${XDG_DATA_HOME:=$HOME/.local/share}"; export XDG_DATA_HOME
+
+if ! command -v nix >/dev/null 2>&1; then
+    echo "nix not found — install it first (see archlinux_x86_64_packages)" >&2
+    exit 1
+fi
+
+if [ ! -d "$nixcfg/.git" ]; then
+    echo "nix_config not found at $nixcfg — cloning (private repo, needs github ssh)"
+    mkdir -p "$(dirname "$nixcfg")"
+    git clone git@github.com:maxwellodri/nix_config.git "$nixcfg" || {
+        echo "clone failed — set NIX_CONFIG_DIR or clone manually" >&2
+        exit 1
+    }
+fi
+
+# `pi update` mutates the pin in nix_config; a dirty clone means the pi built
+# here can diverge from what other machines (and the VPS) see after push.
+if [ -n "$(git -C "$nixcfg" status --porcelain 2>/dev/null)" ]; then
+    echo "WARNING: $nixcfg has uncommitted changes — commit/push so other machines build the same pi" >&2
+fi
+
+# Flakes only see git-tracked files; an untracked module yields confusing
+# "file not found" errors rather than a build.
+for tracked in pkgs/pi.nix pkgs/integrities.json; do
+    if ! git -C "$nixcfg" ls-files --error-unmatch "$tracked" >/dev/null 2>&1; then
+        echo "$nixcfg/$tracked is not tracked by git — run: git -C $nixcfg add pkgs/" >&2
+        exit 1
+    fi
+done
+
+command -v uv >/dev/null 2>&1 ||
+    echo "WARNING: uv not found — the blender MCP server needs it" >&2
+
+# rename(2) swap so concurrent launches never observe a missing symlink
+atomic_ln() { # atomic_ln <target> <linkpath>
+    ln -s "$1" "$2.tmp.$$" && mv -T "$2.tmp.$$" "$2"
+}
 
 # dist.integrity for name@version straight from the packument.
 registry_integrity() { # registry_integrity <name> <version>
@@ -62,38 +115,24 @@ registry_latest() {
         jq -r .version
 }
 
-if ! command -v nix >/dev/null 2>&1; then
-    echo "nix not found — install it first (see archlinux_x86_64_packages)" >&2
-    exit 1
-fi
-
-# Flakes only see git-tracked files; an untracked flake yields confusing
-# "file not found" errors rather than a build.
-for tracked in flake/flake.nix flake/integrities.json; do
-    if ! git -C "$dir" ls-files --error-unmatch "$tracked" >/dev/null 2>&1; then
-        echo "$tracked is not tracked by git — run: git add flake/" >&2
-        exit 1
-    fi
-done
-
-command -v uv >/dev/null 2>&1 ||
-    echo "WARNING: uv not found — the blender MCP server needs it" >&2
-
 # --- pi update (--update only) -------------------------------------------
 # Plain runs never query the registry; the flake pins the version.
 MIN_RELEASE_AGE_DAYS=7
 
-current="$(sed -n 's/^[[:space:]]*version = "\([^"]*\)";/\1/p' "$flake/pi.nix" | head -n1)"
+current="$(sed -n 's/^[[:space:]]*version = "\([^"]*\)";/\1/p' "$pi_nix" | head -n1)"
 pi_version="$current"
 
-if [ "$update" = 1 ]; then
-    # Rolling inputs (nixpkgs); pi itself is version-pinned in pi.nix.
-    if (cd "$flake" && nix flake update); then
-        echo "flake.lock inputs updated"
+if [ "$update_inputs" = 1 ]; then
+    # Lock bumps are deliberate: the lock pins the VPS's nixpkgs + deploy
+    # tooling, so refresh it alongside a deploy test, not as a side effect.
+    if (cd "$nixcfg" && nix flake update); then
+        echo "nix_config flake.lock inputs updated"
     else
         echo "WARNING: nix flake update failed — continuing on the existing lock" >&2
     fi
+fi
 
+if [ "$update" = 1 ]; then
     # Newest plain x.y.z release published at least MIN_RELEASE_AGE_DAYS
     # days ago (registry .time has ISO timestamps with millis).
     cutoff=$(($(date +%s) - MIN_RELEASE_AGE_DAYS * 86400))
@@ -142,7 +181,7 @@ if [ "$update" = 1 ]; then
         got="$(wc -l < "$tmp/integrities.tsv")"
         [ "$need" = "$got" ] || { echo "integrity fetch incomplete ($got/$need)" >&2; exit 1; }
         jq -Rn '[inputs | split("\t") | select(length == 2) | {key: .[0], value: .[1]}] | from_entries' \
-            "$tmp/integrities.tsv" > "$flake/integrities.json"
+            "$tmp/integrities.tsv" > "$nixcfg/pkgs/integrities.json"
 
         # Bump the version; blank the hashes so the build below fails with fresh
         # "got: sha256-..." values that get fed back in automatically.
@@ -150,7 +189,7 @@ if [ "$update" = 1 ]; then
             if [ "$attr" = version ]; then new="$target"; else
                 new="sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
             fi
-            sed -i "s|^\([[:space:]]*\)$attr = \"[^\"]*\";|\1$attr = \"$new\";|" "$flake/pi.nix"
+            sed -i "s|^\([[:space:]]*\)$attr = \"[^\"]*\";|\1$attr = \"$new\";|" "$pi_nix"
         done
         trap - EXIT
         rm -rf "$tmp"
@@ -170,7 +209,7 @@ set -o pipefail
 echo "Building pi via nix — first build on a machine fetches ~400MB of deps, be patient..."
 attempt=0
 while :; do
-    if build="$(nix build "$flake#pi" --no-link -L 2>&1 | tee /dev/stderr)"; then
+    if build="$(nix build "$nixcfg#pi" --no-link -L 2>&1 | tee /dev/stderr)"; then
         break
     fi
     attempt=$((attempt + 1))
@@ -186,19 +225,20 @@ while :; do
         attr=srcHash
     fi
     echo "absorbing $attr -> $got"
-    sed -i "s|^\([[:space:]]*\)$attr = \"[^\"]*\";|\1$attr = \"$got\";|" "$flake/pi.nix"
+    sed -i "s|^\([[:space:]]*\)$attr = \"[^\"]*\";|\1$attr = \"$got\";|" "$pi_nix"
 done
 
-# Link the repo-wide default (dotfiles-env: pi + tmux + plugins); keeps
-# flake/result/bin/{pi,tmux} + share/tmux-plugins under one out-link.
+# Out-link stays in THIS repo so existing consumers (scripts/pi's PI_BIN
+# default, .config/tmux/plugins) are untouched; nix build replaces the
+# symlink only after the build succeeded.
 echo "Building dotfiles-env (pi + tmux + plugins)..."
-nix build "$flake#default" --out-link "$flake/result" -L
+nix build "$nixcfg#dotfiles-env" --out-link "$dir/flake/result" -L
 
-echo "pi $pi_version built: $(readlink "$flake/result")"
+echo "pi $pi_version built: $(readlink "$dir/flake/result")"
 
 mkdir -p "$bin"
-ln -sfn "$flake/result/bin/tmux" "$bin/tmux"
-ln -sfn ../../flake/result/share/tmux-plugins "$dir/.config/tmux/plugins"
+atomic_ln "$dir/flake/result/bin/tmux" "$bin/tmux"
+atomic_ln ../../flake/result/share/tmux-plugins "$dir/.config/tmux/plugins"
 echo "tmux $("$bin/tmux" -V | awk '{print $2}'), plugins: $(readlink "$dir/.config/tmux/plugins")"
 
 # Legacy npm-managed installs from the pre-nix installer; informational only.
@@ -214,11 +254,11 @@ done
 adapter="$dir/pi/vendor/pi-mcp-adapter"
 if [ -f "$adapter/package.json" ] && [ ! -d "$adapter/node_modules" ]; then
     echo "Installing vendored pi-mcp-adapter deps..."
-    (cd "$adapter" && nix shell "$flake#toolchain" -c npm ci --omit=dev)
+    (cd "$adapter" && nix shell "$nixcfg#toolchain" -c npm ci --omit=dev)
 fi
 
 # --- Extension typecheck (non-fatal) --------------------------------------
-if ! nix run "$flake#typecheck" -- "$dir/pi/extensions"; then
+if ! nix run "$nixcfg#typecheck" -- "$dir/pi/extensions"; then
     echo "WARNING: pi extension typecheck failed — see errors above" >&2
 fi
 

@@ -3,26 +3,20 @@ if [ -z "$bin" ] || [ -z "$dotfiles" ]; then
     echo "bin var != ~/bin or dotfiles var doesnt exist"
     exit 1
 fi
-cd "$dotfiles/rust/dirsort" || exit 1
-echo "Building dirsort..."
-cargo build --release || exit 1
-ln -sf "$dotfiles/rust/dirsort/target/release/dirsort" "$bin"
-echo "Linked $(realpath "$dotfiles/rust/dirsort/target/release/dirsort") to $bin"
 
-cd "$dotfiles/rust/qz" || exit 1
-echo "Building qz..."
-cargo build --release || exit 1
-ln -sf "$dotfiles/rust/qz/target/release/qz" "$bin"
-echo "Linked $(realpath "$dotfiles/rust/qz/target/release/qz") to $bin"
+# donnie (headless NixOS VPS) builds only the terminal tools — herald is a
+# notification daemon, xidle needs X11 headers that aren't on a server.
+tag="${dotfile_tag:-}"
+[ -z "$tag" ] && tag="$(cat "$dotfiles/.dotfile_tag" 2>/dev/null || true)"
+case "$tag" in
+    donnie) crates="dirsort qz" ;;
+    *)      crates="dirsort qz herald xidle" ;;
+esac
 
-cd "$dotfiles/rust/herald" || exit 1
-echo "Building herald..."
-cargo build --release || exit 1
-ln -sf "$dotfiles/rust/herald/target/release/herald" "$bin"
-echo "Linked $(realpath "$dotfiles/rust/herald/target/release/herald") to $bin"
-
-cd "$dotfiles/rust/xidle" || exit 1
-echo "Building xidle..."
-cargo build --release || exit 1
-ln -sf "$dotfiles/rust/xidle/target/release/xidle" "$bin"
-echo "Linked $(realpath "$dotfiles/rust/xidle/target/release/xidle") to $bin"
+for crate in $crates; do
+    cd "$dotfiles/rust/$crate" || exit 1
+    echo "Building $crate..."
+    cargo build --release || exit 1
+    ln -sf "$dotfiles/rust/$crate/target/release/$crate" "$bin"
+    echo "Linked $(realpath "$dotfiles/rust/$crate/target/release/$crate") to $bin"
+done

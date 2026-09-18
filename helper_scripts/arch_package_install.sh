@@ -2,6 +2,12 @@
 
 . "$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel)/.config/sh/shutil.sh"
 
+# Non-Arch machines (e.g. the donnie NixOS VPS) get their packages elsewhere.
+command -v pacman >/dev/null 2>&1 || {
+    echo "pacman not found — skipping package install"
+    exit 0
+}
+
 # Initialize an empty variable to store the packages
 packages=""
 

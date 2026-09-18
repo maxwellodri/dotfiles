@@ -53,6 +53,7 @@ files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $pamgnupg $gitconf
 ###########
 pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $eww $desktop_apps $sshconfig $heraldcfg" #platform specific dotfiles
 hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $qz $eww $desktop_apps $sshconfig $heraldcfg"
+donniefiles=" $zsh $nix $dotfiles $qz $sshconfig" #headless NixOS server
 
 ##########
 
@@ -71,6 +72,10 @@ case $1 in
         files=$hackermanfiles$files
         mkdir -p ~/.local/share/dwm/
         ln -sf "$PWD/dwm/startup.sh" "$HOME/.local/share/dwm/autostart.sh"
+        ;;
+
+    "donnie")       tag="$1"
+        files=$donniefiles$files
         ;;
 
     "clean")        echo "Removing all symlinks..."

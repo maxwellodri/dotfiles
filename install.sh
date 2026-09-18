@@ -51,6 +51,23 @@ if [ -n "$dotfile_tag" ] && [ "$dotfile_tag" != "$tag" ]; then
 	exit 1
 fi
 
+if [ "$tag" = "donnie" ]; then
+	# NixOS server: packages and system config are nix_config's job (deploy-rs),
+	# so no elevation and none of the arch/desktop helpers. pi + tmux come from
+	# the system profile (dotfiles-env); flake/result points scripts/pi + tmux
+	# plugins at it.
+	sh helper_scripts/makesymlinks.sh "$tag"
+	sh helper_scripts/custom_bin_scripts.sh
+	bash rust/install.sh
+	if [ -x /run/current-system/sw/bin/pi ]; then
+		mkdir -p "$PWD/flake"
+		ln -sfn /run/current-system/sw "$PWD/flake/result"
+	else
+		echo "WARNING: /run/current-system/sw/bin/pi missing — deploy nix_config (dotfiles-env) then re-run" >&2
+	fi
+	exit 0
+fi
+
 run_elevated_init || exit 1
 
 if [ -n "$other_user" ]; then
@@ -74,4 +91,4 @@ sh helper_scripts/firefox.sh
 sh rust/install.sh
 bash helper_scripts/install_system_configs.sh #after makesymlinks.sh always need $GIT_ROOT/.dotfile_tag file to be present
 bash helper_scripts/download_suckless.sh #provides ssh copying msg, e.g. see script
-bash helper_scripts/install_flake.sh #always last: nix-builds the repo-wide flake (needs nix + tracked flake files); pi updater + tmux/plugins symlinks + adapter deps; must not disturb the others
+bash helper_scripts/install_flake.sh #always last: nix-builds nix_config's dotfiles-env (needs nix + a clone of nix_config); pi updater + tmux/plugins symlinks + adapter deps; must not disturb the others

@@ -16,6 +16,7 @@ fi
 #Cargo / niceness limits 🥺
 case "${dotfile_tag:-}" in
   hackerman) CARGO_BUILD_JOBS=2 ;;
+  donnie)    CARGO_BUILD_JOBS=2 ;; #vps vcpus — tune to the plan
   *)         CARGO_BUILD_JOBS=4 ;;
 esac
 export CARGO_BUILD_JOBS
@@ -35,8 +36,8 @@ case "${1:-}" in
 		echo "pi is nix-managed — updating via $installer --update"
 		exec "$installer" --update ;;
 	typecheck)
-		# nix-built tsc vs the nix-built pi's .d.ts (see flake/pi.nix)
-		exec nix run "$dotfiles/flake"#typecheck -- "$PI_CODING_AGENT_DIR/extensions" ;;
+		# nix-built tsc vs the nix-built pi's .d.ts (see nix_config pkgs/pi.nix)
+		exec nix run "${NIX_CONFIG_DIR:-$HOME/source/nix_config}"#typecheck -- "$PI_CODING_AGENT_DIR/extensions" ;;
 	install|remove|uninstall|list|config|--help|-h|--version|-v)
 		exec "$PI_BIN" "$@" ;;
 esac

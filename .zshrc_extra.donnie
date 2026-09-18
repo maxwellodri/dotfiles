@@ -1,0 +1,4 @@
+export src="$HOME/source"
+export dotfiles="$src/dotfiles"
+export dotfiles_tag="donnie"
+command -v systemctl >/dev/null 2>&1 && systemctl --user import-environment PATH HOME USER XDG_CONFIG_HOME BIN

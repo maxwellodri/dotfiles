@@ -62,7 +62,7 @@ Editing the symlinked location edits the repo file, but it's clearer to work dir
 pi typecheck
 ```
 
-(`scripts/pi` subcommand; checks `$PI_CODING_AGENT_DIR/extensions` against the nix-built pi package — the flake generates the `@earendil-works/*` / `typebox` path mappings into the nix store; `pi/extensions/tsconfig.json` holds only the strictness settings. `node`/`npm`/`tsc` all come from the flake; no host nodejs/typescript needed. Markdown-only edits — docs, `SKILL.md`, prompts — can skip this.)
+(`scripts/pi` subcommand; checks `$PI_CODING_AGENT_DIR/extensions` against the nix-built pi package — the nix_config flake (at `${NIX_CONFIG_DIR:-$HOME/source/nix_config}`, `pkgs/pi.nix`) generates the `@earendil-works/*` / `typebox` path mappings into the nix store; `pi/extensions/tsconfig.json` holds only the strictness settings. `node`/`npm`/`tsc` all come from that flake; no host nodejs/typescript needed. Markdown-only edits — docs, `SKILL.md`, prompts — can skip this.)
 
 ### 4. Adding New Configs
 

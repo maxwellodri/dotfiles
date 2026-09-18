@@ -1,0 +1,21 @@
+#!/bin/sh
+
+
+export XDG_CONFIG_HOME="$HOME/.config"
+export XDG_DATA_HOME="$HOME/.local/share"
+export XDG_CACHE_HOME="$HOME/.cache"
+export XDG_STATE_HOME="$HOME/.local/state"
+[ -e "$HOME/.config/sh/shrc" ] && source "$HOME/.config/sh/shrc" #load alias and exports
+source "$XDG_CONFIG_HOME/zsh/xdg.zsh"
+
+#additive: keep the NixOS default PATH (/run/current-system/sw/bin)
+export PATH="$HOME/bin:$HOME/.cargo/bin:$PATH"
+
+export dotfiles="$HOME/source/dotfiles"
+export dotfile="$HOME/source/dotfiles"
+export dotfiles_tag="donnie"
+export dotfile_tag="donnie"
+
+#headless: no WM/startx, transmission, mpd, or ssh-agent spawn
+
+[ -e "$HOME/.zshrc_extra" ] && source "$HOME/.zshrc_extra" #load platform-specific overrides (last, so it wins)
