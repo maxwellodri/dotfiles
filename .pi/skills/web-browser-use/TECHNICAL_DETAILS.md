@@ -104,7 +104,15 @@ Fix (THREE parts — all required):
    `onInstalled` listener, the `install` branch no longer calls
    `tabs.create` (only sets `first_version_installed`), and the `update`
    branch no longer opens the changelog (`(a||u)&&tabs.create({url:xm})` →
-   `void(a||u)`). REAPPLY after replacing/updating the extension directory.
+   `void(a||u)`).
+
+2026-09-18 regression: `install_flake.sh` re-downloaded VDH (dir was
+missing → fresh 10.5.49.2), silently reverting the patch and the welcome
+tab returned. Fixed again (10.5.49.2 → 10.5.49.3), and `install_flake.sh`
+now auto-applies this patch + version bump + SW-cache clear after every
+fresh VDH download (`patch_vdh`), warning if the sed patterns no longer
+match a new upstream build. Manual re-patch only needed if that warning
+fires.
 2. Bumped `manifest.json` version (10.5.24.2 → 10.5.24.3).
 3. **Cleared the service-worker script cache** — `Default/Service Worker` —
    from the session profile AND the template. THIS was the hidden one:

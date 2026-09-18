@@ -227,6 +227,67 @@ fi
 # playwright-config.json's --load-extension. Idempotent: skip when an
 # unpacked copy (manifest.json present) exists. CRX = binary header + plain
 # zip, so cut at the first zip magic and unzip.
+# Drop stale service-worker/background script caches in every pi-browser
+# profile (clones inherit the template's cache, so old code keeps running).
+# Run after ANY extension patch; browsers must be closed.
+clear_worker_caches() {
+    local prof root
+    for root in "${XDG_CACHE_HOME:-$HOME/.cache}/ms-playwright-mcp" \
+                "$HOME/.cache/ms-playwright" /tmp/pi/chromium; do
+        for prof in "$root"/*; do
+            [ -d "$prof/Default/Service Worker" ] && rm -rf "$prof/Default/Service Worker"
+        done
+    done
+}
+
+# Bump the trailing version component so chromium discards its cached
+# extension code after a patch. $1=manifest path, $2=component count (3 or 4)
+bump_ext_version() {
+    local manifest="$1" v="$2" out=""
+    IFS=. read -ra parts <<<"$(jq -r .version "$manifest")"
+    if ((${#parts[@]} == v && ${#parts[@]} > 0)); then
+        parts[-1]=$((${parts[-1]} + 1))
+        out="$(IFS=.; echo "${parts[*]}")"
+        jq --arg v "$out" '.version = $v' "$manifest" > "$manifest.tmp" &&
+            mv "$manifest.tmp" "$manifest"
+    else
+        echo "WARNING: could not parse version '$v' for post-patch bump ($manifest)" >&2
+    fi
+}
+
+# Neuter the welcome/changelog tabs VDH opens on every fresh
+# --load-extension install, and bump the version so chromium discards any
+# cached (unpatched) service worker script. See
+# .pi/skills/web-browser-use/TECHNICAL_DETAILS.md "VDH welcome tab".
+# Patterns are against VDH 10.5.49.x minified main.js — warn if upstream
+# changes them so the patch can be redone manually.
+patch_vdh() {
+    local main="$vdh_dir/service/main.js" manifest="$vdh_dir/manifest.json"
+    sed -i \
+        -e 's@if(t)H\.default\.tabs\.create({url:Dm}),H\.default\.storage\.local\.set({first_version_installed:r\.value})@if(t)H.default.storage.local.set({first_version_installed:r.value})@' \
+        -e 's@(a||u)&&H\.default\.tabs\.create({url:km})@void(a\&\&u)@' \
+        "$main"
+    if grep -qE 'tabs\.create\(\{url:(Dm|km)\}\)' "$main"; then
+        echo "WARNING: VDH welcome-tab patch did not match (new upstream build?)" >&2
+        echo "  Re-patch manually per TECHNICAL_DETAILS.md, or the welcome tab returns." >&2
+        return 0
+    fi
+    bump_ext_version "$manifest" 4
+}
+
+# Neuter the help page Dark Reader opens on every fresh-profile install.
+# Pattern is against DR 4.9.13x (readable build, background/index.js).
+patch_darkreader() {
+    local js="$dr_dir/background/index.js"
+    perl -0pi -e 's/chrome\.tabs\.create\(\{url: getHelpURL\(\)\}\);/void 0; \/\* patched: no help tab on install \*\//' "$js"
+    if grep -q 'tabs\.create({url: getHelpURL()})' "$js"; then
+        echo "WARNING: Dark Reader help-tab patch did not match (new upstream build?)" >&2
+        echo "  Re-patch manually per TECHNICAL_DETAILS.md, or the help tab returns." >&2
+        return 0
+    fi
+    bump_ext_version "$dr_dir/manifest.json" 3
+}
+
 vdh_dir="$XDG_DATA_HOME/pi-browser-extensions/vdh"
 if [ -f "$vdh_dir/manifest.json" ]; then
     echo "Chromium extension (VDH) already installed ($vdh_dir)"
@@ -243,8 +304,61 @@ else
         mkdir -p "$(dirname "$vdh_dir")"
         rm -rf "$vdh_dir"  # partial/unmanifested leftovers only (manifest checked above)
         mv "$tmp/vdh" "$vdh_dir"
+        patch_vdh
     else
         echo "VDH install failed — pi browser will warn about a missing extension" >&2
     fi
     rm -rf "$tmp"
 fi
+
+# --- Chromium extensions (uBlock Origin, Dark Reader) ---------------------
+# GitHub-release builds (CWS ships no full uBO for MV3-era chromium; the
+# chromium zip is MV2 but still loads unpacked via --load-extension).
+# Same idempotence rule: skip when an unpacked copy exists.
+# Asset names: uBO embeds the version (resolve via API); DR's is static.
+ext_dir="$XDG_DATA_HOME/pi-browser-extensions"
+ubo_dir="$ext_dir/ublock"
+dr_dir="$ext_dir/darkreader"
+
+gh_latest_asset() { # $1=repo  $2=asset-name regex
+    curl -fsSL "https://api.github.com/repos/$1/releases/latest" |
+        jq -r --arg re "$2" '.assets[].browser_download_url | select(test($re))' | head -n1
+}
+
+install_zip_ext() { # $1=zip-url  $2=dest  $3=inner-dir ('' if manifest at zip root)
+    local url="$1" dest="$2" inner="$3" tmp
+    tmp="$(mktemp -d)"
+    if curl -fsSL -o "$tmp/ext.zip" "$url" && unzip -q "$tmp/ext.zip" -d "$tmp/unz"; then
+        rm -rf "$dest"
+        if [[ -n $inner && -d "$tmp/unz/$inner" ]]; then
+            mv "$tmp/unz/$inner" "$dest"
+        else
+            mkdir -p "$dest" && mv "$tmp/unz"/* "$dest"/
+        fi
+        echo "installed: $dest"
+    else
+        echo "WARNING: extension install failed ($url)" >&2
+    fi
+    rm -rf "$tmp"
+}
+
+if [ -f "$ubo_dir/manifest.json" ]; then
+    echo "Chromium extension (uBlock Origin) already installed ($ubo_dir)"
+else
+    echo "Installing Chromium extension (uBlock Origin)..."
+    ubo_url="$(gh_latest_asset gorhill/uBlock 'chromium\.zip$')"
+    [[ -n $ubo_url ]] && install_zip_ext "$ubo_url" "$ubo_dir" uBlock0.chromium
+fi
+
+if [ -f "$dr_dir/manifest.json" ]; then
+    echo "Chromium extension (Dark Reader) already installed ($dr_dir)"
+else
+    echo "Installing Chromium extension (Dark Reader)..."
+    dr_url="$(gh_latest_asset darkreader/darkreader '^darkreader-chrome-mv3\.zip$')"
+    [[ -n $dr_url ]] && install_zip_ext "$dr_url" "$dr_dir" ""
+    [[ -f "$dr_dir/manifest.json" ]] && patch_darkreader
+fi
+
+# Cached extension code is version-keyed; clearing once after any patch
+# covers both. Browsers must be closed for a clean flush.
+clear_worker_caches
