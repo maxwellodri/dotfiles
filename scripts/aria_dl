@@ -23,14 +23,14 @@ while [[ $# -gt 0 ]]; do
 done
 
 VPS_HOST=maxwell@odri.xyz      # --vps: aria2c runs here instead of locally
-VPS_DL_DIR=/home/maxwell/Downloads
+VPS_DL_DIR=/home/maxwell/Downloads  # fallback when block storage isn't attached
 
 if [[ -z "$URL" ]]; then
   echo "Usage: $(basename "$0") --url <url> [--file <file>] [--cookies <file>] [--limit <speed> | --default-limit]" >&2
   echo "  --file          optional: when omitted, aria2c autodetects the name from the URL." >&2
   echo "  --limit <speed> caps bandwidth using aria2c syntax, e.g. '500K', '1M', '2M' (0 = unlimited)." >&2
   echo "  --default-limit shorthand for --limit 500K." >&2
-  echo "  --vps           download on the VPS ($VPS_HOST) into ~/Downloads via ssh;" >&2
+  echo "  --vps           download on the VPS ($VPS_HOST): ~/mount (block storage) if attached, else ~/Downloads;" >&2
   echo "                  with --file, only the basename is kept." >&2
   exit 1
 fi
@@ -45,8 +45,11 @@ ARIA_ARGS=(
 )
 
 if [[ -n "$VPS" ]]; then
-  ARIA_ARGS+=(-d "$VPS_DL_DIR")
-  # With --file, only the basename applies; ~/Downloads is the fixed destination.
+  # ~/mount exists even when the volume is detached; only mountpoint -q proves
+  # the block storage is really behind it
+  DL_DIR=$(ssh "$VPS_HOST" 'mountpoint -q ~/mount && printf %s ~/mount || printf %s ~/Downloads') || DL_DIR=$VPS_DL_DIR
+  ARIA_ARGS+=(-d "$DL_DIR")
+  # With --file, only the basename applies; the remote dir is fixed.
   [[ -n "$FILE" ]] && ARIA_ARGS+=(-o "$(basename "$FILE")")
 elif [[ -n "$FILE" ]]; then
   # Explicit output path: split into directory + filename for aria2c.
