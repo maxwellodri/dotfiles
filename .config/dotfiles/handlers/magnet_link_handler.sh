@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-DOWNLOAD_DIRS=("$HOME/Downloads/torrents/")
+DOWNLOAD_DIRS=("$HOME/Downloads/torrents/" "$HOME/Videos/torrents/")
 
 if [[ -n $WAYLAND_DISPLAY ]]; then
     dmenu=dmenu-wl
@@ -11,9 +11,27 @@ else
     exit 1
 fi
 
-selected_dir=$(printf '%s\n' "Default Dir" "Manual Directory" "${DOWNLOAD_DIRS[@]}" | "$dmenu" -l 30 -c --class "magnet_dir" -p "Download Directory:")
+default_dir=$(pgrep -f transmission-daemon > /dev/null && transmission-remote -si 2>/dev/null | grep -oP 'Download directory: \K.*')
+
+menu=("Manual Directory")
+is_default=0
+for dir in "${DOWNLOAD_DIRS[@]}"; do
+    if [[ ${dir%/} == "${default_dir%/}" ]]; then
+        dir="$dir (Default Dir)"
+        is_default=1
+    fi
+    menu+=("$dir")
+done
+if [[ -n $default_dir ]]; then
+    (( is_default )) || menu+=("$default_dir (Default Dir)")
+else
+    menu+=("Default Dir")
+fi
+
+selected_dir=$(printf '%s\n' "${menu[@]}" | "$dmenu" -l 30 -c --class "magnet_dir" -p "Download Directory:")
 
 [[ -n $selected_dir ]] || exit 0
+selected_dir=${selected_dir% (Default Dir)}
 
 if [[ $selected_dir == "Manual Directory" ]]; then
     temp_file=$(mktemp)
