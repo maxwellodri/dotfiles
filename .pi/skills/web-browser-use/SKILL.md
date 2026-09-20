@@ -1,6 +1,6 @@
 ---
 name: web-browser-use
-description: "Drive a headless browser through the Playwright MCP server — navigate, read rendered pages, click, type, fill forms, scrape tables, and capture screenshots. Use when the user asks to open or browse a website, check or fill a web form, scrape JavaScript-rendered content, automate a multi-step web flow, or interact with a login-gated site. For plain keyword web search, prefer the `web_search` tool instead of launching a full browser."
+description: "Drive a headed browser through the Playwright MCP server — navigate, read rendered pages, click, type, fill forms, scrape tables, and capture screenshots. Use when the user asks to open or browse a website, check or fill a web form, scrape JavaScript-rendered content, automate a multi-step web flow, or interact with a login-gated site. For plain keyword web search, prefer the `web_search` tool instead of launching a full browser."
 ---
 
 # Web Browser Use
@@ -14,13 +14,24 @@ If a task is just "search the web for X", try `web_search` first. Reach for the 
 
 ## Browser, profile & downloads
 
-- The MCP launches **ungoogled-chromium** (`/usr/bin/chromium`, headed) — not Firefox (Playwright doesn't work with this user's Firefox). Each pi session (and subagent) gets **its own chromium instance/window/profile**, cloned from a shared template so logins are inherited.
+- The MCP launches **ungoogled-chromium** (`/usr/bin/chromium`) — not Firefox (Playwright doesn't work with this user's Firefox). Each pi session (and subagent) gets **its own chromium instance/window/profile**, cloned from a shared template so logins are inherited.
+- The window is **headed on purpose**: it exists so the *user* can intervene — solve a captcha, log in, or type a password directly into the page without leaking it to the agent.
 - **Downloads land in `~/Downloads/pi/`** — both files downloaded via MCP calls (`outputDir`) and manual downloads in the visible window (profile pref). Screenshots taken with a `filename` also save there.
 - Technical details of the underlying architecture (profile locations, template management, env plumbing) are in [TECHNICAL_DETAILS.md](TECHNICAL_DETAILS.md).
 
+## 🛑 Hands off the physical window — MCP only
+
+The browser window is **headed**: it renders visibly on the user's desktop, and the user is likely using the machine **concurrently**. The window is for the *user's* hands — captchas, logins, password entry — not for *yours*; it is not an input surface for you.
+
+**Never** interact with the browser window via OS-level automation — `xdotool`, `ydotool`, `wtype`, `xte`, `pyautogui`, `wmctrl`, or anything else that synthesizes pointer/keyboard events or raises/focuses/moves the window. These land on the user's session: they steal focus and hijack the user's keystrokes and cursor mid-work. **Only exception: the user explicitly instructs you to** (e.g. "use xdotool to type into the window").
+
+Mediate **every** interaction — navigate, click, type, fill, screenshot, close — through the MCP tools below. They drive Chromium over CDP, so they work regardless of window focus and never move the user's pointer or inject keystrokes at the OS level. This is a feature, not a limitation — use it.
+
+If a flow seems to require the physical window (e.g. a captcha), stop and hand off to the user — see the captcha section below.
+
 ## The MCP gateway
 
-All browser actions go through the `mcp` tool, server name `playwright`. Tools are named `playwright_browser_<action>`.
+All browser actions go through the `mcp` tool, server name `playwright` — and through nothing else. Tools are named `playwright_browser_<action>`.
 
 - Connect / list tools once at the start: `mcp({ connect: "playwright" })`
 - See a tool's exact params before calling: `mcp({ describe: "playwright_browser_click" })` — **do this whenever you're unsure of a parameter name.**
