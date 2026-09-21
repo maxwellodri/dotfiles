@@ -1,31 +1,21 @@
 /**
  * footer.ts — slim custom footer for pi: pwd/git line, a context-window
- * meter, the model name, and a dim leader-key indicator (N / ?) pinned to
+ * meter, the model name, and a dim thinking-level indicator pinned to
  * the bottom-right corner.
  *
- * This extension owns the footer ONLY. The indicator state arrives over pi's
- * shared event bus: leader-key.ts emits `leader-key:state` (boolean) when its
- * C-x prefix arms/disarms. The two extensions are fully decoupled —
- * no imports, no shared module (pi loads extensions with jiti
- * `moduleCache:false`, so a plain cross-import would not share state anyway).
+ * This extension owns the footer ONLY.
  *
- * ── THINKING LEVEL IS INTENTIONALLY OMITTED ───────────────────────────────
- * The current thinking level lives in `session.state.thinkingLevel`, which is
- * NOT exposed on the extension context. Only `ExtensionCommandContext`
- * (slash-command handlers) has `getThinkingLevel()`, unreachable from a
- * render-time closure. The `thinking_level_select` event carries the level
- * but fires only on *change*, so caching it yields a wrong cold-start value,
- * which we refuse to show. The model name is therefore shown alone, with no
- * "• thinking off/low/…" suffix. If a read API ever ships (see pi issues
- * #509, #3831, #4792), add a `thinkingLevel` source and render it next to
- * `modelName` exactly like pi's own footer does.
+ * The thinking level is read live from `ctx.thinkingLevel` each render —
+ * no event caching, so no cold-start staleness — and rendered dim on the
+ * third line, right-pinned. Empty when the runtime hasn't provided a level
+ * for the current model.
  *
  * ── OTHER FAITHFULNESS GAPS (also unexposed to extensions) ─────────────────
- *  • "(auto)" auto-compaction marker — needs `session.autoCompactionEnabled`
- *    (pi #3831). Left as `""`; add back if exposed.
+ *  • "(auto)" auto-compaction marker — session.autoCompactionEnabled is
+ *    not exposed to extensions. Left as `""`.
  *  Everything else (pwd, git, session name, context %, model name, provider
- *  prefix, experimental "xp", extension statuses) reads the same live sources
- *  pi's own footer uses, via ctx + footerData.
+ *  prefix, experimental "xp", extension statuses, thinking level) reads the
+ *  same live sources pi's own footer uses, via ctx + footerData.
  *
  * ── STATS: CONTEXT METER ONLY ─────────────────────────────────────────────
  *  The context-window meter (x%/window) is the only usage figure shown.
@@ -39,14 +29,6 @@
 import type { ExtensionAPI, ReadonlyFooterDataProvider } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { isAbsolute, relative, resolve, sep } from "node:path";
-
-/** Event-bus channel published by leader-key.ts. */
-const STATE_CHANNEL = "leader-key:state";
-
-/** Indicator state, cached from the event bus. Defaults to idle ("N"). */
-let leaderArmed = false;
-/** Unsubscribe handle for the current session's state listener (re-subscribed on reload). */
-let unsubState: (() => void) | undefined;
 
 // ───────────────────────── formatting helpers (mirror pi internals) ─────────
 
@@ -78,7 +60,7 @@ function sanitizeStatusText(text: string): string {
 // Three lines:
 //   1. pwd • git branch • session name
 //   2. context meter (left) • model [+provider] (right)
-//   3. extension statuses (left) • dim N/? leader indicator (right)
+//   3. extension statuses (left) • dim thinking level (right)
 // Layout/truncation logic mirrors pi's FooterComponent; all state is read
 // live from ctx + footerData on each render.
 
@@ -107,7 +89,7 @@ function makeFooter(ctx: any) {
 			// ----- line 2: context meter (left) • model/provider (right) -----
 			const statsParts: string[] = [];
 
-			// "(auto)" omitted: session.autoCompactionEnabled is not exposed (pi #3831).
+			// "(auto)" omitted: session.autoCompactionEnabled is not exposed to extensions.
 			const autoIndicator = "";
 			const contextPercentDisplay =
 				contextPercent === "?"
@@ -125,7 +107,7 @@ function makeFooter(ctx: any) {
 			}
 			let statsLeft = statsParts.join(" ");
 
-			// Right side: model name. Thinking level OMITTED here (see header).
+			// Right side: model name.
 			const modelName = model?.id || "no-model";
 			let rightSide = modelName;
 			if (footerData.getAvailableProviderCount() > 1 && model) {
@@ -166,7 +148,7 @@ function makeFooter(ctx: any) {
 			const dimRemainder = theme.fg("dim", statsLine.slice(statsLeft.length));
 			const pwdLine = truncateToWidth(theme.fg("dim", pwd), width, theme.fg("dim", "..."));
 
-			// ----- line 3: extension statuses (left) • leader indicator (right) -----
+			// ----- line 3: extension statuses (left) • thinking level (right) -----
 			const statuses = footerData.getExtensionStatuses();
 			let statusLeft = "";
 			if (statuses.size > 0) {
@@ -175,14 +157,16 @@ function makeFooter(ctx: any) {
 					.map(([, text]) => sanitizeStatusText(text))
 					.join(" ");
 			}
-			const indicator = theme.fg("dim", leaderArmed ? "?" : "N");
-			const indicatorW = visibleWidth(indicator); // 1
+			const thinking = ctx.thinkingLevel
+				? theme.fg("dim", String(ctx.thinkingLevel))
+				: "";
+			const indicatorW = visibleWidth(thinking);
 			const leftW = visibleWidth(statusLeft);
 			let statusLine: string;
 			if (leftW + indicatorW <= width) {
-				statusLine = statusLeft + " ".repeat(Math.max(0, width - leftW - indicatorW)) + indicator;
+				statusLine = statusLeft + " ".repeat(Math.max(0, width - leftW - indicatorW)) + thinking;
 			} else {
-				statusLine = truncateToWidth(statusLeft, Math.max(0, width - indicatorW), "") + indicator;
+				statusLine = truncateToWidth(statusLeft, Math.max(0, width - indicatorW), "") + thinking;
 			}
 
 			return [pwdLine, dimStatsLeft + dimRemainder, statusLine];
@@ -200,12 +184,6 @@ function makeFooter(ctx: any) {
 
 export default function (pi: ExtensionAPI) {
 	pi.on("session_start", (_event, ctx) => {
-		// Re-subscribe each session/reload to avoid stacking listeners.
-		unsubState?.();
-		unsubState = pi.events.on(STATE_CHANNEL, (armed) => {
-			leaderArmed = armed === true;
-		});
-
 		ctx.ui.setFooter(makeFooter(ctx));
 	});
 }

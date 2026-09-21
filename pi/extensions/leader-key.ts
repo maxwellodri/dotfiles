@@ -25,10 +25,9 @@
  *     agent (plain Escape still aborts when the prefix is not armed).
  *
  * This extension owns the prompt ONLY. Its armed/idle state is published on
- * pi's shared event bus (`pi.events.emit("leader-key:state", boolean)`) so a
- * separate footer extension can render an indicator without any direct
- * coupling — see footer.ts. The two are independent: disable either one and
- * the other still works.
+ * pi's shared event bus (`pi.events.emit("leader-key:state", boolean)`),
+ * available to any extension that wants to render an indicator — no direct
+ * coupling.
  *
  * ── Why globalThis instead of a normal import? ──────────────────────────
  * pi loads every extension with jiti `{ moduleCache: false }`, so each
@@ -39,7 +38,7 @@
  * shared by every module in the process, so stashing the registry there is the
  * simplest ordering-independent way to share it. (pi's `pi.events` bus is the
  * other supported cross-extension channel; we use that for the armed/idle
- * indicator so footer.ts can render it.)
+ * indicator.)
  *
  * Lifecycle: the registry is cleared on `session_shutdown` (ordering-safe:
  * shutdown handlers all run before any session_start) and re-populated by
@@ -55,7 +54,7 @@ import { CustomEditor, type ExtensionAPI } from "@earendil-works/pi-coding-agent
 import { matchesKey } from "@earendil-works/pi-tui";
 
 const LEADER_KEY = "ctrl+x";
-/** Event-bus channel carrying the armed/idle state to footer.ts. */
+/** Event-bus channel carrying the armed/idle state. */
 const STATE_CHANNEL = "leader-key:state";
 /** globalThis slot under which the shared binding registry lives. */
 const REGISTRY_KEY = "__piLeaderKey";
@@ -170,7 +169,7 @@ class LeaderKeyEditor extends CustomEditor {
 			if (matchesKey(data, LEADER_KEY)) {
 				this.pending = true;
 				this.emit(true);
-				this.tui.requestRender(); // refresh the footer indicator
+				this.tui.requestRender(); // repaint in case a consumer renders the armed state
 				return; // swallow C-x
 			}
 			super.handleInput(data);
