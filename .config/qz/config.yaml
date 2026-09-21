@@ -1,6 +1,6 @@
 projects:
   mykaelium:
-    path: ~/source/mykaelium
+    path: $SOURCE/mykaelium
     filter_out: "./target/"
     tmux_windows:
       dev:
@@ -17,7 +17,7 @@ projects:
       scratch:
 
   dotfiles:
-    path: ~/source/dotfiles
+    path: $SOURCE/dotfiles
     tmux_windows:
       dev:
         layout: even-horizontal
@@ -27,7 +27,7 @@ projects:
       scratch:
 
   llm-config:
-    path: ~/source/llm-config
+    path: $SOURCE/llm-config
     tmux_windows:
       dev:
         layout: even-horizontal
@@ -37,7 +37,7 @@ projects:
       scratch:
 
   rwm:
-    path: ~/source/rwm
+    path: $SOURCE/rwm
     tmux_windows:
       dev:
         layout: even-horizontal
@@ -47,7 +47,7 @@ projects:
       scratch:
 
   tsp_ytdlp:
-    path: ~/source/tsp_ytdlp
+    path: $SOURCE/tsp_ytdlp
     filter_out: "./target/"
     tmux_windows:
       dev:
@@ -58,7 +58,7 @@ projects:
       scratch:
 
   nix_config:
-    path: ~/source/nix_config
+    path: $SOURCE/nix_config
     tmux_windows:
       dev:
         layout: even-horizontal
@@ -75,22 +75,22 @@ projects:
       deploy:
 
   dwm:
-    path: ~/source/dwm
+    path: $SOURCE/dwm
 
   st:
-    path: ~/source/st
+    path: $SOURCE/st
 
   dmenu:
-    path: ~/source/dmenu
+    path: $SOURCE/dmenu
 
   agentcoder:
-    path: ~/source/agent_coder
+    path: $SOURCE/agent_coder
 
   gltf_animation-blender-plugin:
-    path: ~/source/gltf_animation_layerer
+    path: $SOURCE/gltf_animation_layerer
 
   private:
-    path: ~/source/private
+    path: $SOURCE/private
     tmux_windows:
       dev:
         layout: even-horizontal
@@ -100,11 +100,11 @@ projects:
       scratch:
 
   "TofuBerry🍓🍇":
-    path: ~/source/tofuberry
+    path: $SOURCE/tofuberry
     filter_out: "./target/"
 
   faucet 🌊:
-    path: ~/source/faucet
+    path: $SOURCE/faucet
     filter_out: "./target/"
     tmux_windows:
       dev:

@@ -2,7 +2,7 @@
 ################
 #exports:
 ################
-export dotfiles='/home/maxwell/source/dotfiles'
+export dotfiles="$SOURCE/dotfiles"
 export SWAP="$HOME/media/drive_swappy/swapfile"
 export CARGO_BUILD_JOBS=16
 ################
@@ -10,10 +10,10 @@ export CARGO_BUILD_JOBS=16
 ###############
 
 hash -d yt=~/Videos/youtube/
-hash -d df=~/source/dotfiles/
-hash -d myk=~/source/mykaelium/
+hash -d df="$dotfiles"/
+hash -d myk="$SOURCE/mykaelium/"
 
 # only import into a real user session bus (skips root / pacman-hook / ssh / cron contexts)
 if [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -S "$XDG_RUNTIME_DIR/systemd/private" ]; then
-	command -v systemctl >/dev/null 2>&1 && systemctl --user import-environment PATH HOME USER XDG_CONFIG_HOME BIN
+	command -v systemctl >/dev/null 2>&1 && systemctl --user import-environment PATH HOME USER XDG_CONFIG_HOME BIN SOURCE
 fi

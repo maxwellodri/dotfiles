@@ -3,8 +3,7 @@
 #exports:
 ###############
 export dotfiles_tag='thinkpad'
-export src='/home/maxwell/source'
-export dotfiles="$src/dotfiles" 
+export dotfiles="$SOURCE/dotfiles" 
 export uni="$HOME/uni"
 export chem="$uni/chem/calc_pert_results"
 ################

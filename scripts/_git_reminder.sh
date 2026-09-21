@@ -1,6 +1,8 @@
 #!/bin/sh
 GRACE_PERIOD=86400   # 24 hours
-REPOS="$HOME/source/dotfiles $HOME/source/mykaelium $HOME/source/st $HOME/source/dmenu $HOME/source/dwm $HOME/source/private $HOME/Documents/notes ~/.password-store"
+# systemd --user timer context has no shell rc exports
+: "${SOURCE:=$HOME/source}"
+REPOS="$SOURCE/dotfiles $SOURCE/mykaelium $SOURCE/st $SOURCE/dmenu $SOURCE/dwm $SOURCE/private $HOME/Documents/notes ~/.password-store"
 dirty_repos=""
 
 for repo in $REPOS; do

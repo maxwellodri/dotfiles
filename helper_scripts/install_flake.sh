@@ -12,7 +12,7 @@
 #   nixcfg#toolchain     node + tsc, used below for the vendored adapter deps
 #
 # The nix_config repo is private, so it is consumed via a local clone at
-# ${NIX_CONFIG_DIR:-$HOME/source/nix_config} (auto-cloned over ssh if
+# ${NIX_CONFIG_DIR:-$SOURCE/nix_config} (auto-cloned over ssh if
 # missing). NixOS hosts don't run this script at all: vps.nix installs
 # dotfiles-env system-wide and install.sh links flake/result ->
 # /run/current-system/sw instead.
@@ -56,7 +56,7 @@ case "${1:-}" in
 esac
 
 dir="$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel)"
-nixcfg="${NIX_CONFIG_DIR:-$HOME/source/nix_config}"
+nixcfg="${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}"
 pi_nix="$nixcfg/pkgs/pi.nix"
 bin="${bin:-$HOME/bin}"
 
