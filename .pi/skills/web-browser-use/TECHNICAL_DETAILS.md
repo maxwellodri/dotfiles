@@ -17,17 +17,28 @@ set — so agents would see/close each other's tabs. Rejected.)
 
 ## Solution: per-session clones of a shared template
 
-- `pi/extensions/browser-profiles.ts` (auto-discovered, `/reload`able) runs on
-  `session_start`:
-  1. Session profile dir: `/tmp/pi/chromium/<session-id>` (tmpfs → free GC on
-     reboot; a resumed session reuses its dir within the same boot).
-  2. If new, `rsync -a` it from the template, excluding volatile/bulky state
-     (`Singleton*`, `lockfile`, `Default/Cache`, `Default/Code Cache`,
-     `Default/GPUCache`, `GraphiteDawnCache`, `GrShaderCache`, `ShaderCache`,
-     Service Worker cache storage). Clone ≈ 90 MB in RAM, < 1 s.
-  3. Seed prefs (`pi/browser/preferences.json`: download dir `~/Downloads/pi`)
+- `pi/extensions/browser-profiles.ts` (auto-discovered, `/reload`able):
+  1. `session_start`: mkdir the session profile dir
+     `/tmp/pi/chromium/<session-id>` (tmpfs → free GC on reboot), GC dirs
+     untouched for >3d (crash orphans, shutdown skips), and set
+     `process.env.PI_BROWSER_PROFILE_DIR = <dir>`. Nothing is copied yet —
+     most sessions never use the browser, so the ~112MB clone is lazy.
+  2. `tool_call` (first playwright MCP use — also exactly when the lazy MCP
+     server/browser spawns; `tool_call` can block, so the clone lands before
+     the browser reads the dir): `rsync -a` from the template, excluding
+     volatile/bulky state (`Singleton*`, `lockfile`, `Default/Cache`,
+     `Default/Code Cache`, `Default/GPUCache`, `GraphiteDawnCache`,
+     `GrShaderCache`, `ShaderCache`, Service Worker cache storage). Then seed
+     prefs (`pi/browser/preferences.json`: download dir `~/Downloads/pi`)
      into `Default/Preferences` — same merge `apply-preferences.sh` does.
-  4. `process.env.PI_BROWSER_PROFILE_DIR = <dir>`.
+     On rsync failure the partial dir is dropped (truly clean profile, not a
+     half-clone) and the warning carries rsync's stderr first line. A clone
+     from the same boot (`pi --resume`, `/reload`) is detected via its
+     `Local State` marker and reused as-is.
+  3. `session_shutdown` (`"quit"`/`"new"`/`"resume"`/`"fork"`): delete the
+     profile dir — skipped for `"reload"` (same session continues;
+     un-snapshotted logins kept) and while a chromium still runs on it; the
+     >3d GC collects skips later.
 - `pi/mcp.json` (playwright entry) passes it through:
   `"env": { "PLAYWRIGHT_MCP_USER_DATA_DIR": "${PI_BROWSER_PROFILE_DIR}" }`.
   In `@playwright/mcp` ≥ 0.0.78 env overrides the `--config` JSON file
@@ -35,10 +46,12 @@ set — so agents would see/close each other's tabs. Rejected.)
   and an explicit `userDataDir` bypasses the cwd-hashed default dir entirely.
 - Timing is safe: pi only injects `PI_SESSION_ID`/`PI_SESSION_FILE` into
   bash-tool execs, not its own `process.env`, hence the extension sets the
-  profile var itself. MCP servers are lazy — spawned on first browser use,
-  always after `session_start`.
+  profile var itself. The MCP server is lazy — it spawns on first browser
+  use, i.e. the same tool call that triggers the clone, and only after that
+  handler (which blocks execution) has finished.
 - Subagents are separate `pi` child processes; they run their own
-  `session_start` and thus get their own clone.
+  `session_start`/`session_shutdown` and thus get their own profile dir,
+  lazily cloned on their own first browser use.
 - If `PI_BROWSER_PROFILE_DIR` is somehow unset, the interpolated env value is
   the empty string, which `@playwright/mcp` treats as unset → falls back to
   stock (shared-hash) behavior.
@@ -58,11 +71,15 @@ set — so agents would see/close each other's tabs. Rejected.)
 
 ## Semantics
 
-- Logins/cookies/extensions made *during* a session are private to it and last
-  for that session's lifetime (same boot, incl. `pi --resume`).
+- Logins/cookies/extensions made *during* a session are private to it and
+  last until the session ends (`session_shutdown` deletes the dir; state you
+  want to keep must be promoted via `browser-snapshot.sh` before exiting).
+  `/reload` and a same-boot `pi --resume` of a session that never cleanly
+  exited reuse the existing dir (its `Local State` marker).
 - After `/resume` or `/new`, an already-connected playwright server keeps the
   previous session's profile until `/mcp reconnect playwright` or its idle
-  timeout — expected, harmless.
+  timeout — expected, harmless (and why shutdown deletion is guarded on
+  "no chromium running on the dir").
 - `playwright_browser_close` closes only that session's chromium.
 
 ## Snapshot workflow (promote session state → template)
