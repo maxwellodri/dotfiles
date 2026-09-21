@@ -15,8 +15,8 @@
  * renames the session (appendSessionInfo; clearing it un-names). Lines
  * starting with # and blank lines are ignored. The CURRENT session's line
  * is marked "·current" and can never be deleted — its live SessionManager
- * would just re-append the file back into existence (this exact incident
- * birthed the guard); it may still be renamed.
+ * re-appends the file back into existence on the next entry; it may still
+ * be renamed.
  *
  * Editor handoff mirrors prompt_in_editor.ts: tui.stop() → spawn $EDITOR
  * with stdio inherited → tui.start(). The TUI handle comes from

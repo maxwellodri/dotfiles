@@ -12,7 +12,9 @@ Project Specifics:
 * Doc comments (TypeScript `/** ... */`, Python docstrings, Rust `///`) are for external / pub-facing surface. Regular comments sparingly, and only for internal implementation details.
 * In bash scripts, a `help()` function wired to `--help` is the pub-facing documentation — more useful than a comment block.
 * Comments explain the `why` (invariants, constraints, non-obvious decisions), never the `what`. Be terse. Exception: name-dropping the algorithm in use, e.g. `// forward Euler integration` — a named algorithm is not a `what`.
-* Comments must be path-independent: written for a reader with no knowledge of how the code came to be. They reflect the current state of the code, never the past, and only the future as a `// TODO: add X`. Never reference history — fixed bugs, past behavior, workarounds, PR numbers, where code was copied from. Once the bug is fixed, that context is noise; state the standing invariant instead.
+* Comments must be path-independent: written for a reader with no knowledge of how the code came to be. They reflect the current state of the code, never the past; the only forward-looking form is a `// TODO: ...` prefix — the one greppable, canonical marker for deferred work.
+  * Past: never reference history — fixed bugs, past behavior, past workarounds, PR numbers, where code was copied from. Once the bug is fixed, that context is noise; state the standing invariant instead.
+  * Future: referencing PR numbers, workarounds, removals, upstream fixes etc. is fine — but the comment must be prepended with `// TODO:`.
   * Good: `// forward Euler diverges once dt > H/V_t, clamp sub-step dt`
   * Bad: `// fixes bug where fast-forward invented mass on big dt`
 * Leave any user-written comments untouched.

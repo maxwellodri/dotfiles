@@ -21,7 +21,7 @@
  *
  * Worktree swaps fork a session chain (set-cwd.ts), and every hop leaves
  * a near-identical prefix file behind, all labeled with the same first
- * message. Two presentation fixes ride on the same patch:
+ * message. Two presentation details follow from the chain-fork layout:
  *   - superseded ancestors (untouched since a child forked from them, so
  *     their content is a strict prefix of that child) are hidden from
  *     the local list — a chain collapses to its tip. Resume-by-id still

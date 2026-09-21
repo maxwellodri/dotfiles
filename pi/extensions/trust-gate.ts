@@ -1,9 +1,9 @@
 /**
  * trust-gate.ts — shared content-trust gate for repo-controlled files.
  *
- * HOST of the trust mechanism factored out of subagent's project-override
- * gate. Any extension about to honour repo-controlled content (prompt
- * overrides, executable skill scripts, ...) asks the gate instead of rolling
+ * Shared HOST of the trust mechanism. Any extension about to honour
+ * repo-controlled content (prompt overrides, executable skill scripts,
+ * subagent's project-override gate, ...) asks the gate instead of rolling
  * its own store + prompt:
  *
  *   import { getTrustGate } from "../trust-gate";

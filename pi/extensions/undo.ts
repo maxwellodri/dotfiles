@@ -37,7 +37,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { writeFileSync } from "node:fs";
 import { getLeaderRegistry, type LeaderCtx } from "./leader-key";
 
-// TEMP DIAGNOSTIC — remove once compaction-undo is confirmed.
+// TODO: remove diagnostic logging once compaction-undo is confirmed.
 const DEBUG_LOG = "/tmp/pi-undo-debug.log";
 
 const BINDING_KEY = "u";
@@ -79,7 +79,7 @@ export default function (pi: ExtensionAPI) {
 			// getBranch() with no arg: active branch, root → leaf, real entries.
 			const branch = ctx.sessionManager.getBranch();
 
-			// TEMP DIAGNOSTIC
+			// TODO: remove diagnostic logging once compaction-undo is confirmed
 			try {
 				const dbg =
 					`undo handler FIRED ${new Date().toISOString()}\n` +
@@ -127,7 +127,7 @@ export default function (pi: ExtensionAPI) {
 			// compaction as a wall and leave the turn in place; /tree can still
 			// branch from it.
 			const parentEntry = lastUserIdx > 0 ? branch[lastUserIdx - 1] : undefined;
-			// TEMP DIAGNOSTIC: log the guard decision
+			// TODO: remove diagnostic logging once compaction-undo is confirmed
 			try { writeFileSync(DEBUG_LOG, `lastUserIdx=${lastUserIdx} parentEntry.type=${parentEntry?.type}\n`, { flag: "a" }); } catch {}
 			if (parentEntry?.type === "compaction") {
 				try { writeFileSync(DEBUG_LOG, `GUARD FIRED -> refusing\n`, { flag: "a" }); } catch {}
@@ -145,7 +145,7 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			// TEMP DIAGNOSTIC: log the navigation target
+			// TODO: remove diagnostic logging once compaction-undo is confirmed
 			try { writeFileSync(DEBUG_LOG, `navigating target=${target}\n`, { flag: "a" }); } catch {}
 			const result = await ctx.navigateTree(target);
 			if (result?.cancelled) return;

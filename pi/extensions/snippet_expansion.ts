@@ -45,8 +45,8 @@
  *   - `$` must sit at a token boundary: preceded by start-of-string or
  *     whitespace (`foo$bar` is NOT a snippet ref). Same boundary `@` uses.
  *
- * `$` was chosen over the originally-suggested `~` because `~` collides with
- * home-dir expansion (`@~/...`, shell `~`). `$` still looks like a shell
+ * `$` over `~`: `~` collides with home-dir expansion (`@~/...`, shell `~`).
+ * `$` still looks like a shell
  * variable, but the "expand only if the file exists" guard makes that benign.
  *
  * Guards / trade-offs (deliberate, mirrors prompt_expansion.ts):
