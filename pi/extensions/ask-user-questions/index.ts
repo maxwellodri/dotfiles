@@ -11,6 +11,13 @@
  * answers plus which questions went unanswered. Batch closely related
  * questions this way; unrelated decisions want separate calls.
  *
+ * Cancellation ends the agent's turn: every cancelled result carries
+ * `terminate: true`, so pi skips the automatic follow-up LLM call and the
+ * user can immediately type why they cancelled (their next message is what
+ * the model sees). Termination only takes effect when EVERY result in the
+ * tool batch is terminating — if the model batches ask_user_question with
+ * other tools, cancelling leaves the turn running.
+ *
  * Modes per question (derived from params):
  *   - no options            → free-form text editor
  *   - options               → checkbox list + inline "Custom" editor + Submit
@@ -184,6 +191,9 @@ const AskUserQuestionParams = Type.Object({
 		),
 	),
 });
+
+/** Model-facing explanation riding on every cancelled result: the turn is over and the user's next message explains why. */
+const CANCELLED_TURNS_END = " The agent's turn ends here — wait for the user's follow-up message instead of continuing.";
 
 function normalizeOptions(options: Array<{ label: string; value?: string; description?: string }> | undefined): AskOption[] {
 	return (options || [])
@@ -780,6 +790,7 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 			"Omit options for free-form input.",
 			'Custom editor text behaves like a regular prompt ($snippets and @path includes are expanded).',
 			"Order ask_user_question options with the most likely answer first.",
+			"If the user cancels, your turn ends immediately — do not continue autonomously; the user's next message will explain why.",
 			"Prefer ask_user_question over guessing when requirements, preferences, or implementation choices are unclear.",
 		],
 		parameters: AskUserQuestionParams,
@@ -800,9 +811,11 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 			const multi = specs.length > 1;
 
 			if (signal?.aborted) {
+				// Esc outside the popup aborts the whole agent run, landing here
+				// before any question was shown; still a user cancellation — end the turn.
 				return multi
-					? { content: [textPart("User cancelled the questions")], details: { status: "cancelled", questions: specs.map((s) => toResult(s, "cancelled", [])), message: "User cancelled the questions" } }
-					: { content: [textPart("User cancelled the question")], details: { status: "cancelled", question: specs[0].question, context: specs[0].context, mode: modeFor(specs[0]), answers: [], message: "User cancelled the question" } };
+					? { content: [textPart(`User cancelled the questions.${CANCELLED_TURNS_END}`)], details: { status: "cancelled", questions: specs.map((s) => toResult(s, "cancelled", [])), message: "User cancelled the questions" }, terminate: true }
+					: { content: [textPart(`User cancelled the question.${CANCELLED_TURNS_END}`)], details: { status: "cancelled", question: specs[0].question, context: specs[0].context, mode: modeFor(specs[0]), answers: [], message: "User cancelled the question" }, terminate: true };
 			}
 
 			if (!ctx.hasUI) {
@@ -854,7 +867,7 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 					const spec = specs[0];
 					const r = results[0];
 					if (r.status !== "answered") {
-						return { content: [textPart("User cancelled the question")], details: { status: "cancelled", question: spec.question, context: spec.context, mode: r.mode, answers: [], message: "User cancelled the question" } };
+						return { content: [textPart(`User cancelled the question.${CANCELLED_TURNS_END}`)], details: { status: "cancelled", question: spec.question, context: spec.context, mode: r.mode, answers: [], message: "User cancelled the question" }, terminate: true };
 					}
 					if (r.mode === "text") {
 						const text = r.answers.length ? `User answered: ${r.expandedAnswer ?? r.answers[0].label}` : "User submitted an empty response";
@@ -879,12 +892,13 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 					content: [
 						textPart(
 							withBlocks(
-								`${message}; answered questions kept:\n${answered.map(questionLine).join("\n") || "(none)"}\nUnanswered: ${unanswered}`,
+								`${message}; answered questions kept:\n${answered.map(questionLine).join("\n") || "(none)"}\nUnanswered: ${unanswered}.${CANCELLED_TURNS_END}`,
 								blocks,
 							),
 						),
 					],
 					details: { status: "cancelled", questions: results, message },
+					terminate: true,
 				};
 			});
 		},
