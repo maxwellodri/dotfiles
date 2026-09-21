@@ -17,7 +17,7 @@
 		"blender": {
 			"command": "uv",
 			"args": ["run", "blender-mcp"],
-			"cwd": "${dotfiles}/uv",
+			"cwd": "${dotfiles}/uv/mcp",
 			"env": {
 				"UV_PYTHON_PREFERENCE": "only-managed",
 				"DISABLE_TELEMETRY": "true"

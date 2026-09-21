@@ -1,0 +1,17 @@
+[project]
+name = "dotfiles-refs"
+version = "0.1.0"
+description = "Pinned environment for the refs reference-board tool (scripts/refs)."
+requires-python = ">=3.11,<3.15"
+dependencies = [
+	# Pinned exactly for supply-chain safety (no floating @latest).
+	# Bump deliberately after reviewing the upstream changelog.
+	"ddgs==9.16.0",
+	"pillow==12.3.0",
+	"requests==2.34.2",
+	"tkinterdnd2==0.6.3",
+]
+
+[tool.uv]
+# Always create the venv from the system interpreter (see scripts/refs):
+# standalone uv-managed pythons ship without tkinter.
