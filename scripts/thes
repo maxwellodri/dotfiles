@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Thesaurus launcher wrapper.
+set -euo pipefail
+
+: "${dotfiles:?thes wrapper: \$dotfiles is not set (source your shell rc).}"
+
+if [ -z "${THES_BIN:-}" ]; then
+	THES_BIN="$dotfiles/flake/result/bin/thes"
+fi
+if [ ! -x "$THES_BIN" ]; then
+	echo "thes not installed — this machine's nix env has no thes-env (nix_config pkgs/thes.nix)" >&2
+	exit 1
+fi
+
+exec "$THES_BIN" "$@"
