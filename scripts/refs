@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 """refs - grab art reference images from DDG Images and arrange them on a board.
 
-refs [-N COUNT] [-C COLS] QUERY...       download COUNT images (default 12), grid COLS wide (default 4)
+refs [-N COUNT] [-C COLS] QUERY...       download COUNT images (default 20), grid COLS wide (default 4); one query, up to 50 candidates
 refs IMAGE...                            board from local image files
 refs BOARD.refs                          open a saved board (zip of images + board.json)
 
-Board keys: click=select  g/s/r=move/scale/rotate (esc cancels, enter/click confirms)
-wheel=zoom canvas  empty-drag=pan  alt-drag=drag image out  drop=add  del=remove  ctrl+s=save
+Board keys: click=select  s/r=scale/rotate (esc cancels, enter/click confirms)
+wheel=zoom canvas  empty-drag=pan  alt-drag=drag image out  drop=add  del=remove  ctrl+s=save  q=quit
+Hard-killing the window (dwm super+shift+x) skips the save prompt and prints
+an "X connection broken" line from Tk itself; use q for a clean quit.
 Dragging an image against a window edge auto-pans. Nothing is written to disk
 until you save; boards land in ~/Pictures/refs/<query>-<dd_mm_yyyy>[-n].refs
 (stored zip, no compression).
 
 Dependencies: uv/refs project (see pyproject there); the uv fallback below
 re-execs into it on the system interpreter (tkinter needs it).
+Search: Brave Images API, key from `pass show brave_search_api_key`.
 """
 import argparse
 import concurrent.futures
@@ -21,6 +24,7 @@ import json
 import math
 import os
 import re
+import subprocess
 import sys
 import tkinter as tk
 import tkinter.messagebox
@@ -30,7 +34,6 @@ from pathlib import Path
 
 try:
     import requests
-    from ddgs import DDGS
     from PIL import Image, ImageTk
     from tkinterdnd2 import DND_FILES, DND_TEXT, TkinterDnD
 except ImportError:
@@ -40,6 +43,8 @@ except ImportError:
 
 BOARD_ROOT = Path.home() / "Pictures" / "refs"
 DRAG_CACHE = Path.home() / ".cache" / "refs"
+BRAVE_IMAGES_ENDPOINT = "https://api.search.brave.com/res/v1/images/search"
+BRAVE_KEY_ENTRY = "brave_search_api_key"
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
 MIN_EDGE = 250
 MAX_EDGE = 480
@@ -54,13 +59,51 @@ def slugify(text):
     return slug or "refs"
 
 
+# AI-generated image filtering: no search API labels AI images, so filter
+# locally: generator-site markers on the result URL/title, then embedded
+# generator metadata (ComfyUI/A1111 PNG chunks, C2PA manifests) on download.
+AI_MARKERS = re.compile(
+    r"\b(?:midjourney|stable.?diffusion|dall-?e|artbreeder|nightcafe|leonardo\.ai|ideogram|flux)\b"
+    r"|\bai[- _]?(?:generated|image|art)\b|freepik\.com/(?:premium-)?ai", re.I)
+
+
+def looks_ai_generated(pil, data):
+    head = data[:262144]
+    if b"c2pa" in head:
+        return True
+    for key, value in pil.info.items():
+        if key in ("parameters", "workflow", "prompt"):
+            return True
+        if isinstance(value, str) and re.search(r"comfyui|stable.?diffusion|dall-?e", value, re.I):
+            return True
+    return False
+
+
 def candidate_urls(query, limit):
+    """Full-resolution image URLs from the Brave Images API in a single
+    request (50 candidates max — enough headroom for the AI/size filters)."""
+    key = subprocess.run(["pass", "show", BRAVE_KEY_ENTRY],
+                         capture_output=True, text=True).stdout.strip()
+    if not key:
+        print(f"missing api key: pass show {BRAVE_KEY_ENTRY}", file=sys.stderr)
+        sys.exit(1)
+    try:
+        response = requests.get(
+            BRAVE_IMAGES_ENDPOINT, params={"q": query, "count": min(limit * 3, 50)},
+            headers={"X-Subscription-Token": key, "Accept": "application/json"},
+            timeout=10)
+        response.raise_for_status()
+        results = response.json().get("results", [])
+    except Exception as error:
+        print(f"brave images search failed: {error}", file=sys.stderr)
+        return []
     seen, urls = set(), []
-    for result in DDGS().images(query, max_results=limit):
-        url = result.get("image")
-        if url and url not in seen:
-            seen.add(url)
-            urls.append(url)
+    for result in results:
+        image = (result.get("properties") or {}).get("url")
+        blob = f"{result.get('url', '')} {result.get('title', '')}"
+        if image and image not in seen and not AI_MARKERS.search(blob):
+            seen.add(image)
+            urls.append(image)
     return urls
 
 
@@ -70,7 +113,7 @@ def download_image(url):
         response.raise_for_status()
         pil = Image.open(io.BytesIO(response.content))
         pil.load()
-        if min(pil.size) < MIN_EDGE:
+        if min(pil.size) < MIN_EDGE or looks_ai_generated(pil, response.content):
             return None
         return response.content, EXTENSIONS.get(pil.format, "jpg"), pil.size
     except Exception:
@@ -168,8 +211,8 @@ class RefBoard:
     coordinates are world * zoom, so view zoom never mutates the layout."""
 
     BG = "#282828"
-    HINTS = (" | click=select g/s/r=move/scale/rotate wheel=zoom empty-drag=pan"
-             " alt-drag=drag-out drop=add del=remove ctrl+s=save")
+    HINTS = (" | click=select/drag s/r=scale/rotate wheel=zoom empty-drag=pan"
+             " alt-drag=drag-out drop=add del=remove ctrl+s=save q=quit")
     PAN_RANGE = 1_000_000
 
     def __init__(self, board_path=None, query="", entries=None):
@@ -212,7 +255,8 @@ class RefBoard:
         # keys bind on the root: the canvas never takes keyboard focus on click
         self.root.bind("<Delete>", self.on_delete)
         self.root.bind("<Control-s>", self.save)
-        for key in ("g", "s", "r", "G", "S", "R"):
+        self.root.bind("<q>", lambda _event: self.close())
+        for key in ("s", "r", "S", "R"):
             self.root.bind(f"<{key}>", self.on_modal_key)
         self.root.bind("<Return>", lambda _event: self.modal_finish(True))
         self.root.bind("<Escape>", lambda _event: self.modal_finish(False))
@@ -435,18 +479,15 @@ class RefBoard:
         self.edge_ticker = None
         if not self.edge_velocity or self.edge_velocity == (0, 0):
             return
-        if self.drag_entry is None and self.modal != "move":
+        if self.drag_entry is None:
             return
         dx, dy = self.edge_velocity
         self.pan_canvas_by(dx, dy)
-        if self.drag_entry:
-            self.drag_entry["x"] += dx / self.zoom
-            self.drag_entry["y"] += dy / self.zoom
-            self.recoord(self.drag_entry)
-            self.refresh_focus_outline()
-            self.mark_dirty()
-        else:
-            self.modal_apply()  # stationary cursor, moved view: world under it changed
+        self.drag_entry["x"] += dx / self.zoom
+        self.drag_entry["y"] += dy / self.zoom
+        self.recoord(self.drag_entry)
+        self.refresh_focus_outline()
+        self.mark_dirty()
         self.edge_ticker = self.root.after(16, self.edge_pan_tick)
 
     def stop_edge_pan(self):
@@ -458,7 +499,7 @@ class RefBoard:
     # blender-style modal transforms -----------------------------------------
 
     def on_modal_key(self, event):
-        mode = {"g": "move", "s": "scale", "r": "rotate"}.get(event.keysym.lower())
+        mode = {"s": "scale", "r": "rotate"}.get(event.keysym.lower())
         if mode is None or self.focused is None:
             return
         self.modal = mode
@@ -479,10 +520,7 @@ class RefBoard:
             return
         world_x, world_y = self.world_at_widget(*self.modal_pointer)
         anchor_x, anchor_y = self.modal_anchor
-        if self.modal == "move":
-            entry["x"] = snapshot["x"] + world_x - anchor_x
-            entry["y"] = snapshot["y"] + world_y - anchor_y
-        elif self.modal == "scale":
+        if self.modal == "scale":
             start = max(1.0, math.hypot(anchor_x - snapshot["x"], anchor_y - snapshot["y"]))
             now = math.hypot(world_x - snapshot["x"], world_y - snapshot["y"])
             entry["scale"] = min(20.0, max(0.01, snapshot["scale"] * now / start))
@@ -592,8 +630,8 @@ def launch(query, entries):
 
 def main():
     parser = argparse.ArgumentParser(prog="refs", description=__doc__.splitlines()[0])
-    parser.add_argument("-N", "--count", type=int, default=12,
-                        help="number of images to grab (default 12)")
+    parser.add_argument("-N", "--count", type=int, default=20,
+                        help="number of images to grab (default 20)")
     parser.add_argument("-C", "--columns", type=int, default=4,
                         help="columns in the initial board grid (default 4)")
     parser.add_argument("words", nargs="+",
