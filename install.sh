@@ -54,8 +54,8 @@ fi
 if [ "$tag" = "donnie" ]; then
 	# NixOS server: packages and system config are nix_config's job (deploy-rs),
 	# so no elevation and none of the arch/desktop helpers. pi + tmux come from
-	# the system profile (dotfiles-env); flake/result points scripts/pi + tmux
-	# plugins at it.
+	# the system profile (nix_config's pi + tmux-env packages); flake/result
+	# points scripts/pi + tmux plugins at it.
 	sh helper_scripts/makesymlinks.sh "$tag"
 	sh helper_scripts/custom_bin_scripts.sh
 	bash rust/install.sh
@@ -63,7 +63,7 @@ if [ "$tag" = "donnie" ]; then
 		mkdir -p "$PWD/flake"
 		ln -sfn /run/current-system/sw "$PWD/flake/result"
 	else
-		echo "WARNING: /run/current-system/sw/bin/pi missing — deploy nix_config (dotfiles-env) then re-run" >&2
+		echo "WARNING: /run/current-system/sw/bin/pi missing — deploy nix_config (pi + tmux-env) then re-run" >&2
 	fi
 	exit 0
 fi

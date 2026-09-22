@@ -6,16 +6,18 @@
 #                        npm and tsc all come from the flake, so no pacman
 #                        nodejs/npm/typescript are needed (uv still comes
 #                        from the host; the blender MCP server needs it)
-#   nixcfg#dotfiles-env  pi + tmux + tmux plugins (resurrect, continuum),
-#                        out-linked at flake/result — the `scripts/pi`
-#                        wrapper and $bin/tmux run from it
+#   nixcfg#dotfiles-env  pi + tmux + tmux plugins (resurrect, continuum)
+#                        + thes (python wn 1.1.1 + Open English WordNet
+#                        2024 db), out-linked at flake/result — the
+#                        `scripts/pi` + `scripts/thes` wrappers and
+#                        $bin/tmux run from it
 #   nixcfg#toolchain     node + tsc, used below for the vendored adapter deps
 #
 # The nix_config repo is private, so it is consumed via a local clone at
 # ${NIX_CONFIG_DIR:-$SOURCE/nix_config} (auto-cloned over ssh if
 # missing). NixOS hosts don't run this script at all: vps.nix installs
-# dotfiles-env system-wide and install.sh links flake/result ->
-# /run/current-system/sw instead.
+# the pi + tmux-env packages system-wide and install.sh links
+# flake/result -> /run/current-system/sw instead.
 #
 # Modes:
 #   ./install_flake.sh                install/link from the pins as-is; the
@@ -231,7 +233,7 @@ done
 # Out-link stays in THIS repo so existing consumers (scripts/pi's PI_BIN
 # default, .config/tmux/plugins) are untouched; nix build replaces the
 # symlink only after the build succeeded.
-echo "Building dotfiles-env (pi + tmux + plugins)..."
+echo "Building dotfiles-env (pi + tmux + plugins + thes)..."
 nix build "$nixcfg#dotfiles-env" --out-link "$dir/flake/result" -L
 
 echo "pi $pi_version built: $(readlink "$dir/flake/result")"
