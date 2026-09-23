@@ -2,6 +2,9 @@
 
 . "${XDG_CONFIG_HOME:-$HOME/.config}/sh/shutil.sh"
 
+# agent-spawned pinentry misses the session env; force the dark qt6ct theme
+export QT_QPA_PLATFORMTHEME=qt6ct
+
 case "${PINENTRY_MODE:-}" in
     gui) exec /usr/bin/pinentry-qt "$@" ;;
     cli) exec /usr/bin/pinentry-curses "$@" ;;
