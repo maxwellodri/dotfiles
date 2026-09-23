@@ -20,9 +20,7 @@ pactl=.config/pulseaudio-ctl/config
 newsboat=.config/newsboat/config
 ytdl=.config/youtube-dl/config
 tmux=".config/tmux/"
-gpg=.gnupg/gpg-agent.conf
-pamgnupg=.config/pam-gnupg
-emacs=".emacs.d/init.el"
+pam=.pam_environment
 mpd=" .config/mpd/mpd.conf"
 nix=" .config/nix/nix.conf"
 vimpc=" .config/vimpc/vimpcrc"
@@ -39,7 +37,6 @@ faucet=".config/faucet/"
 alacritty=".config/alacritty/"
 wezterm=".config/wezterm/"
 desktop_apps=".local/share/applications/default_handler.desktop .local/share/applications/wine.desktop"
-sshconfig=.ssh/config
 heraldcfg=.config/herald/config.toml
 
 
@@ -48,12 +45,12 @@ i3=" $i3config $i3statusconfig"
 xfiles=" .config/X11/xinitrc .config/X11/.Xresources .config/X11/.Xmodmap .config/neovide $zathura $picom $dunst $ncmpcpp $sxhkdconfig $rofi $gtk $qt $alacritty $wezterm"
 bash=" .bashrc .bashrc_extra .bash_profile $sh $pam"
 zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam"
-files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gpg $pamgnupg $gitconfig $npm $faucet $systemd"
+files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gitconfig $npm $faucet $systemd"
 
 ###########
-pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $eww $desktop_apps $sshconfig $heraldcfg" #platform specific dotfiles
-hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $qz $eww $desktop_apps $sshconfig $heraldcfg"
-donniefiles=" $zsh $nix $dotfiles $qz $sshconfig" #headless NixOS server
+pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $eww $desktop_apps $heraldcfg" #platform specific dotfiles
+hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $qz $eww $desktop_apps $heraldcfg"
+donniefiles=" $zsh $nix $dotfiles $qz" #headless NixOS server
 
 ##########
 
@@ -139,9 +136,6 @@ for file in $files; do
         ".zshrc_extra")         src="$dir/.zshrc_extra.$tag"
             ;;
         ".zprofile")            src="$dir/$file.$tag"
-            ;;
-        "$sshconfig")           src="$dir/.ssh/config.$tag"
-                                chmod 600 "$src"
             ;;
         "$i3statusconfig")      src="$dir/$file.$tag"
             ;;
