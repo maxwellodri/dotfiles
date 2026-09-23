@@ -22,6 +22,7 @@ If a task is just "search the web for X", try `web_search` first. Reach for the 
 ## 🛑 Hands off the physical window — MCP only
 
 The browser window is **headed**: it renders visibly on the user's desktop, and the user is likely using the machine **concurrently**. The window is for the *user's* hands — captchas, logins, password entry — not for *yours*; it is not an input surface for you.
+The browser renders in an unused workspace, so spawning and interacting via MCP doesn't affect the user by opening it (but xdotool and wayland equivalents will).
 
 **Never** interact with the browser window via OS-level automation — `xdotool`, `ydotool`, `wtype`, `xte`, `pyautogui`, `wmctrl`, or anything else that synthesizes pointer/keyboard events or raises/focuses/moves the window. These land on the user's session: they steal focus and hijack the user's keystrokes and cursor mid-work. **Only exception: the user explicitly instructs you to** (e.g. "use xdotool to type into the window").
 
