@@ -3,15 +3,23 @@
 DOWNLOAD_DIRS=("$HOME/Downloads/torrents/" "$HOME/Videos/torrents/")
 
 if [[ -n $WAYLAND_DISPLAY ]]; then
-    dmenu=dmenu-wl
+    dmenu="dmenu-wl"
 elif [[ -n $DISPLAY ]]; then
-    dmenu=dmenu
+    dmenu="dmenu"
 else
     echo "Error: No Wayland or X11 display detected" >&2
     exit 1
 fi
 
-default_dir=$(pgrep -f transmission-daemon > /dev/null && transmission-remote -si 2>/dev/null | grep -oP 'Download directory: \K.*')
+pgrep -f transmission-daemon > /dev/null || (transmission-daemon --no-auth && notify-send "Starting transmission daemon...")
+daemon_ready=0
+for _ in {1..10}; do
+    transmission-remote -l > /dev/null 2>&1 && { daemon_ready=1; break; }
+    sleep 0.1
+done
+(( daemon_ready )) || { notify-send "Transmission Daemon not available"; exit 1; }
+
+default_dir=$(transmission-remote -j -si 2>/dev/null | jq -r '.result.download_dir')
 
 menu=("Manual Directory")
 is_default=0
@@ -49,15 +57,14 @@ if [[ $selected_dir != "Default Dir" ]]; then
     dir_args=(-w "$selected_dir")
 fi
 
-pgrep -f transmission-daemon > /dev/null || (transmission-daemon --no-auth && notify-send "Starting transmission daemon...")
-BEFORE_ADD=$(transmission-remote -l | awk 'NR>1 {print $1}' | tr -d '*')
+BEFORE_ADD=$(transmission-remote -j -l | jq -r '.result.torrents[].id')
 transmission-remote -a --start-paused "$1" "${dir_args[@]}" --torrent-done-script ~/bin/torrdone || { notify-send "Invalid link ⛔ (Not a magnet link?)"; exit; }
-AFTER_ADD=$(transmission-remote -l | awk 'NR>1 {print $1}' | tr -d '*')
-TORRENT_ID=$(diff <(echo "$BEFORE_ADD") <(echo "$AFTER_ADD") | grep '>' | awk '{print $2}')
+AFTER_ADD=$(transmission-remote -j -l | jq -r '.result.torrents[].id')
+TORRENT_ID=$(comm -13 <(sort <<< "$BEFORE_ADD") <(sort <<< "$AFTER_ADD"))
 if [ -z "$TORRENT_ID" ]; then
     notify-send "Torrent Already Added 😕"
 else
-    TORRENT_NAME=$(transmission-remote -t "$TORRENT_ID" -i | grep -oP 'Name: \K.*')
+    TORRENT_NAME=$(transmission-remote -j -t "$TORRENT_ID" -i | jq -r '.result.torrents[0].name')
     echo "$TORRENT_ID $TORRENT_NAME $1" >> ~/.cache/torrents.log
     notify-send -t 750 "Torrent Added 🏴‍☠️"
 fi
