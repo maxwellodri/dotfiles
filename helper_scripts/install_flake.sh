@@ -201,6 +201,21 @@ for prof in "$HOME"/.mozilla/firefox/*.dev-edition-default; do
     "$result/bin/firefox-rebuild-profile" "$prof"
 done
 
+# --- Fonts ---------------------------------------------------------------
+# font-env ships the fonts + the RiceManFontFamily alias. Host fontconfig
+# scans $XDG_DATA_HOME/fonts; ~/.config/fontconfig/fonts.conf is its user
+# conf. Store paths change per build, so relink every run.
+mkdir -p "$HOME/.config/fontconfig" "$XDG_DATA_HOME"
+fonts_dir="$XDG_DATA_HOME/fonts"
+if [ -e "$fonts_dir" ] && [ ! -L "$fonts_dir" ]; then
+    echo "Moving existing $fonts_dir to temp directory"
+    mv "$fonts_dir" "$(mktemp -d)/fonts"
+fi
+atomic_ln "$result/share/fonts" "$fonts_dir"
+atomic_ln "$result/share/fontconfig/fonts.conf" "$HOME/.config/fontconfig/fonts.conf"
+fc-cache -f
+echo "fonts: $(readlink "$fonts_dir")"
+
 # Legacy npm-managed installs from the pre-nix installer; informational only.
 for legacy in "$XDG_DATA_HOME/npm/bin/pi" "$HOME/.local/bin/pi"; do
     if [ -x "$legacy" ]; then

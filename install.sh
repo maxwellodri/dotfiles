@@ -4,7 +4,7 @@
 
 # --other-user <name>: minimal install for a secondary user
 #   Runs makesymlinks + custom_bin_scripts only.
-#   Skips pacman, system configs, rust, suckless, fontconfig.
+#   Skips pacman, system configs, rust, suckless.
 #   If .zshrc_extra.<name> exists in dotfiles, symlinks it over ~/.zshrc_extra.
 
 other_user=""
@@ -85,9 +85,8 @@ fi
 
 sh helper_scripts/arch_package_install.sh "$tag"
 sh helper_scripts/makesymlinks.sh "$tag"
-sh helper_scripts/fontconfig.sh
 sh helper_scripts/custom_bin_scripts.sh
 sh rust/install.sh
 bash helper_scripts/install_system_configs.sh #after makesymlinks.sh always need $GIT_ROOT/.dotfile_tag file to be present
 bash helper_scripts/download_suckless.sh #provides ssh copying msg, e.g. see script
-bash helper_scripts/install_flake.sh #always last: nix-builds nix_config's dotfiles-env (needs nix + a clone of nix_config); pi updater + tmux/plugins symlinks + adapter deps; must not disturb the others
+bash helper_scripts/install_flake.sh #always last: nix-builds nix_config's dotfiles-env (needs nix + a clone of nix_config); pi updater + tmux/plugins + fonts symlinks + adapter deps; must not disturb the others
