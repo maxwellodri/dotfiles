@@ -28,7 +28,7 @@ password=$(printf '%s\n' "${password_files[@]}" | grep -v "$filter" | "$dmenu" -
 
 show_subcommand="show"
 
-if [[ "$password" == *"otp/"* ]]; then
+if [[ "$password" == otp/* ]]; then
     show_subcommand="otp"
 fi
 
@@ -38,8 +38,10 @@ if [[ $typeit -eq 0 ]]; then
         echo -n "$password_text" | xclip -selection clipboard 2>/dev/null
         echo -n "$password_text" | xclip -selection primary 2>/dev/null
 
-        password_hash=$(echo -n "$password_text" | sha256sum | cut -d' ' -f1) #keep in sync with _pass_clear_clip hashing
-        [ -n "$bin" ] && nohup "$bin/_pass_clear_clip" "$password_hash" >/dev/null 2>&1 &
+        if [[ "$show_subcommand" == "show" ]]; then
+            password_hash=$(echo -n "$password_text" | sha256sum | cut -d' ' -f1) #keep in sync with _pass_clear_clip hashing
+            [ -n "$bin" ] && nohup "$bin/_pass_clear_clip" "$password_hash" >/dev/null 2>&1 &
+        fi
     else
         # For Wayland, use the built-in -c option
         pass $show_subcommand -c "$password" 2>/dev/null
