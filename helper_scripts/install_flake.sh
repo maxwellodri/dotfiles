@@ -1,63 +1,11 @@
 #!/bin/bash
-############################
-# Installs/updates everything built by the nix_config flake (pkgs/):
-#
-#   nixcfg#pi            pi (pi.dev), built hermetically from npm — node,
-#                        npm and tsc all come from the flake, so no pacman
-#                        nodejs/npm/typescript are needed (uv still comes
-#                        from the host; the blender MCP server needs it)
-#   nixcfg#dotfiles-env  pi + tmux + tmux plugins (resurrect, continuum)
-#                        + thes (python wn 1.1.1 + Open English WordNet
-#                        2024 db) + deemix + firefox developer edition
-#                        (with local-extension xpi + profile config),
-#                        out-linked at dotfiles-env-result — the
-#                        `scripts/pi` + `scripts/thes` wrappers and
-#                        $bin/tmux run from it
-#   nixcfg#toolchain     node + tsc, used below for the vendored adapter deps
-#
-# The nix_config repo is private, so it is consumed via a local clone at
-# ${NIX_CONFIG_DIR:-$SOURCE/nix_config} (auto-cloned over ssh if
-# missing). NixOS hosts don't run this script at all: vps.nix installs
-# the pi + tmux-env packages system-wide and install.sh links
-# dotfiles-env-result -> /run/current-system/sw instead.
-#
-# Modes:
-#   ./install_flake.sh                install/link from the pins as-is; the
-#                                     only network is nix's own fetching on
-#                                     cache misses (the first build
-#                                     downloads ~400MB)
-#   ./install_flake.sh --update       the updater (what `pi update` runs):
-#                                     pin the newest pi release at least
-#                                     MIN_RELEASE_AGE_DAYS old — the npm
-#                                     cooldown, mirroring the min-release-age
-#                                     gate set in nix_config's pkgs/pi/default.nix.
-#                                     Does NOT bump flake.lock: that also
-#                                     pins the VPS's nixpkgs and deploy
-#                                     tooling — bump deliberately instead.
-#   ./install_flake.sh --update-inputs  `nix flake update` in nix_config
-#                                     (nixpkgs + deploy-rs/sops/disko pins
-#                                     — affects the next VPS deploy; test it)
-#
-# Also runs on every bootstrap regardless:
-#   - $bin/tmux + deemix-cli + .config/tmux/plugins symlinks into
-#     dotfiles-env-result (swapped atomically via rename(2) — running
-#     sessions keep their store paths)
-#   - vendored pi-mcp-adapter deps (node_modules is gitignored by design;
-#     see pi/.gitignore) — npm ci via the flake's bundled npm
-#   - VDH chromium extension unpack for pi/browser/playwright-config.json's
-#     --load-extensions (missing dir = "Manifest file is missing or
-#     unreadable" spam on every browser launch)
-############################
-
 set -eu
 
 update=0
-update_inputs=0
 case "${1:-}" in
     --update) update=1 ;;
-    --update-inputs) update_inputs=1 ;;
     "") ;;
-    *) echo "usage: install_flake.sh [--update|--update-inputs]" >&2; exit 2 ;;
+    *) echo "usage: install_flake.sh [--update]" >&2; exit 2 ;;
 esac
 
 dir="$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel)"
@@ -74,22 +22,12 @@ if ! command -v nix >/dev/null 2>&1; then
 fi
 
 if [ ! -d "$nixcfg/.git" ]; then
-    echo "nix_config not found at $nixcfg — cloning (private repo, needs github ssh)"
-    mkdir -p "$(dirname "$nixcfg")"
-    git clone git@github.com:maxwellodri/nix_config.git "$nixcfg" || {
-        echo "clone failed — set NIX_CONFIG_DIR or clone manually" >&2
-        exit 1
-    }
-fi
-
-# `pi update` mutates the pin in nix_config; a dirty clone means the pi built
-# here can diverge from what other machines (and the VPS) see after push.
-if [ -n "$(git -C "$nixcfg" status --porcelain 2>/dev/null)" ]; then
-    echo "WARNING: $nixcfg has uncommitted changes — commit/push so other machines build the same pi" >&2
+    echo "nix_config not found at $nixcfg, exiting."
+    exit 1
 fi
 
 command -v uv >/dev/null 2>&1 ||
-    echo "WARNING: uv not found — the blender MCP server needs it" >&2
+    echo "WARNING: uv not found, blender MCP server needs it" >&2
 
 # rename(2) swap so concurrent launches never observe a missing symlink
 atomic_ln() { # atomic_ln <target> <linkpath>
@@ -112,24 +50,25 @@ registry_latest() {
         jq -r .version
 }
 
-# --- pi update (--update only) -------------------------------------------
-# Plain runs never query the registry; the flake pins the version.
+# --- Updates (--update only) ---------------------------------------------
+# Plain runs never query the registry or touch the lock; the flake pins
+# everything.
 MIN_RELEASE_AGE_DAYS=7
 
 current="$(sed -n 's/^[[:space:]]*version = "\([^"]*\)";/\1/p' "$pi_nix" | head -n1)"
 pi_version="$current"
 
-if [ "$update_inputs" = 1 ]; then
-    # Lock bumps are deliberate: the lock pins the VPS's nixpkgs + deploy
-    # tooling, so refresh it alongside a deploy test, not as a side effect.
-    if (cd "$nixcfg" && nix flake update); then
-        echo "nix_config flake.lock inputs updated"
-    else
-        echo "WARNING: nix flake update failed — continuing on the existing lock" >&2
-    fi
-fi
-
 if [ "$update" = 1 ]; then
+    # Refresh only the input feeding pkgs/* — dotfiles-env's deps (tmux,
+    # firefox, thes, deemix, pi's toolchain) plus the pi/tmux-env/deemix-env
+    # the vps installs from self.packages. The vps's own nixpkgs + deploy
+    # tooling inputs stay put; their maintenance is delegated elsewhere.
+    if (cd "$nixcfg" && nix flake update nixpkgs-dotfiles); then
+        echo "nix_config nixpkgs-dotfiles input updated"
+    else
+        echo "WARNING: nix flake update nixpkgs-dotfiles failed — continuing on the existing lock" >&2
+    fi
+
     # Newest plain x.y.z release published at least MIN_RELEASE_AGE_DAYS
     # days ago (registry .time has ISO timestamps with millis).
     cutoff=$(($(date +%s) - MIN_RELEASE_AGE_DAYS * 86400))
@@ -203,7 +142,6 @@ fi
 # first build fetches ~400MB of npm deps and takes a while); pipefail keeps
 # nix's exit status through the pipe.
 set -o pipefail
-echo "Building pi via nix — first build on a machine fetches ~400MB of deps, be patient..."
 attempt=0
 while :; do
     if build="$(nix build "$nixcfg#pi" --no-link -L 2>&1 | tee /dev/stderr)"; then
@@ -225,10 +163,7 @@ while :; do
     sed -i "s|^\([[:space:]]*\)$attr = \"[^\"]*\";|\1$attr = \"$got\";|" "$pi_nix"
 done
 
-# Out-link stays in THIS repo so existing consumers (scripts/pi's PI_BIN
-# default, .config/tmux/plugins) are untouched; nix build replaces the
-# symlink only after the build succeeded.
-echo "Building dotfiles-env (pi + tmux + plugins + thes)..."
+echo "Building dotfiles-env..."
 nix build "$nixcfg#dotfiles-env" --out-link "$result" -L
 
 echo "pi $pi_version built: $(readlink "$result")"
@@ -236,9 +171,11 @@ echo "pi $pi_version built: $(readlink "$result")"
 mkdir -p "$bin"
 atomic_ln "$result/bin/tmux" "$bin/tmux"
 atomic_ln "$result/bin/deemix-cli" "$bin/deemix-cli"
+atomic_ln "$result/bin/deemix-webui" "$bin/deemix-webui"
+atomic_ln "$result/bin/dzq" "$bin/dzq"
 atomic_ln "$result/share/tmux-plugins" "$dir/.config/tmux/plugins"
 echo "tmux $("$bin/tmux" -V | awk '{print $2}'), plugins: $(readlink "$dir/.config/tmux/plugins")"
-echo "deemix-cli: $(readlink "$bin/deemix-cli")"
+echo "deemix: dzq -> $(readlink "$bin/dzq")"
 
 # ARL -> ~/.config/deemix/login.json (sops-decrypted with the local gpg key;
 # shares one secret with the VPS deploy — see nix_config systems/vps/deemix.nix)
