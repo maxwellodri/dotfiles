@@ -10,7 +10,7 @@
 #                        + thes (python wn 1.1.1 + Open English WordNet
 #                        2024 db) + deemix + firefox developer edition
 #                        (with local-extension xpi + profile config),
-#                        out-linked at flake/result — the
+#                        out-linked at dotfiles-env-result — the
 #                        `scripts/pi` + `scripts/thes` wrappers and
 #                        $bin/tmux run from it
 #   nixcfg#toolchain     node + tsc, used below for the vendored adapter deps
@@ -19,7 +19,7 @@
 # ${NIX_CONFIG_DIR:-$SOURCE/nix_config} (auto-cloned over ssh if
 # missing). NixOS hosts don't run this script at all: vps.nix installs
 # the pi + tmux-env packages system-wide and install.sh links
-# flake/result -> /run/current-system/sw instead.
+# dotfiles-env-result -> /run/current-system/sw instead.
 #
 # Modes:
 #   ./install_flake.sh                install/link from the pins as-is; the
@@ -39,8 +39,9 @@
 #                                     — affects the next VPS deploy; test it)
 #
 # Also runs on every bootstrap regardless:
-#   - $bin/tmux + .config/tmux/plugins symlinks into flake/result (swapped
-#     atomically via rename(2) — running sessions keep their store paths)
+#   - $bin/tmux + deemix-cli + .config/tmux/plugins symlinks into
+#     dotfiles-env-result (swapped atomically via rename(2) — running
+#     sessions keep their store paths)
 #   - vendored pi-mcp-adapter deps (node_modules is gitignored by design;
 #     see pi/.gitignore) — npm ci via the flake's bundled npm
 #   - VDH chromium extension unpack for pi/browser/playwright-config.json's
@@ -62,6 +63,7 @@ esac
 dir="$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel)"
 nixcfg="${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}"
 pi_nix="$nixcfg/pkgs/pi/default.nix"
+result="$nixcfg/dotfiles-env-result"
 bin="${bin:-$HOME/bin}"
 
 : "${XDG_DATA_HOME:=$HOME/.local/share}"; export XDG_DATA_HOME
@@ -85,15 +87,6 @@ fi
 if [ -n "$(git -C "$nixcfg" status --porcelain 2>/dev/null)" ]; then
     echo "WARNING: $nixcfg has uncommitted changes — commit/push so other machines build the same pi" >&2
 fi
-
-# Flakes only see git-tracked files; an untracked module yields confusing
-# "file not found" errors rather than a build.
-for tracked in pkgs/pi/default.nix pkgs/integrities.json pkgs/firefox/default.nix; do
-    if ! git -C "$nixcfg" ls-files --error-unmatch "$tracked" >/dev/null 2>&1; then
-        echo "$nixcfg/$tracked is not tracked by git — run: git -C $nixcfg add pkgs/" >&2
-        exit 1
-    fi
-done
 
 command -v uv >/dev/null 2>&1 ||
     echo "WARNING: uv not found — the blender MCP server needs it" >&2
@@ -236,25 +229,34 @@ done
 # default, .config/tmux/plugins) are untouched; nix build replaces the
 # symlink only after the build succeeded.
 echo "Building dotfiles-env (pi + tmux + plugins + thes)..."
-nix build "$nixcfg#dotfiles-env" --out-link "$dir/flake/result" -L
+nix build "$nixcfg#dotfiles-env" --out-link "$result" -L
 
-echo "pi $pi_version built: $(readlink "$dir/flake/result")"
+echo "pi $pi_version built: $(readlink "$result")"
 
 mkdir -p "$bin"
-atomic_ln "$dir/flake/result/bin/tmux" "$bin/tmux"
-atomic_ln ../../flake/result/share/tmux-plugins "$dir/.config/tmux/plugins"
+atomic_ln "$result/bin/tmux" "$bin/tmux"
+atomic_ln "$result/bin/deemix-cli" "$bin/deemix-cli"
+atomic_ln "$result/share/tmux-plugins" "$dir/.config/tmux/plugins"
 echo "tmux $("$bin/tmux" -V | awk '{print $2}'), plugins: $(readlink "$dir/.config/tmux/plugins")"
+echo "deemix-cli: $(readlink "$bin/deemix-cli")"
 
-# firefox wrapper pins the single profile (pingu) via --profile — the nix
-# dev-edition binary ignores hand-written [Install*] hash sections in
-# profiles.ini and mints a fresh dev-edition-default otherwise.
+# the profile is the dev-edition dedicated default (named
+# dev-edition-default) — bare launches resolve it; the wrapper only keeps
+# $bin/firefox ahead of any stray path resolution
 cat > "$bin/firefox.tmp.$$" <<WRAPPER
 #!/usr/bin/env bash
-exec "$dir/flake/result/bin/firefox" --profile "\$HOME/.mozilla/firefox/pingu" "\$@"
+exec "$result/bin/firefox" "\$@"
 WRAPPER
 chmod +x "$bin/firefox.tmp.$$"
 mv -T "$bin/firefox.tmp.$$" "$bin/firefox"
 echo "firefox: $(cat "$bin/firefox" | tail -1)"
+
+# relink profile config (user.js + chrome css) to the fresh store paths;
+# dev-edition-default is the dedicated profile the browser always resolves
+for prof in "$HOME"/.mozilla/firefox/*.dev-edition-default; do
+    [ -d "$prof" ] || continue
+    "$result/bin/firefox-rebuild-profile" "$prof"
+done
 
 # Legacy npm-managed installs from the pre-nix installer; informational only.
 for legacy in "$XDG_DATA_HOME/npm/bin/pi" "$HOME/.local/bin/pi"; do
@@ -290,7 +292,9 @@ clear_worker_caches() {
     for root in "${XDG_CACHE_HOME:-$HOME/.cache}/ms-playwright-mcp" \
                 "$HOME/.cache/ms-playwright" /tmp/pi/chromium; do
         for prof in "$root"/*; do
-            [ -d "$prof/Default/Service Worker" ] && rm -rf "$prof/Default/Service Worker"
+            if [ -d "$prof/Default/Service Worker" ]; then
+                rm -rf "$prof/Default/Service Worker"
+            fi
         done
     done
 }

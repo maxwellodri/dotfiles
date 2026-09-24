@@ -5,7 +5,7 @@ set -euo pipefail
 : "${dotfiles:?thes wrapper: \$dotfiles is not set (source your shell rc).}"
 
 if [ -z "${THES_BIN:-}" ]; then
-	THES_BIN="$dotfiles/flake/result/bin/thes"
+	THES_BIN="${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}/dotfiles-env-result/bin/thes"
 fi
 if [ ! -x "$THES_BIN" ]; then
 	echo "thes not installed — this machine's nix env has no thes-env (nix_config pkgs/thes.nix)" >&2

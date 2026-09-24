@@ -204,10 +204,11 @@ local function get_api_key()
 end
 
 local function spawn_child(extra_args)
-    -- $dotfiles env is set by the shell rc; flake/result is the nix install.
-    local bin = vim.env.dotfiles and (vim.env.dotfiles .. "/flake/result/bin/pi") or nil
+    -- nix_config clone hosts the dotfiles-env out-link (set by shell rc / install).
+    local nixcfg = vim.env.NIX_CONFIG_DIR or (vim.env.SOURCE or (os.getenv("HOME") .. "/source")) .. "/nix_config"
+    local bin = nixcfg .. "/dotfiles-env-result/bin/pi"
     if not bin or vim.fn.executable(bin) ~= 1 then
-        vim.notify("π: $dotfiles/flake/result/bin/pi missing — run helper_scripts/install_flake.sh",
+        vim.notify("π: dotfiles-env-result/bin/pi missing — run helper_scripts/install_flake.sh",
             vim.log.levels.ERROR)
         return nil
     end

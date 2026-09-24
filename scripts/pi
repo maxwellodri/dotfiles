@@ -23,7 +23,7 @@ export CARGO_BUILD_JOBS
 NICE=(nice -n 19 ionice -c 3)
 
 if [ -z "${PI_BIN:-}" ]; then
-	PI_BIN="$dotfiles/flake/result/bin/pi"
+	PI_BIN="${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}/dotfiles-env-result/bin/pi"
 fi
 if [ ! -x "$PI_BIN" ]; then
 	echo "pi not installed — run $(realpath -m "$dotfiles/helper_scripts/install_flake.sh") to install" >&2

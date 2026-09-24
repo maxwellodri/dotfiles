@@ -3,8 +3,8 @@
 	// its own alias map); this config exists purely for `tsc`.
 	// The bare imports (@earendil-works/*, typebox) resolve via generated
 	// "paths" pointing at the nix-built pi's d.ts files. Run:
-	//   nix run "$dotfiles/flake"#typecheck            (uses $PI_CODING_AGENT_DIR/extensions)
-	//   nix run "$dotfiles/flake"#typecheck -- <extensions dir>
+	//   nix run "${NIX_CONFIG_DIR:-$SOURCE/nix_config}"#typecheck            (uses $PI_CODING_AGENT_DIR/extensions)
+	//   nix run "${NIX_CONFIG_DIR:-$SOURCE/nix_config}"#typecheck -- <extensions dir>
 	// (helper_scripts/install_flake.sh runs it as a post-install check too)
 	"compilerOptions": {
 		"noEmit": true,

@@ -27,4 +27,3 @@ docker/transcribe/models/
 rust/*/target/*
 firefox/zipped_extensions/
 __pycache__/
-flake/result
