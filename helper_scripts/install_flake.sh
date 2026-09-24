@@ -240,6 +240,12 @@ atomic_ln "$result/share/tmux-plugins" "$dir/.config/tmux/plugins"
 echo "tmux $("$bin/tmux" -V | awk '{print $2}'), plugins: $(readlink "$dir/.config/tmux/plugins")"
 echo "deemix-cli: $(readlink "$bin/deemix-cli")"
 
+# ARL -> ~/.config/deemix/login.json (sops-decrypted with the local gpg key;
+# shares one secret with the VPS deploy — see nix_config systems/vps/deemix.nix)
+if ! "$result/bin/deemix-arl-sync"; then
+    echo "WARNING: deemix ARL sync failed — is the gpg key unlocked?" >&2
+fi
+
 # the profile is the dev-edition dedicated default (named
 # dev-edition-default) — bare launches resolve it; the wrapper only keeps
 # $bin/firefox ahead of any stray path resolution
