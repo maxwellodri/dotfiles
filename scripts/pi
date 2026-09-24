@@ -36,7 +36,7 @@ case "${1:-}" in
 		echo "pi is nix-managed — updating via $installer --update"
 		exec "$installer" --update ;;
 	typecheck)
-		# nix-built tsc vs the nix-built pi's .d.ts (see nix_config pkgs/pi.nix)
+		# nix-built tsc vs the nix-built pi's .d.ts (see nix_config pkgs/pi/default.nix)
 		exec nix run "${NIX_CONFIG_DIR:-$SOURCE/nix_config}"#typecheck -- "$PI_CODING_AGENT_DIR/extensions" ;;
 	install|remove|uninstall|list|config|--help|-h|--version|-v)
 		exec "$PI_BIN" "$@" ;;

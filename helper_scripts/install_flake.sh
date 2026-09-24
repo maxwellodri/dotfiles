@@ -8,7 +8,9 @@
 #                        from the host; the blender MCP server needs it)
 #   nixcfg#dotfiles-env  pi + tmux + tmux plugins (resurrect, continuum)
 #                        + thes (python wn 1.1.1 + Open English WordNet
-#                        2024 db), out-linked at flake/result — the
+#                        2024 db) + deemix + firefox developer edition
+#                        (with local-extension xpi + profile config),
+#                        out-linked at flake/result — the
 #                        `scripts/pi` + `scripts/thes` wrappers and
 #                        $bin/tmux run from it
 #   nixcfg#toolchain     node + tsc, used below for the vendored adapter deps
@@ -28,7 +30,7 @@
 #                                     pin the newest pi release at least
 #                                     MIN_RELEASE_AGE_DAYS old — the npm
 #                                     cooldown, mirroring the min-release-age
-#                                     gate set in nix_config's pkgs/pi.nix.
+#                                     gate set in nix_config's pkgs/pi/default.nix.
 #                                     Does NOT bump flake.lock: that also
 #                                     pins the VPS's nixpkgs and deploy
 #                                     tooling — bump deliberately instead.
@@ -59,7 +61,7 @@ esac
 
 dir="$(git -C "$(dirname "$(readlink -f "$0")")" rev-parse --show-toplevel)"
 nixcfg="${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}"
-pi_nix="$nixcfg/pkgs/pi.nix"
+pi_nix="$nixcfg/pkgs/pi/default.nix"
 bin="${bin:-$HOME/bin}"
 
 : "${XDG_DATA_HOME:=$HOME/.local/share}"; export XDG_DATA_HOME
@@ -86,7 +88,7 @@ fi
 
 # Flakes only see git-tracked files; an untracked module yields confusing
 # "file not found" errors rather than a build.
-for tracked in pkgs/pi.nix pkgs/integrities.json; do
+for tracked in pkgs/pi/default.nix pkgs/integrities.json pkgs/firefox/default.nix; do
     if ! git -C "$nixcfg" ls-files --error-unmatch "$tracked" >/dev/null 2>&1; then
         echo "$nixcfg/$tracked is not tracked by git — run: git -C $nixcfg add pkgs/" >&2
         exit 1
@@ -242,6 +244,17 @@ mkdir -p "$bin"
 atomic_ln "$dir/flake/result/bin/tmux" "$bin/tmux"
 atomic_ln ../../flake/result/share/tmux-plugins "$dir/.config/tmux/plugins"
 echo "tmux $("$bin/tmux" -V | awk '{print $2}'), plugins: $(readlink "$dir/.config/tmux/plugins")"
+
+# firefox wrapper pins the single profile (pingu) via --profile — the nix
+# dev-edition binary ignores hand-written [Install*] hash sections in
+# profiles.ini and mints a fresh dev-edition-default otherwise.
+cat > "$bin/firefox.tmp.$$" <<WRAPPER
+#!/usr/bin/env bash
+exec "$dir/flake/result/bin/firefox" --profile "\$HOME/.mozilla/firefox/pingu" "\$@"
+WRAPPER
+chmod +x "$bin/firefox.tmp.$$"
+mv -T "$bin/firefox.tmp.$$" "$bin/firefox"
+echo "firefox: $(cat "$bin/firefox" | tail -1)"
 
 # Legacy npm-managed installs from the pre-nix installer; informational only.
 for legacy in "$XDG_DATA_HOME/npm/bin/pi" "$HOME/.local/bin/pi"; do

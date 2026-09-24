@@ -1,5 +1,0 @@
-export TERM='st'
-export WEB='firefox'
-export BROWSER='firefox'
-export EDITOR='emacsclient -nc'
-export VISUAL='emacsclient -nc'

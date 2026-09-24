@@ -13,14 +13,12 @@ qz=.config/qz/
 zathura=.config/zathura/zathurarc
 terminator=.config/terminator/config
 sh=".config/sh/shrc .config/sh/shutil.sh"
-pam=.pam_environment
 picom=.config/picom/picom.conf
 dunst=.config/dunst/dunstrc
 pactl=.config/pulseaudio-ctl/config
 newsboat=.config/newsboat/config
 ytdl=.config/youtube-dl/config
 tmux=".config/tmux/"
-pam=.pam_environment
 mpd=" .config/mpd/mpd.conf"
 nix=" .config/nix/nix.conf"
 vimpc=" .config/vimpc/vimpcrc"
@@ -43,8 +41,8 @@ heraldcfg=.config/herald/config.toml
 ########### Meta Variables
 i3=" $i3config $i3statusconfig"
 xfiles=" .config/X11/xinitrc .config/X11/.Xresources .config/X11/.Xmodmap .config/neovide $zathura $picom $dunst $ncmpcpp $sxhkdconfig $rofi $gtk $qt $alacritty $wezterm"
-bash=" .bashrc .bashrc_extra .bash_profile $sh $pam"
-zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh $pam"
+bash=" .bashrc .bashrc_extra .bash_profile $sh"
+zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh"
 files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gitconfig $npm $faucet $systemd"
 
 ###########
