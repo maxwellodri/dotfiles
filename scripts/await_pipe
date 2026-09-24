@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# await_pipe — block until trigger_pipe signals the same pipe name.
+
+help() {
+	cat <<'EOF'
+await_pipe <name> — block until trigger_pipe fires on <name>, then exit 0.
+
+	await_pipe afk && do_afk_work
+	AWAIT_TIMEOUT_S=30m await_pipe afk   # give up after 30 min (GNU timeout duration)
+
+Pipes live in ${XDG_RUNTIME_DIR:-/run/user/<uid>}/agent-signals/<name>.fifo.
+Exit codes: 0 signal received, 124 timed out (only with AWAIT_TIMEOUT_S set),
+1 bad usage. Ctrl-C aborts.
+EOF
+}
+
+case "${1:-}" in
+	-h | --help) help; exit 0 ;;
+esac
+if [ $# -ne 1 ]; then
+	echo "usage: await_pipe <name> (see --help)" >&2
+	exit 1
+fi
+
+name=$1
+case "$name" in
+	*/*) echo "await_pipe: bad pipe name: $name" >&2; exit 1 ;;
+esac
+
+pipe="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/agent-signals/$name.fifo"
+mkdir -p "$(dirname "$pipe")"
+[ -p "$pipe" ] || mkfifo "$pipe"
+
+# O_RDWR (via <>) so read blocks instead of hitting EOF while no writer
+# exists; holding it open is what lets trigger_pipe's non-blocking open succeed.
+timeout "${AWAIT_TIMEOUT_S:-infinity}" bash -c '
+	exec 3<>"$1"
+	IFS= read -r signal <&3
+	printf "signal received: %s\n" "$signal"
+' bash "$pipe"
