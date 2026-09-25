@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
-# trigger_pipe — fire-and-forget signal to await_pipe on the same pipe name.
+# trigger_pipe — latched fire-and-forget signal; needs no listener, the next
+# await_pipe on the same name returns instantly.
 
 help() {
 	cat <<'EOF'
-trigger_pipe <name> — signal a waiting await_pipe <name>. Never blocks.
+trigger_pipe <name> — latch a signal for await_pipe <name>. Never blocks, and
+no listener has to be waiting: the next await_pipe <name> returns instantly.
 
 	await_pipe afk &   ... later ...   trigger_pipe afk
+	trigger_pipe afk   # fires now, await_pipe afk returns instantly whenever run
 
-The signal is dropped (still exit 0) when nobody is waiting: await_pipe owns
-pipe creation, and this side never creates or removes it.
+Firing again before the latch is awaited re-arms it; one await consumes one
+latch. Latches live in ${XDG_RUNTIME_DIR:-/run/user/<uid>}/agent-signals/.
 EOF
 }
 
@@ -20,21 +23,12 @@ if [ $# -ne 1 ]; then
 	exit 1
 fi
 
-python3 - "$1" <<'PY'
-import os, sys
+name=$1
+case "$name" in
+	*/*) echo "trigger_pipe: bad pipe name: $name" >&2; exit 1 ;;
+esac
 
-name = sys.argv[1]
-if not name or "/" in name:
-    sys.exit(f"trigger_pipe: bad pipe name: {name!r}")
-
-base = os.path.join(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"), "agent-signals")
-path = os.path.join(base, name + ".fifo")
-try:
-    fd = os.open(path, os.O_WRONLY | os.O_NONBLOCK)  # ENXIO while no reader is attached
-except OSError as e:
-    print(f"signal dropped ({e.strerror}): nobody is waiting on {path}")
-    sys.exit(0)  # fire-and-forget: dropped is a normal outcome, not an error
-os.write(fd, b"done\n")
-os.close(fd)
-print(f"signaled {path}")
-PY
+flag="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/agent-signals/$name.signaled"
+mkdir -p "$(dirname "$flag")"
+date -u +%FT%TZ >"$flag" # truncate = re-arm when the old latch was never awaited
+echo "signaled $flag"
