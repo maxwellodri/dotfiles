@@ -169,16 +169,28 @@ nix build "$nixcfg#dotfiles-env" --out-link "$result" -L
 echo "pi $pi_version built: $(readlink "$result")"
 
 mkdir -p "$bin"
+
+# stop the running daemon so the binary swap doesn't strand it on old code
+# (mirrors tsp_ytdlp's old install.sh; no-op when not running)
+if [ -x "$bin/tsp_ytdlp" ]; then
+    "$bin/tsp_ytdlp" --kill >/dev/null 2>&1 || true
+fi
+
 atomic_ln "$result/bin/tmux" "$bin/tmux"
 atomic_ln "$result/bin/deemix-cli" "$bin/deemix-cli"
 atomic_ln "$result/bin/deemix-webui" "$bin/deemix-webui"
 atomic_ln "$result/bin/dzq" "$bin/dzq"
+atomic_ln "$result/bin/tsp_ytdlp" "$bin/tsp_ytdlp"
+atomic_ln "$result/bin/yt-dlp-tsp" "$bin/yt-dlp-tsp"
+atomic_ln "$result/bin/deemix-tsp" "$bin/deemix-tsp"
+atomic_ln "$result/bin/markwatched" "$bin/markwatched"
+atomic_ln "$result/bin/like" "$bin/like"
 atomic_ln "$result/share/tmux-plugins" "$dir/.config/tmux/plugins"
 echo "tmux $("$bin/tmux" -V | awk '{print $2}'), plugins: $(readlink "$dir/.config/tmux/plugins")"
 echo "deemix: dzq -> $(readlink "$bin/dzq")"
+echo "tsp_ytdlp: $(readlink "$bin/tsp_ytdlp")"
 
-# ARL -> ~/.config/deemix/login.json (sops-decrypted with the local gpg key;
-# shares one secret with the VPS deploy — see nix_config systems/vps/deemix.nix)
+# ARL -> ~/.config/deemix/login.json (sops-decrypted with the local gpg key)
 if ! "$result/bin/deemix-arl-sync"; then
     echo "WARNING: deemix ARL sync failed — is the gpg key unlocked?" >&2
 fi
