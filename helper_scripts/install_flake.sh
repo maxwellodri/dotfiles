@@ -185,6 +185,7 @@ atomic_ln "$result/bin/yt-dlp-tsp" "$bin/yt-dlp-tsp"
 atomic_ln "$result/bin/deemix-tsp" "$bin/deemix-tsp"
 atomic_ln "$result/bin/markwatched" "$bin/markwatched"
 atomic_ln "$result/bin/like" "$bin/like"
+atomic_ln "$result/bin/git-surgeon" "$bin/git-surgeon"
 atomic_ln "$result/share/tmux-plugins" "$dir/.config/tmux/plugins"
 echo "tmux $("$bin/tmux" -V | awk '{print $2}'), plugins: $(readlink "$dir/.config/tmux/plugins")"
 echo "deemix: dzq -> $(readlink "$bin/dzq")"
@@ -227,13 +228,6 @@ atomic_ln "$result/share/fonts" "$fonts_dir"
 atomic_ln "$result/share/fontconfig/fonts.conf" "$HOME/.config/fontconfig/fonts.conf"
 fc-cache -f
 echo "fonts: $(readlink "$fonts_dir")"
-
-# Legacy npm-managed installs from the pre-nix installer; informational only.
-for legacy in "$XDG_DATA_HOME/npm/bin/pi" "$HOME/.local/bin/pi"; do
-    if [ -x "$legacy" ]; then
-        echo "Note: old npm-managed pi at $legacy — safe to remove (nix build is now canonical)"
-    fi
-done
 
 # --- Vendored pi-mcp-adapter deps -----------------------------------------
 # node_modules is gitignored (reinstalled per machine). npm comes from the
