@@ -6,6 +6,10 @@ set -euo pipefail
 
 export PI_CODING_AGENT_DIR="$dotfiles/pi"
 export PI_CODING_AGENT_SESSION_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi/sessions"
+# Agent-spawned curl picks up pi/.curlrc (descriptive UA; crates.io 403s bare
+# curl/VER). CURL_HOME is curl's only env-var hook for config; inherit-safe.
+: "${CURL_HOME:=$PI_CODING_AGENT_DIR}"
+export CURL_HOME
 #Ensure that private repo has symlinked pi sessions
 if [ ! -L "$PI_CODING_AGENT_SESSION_DIR" ] || [ ! -d "$PI_CODING_AGENT_SESSION_DIR" ]; then
 	echo "pi wrapper: $PI_CODING_AGENT_SESSION_DIR is not a symlink into ~/source/private/pi/\$dotfile_tag" >&2
