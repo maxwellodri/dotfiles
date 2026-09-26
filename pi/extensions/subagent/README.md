@@ -56,16 +56,16 @@ the `subagent-override` namespace — editing the file re-prompts. Denial (or no
 UI available to ask, e.g. print mode) fails closed: the invocation errors out
 with the override stripped.
 
-Ships with two agents:
+Ships with these agents:
 
-- `explore` — read-only recon (`read, grep, find, ls, bash`; bash used for
-  read-only lookups only). Returns compressed, structured findings for the
-  parent. Fan this out in parallel at the start of a task to map a codebase
-  before planning.
-- `general` — general-purpose worker with the full default tool set
-  (read, write, edit, bash, …). Use it to execute independent, self-contained
-  units of real work in parallel or in a chain, with an isolated context.
-  Inspired by opencode's `general` subagent.
+- `explore` — read-only codebase recon; compressed, structured findings
+- `general` — full default tool set; self-contained multi-step work
+- `review` — senior-engineer review of a git change (read-only)
+- `review-reflect` — second pass over `review` findings; refute-to-drop
+- `structured_review` — structure/maintainability pass over landed commits
+- `image_reader` — vision; give it an image path or URL, get a description
+  plus verbatim text transcription. The parent model may lack image input;
+  the child model (`zai/glm-5.3-flash` by default) does not.
 
 Add more agents (e.g. `reviewer`, `planner`) by dropping `.md` files into
 `pi/agents/`.
