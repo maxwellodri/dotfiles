@@ -17,6 +17,15 @@ mining. Each session is a JSONL file: `session` header (`cwd`, `id`),
 `user` / `assistant` / `toolResult`); assistant messages carry `usage.cost`
 already split into input/output/cacheRead/cacheWrite/total.
 
+## Persistent memory between runs
+
+`~/source/private/runtime/pi/analyze_sessions_notes.md` carries findings
+across runs: snippets created/edited, rejected candidates and why, and
+method notes. Read it before proposing — a recorded rejection stands unless
+usage has clearly changed. After the user has answered this run's proposals,
+append a `## Run <date>` section with the verdicts (fill in any PENDING
+entries). Never delete old sections — the history is the trend signal.
+
 ## The main event: recurring responses → new snippets
 
 The biggest win this skill offers: text the user types over and over is a
@@ -67,8 +76,9 @@ just the names — a candidate is covered if an existing snippet already
 expresses it, even in different words. If one is *almost* right, propose an
 edit to it instead of a new near-duplicate.
 
-Existing snippets on this machine (as of writing): `persevere`, `plan`,
-`question`, `swarm`, `web`.
+The run-notes file (see *Persistent memory between runs*) records the
+snippet inventory as of the last run; the directory listing is always
+authoritative.
 
 ### 4. Propose up to 5, then wait
 
@@ -81,7 +91,8 @@ bother typing `$name` for.
 
 Create files in `pi/snippets/<name>.md` **only after the user approves**.
 Snippets go live in autocomplete within ~2 s (mtime/TTL caches in
-snippet_expansion.ts), no reload needed.
+snippet_expansion.ts), no reload needed. Then record the run's verdicts in
+the run-notes file (see *Persistent memory between runs*).
 
 ## Scripts
 
