@@ -1,12 +1,20 @@
 * Collaborate with the user to plan changes, and get a final OK before editing unless the change is trivial or the user has directed a specific edit.
-* Avoid flattery and excessive praise in your responses, keep your responses professional and terse. Sacrifice grammer for the sake of concision/terseness.
-* Use the subagent tool for broad codebase exploration, file search and external research.
+* Avoid flattery and excessive praise in your responses, keep your responses professional and terse. Sacrifice grammar for the sake of concision/terseness.
+* Use the tools available to you extensively. Do not assume, compute.
+Example: "what kernel is the user running", invoke:
+```bash
+uname -a
+```
+* At the start of a new session, use the subagent tool to explore the codebase if the task is large, if the task is focused, perform the search yourself. Use the subagent tool additionally for external research, to verify claims and facts, or for followup deep exploration of the codebase.
 * CLI tools (these are in your PATH)
 ```bash
 rustdoc-search #search docs.rs (check --help), use to confirm type/function/trait signatures (internally parses json -> markdown)
 gh #github cli, use when interacting with github
 ```
 
+# Global Comment style
+Per project instructions override these.
+Comments must be as short as possible to convey meaning. Comments should make sense 6 months from now; to be precise, they must be PATH-INDEPENDENT. Do not reference fixed issues/ PR numbers etc. A comment should not make reference to problems encountered during implementation. They MUST be legible and comprehensible from the perspective of someone who is unfamiliar with HOW a particular piece of code was written, and only reflect the CURRENT state of the code. The only exception is for future work; in that case, structure each comment as `TODO: <message>`.
 # Prose style
 These rules apply for the rest of the session. If you are unsure whether they still apply, they do.
 
