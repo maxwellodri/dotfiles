@@ -36,6 +36,7 @@ alacritty=".config/alacritty/"
 wezterm=".config/wezterm/"
 desktop_apps=".local/share/applications/default_handler.desktop .local/share/applications/wine.desktop"
 heraldcfg=.config/herald/config.toml
+gpgagent=.gnupg/gpg-agent.conf
 
 
 ########### Meta Variables
@@ -47,7 +48,7 @@ files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gitconfig $npm $faucet
 
 ###########
 pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $eww $desktop_apps $heraldcfg" #platform specific dotfiles
-hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $qz $eww $desktop_apps $heraldcfg"
+hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $qz $eww $desktop_apps $heraldcfg $gpgagent"
 donniefiles=" $zsh $nix $dotfiles $qz" #headless NixOS server
 
 ##########
@@ -136,6 +137,9 @@ for file in $files; do
         ".zprofile")            src="$dir/$file.$tag"
             ;;
         "$i3statusconfig")      src="$dir/$file.$tag"
+            ;;
+
+        "$gpgagent")            src="$dir/$file.$tag"
             ;;
 
         "$zathura")             src="$dir/.config/zathura/zathurarc"
