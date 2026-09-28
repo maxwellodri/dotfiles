@@ -99,7 +99,17 @@ alias mwrc='sudo vim /usr/share/mutt-wizard'
 alias newsboatrc="nvim ~/.config/newsboat/config"
 alias url="nvim ~/.config/newsboat/urls"
 alias dragon="dragon-drag-and-drop"
-alias rmdir='rmdir -p'
+# like rmdir -p, but don't error on non-empty ancestors
+rmdir() {
+    for dir in "$@"; do
+        command rmdir -- "$dir" || return
+        dir=$(dirname -- "$dir")
+        while [ -z "$(command ls -A -- "$dir" 2>/dev/null)" ]; do
+            command rmdir -- "$dir" 2>/dev/null || break
+            dir=$(dirname -- "$dir")
+        done
+    done
+}
 strip_rust_doc_comments() {
   sed 's@^[ \t]*///.*$@@g' "$@"
 }
