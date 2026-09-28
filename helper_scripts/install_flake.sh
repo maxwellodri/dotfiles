@@ -186,12 +186,14 @@ atomic_ln "$result/bin/deemix-tsp" "$bin/deemix-tsp"
 atomic_ln "$result/bin/markwatched" "$bin/markwatched"
 atomic_ln "$result/bin/like" "$bin/like"
 atomic_ln "$result/bin/git-surgeon" "$bin/git-surgeon"
+atomic_ln "$result/bin/sops" "$bin/sops"
 atomic_ln "$result/share/tmux-plugins" "$dir/.config/tmux/plugins"
 echo "tmux $("$bin/tmux" -V | awk '{print $2}'), plugins: $(readlink "$dir/.config/tmux/plugins")"
 echo "deemix: dzq -> $(readlink "$bin/dzq")"
 echo "tsp_ytdlp: $(readlink "$bin/tsp_ytdlp")"
 
-# ARL -> ~/.config/deemix/login.json (sops-decrypted with the local gpg key)
+# ARL -> ~/.config/deemix/login.json (sops-decrypted with the local gpg key;
+# cold agent cache self-heals via the wrapped sops)
 if ! "$result/bin/deemix-arl-sync"; then
     echo "WARNING: deemix ARL sync failed — is the gpg key unlocked?" >&2
 fi
