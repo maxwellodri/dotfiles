@@ -34,11 +34,7 @@
  * Load: auto-discovered from pi/extensions/*.ts; `/reload` after edits.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { writeFileSync } from "node:fs";
 import { getLeaderRegistry, type LeaderCtx } from "./leader-key";
-
-// TODO: remove diagnostic logging once compaction-undo is confirmed.
-const DEBUG_LOG = "/tmp/pi-undo-debug.log";
 
 const BINDING_KEY = "u";
 
@@ -79,18 +75,6 @@ export default function (pi: ExtensionAPI) {
 			// getBranch() with no arg: active branch, root → leaf, real entries.
 			const branch = ctx.sessionManager.getBranch();
 
-			// TODO: remove diagnostic logging once compaction-undo is confirmed
-			try {
-				const dbg =
-					`undo handler FIRED ${new Date().toISOString()}\n` +
-					`branch len=${branch.length}\n` +
-					branch.map((e, i) => `  [${i}] ${e.type} ${(e as { id?: string }).id?.slice(0, 8)} parent=${(e as { parentId?: string }).parentId?.slice(0, 8)}${e.type === "message" ? " role=" + (e as { message: { role: string } }).message.role : ""}`).join("\n") +
-					"\n";
-				writeFileSync(DEBUG_LOG, dbg, { flag: "a" });
-			} catch (e) {
-				writeFileSync(DEBUG_LOG, `diag failed: ${String(e)}\n`, { flag: "a" });
-			}
-
 			// Find the most recent USER message (the start of the current turn).
 			let lastUserIdx = -1;
 			for (let i = branch.length - 1; i >= 0; i--) {
@@ -127,10 +111,7 @@ export default function (pi: ExtensionAPI) {
 			// compaction as a wall and leave the turn in place; /tree can still
 			// branch from it.
 			const parentEntry = lastUserIdx > 0 ? branch[lastUserIdx - 1] : undefined;
-			// TODO: remove diagnostic logging once compaction-undo is confirmed
-			try { writeFileSync(DEBUG_LOG, `lastUserIdx=${lastUserIdx} parentEntry.type=${parentEntry?.type}\n`, { flag: "a" }); } catch {}
 			if (parentEntry?.type === "compaction") {
-				try { writeFileSync(DEBUG_LOG, `GUARD FIRED -> refusing\n`, { flag: "a" }); } catch {}
 				ctx.ui.notify("Can't undo: previous turn starts at a compaction boundary", "info");
 				return;
 			}
@@ -145,8 +126,6 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			// TODO: remove diagnostic logging once compaction-undo is confirmed
-			try { writeFileSync(DEBUG_LOG, `navigating target=${target}\n`, { flag: "a" }); } catch {}
 			const result = await ctx.navigateTree(target);
 			if (result?.cancelled) return;
 
