@@ -1,2 +1,0 @@
-#!/bin/sh
-VULTR_API_KEY="$(pass vultr-api-key)" exec /usr/bin/vultr-cli "$@"

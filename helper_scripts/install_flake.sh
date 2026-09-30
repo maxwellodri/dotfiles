@@ -187,6 +187,8 @@ atomic_ln "$result/bin/markwatched" "$bin/markwatched"
 atomic_ln "$result/bin/like" "$bin/like"
 atomic_ln "$result/bin/git-surgeon" "$bin/git-surgeon"
 atomic_ln "$result/bin/sops" "$bin/sops"
+atomic_ln "$result/bin/vultr-cli" "$bin/vultr-cli"
+atomic_ln "$result/bin/vultr-key-sync" "$bin/vultr-key-sync"
 atomic_ln "$result/share/tmux-plugins" "$dir/.config/tmux/plugins"
 echo "tmux $("$bin/tmux" -V | awk '{print $2}'), plugins: $(readlink "$dir/.config/tmux/plugins")"
 echo "deemix: dzq -> $(readlink "$bin/dzq")"
@@ -196,6 +198,11 @@ echo "tsp_ytdlp: $(readlink "$bin/tsp_ytdlp")"
 # cold agent cache self-heals via the wrapped sops)
 if ! "$result/bin/deemix-arl-sync"; then
     echo "WARNING: deemix ARL sync failed — is the gpg key unlocked?" >&2
+fi
+
+# vultr API key -> ~/.vultr-cli.yaml (sops-decrypted with the local gpg key)
+if ! "$result/bin/vultr-key-sync"; then
+    echo "WARNING: vultr key sync failed — is the gpg key unlocked?" >&2
 fi
 
 # the profile is the dev-edition dedicated default (named
