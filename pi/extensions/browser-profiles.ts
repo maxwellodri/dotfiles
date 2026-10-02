@@ -203,6 +203,18 @@ export default function browserProfiles(pi: ExtensionAPI): void {
 		}
 	};
 
+	/** Footer status: only servers whose tools are declared to the model (active), else None. */
+	const setMcpFooterStatus = (ctx: { hasUI?: boolean; ui?: { setStatus(key: string, text: string | undefined): void } }): void => {
+		if (!ctx.hasUI || !ctx.ui) return;
+		const servers = new Set<string>();
+		for (const toolName of pi.getActiveTools()) {
+			const match = toolName.match(/^mcp__([A-Za-z0-9_-]+?)__/);
+			if (match) servers.add(match[1].replaceAll("_", "-"));
+		}
+		const text = servers.size > 0 ? [...servers].join(", ") : "None";
+		ctx.ui.setStatus("mcp", `MCP: ${text}`);
+	};
+
 	pi.on("session_start", async (_event, ctx) => {
 		profileDir = join(SESSIONS_ROOT, ctx.sessionManager.getSessionId());
 		cloneAttempted = existsSync(join(profileDir, "Local State"));
@@ -213,6 +225,11 @@ export default function browserProfiles(pi: ExtensionAPI): void {
 			ctx.ui.notify(`browser-profiles: ${error}`, "error");
 		}
 		registerMcpServers();
+		setMcpFooterStatus(ctx);
+	});
+
+	pi.on("tool_result", (_event, ctx) => {
+		setMcpFooterStatus(ctx);
 	});
 
 	pi.on("tool_call", async (event, ctx) => {

@@ -162,11 +162,12 @@ function makeFooter(ctx: any) {
 				: "";
 			const indicatorW = visibleWidth(thinking);
 			const leftW = visibleWidth(statusLeft);
+			const dimStatusLeft = statusLeft ? theme.fg("dim", statusLeft) : "";
 			let statusLine: string;
 			if (leftW + indicatorW <= width) {
-				statusLine = statusLeft + " ".repeat(Math.max(0, width - leftW - indicatorW)) + thinking;
+				statusLine = dimStatusLeft + " ".repeat(Math.max(0, width - leftW - indicatorW)) + thinking;
 			} else {
-				statusLine = truncateToWidth(statusLeft, Math.max(0, width - indicatorW), "") + thinking;
+				statusLine = truncateToWidth(dimStatusLeft, Math.max(0, width - indicatorW), "") + thinking;
 			}
 
 			return [pwdLine, dimStatsLeft + dimRemainder, statusLine];
