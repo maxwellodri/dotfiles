@@ -213,6 +213,13 @@ if ! "$result/bin/vultr-key-sync"; then
     echo "WARNING: vultr key sync failed — is the gpg key unlocked?" >&2
 fi
 
+# megatools login -> ~/.megarc (sops-decrypted with the local gpg key;
+# megatools 1.11 reads only ~/.megarc, no XDG path); authenticated mega
+# downloads get account quota instead of the anonymous per-IP one
+if ! "$result/bin/mega-megarc-sync"; then
+    echo "WARNING: megarc sync failed — is the gpg key unlocked?" >&2
+fi
+
 # the profile is the dev-edition dedicated default (named
 # dev-edition-default) — bare launches resolve it; the wrapper only keeps
 # $bin/firefox ahead of any stray path resolution
