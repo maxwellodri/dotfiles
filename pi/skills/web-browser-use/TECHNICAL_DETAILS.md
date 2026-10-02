@@ -183,6 +183,27 @@ Two warnings Chromium shows as a bar under the toolbar, and their fixes
   greps (`grep -o -- '--test-type[=]*'`); exact-line `-x` checks produced a
   false negative once (possibly an exec race).
 
+## Seeded prefs: muted audio + no restore bubble
+
+`pi/browser/preferences.json` is deep-merged into every fresh clone (`seedPrefs`)
+and into every `mcp-chrome-*` profile by `apply-preferences.sh`. Besides the
+download dir it seeds:
+
+- `profile.default_content_setting_values.sound: 2` (BLOCK) — all sites muted
+  by default; the user unmutes per-site in the window (omnibox speaker icon /
+  player unmute button). Deliberately NOT `--mute-audio`: that flag mutes at the
+  audio-manager level with no UI to undo it, and the point is that the human
+  can unmute during manual interventions.
+- `profile.exit_type: "AppExitedCleanly"` (+ `exited_cleanly: true`) — kills
+  the "Restore Pages? Chromium didn't shut down correctly" bubble. Chromium
+  writes `exit_type: "Crashed"` at startup and only flips it back on a clean
+  exit, so any killed browser (template window, snapshot source) leaves it
+  Crashed on disk; rsync faithfully propagates that. Re-seeding on every clone
+  fixes it regardless of template state, and `browser-snapshot.sh` re-runs
+  `apply-preferences.sh` on the template after each merge so the template
+  stays clean too. The template's stale `Default/Sessions` (the restore
+  payload) was removed; snapshot excludes keep it out going forward.
+
 ## Relevant upstream facts (playwright-mcp 0.0.78, verified in source)
 
 - Default profile: `~/.cache/ms-playwright-mcp/mcp-<browserToken>-<sha256(client cwd)[0:7]>`.

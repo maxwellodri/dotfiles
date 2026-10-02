@@ -85,4 +85,9 @@ rsync -a \
 	--exclude 'Default/Top Sites' --exclude 'Crashpad' \
 	"$src/" "$template/"
 
+# A killed source browser carries exit_type=Crashed in its Preferences across
+# the merge — re-seed the template so clones never inherit the restore bubble
+# or an unmuted default.
+"$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../browser/apply-preferences.sh" >/dev/null
+
 echo "done — future sessions inherit this state."

@@ -6,5 +6,12 @@
 	},
 	"savefile": {
 		"default_directory": "/home/maxwell/Downloads/pi"
+	},
+	"profile": {
+		"default_content_setting_values": {
+			"sound": 2
+		},
+		"exit_type": "AppExitedCleanly",
+		"exited_cleanly": true
 	}
 }
