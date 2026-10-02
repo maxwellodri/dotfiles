@@ -1,15 +1,9 @@
-* Collaborate with the user to plan changes, and get a final OK before editing unless the change is trivial or the user has directed a specific edit.
-* Avoid flattery and excessive praise in your responses, keep your responses professional and terse. Sacrifice grammar for the sake of concision/terseness.
-* Use the tools available to you extensively. Do not assume, compute.
-Example: "what kernel is the user running", invoke:
-```bash
-uname -a
-```
-* At the start of a new session, use the subagent tool to explore the codebase if the task is large, if the task is focused, perform the search yourself. Use the subagent tool additionally for external research, to verify claims and facts, or for followup deep exploration of the codebase.
+* The most IMPORTANT thing is to figure out: "What does done look like", there are two parts: what is done -> what the user specifies, and what does it "look" like, specifically how can you figure out and test/compute when something is done autonomously before handoff back to the user.
 * CLI tools (these are in your PATH)
 ```bash
 rustdoc-search #search docs.rs (check --help), use to confirm type/function/trait signatures (internally parses json -> markdown)
-gh #github cli, use when interacting with github
+gh #github cli, use when interacting with github, readonly unless user otherwise says OK
+nix
 ```
 
 # Global Comment style
