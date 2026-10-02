@@ -18,6 +18,7 @@ while [[ $# -gt 0 ]]; do
     --limit)         LIMIT="${2:?--limit requires an argument}";     shift 2 ;;
     --default-limit) LIMIT=500K; shift ;;
     --vps)           VPS=1; shift ;;
+    --no-cookies)    NO_COOKIES=1; shift ;;
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
@@ -28,11 +29,23 @@ VPS_DL_DIR=/home/maxwell/Downloads  # fallback when block storage isn't attached
 if [[ -z "$URL" ]]; then
   echo "Usage: $(basename "$0") --url <url> [--file <file>] [--cookies <file>] [--limit <speed> | --default-limit]" >&2
   echo "  --file          optional: when omitted, aria2c autodetects the name from the URL." >&2
+  echo "  --cookies <file> explicit cookie file: Netscape cookies.txt, or a raw 'name=value; ...' string." >&2
+  echo "  --no-cookies    ignore the default cookie jar even when it exists." >&2
   echo "  --limit <speed> caps bandwidth using aria2c syntax, e.g. '500K', '1M', '2M' (0 = unlimited)." >&2
   echo "  --default-limit shorthand for --limit 500K." >&2
   echo "  --vps           download on the VPS ($VPS_HOST): ~/mount (block storage) if attached, else ~/Downloads;" >&2
   echo "                  with --file, only the basename is kept." >&2
+  echo "  Without --cookies/--no-cookies, ~/.local/state/aria_dl/cookies.txt is used" >&2
+  echo "  when present (issue via the issue-cookies skill)." >&2
   exit 1
+fi
+
+# Default cookie jar: issued by the issue-cookies skill (incognito-then-close
+# export, so live-session rotations don't go stale before first use).
+DEFAULT_COOKIES="${XDG_STATE_HOME:-$HOME/.local/state}/aria_dl/cookies.txt"
+if [[ -z "${COOKIES:-}" && -z "${NO_COOKIES:-}" && -f "$DEFAULT_COOKIES" ]]; then
+  COOKIES="$DEFAULT_COOKIES"
+  echo "aria_dl: using default cookies from $COOKIES" >&2
 fi
 
 ARIA_ARGS=(
