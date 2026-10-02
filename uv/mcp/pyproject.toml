@@ -11,5 +11,6 @@ dependencies = [
 
 [tool.uv]
 # The interpreter is pinned via .python-version (3.11) and UV_PYTHON_PREFERENCE=only-managed
-# is set by pi/mcp.json, so this environment is fully isolated from the system interpreter
-# (system Python is 3.14, which the mcp/httpx stack does not yet support).
+# is set by the server registration in pi/extensions/browser-profiles.ts, so this environment
+# is fully isolated from the system interpreter (system Python is 3.14, which the
+# mcp/httpx stack does not yet support).

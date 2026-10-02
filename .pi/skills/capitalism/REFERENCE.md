@@ -233,7 +233,9 @@ Uses a config file for launch options: `playwright-config.json`, living in `pi/b
 }
 ```
 
-MCP server config entry (exact format varies by harness):
+MCP server config entry (exact format varies by harness; on pi the server is
+registered by `pi/extensions/browser-profiles.ts` instead of an mcp.json
+entry):
 
 ```json
 "playwright": {
@@ -246,6 +248,6 @@ MCP server config entry (exact format varies by harness):
 }
 ```
 
-On direct-tool harnesses the user enables this manually (MCPs can be context-heavy); on gateway-style harnesses it is lazy/on-demand with no manual step.
+On manual-enable harnesses the user turns this on by hand (MCPs can be context-heavy); on pi the tools are deferred and load on demand via `tool_search` with no manual step.
 
 **Note:** The ungoogled-chromium-bin AUR package installs with restrictive `750` permissions on `/usr/bin/chromium` and `/usr/lib/chromium/`. A pacman hook at `system_configs/etc/pacman.d/hooks/ungoogled-chromium-permissions.hook` auto-fixes this on install/upgrade.

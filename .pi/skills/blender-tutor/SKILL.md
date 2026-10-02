@@ -25,9 +25,11 @@ development. Teach, don't do.
 ## Live Blender mode (optional)
 
 The `blender` MCP server (`ahujasid/blender-mcp`) can connect this tutor to the
-user's **running** Blender. It's `lifecycle: "lazy"` — it does nothing at pi
-launch and only spins up when you actually use it, then disconnects after 10 min
-idle, so probing it is free. It adds two things the manual alone can't:
+user's **running** Blender. The server process starts with the pi session
+(registered by `pi/extensions/browser-profiles.ts` on machines with Blender
+installed), but its tools are deferred — zero context cost until
+`tool_search` loads them — and the Blender-addon socket is only touched when
+you actually call a tool, so probing it is free. It adds two things the manual alone can't:
 
 - **See their scene** — `get_viewport_screenshot` (an image you can view),
   `get_scene_info`, `get_object_info`. Lets you give targeted critique of their

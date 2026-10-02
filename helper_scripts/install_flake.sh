@@ -253,15 +253,6 @@ atomic_ln "$result/share/fontconfig/fonts.conf" "$HOME/.config/fontconfig/fonts.
 fc-cache -f
 echo "fonts: $(readlink "$fonts_dir")"
 
-# --- Vendored pi-mcp-adapter deps -----------------------------------------
-# node_modules is gitignored (reinstalled per machine). npm comes from the
-# flake toolchain — no host npm needed.
-adapter="$dir/pi/vendor/pi-mcp-adapter"
-if [ -f "$adapter/package.json" ] && [ ! -d "$adapter/node_modules" ]; then
-    echo "Installing vendored pi-mcp-adapter deps..."
-    (cd "$adapter" && nix shell "$nixcfg#toolchain" -c npm ci --omit=dev)
-fi
-
 # --- Extension typecheck (non-fatal) --------------------------------------
 if ! nix run "$nixcfg#typecheck" -- "$dir/pi/extensions"; then
     echo "WARNING: pi extension typecheck failed — see errors above" >&2

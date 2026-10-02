@@ -1,7 +1,7 @@
 // secret-fill.js — parameterized pass → form secret injection for the playwright MCP.
 //
-// Run via:  mcp({ tool: "playwright_browser_run_code_unsafe",
-//                 args: '{"filename":"<dotfiles>/pi/browser/secret-fill.js"}' })
+// Run via:  mcp__playwright__browser_run_code_unsafe({
+//             filename: "<dotfiles>/pi/browser/secret-fill.js" })
 //
 // Reads JSON params from ~/Downloads/pi/secret-fill.params.json (the agent writes
 // it per run and deletes it afterwards). The secret itself never touches the
@@ -23,7 +23,7 @@
 //                        keystroke-fussy fields
 //
 // Depends on the CJS build of @playwright/mcp (process.mainModule) — the pin in
-// pi/mcp.json is what keeps the vm → host realm hop below working.
+// pi/extensions/browser-profiles.ts is what keeps the vm → host realm hop below working.
 async (page) => {
   // the vm sandbox has no require/import — hop to the host realm via page's class
   const hostFunction = page.constructor.constructor;

@@ -9,20 +9,19 @@ parts: a Blender addon that opens a socket on `localhost:9876` and runs commands
 on Blender's main thread (via `bpy.app.timers`, so it's thread-safe), and an MCP
 server (`uvx blender-mcp`) bridging stdio↔socket.
 
-## 0. The connection is lazy — probe once, then degrade gracefully
+## 0. The tools are deferred — load, probe once, then degrade gracefully
 
-`blender` is `lifecycle: "lazy"`. It does **not** start at pi launch; `uvx` only
-spawns the first time you call one of its tools, and it disconnects after 10 min
-idle. So:
+The server's tools carry zero context cost until loaded, and the MCP server
+only talks to the Blender addon's socket when a tool actually runs. So:
 
-1. Probe once:  `mcp({ connect: "blender" })`
-2. If it errors → **don't retry.** Fall back to manual coaching (SKILL.md) and
-   tell the user how to enable live mode (section below). One failed probe is
-   enough to know Blender/addon isn't ready.
+1. Load once: `tool_search({ query: "blender scene screenshot" })`
+2. Probe once: `mcp__blender__get_scene_info({ user_prompt: "tutor" })`
+3. If it errors (addon not installed / Blender not running / not connected) →
+   **don't retry.** Fall back to manual coaching (SKILL.md) and tell the user
+   how to enable live mode (section below). One failed probe is enough.
 
 If you want to see the user's scene or read their keymap, lead with the probe,
-then proceed. Cached metadata means `mcp({ server: "blender" })` / `search` work
-even without a live connection, but tool *calls* need it.
+then proceed.
 
 ## 1. Enabling live mode (one-time, tell the user)
 
@@ -33,10 +32,11 @@ even without a live connection, but tool *calls* need it.
 5. Blender must run with a GUI — the addon refuses to start under `blender -b`
    (commands would never execute). On a headless box use `xvfb-run -a blender`.
 
-## 2. Tool calls (via the proxy `mcp` tool, prefixed `blender_`)
+## 2. Tool calls (deferred tools, prefixed `mcp__blender_`)
 
-The server is behind the proxy (no `directTools`), so everything goes through the
-`mcp` tool. Names are prefixed `blender_<tool>`. Relevant ones for tutoring:
+Tools are deferred: `tool_search({ query: "blender …" })` loads them, then you
+call them directly with object args. Names are `mcp__blender_<tool>`.
+Relevant ones for tutoring:
 
 | Prefixed name | What it does |
 |---|---|
@@ -52,9 +52,9 @@ The server is behind the proxy (no `directTools`), so everything goes through th
 
 Patterns:
 ```
-mcp({ tool: "blender_get_viewport_screenshot", args: '{"max_size": 1000}' })        # → image
-mcp({ tool: "blender_get_object_info",         args: '{"object_name":"Cube"}' })
-mcp({ tool: "blender_execute_blender_code",     args: '{"code":"import bpy; print(len(bpy.data.objects))"}' })
+mcp__blender__get_viewport_screenshot({ max_size: 1000 })        # → image
+mcp__blender__get_object_info({ object_name: "Cube" })
+mcp__blender__execute_blender_code({ code: "import bpy; print(len(bpy.data.objects))" })
 ```
 
 ## 3. Seeing the scene (prefer the dedicated tools over hand-written code)
@@ -62,7 +62,7 @@ mcp({ tool: "blender_execute_blender_code",     args: '{"code":"import bpy; prin
 For critique, the screenshot is the highest-value tool — actually look at it:
 
 ```
-mcp({ tool: "blender_get_viewport_screenshot", args: '{"max_size": 1000}' })
+mcp__blender__get_viewport_screenshot({ max_size: 1000 })
 ```
 
 Then `get_scene_info` / `get_object_info` for specifics (poly count to flag

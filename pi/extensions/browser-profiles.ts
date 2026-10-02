@@ -10,12 +10,19 @@
  * HOW:
  *   • session_start → derive the session's profile dir:
  *       /tmp/pi/chromium/<session-id>          (tmpfs: free GC on reboot)
- *     mkdir it, GC stale dirs, export PI_BROWSER_PROFILE_DIR=<dir> in
- *     process.env — nothing is copied yet; most sessions never use the
- *     browser, so the 112MB template clone must not be unconditional.
- *   • tool_call (first playwright MCP use — which is also when the lazy MCP
- *     server/browser spawns; tool_call can block, so the clone lands before
- *     the browser reads the dir) → clone from the template profile:
+ *     mkdir it, GC stale dirs, and register the playwright + blender MCP
+ *     servers with pi's builtin MCP (exposure "deferred" — zero context
+ *     until tool_search loads them). Servers are registered HERE, not in
+ *     pi/mcp.json, so they only exist on machines with the tools (mcp.json
+ *     is shared by every host via the repo, and the builtin connects every
+ *     configured server at session start). Registering after the profile
+ *     dir is known also lets PLAYWRIGHT_MCP_USER_DATA_DIR be passed inline —
+ *     an mcp.json `${VAR}` would race the builtin's session-start spawn
+ *     against this extension's session_start handler.
+ *   • tool_call (first playwright MCP use — the tool_call hook can block, so
+ *     the ~112MB template clone lands before chromium, which the server
+ *     launches only on the first browser tool call, reads the dir) → clone
+ *     from the template profile:
  *       $XDG_CACHE_HOME/ms-playwright-mcp/mcp-chrome-template
  *     (rsync, volatile caches/locks excluded — see EXCLUDES below), then
  *     seed the download-dir prefs (pi/browser/preferences.json), same merge
@@ -40,10 +47,10 @@
  * Promote a live session's state back into the template (manual, merging)
  * with pi/user-scripts/browser-snapshot.sh — see TECHNICAL_DETAILS.md.
  *
- * pi/mcp.json passes PI_BROWSER_PROFILE_DIR through to the MCP server as
- * PLAYWRIGHT_MCP_USER_DATA_DIR (env overrides the JSON config in
- * @playwright/mcp ≥0.0.78); the value is only read at server spawn, which
- * happens after the lazy clone completes.
+ * pi/browser/playwright-config.json is passed to the server via --config;
+ * the profile dir goes in as PLAYWRIGHT_MCP_USER_DATA_DIR env (env overrides
+ * the JSON config in @playwright/mcp ≥0.0.78), read when the server process
+ * spawns — i.e. at registration, well after the dir is known.
  *
  * Load: auto-discovered from pi/extensions/*.ts (= ~/.pi/agent/extensions);
  * `/reload` after edits.
@@ -160,18 +167,41 @@ function gcAbandonedProfiles(keep: string): void {
 	}
 }
 
-/** True for the mcp gateway tool targeting playwright (tool/server/connect/filter) and for natively exposed playwright tool names. */
-function isPlaywrightUse(toolName: string, input: unknown): boolean {
-	if (/playwright|_browser_|^browser_/.test(toolName)) return true;
-	if (toolName !== "mcp") return false;
-	const { tool, server, connect, filter } = (input ?? {}) as Record<string, unknown>;
-	const gatewayTool = String(tool ?? "");
-	return gatewayTool.startsWith("browser_") || /playwright/.test(gatewayTool) || [server, connect, filter].includes("playwright");
+/** True for any playwright browser tool call (mcp__playwright__browser_*). */
+function isPlaywrightUse(toolName: string): boolean {
+	return /playwright|_browser_|^browser_/.test(toolName);
 }
 
 export default function browserProfiles(pi: ExtensionAPI): void {
 	let profileDir: string | null = null;
 	let cloneAttempted = false;
+
+	/** Register a stdio MCP server unless it is already file-configured. */
+	const registerMcpServers = (): void => {
+		const agentDir = process.env.PI_CODING_AGENT_DIR;
+		if (!agentDir) return;
+		if (existsSync("/usr/bin/chromium")) {
+			// /usr/bin/chromium is the executablePath pinned in pi/browser/playwright-config.json
+			pi.registerMcpServer("playwright", {
+				command: "npx",
+				args: ["@playwright/mcp@0.0.78", "--sandbox", "--config", "playwright-config.json"],
+			cwd: join(agentDir, "browser"),
+				env: { PLAYWRIGHT_MCP_USER_DATA_DIR: profileDir ?? "" },
+				exposure: "deferred",
+				description: "Headed per-session chromium: navigate, click, type, screenshot, scrape, run JS. Tools load via tool_search.",
+			});
+		}
+		if (existsSync("/usr/bin/blender")) {
+			pi.registerMcpServer("blender", {
+				command: "uv",
+				args: ["run", "blender-mcp"],
+			cwd: join(agentDir, "..", "uv", "mcp"),
+				env: { UV_PYTHON_PREFERENCE: "only-managed", DISABLE_TELEMETRY: "true" },
+				exposure: "deferred",
+				description: "Inspect and drive the user's running Blender: scene info, viewport screenshot, execute bpy code. Tools load via tool_search.",
+			});
+		}
+	};
 
 	pi.on("session_start", async (_event, ctx) => {
 		profileDir = join(SESSIONS_ROOT, ctx.sessionManager.getSessionId());
@@ -179,14 +209,14 @@ export default function browserProfiles(pi: ExtensionAPI): void {
 		try {
 			mkdirSync(profileDir, { recursive: true });
 			gcAbandonedProfiles(profileDir);
-			process.env.PI_BROWSER_PROFILE_DIR = profileDir;
 		} catch (error) {
 			ctx.ui.notify(`browser-profiles: ${error}`, "error");
 		}
+		registerMcpServers();
 	});
 
 	pi.on("tool_call", async (event, ctx) => {
-		if (!profileDir || cloneAttempted || !isPlaywrightUse(event.toolName, event.input)) return;
+		if (!profileDir || cloneAttempted || !isPlaywrightUse(event.toolName)) return;
 		cloneAttempted = true;
 		try {
 			if (existsSync(TEMPLATE_DIR)) {

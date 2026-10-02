@@ -1,28 +1,3 @@
 {
-	"mcpServers": {
-		"playwright": {
-			"command": "npx",
-			"args": [
-				"@playwright/mcp@0.0.78",
-				"--sandbox",
-				"--config",
-				"playwright-config.json"
-			],
-			"cwd": "${dotfiles}/pi/browser",
-			"env": {
-				"PLAYWRIGHT_MCP_USER_DATA_DIR": "${PI_BROWSER_PROFILE_DIR}"
-			},
-			"lifecycle": "lazy"
-		},
-		"blender": {
-			"command": "uv",
-			"args": ["run", "blender-mcp"],
-			"cwd": "${dotfiles}/uv/mcp",
-			"env": {
-				"UV_PYTHON_PREFERENCE": "only-managed",
-				"DISABLE_TELEMETRY": "true"
-			},
-			"lifecycle": "lazy"
-		}
-	}
+	"mcpServers": {}
 }

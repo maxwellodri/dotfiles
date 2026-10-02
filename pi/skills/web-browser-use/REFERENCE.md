@@ -1,12 +1,12 @@
 # Playwright MCP — Tool Reference
 
-All calls via `mcp({ tool: "playwright_browser_<name>", args: '<json>' })`. `args` is a JSON string.
+Tools are `mcp__playwright__browser_<name>` (prefix elided below), deferred — load via `tool_search({ query: "browser …" })`, then call directly with **object args** (no JSON-string encoding).
 
 ## Conventions
 
 - **`target`** — an element `ref` from a snapshot (e.g. `"e42"`) **or** a unique CSS selector.
 - **`element`** — optional human-readable label, used for permission logging (does not target the element).
-- Required params marked **(req)**. Schemas below verified against the live server; run `mcp({ describe: "playwright_browser_<name>" })` to re-confirm or for any tool not detailed here.
+- Required params marked **(req)**. Schemas below verified against the live server; the loaded tool declarations carry the authoritative schema for any tool not detailed here.
 
 ## Session & navigation
 
@@ -21,7 +21,7 @@ List, create, close, or select a tab.
 - `url` — URL for `new`.
 
 ### playwright_browser_navigate_back / playwright_browser_resize / playwright_browser_close
-`navigate_back` and `close` take no parameters. For `resize` dimensions, run `describe`.
+`navigate_back` and `close` take no parameters. For `resize` dimensions, see the loaded tool schema.
 
 ## Observe
 
@@ -54,7 +54,7 @@ Screenshot for visual evidence only — **cannot act from a screenshot**.
 
 ### playwright_browser_network_requests / playwright_browser_network_request
 - `network_requests`: `static` **(req)** bool (include images/fonts/scripts; default `false`); `filter` regexp on URL; `filename`.
-- `network_request`: takes a request number (run `describe` for exact param) — full headers/body of one request.
+- `network_request`: takes a request number (see loaded schema) — full headers/body of one request.
 
 ## Act
 
@@ -64,7 +64,7 @@ Screenshot for visual evidence only — **cannot act from a screenshot**.
 - `doubleClick`, `button` (`"left"`|`"right"`|`"middle"`), `modifiers` (array of `"Alt"`/`"Control"`/`"ControlOrMeta"`/`"Meta"`/`"Shift"`).
 
 ### playwright_browser_hover
-Hover over an element. Params: `element`, `target`. (Run `describe` to confirm.)
+Hover over an element. Params: `element`, `target`. (See loaded schema to confirm.)
 
 ### playwright_browser_type
 Type text into an editable element.
@@ -97,7 +97,7 @@ Accept/dismiss a JS dialog (alert/confirm/prompt).
 - `time` — wait N seconds.
 
 ### playwright_browser_drag / playwright_browser_drop
-Drag between elements / drop files or MIME data. Run `describe` for exact params.
+Drag between elements / drop files or MIME data. See loaded schema for exact params.
 
 ## Advanced
 

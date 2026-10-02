@@ -4,9 +4,7 @@
   "defaultModel": "glm-5.3",
   "defaultThinkingLevel": "high",
   "quietStartup": false,
-  "extensions": [
-    "vendor/pi-mcp-adapter"
-  ],
+  "tuiMode": "regular",
   "lastChangelogVersion": "1.0.0",
   "hideThinkingBlock": false,
   "doubleEscapeAction": "none",

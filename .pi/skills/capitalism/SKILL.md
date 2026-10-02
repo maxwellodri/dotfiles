@@ -28,22 +28,22 @@ description: Search for products, compare prices across stores, check availabili
 
 ## Harness differences
 
-This skill runs under multiple harnesses. Some expose a single **MCP gateway**
-tool and spawn MCP servers (like Playwright) lazily on demand; others expose MCP
-tools by their direct names and require the user to enable the server manually
-first. The pre-flight script (`scripts/capitalism_check.sh`) detects which style
-is in use (via `$PI_CODING_AGENT_DIR`) and prints the correct guidance. Key
-differences:
+This skill runs under multiple harnesses. Some expose MCP tools by their
+**direct names** behind a `tool_search`-style loader (pi: tools are deferred —
+zero context until searched, server auto-starts with the session); others
+require the user to enable the server manually first. The pre-flight script
+(`scripts/capitalism_check.sh`) detects which style is in use (via
+`$PI_CODING_AGENT_DIR`) and prints the correct guidance. Key differences:
 
-| Concern | Harness with MCP gateway | Harness with direct MCP tools |
+| Concern | pi (deferred tools + tool_search) | Harness with manual MCP enable |
 |---|---|---|
-| Playwright MCP enable | Automatic — lazy on demand via the gateway tool (the server spawns only when a browser tool is actually called) | Manual: enable the playwright MCP in the TUI first, then continue |
-| Calling browser tools | Via the gateway: `mcp({ tool: "playwright_browser_navigate", args: { url } })`. Discover with `mcp({ search: "browser" })` | Direct tool names, e.g. `playwright_browser_navigate({ url })` |
+| Playwright MCP enable | Automatic — registered per session by `pi/extensions/browser-profiles.ts`; tools load on demand via `tool_search` | Manual: enable the playwright MCP in the TUI first, then continue |
+| Calling browser tools | `tool_search({ query: "browser navigate" })` once, then direct calls: `mcp__playwright__browser_navigate({ url })` | Direct tool names, e.g. `playwright_browser_navigate({ url })` |
 | Plan/build-mode gate | N/A — no plan mode; proceed directly | Applies — see step 0 (requires plan mode) |
 | Detection | `$PI_CODING_AGENT_DIR` is set | absence of `$PI_CODING_AGENT_DIR` |
 
-When a gateway tool is available, route every browser action through it rather
-than calling `playwright_*` tools by name.
+On pi, load the browser tools once via `tool_search` when a browser task
+starts, then call them directly for the rest of the session.
 
 ## Quick Start
 

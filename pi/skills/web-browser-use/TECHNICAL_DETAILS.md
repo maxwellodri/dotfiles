@@ -19,13 +19,16 @@ set — so agents would see/close each other's tabs. Rejected.)
 
 - `pi/extensions/browser-profiles.ts` (auto-discovered, `/reload`able):
   1. `session_start`: mkdir the session profile dir
-     `/tmp/pi/chromium/<session-id>` (tmpfs → free GC on reboot), GC dirs
-     untouched for >3d (crash orphans, shutdown skips), and set
-     `process.env.PI_BROWSER_PROFILE_DIR = <dir>`. Nothing is copied yet —
-     most sessions never use the browser, so the ~112MB clone is lazy.
-  2. `tool_call` (first playwright MCP use — also exactly when the lazy MCP
-     server/browser spawns; `tool_call` can block, so the clone lands before
-     the browser reads the dir): `rsync -a` from the template, excluding
+     `/tmp/pi/chromium/<session-id>` (tmpfs → free GC on reboot) and GC dirs
+     untouched for >3d (crash orphans, shutdown skips). Nothing is copied yet —
+     most sessions never use the browser, so the ~112MB clone is lazy. Then
+     register the playwright MCP server (pi's builtin MCP, exposure
+     `deferred`) with `PLAYWRIGHT_MCP_USER_DATA_DIR` set to the profile dir
+     **inline** — the dir is known before registration, so there is no
+     env-var timing to get right.
+  2. `tool_call` (first playwright MCP use — the hook can block, so the clone
+     lands before chromium, which the server launches only on the first
+     browser tool call, reads the dir): `rsync -a` from the template, excluding
      volatile/bulky state (`Singleton*`, `lockfile`, `Default/Cache`,
      `Default/Code Cache`, `Default/GPUCache`, `GraphiteDawnCache`,
      `GrShaderCache`, `ShaderCache`, Service Worker cache storage). Then seed
@@ -39,22 +42,22 @@ set — so agents would see/close each other's tabs. Rejected.)
      profile dir — skipped for `"reload"` (same session continues;
      un-snapshotted logins kept) and while a chromium still runs on it; the
      >3d GC collects skips later.
-- `pi/mcp.json` (playwright entry) passes it through:
-  `"env": { "PLAYWRIGHT_MCP_USER_DATA_DIR": "${PI_BROWSER_PROFILE_DIR}" }`.
-  In `@playwright/mcp` ≥ 0.0.78 env overrides the `--config` JSON file
+- The server config lives in `browser-profiles.ts`, **not** `pi/mcp.json`:
+  `mcp.json` is shared to every host via the repo, and pi's builtin MCP
+  connects every configured server at session start — a file-configured
+  server would spawn `npx` on machines that never browse. Registration is
+  gated on `/usr/bin/chromium` existing (the executablePath the config
+  pins), so only browser-capable machines get the server. In
+  `@playwright/mcp` ≥ 0.0.78 env overrides the `--config` JSON file
   (precedence: defaults < config file < `PLAYWRIGHT_MCP_*` env < CLI flags),
   and an explicit `userDataDir` bypasses the cwd-hashed default dir entirely.
-- Timing is safe: pi only injects `PI_SESSION_ID`/`PI_SESSION_FILE` into
-  bash-tool execs, not its own `process.env`, hence the extension sets the
-  profile var itself. The MCP server is lazy — it spawns on first browser
-  use, i.e. the same tool call that triggers the clone, and only after that
-  handler (which blocks execution) has finished.
+- Timing: the MCP **server process** spawns at registration (session start);
+  chromium itself launches inside the server on the first browser tool call
+  — the same tool call whose `tool_call` hook blocks on the clone, so the
+  profile dir is complete before chromium reads it.
 - Subagents are separate `pi` child processes; they run their own
   `session_start`/`session_shutdown` and thus get their own profile dir,
   lazily cloned on their own first browser use.
-- If `PI_BROWSER_PROFILE_DIR` is somehow unset, the interpolated env value is
-  the empty string, which `@playwright/mcp` treats as unset → falls back to
-  stock (shared-hash) behavior.
 
 ## Template
 
@@ -76,11 +79,7 @@ set — so agents would see/close each other's tabs. Rejected.)
   want to keep must be promoted via `browser-snapshot.sh` before exiting).
   `/reload` and a same-boot `pi --resume` of a session that never cleanly
   exited reuse the existing dir (its `Local State` marker).
-- After `/resume` or `/new`, an already-connected playwright server keeps the
-  previous session's profile until `/mcp reconnect playwright` or its idle
-  timeout — expected, harmless (and why shutdown deletion is guarded on
-  "no chromium running on the dir").
-- `playwright_browser_close` closes only that session's chromium.
+- `mcp__playwright__browser_close` closes only that session's chromium.
 
 ## Snapshot workflow (promote session state → template)
 
@@ -145,14 +144,15 @@ service worker still loads.
 ## Launch flags: sandbox + infobar (debugged 2026-09-15)
 
 Two warnings Chromium shows as a bar under the toolbar, and their fixes
-(both in `pi/browser/playwright-config.json` + `pi/mcp.json`):
+(both in `pi/browser/playwright-config.json` + the server args registered by
+`pi/extensions/browser-profiles.ts`):
 
 1. `--no-sandbox`: Playwright defaults `chromiumSandbox: false`, and the MCP
    *forces* it false as a CLI-level override (merge order: defaults < config
    file < env < CLI, and the action handler pre-sets `sandbox: false` unless
    `--sandbox` is passed). So the config key alone never wins — you need
    `"chromiumSandbox": true` in launchOptions **and** `--sandbox` in the
-   mcp.json args. Verified: no `--no-sandbox` on any process, real sandbox.
+   server args. Verified: no `--no-sandbox` on any process, real sandbox.
 2. `--disable-blink-features=AutomationControlled`: the MCP hardcodes this
    anti-detection flag for chromium (skipped only if your args already
    contain some `--disable-blink-features` variant). Chromium's bad-flags
@@ -175,10 +175,11 @@ Two warnings Chromium shows as a bar under the toolbar, and their fixes
   `maim`/`import` return solid garbage. For visual checks that must not touch
   the user's display, run the MCP server against a private `Xvfb :31` and
   `import -display :31 -window root` (worked well; `xvfb-run` also fine).
-- **The gateway reads `mcp.json`/config only when spawning the MCP server**
-  (lazy, on first browser use) and will not respawn a killed server mid-
-  session (`connect` only refreshes cached metadata; calls return "Not
-  connected"). Config edits require a pi restart to take effect in-session.
+- **The MCP server config lives in `browser-profiles.ts`** — command/args/env
+  edits take effect on the next session or `/reload` (which re-registers the
+  server). In-session, `/mcp` → reconnect reuses the registered config. A
+  killed server process reconnects automatically on the next call (unlike
+  the old vendored adapter, which stayed dead until a manual reconnect).
 - Verify flags via `tr '\0' '\n' < /proc/<pid>/cmdline` — use *substring*
   greps (`grep -o -- '--test-type[=]*'`); exact-line `-x` checks produced a
   false negative once (possibly an exec race).
