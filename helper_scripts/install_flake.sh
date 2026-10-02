@@ -54,6 +54,9 @@ registry_latest() {
 # Plain runs never query the registry or touch the lock; the flake pins
 # everything.
 MIN_RELEASE_AGE_DAYS=7
+# early-adoption allowlist: plain versions exempt from the cooldown; they
+# age out of relevance on their own, prune at will
+cooldown_exceptions='["1.0.0"]'
 
 current="$(sed -n 's/^[[:space:]]*version = "\([^"]*\)";/\1/p' "$pi_nix" | head -n1)"
 pi_version="$current"
@@ -72,10 +75,10 @@ if [ "$update" = 1 ]; then
     # Newest plain x.y.z release published at least MIN_RELEASE_AGE_DAYS
     # days ago (registry .time has ISO timestamps with millis).
     cutoff=$(($(date +%s) - MIN_RELEASE_AGE_DAYS * 86400))
-    target="$(registry_packument | jq -r --argjson cutoff "$cutoff" '
+    target="$(registry_packument | jq -r --argjson cutoff "$cutoff" --argjson exceptions "$cooldown_exceptions" '
         .time | to_entries
         | map(select(.key | test("^[0-9]+\\.[0-9]+\\.[0-9]+$")))
-        | map(select((.value | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) <= $cutoff))
+        | map(select((.value | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) <= $cutoff or (.key | IN($exceptions[]))))
         | map(.key) | join("\n")
     ' | sort -V | tail -n1)"
     [ -n "$target" ] || target="$current"
@@ -117,7 +120,7 @@ if [ "$update" = 1 ]; then
         got="$(wc -l < "$tmp/integrities.tsv")"
         [ "$need" = "$got" ] || { echo "integrity fetch incomplete ($got/$need)" >&2; exit 1; }
         jq -Rn '[inputs | split("\t") | select(length == 2) | {key: .[0], value: .[1]}] | from_entries' \
-            "$tmp/integrities.tsv" > "$nixcfg/pkgs/integrities.json"
+            "$tmp/integrities.tsv" > "$nixcfg/pkgs/pi/integrities.json"
 
         # Bump the version; blank the hashes so the build below fails with fresh
         # "got: sha256-..." values that get fed back in automatically.
