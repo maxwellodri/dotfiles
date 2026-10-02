@@ -35,6 +35,15 @@ projects:
           - nvim .
           - pi
       scratch:
+  tofuberry:
+    path: $SOURCE/tofuberry/
+    tmux_windows:
+      dev:
+        layout: even-horizontal
+        panes:
+          - nvim .
+          - pi
+      scratch:
 
   llm-config:
     path: $SOURCE/llm-config
