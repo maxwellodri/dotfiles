@@ -2,6 +2,14 @@
 
 . "${XDG_CONFIG_HOME:-$HOME/.config}/sh/shutil.sh"
 
+# games --search-appid <query> — Steam store AppID lookup, no dmenu involved
+if [[ ${1:-} == --search-appid ]]; then
+  query=${2:?--search-appid requires a query}
+  curl -fsS "https://store.steampowered.com/api/storesearch/?term=${query// /+}&cc=AU&l=english" |
+    jq -r '.items[:10][] | "\(.name): \(.id)"'
+  exit $?
+fi
+
 dmenu=$(get_dmenu)
 
 declare -A games
