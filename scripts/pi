@@ -6,14 +6,17 @@ set -euo pipefail
 
 export PI_CODING_AGENT_DIR="$dotfiles/pi"
 export PI_CODING_AGENT_SESSION_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi/sessions"
+# Where /archive (pi/extensions/archive.ts) retires finished threads
+export PI_CODING_AGENT_ARCHIVED_SESSION_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi/archived_sessions"
 # Agent-spawned curl picks up pi/.curlrc (descriptive UA; crates.io 403s bare
 # curl/VER). CURL_HOME is curl's only env-var hook for config; inherit-safe.
 : "${CURL_HOME:=$PI_CODING_AGENT_DIR}"
 export CURL_HOME
-#Ensure that private repo has symlinked pi sessions
-if [ ! -L "$PI_CODING_AGENT_SESSION_DIR" ] || [ ! -d "$PI_CODING_AGENT_SESSION_DIR" ]; then
-	echo "pi wrapper: $PI_CODING_AGENT_SESSION_DIR is not a symlink into ~/source/private/pi/\$dotfile_tag" >&2
-	echo "run ~/source/private/install.sh to set it up (or symlink it manually)" >&2
+#Ensure that private repo has symlinked pi sessions (live + archived)
+if [ ! -L "$PI_CODING_AGENT_SESSION_DIR" ] || [ ! -d "$PI_CODING_AGENT_SESSION_DIR" ] \
+	|| [ ! -L "$PI_CODING_AGENT_ARCHIVED_SESSION_DIR" ] || [ ! -d "$PI_CODING_AGENT_ARCHIVED_SESSION_DIR" ]; then
+	echo "pi wrapper: $PI_CODING_AGENT_SESSION_DIR and $PI_CODING_AGENT_ARCHIVED_SESSION_DIR must be symlinks into ~/source/private/runtime/pi/\$dotfile_tag" >&2
+	echo "run ~/source/private/install.sh to set it up (or symlink them manually)" >&2
 	exit 1
 fi
 
