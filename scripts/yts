@@ -6,22 +6,30 @@ Local files (and URLs without captions) are transcribed by whisper.cpp
 already have captions take the fast path: yt-dlp subtitle download, no
 transcription.
 
+YouTube URLs are checked against SponsorBlock: sponsored segments are
+dropped from the transcript and replaced by a SKIPPED_SPONSORED_SEGMENT
+marker line so downstream tools (e.g. summarize) can account for them.
+
 Examples:
   yts video.mp4                     # plain-text transcript
   yts https://www.youtube.com/...   # captions if available, else whisper
   yts --model small talk.mp3        # bigger whisper model (auto-downloaded)
   yts --no-subs <url>               # skip caption fetch, always transcribe
+  yts --no-sponsorblock <url>       # keep sponsored content in the transcript
   yts video.mp4 | summarize         # summarise the transcript with pi
 """
 
 import argparse
+import json
 import os
 import re
 import subprocess
 import sys
 import tempfile
+import urllib.error
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlencode, urlparse
 
 # --- $dotfiles guard: transcription env (nix/whisper) and the pi wrapper live there ---
 _dotfiles = os.environ.get("dotfiles", "")
@@ -39,6 +47,10 @@ SYSTEM_MODEL = Path("/usr/share/whisper.cpp-model-base.en/ggml-base.en.bin")
 DEFAULT_MODEL = "base.en"
 MODEL_CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "whisper.cpp"
 MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-{model}.bin"
+
+SPONSORBLOCK_API = "https://sponsor.ajay.app/api/skipSegments"
+SPONSORBLOCK_CATEGORIES = ["sponsor", "selfpromo"]
+SPONSOR_MARKER = "SKIPPED_SPONSORED_SEGMENT"
 
 
 def die(msg: str) -> None:
@@ -107,16 +119,43 @@ def extract_audio(src: str, dst: str) -> None:
         die(f"ffmpeg failed:\n{r.stderr}")
 
 
-def transcribe_audio(wav: str, model: str, lang: str | None) -> str:
+def transcribe_audio(wav: str, model: str, lang: str | None, sponsor_segments=()) -> str:
     model_path = resolve_model(model)
-    cmd = ["whisper-cli", "-m", str(model_path), "-f", wav, "-np", "-nt"]
+    cmd = ["whisper-cli", "-m", str(model_path), "-f", wav, "-np"]
     if lang:
         cmd += ["-l", lang]
+    if not sponsor_segments:
+        cmd += ["-nt"]
     print(f"yts: transcribing with whisper.cpp ({model}) ...", file=sys.stderr)
     r = run(cmd)
     if r.returncode != 0:
         die(f"whisper-cli failed:\n{r.stderr}")
+    if sponsor_segments:
+        return filter_whisper_transcript(r.stdout, sponsor_segments)
     return "\n".join(line.strip() for line in r.stdout.splitlines() if line.strip())
+
+
+_WHISPER_TS_LINE_RE = re.compile(
+    r"^\[(\d{1,2}):(\d{2}):(\d{2})(?:\.\d+)?\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})(?:\.\d+)?\]\s*(.*)$")
+
+
+def filter_whisper_transcript(raw: str, sponsor_segments=()) -> str:
+    """Timestamped whisper output -> plain text with sponsor spans marked."""
+    timestamped: list[tuple[int | None, int | None, str]] = []
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        m = _WHISPER_TS_LINE_RE.match(line)
+        if m:
+            start = int(m[1]) * 3600 + int(m[2]) * 60 + int(m[3])
+            end = int(m[4]) * 3600 + int(m[5]) * 60 + int(m[6])
+            text = m[7].strip()
+            if text:
+                timestamped.append((start, end, text))
+        else:
+            timestamped.append((None, None, line))
+    return "\n".join(apply_sponsor_filter(timestamped, sponsor_segments)).strip()
 
 
 def transcribe_file(path: str, args) -> tuple[str, str]:
@@ -128,10 +167,78 @@ def transcribe_file(path: str, args) -> tuple[str, str]:
     return transcript, Path(path).name
 
 
+# --- SponsorBlock: sponsored spans leave a marker, not transcript text ---
+
+
+def youtube_video_id(url: str) -> str | None:
+    """Extract the 11-char id SponsorBlock keys on (YouTube URLs only)."""
+    host = urlparse(url).netloc.lower().removeprefix("www.")
+    path = urlparse(url).path
+    if host == "youtu.be":
+        m = re.match(r"^/([\w-]{11})(?:[/?#.]|$)", path)
+        return m.group(1) if m else None
+    if host != "youtube.com" and not host.endswith(".youtube.com"):
+        return None
+    m = re.search(r"(?:^|&)v=([\w-]{11})", urlparse(url).query)
+    if m:
+        return m.group(1)
+    m = re.match(r"^/(?:shorts|live|embed|v)/([\w-]{11})", path)
+    return m.group(1) if m else None
+
+
+def fetch_sponsor_segments(url: str) -> list[tuple[float, float]]:
+    """Merged (start, end) skip-segments from SponsorBlock; [] if none."""
+    vid = youtube_video_id(url)
+    if vid is None:
+        return []
+    query = urlencode({"videoID": vid, "categories": json.dumps(SPONSORBLOCK_CATEGORIES)})
+    try:
+        req = urllib.request.Request(f"{SPONSORBLOCK_API}?{query}",
+                                     headers={"User-Agent": "yts"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.load(resp)
+    except urllib.error.HTTPError as e:
+        if e.code != 404:  # 404 = nobody submitted segments for this video
+            print(f"yts: sponsorblock query failed (HTTP {e.code}); "
+                  "keeping sponsor content.", file=sys.stderr)
+        return []
+    except Exception as e:
+        print(f"yts: sponsorblock query failed ({e}); keeping sponsor content.",
+              file=sys.stderr)
+        return []
+    spans = sorted((float(s["segment"][0]), float(s["segment"][1]))
+                   for s in data if s.get("actionType") == "skip")
+    merged: list[list[float]] = []
+    for start, end in spans:
+        if merged and start <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+    return [(start, end) for start, end in merged]
+
+
+def apply_sponsor_filter(timestamped: list[tuple[int | None, int | None, str]],
+                         segments) -> list[str]:
+    """Drop lines overlapping a segment (cue times are coarse); one marker each."""
+    out: list[str] = []
+    inside = False
+    for start, end, text in timestamped:
+        hit = (start is not None and end is not None
+               and any(start < seg_end and end > seg_start
+                       for seg_start, seg_end in segments))
+        if hit and not inside:
+            out.append(SPONSOR_MARKER)
+        inside = hit
+        if not hit:
+            out.append(text)
+    return out
+
+
 # --- caption fetch via yt-dlp + VTT parsing (mirrors fabric's behaviour) ---
 
 _VTT_TAG_RE = re.compile(r"<[^>]*>")
 _VTT_TS_LINE_RE = re.compile(r"^\d+$|^\d{1,2}:\d{2}(:\d{2})?(\.\d{3})?$")
+_VTT_TIMING_RE = re.compile(r"([\d:.]+)\s*-->\s*([\d:.]+)")
 TIME_GAP_FOR_REPEATS = 10  # seconds; repeats after this gap are kept
 
 
@@ -149,19 +256,24 @@ def _vtt_timestamp_to_seconds(ts: str) -> int | None:
     return hours * 3600 + minutes * 60 + seconds
 
 
-def vtt_to_timestamped_text(content: str) -> str:
-    """Parse VTT subtitle content into '[HH:MM:SS] text' lines."""
+def vtt_to_timestamped_text(content: str, sponsor_segments=()) -> str:
+    """Parse VTT into text lines; sponsored spans become marker lines."""
     seen: dict[str, str] = {}  # text -> last timestamp it appeared at
     current_ts = ""
-    out: list[str] = []
+    current_start: int | None = None
+    current_end: int | None = None
+    lines: list[tuple[int | None, int | None, str]] = []
     for raw in content.split("\n"):
         line = raw.strip()
         if not line or line == "WEBVTT":
             continue
         if line.startswith(("NOTE", "STYLE", "Kind:", "Language:")):
             continue
-        if "-->" in line:
-            current_ts = line.split(" --> ")[0].split(".")[0]
+        timing = _VTT_TIMING_RE.search(line)
+        if timing:
+            current_ts = timing[1].split(".")[0]
+            current_start = _vtt_timestamp_to_seconds(current_ts)
+            current_end = _vtt_timestamp_to_seconds(timing[2].split(".")[0])
             continue
         # Skip bare numeric cue identifiers (no colon).
         if _VTT_TS_LINE_RE.match(line) and ":" not in line:
@@ -176,9 +288,13 @@ def vtt_to_timestamped_text(content: str) -> str:
             if last is not None and now is not None and (now - last) < TIME_GAP_FOR_REPEATS:
                 include = False
         if include:
-            out.append(text)
+            lines.append((current_start,
+                          current_end if current_end is not None else current_start,
+                          text))
             seen[text] = current_ts
-    return "\n".join(out).strip()
+    if sponsor_segments:
+        return "\n".join(apply_sponsor_filter(lines, sponsor_segments)).strip()
+    return "\n".join(text for _, _, text in lines).strip()
 
 
 def _find_vtt(directory: str, lang: str | None = None) -> str | None:
@@ -192,7 +308,7 @@ def _find_vtt(directory: str, lang: str | None = None) -> str | None:
     return str(paths[0])
 
 
-def fetch_url_captions(url: str, lang: str | None) -> tuple[str, str] | None:
+def fetch_url_captions(url: str, lang: str | None, sponsor_segments=()) -> tuple[str, str] | None:
     """Try to fetch existing subtitles. Returns (transcript, title) or None."""
     lang = lang or "en"
     lang_match = lang[:2]
@@ -219,7 +335,7 @@ def fetch_url_captions(url: str, lang: str | None) -> tuple[str, str] | None:
         if vtt is None:
             return None
         content = Path(vtt).read_text(encoding="utf-8", errors="replace")
-        transcript = vtt_to_timestamped_text(content)
+        transcript = vtt_to_timestamped_text(content, sponsor_segments)
     if not transcript:
         return None
     return transcript, Path(vtt).stem
@@ -227,9 +343,14 @@ def fetch_url_captions(url: str, lang: str | None) -> tuple[str, str] | None:
 
 def transcribe_url(url: str, args) -> tuple[str, str]:
     """URL -> (transcript, display name). Captions if available, else whisper."""
+    segments = [] if args.no_sponsorblock else fetch_sponsor_segments(url)
+    if segments:
+        total = sum(end - start for start, end in segments)
+        print(f"yts: sponsorblock: dropping {len(segments)} segment(s), "
+              f"{total:.0f}s of sponsored content.", file=sys.stderr)
     if not args.no_subs:
         print(f"yts: checking for captions: {url}", file=sys.stderr)
-        caps = fetch_url_captions(url, args.lang)
+        caps = fetch_url_captions(url, args.lang, segments)
         if caps is not None:
             return caps
         print("yts: no captions found, falling back to transcription.", file=sys.stderr)
@@ -245,7 +366,7 @@ def transcribe_url(url: str, args) -> tuple[str, str]:
             die("yt-dlp produced no output file.")
         wav = os.path.join(tmp, "audio16k.wav")
         extract_audio(str(media[0]), wav)
-        transcript = transcribe_audio(wav, args.model, args.lang)
+        transcript = transcribe_audio(wav, args.model, args.lang, segments)
     return transcript, media[0].stem
 
 
@@ -265,6 +386,8 @@ def main():
                         help="language hint for transcription and captions (e.g. en, auto)")
     parser.add_argument("--no-subs", action="store_true",
                         help="skip caption fetch for URLs; always transcribe audio")
+    parser.add_argument("--no-sponsorblock", action="store_true",
+                        help="keep sponsored content (skip the SponsorBlock lookup)")
     parser.add_argument("--download-model", action="store_true",
                         help="ensure the whisper model is downloaded/local, then exit")
     args = parser.parse_args()
