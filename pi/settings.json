@@ -12,8 +12,9 @@
   "followUpMode": "all",
   "retry": {
     "enabled": true,
-    "maxRetries": 8,
-    "baseDelayMs": 2000
+    "maxRetries": 25,
+    "baseDelayMs": 2000,
+    "maxAgentDelayMs": 1800000
   },
   "enabledModels": [
     "zai/glm-5.3",
