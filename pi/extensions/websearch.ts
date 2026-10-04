@@ -1,11 +1,7 @@
 /**
- * websearch.ts — pi tool wrapping the Brave Search API: v1 web search,
- * locale-derived country/language, key from `pass show brave_search_api_key`.
- *
- * WHY a tool: typed params (no quoting/flag fumbles), structured details,
- * collapsed TUI rendering. node fetch — the key never touches argv.
- *
- * Load: auto-discovered from pi/extensions/*.ts; /reload after edits.
+ * websearch.ts — web_search tool wrapping the Brave Search API (typed
+ * params, structured details; key from `pass show brave_search_api_key`,
+ * never on argv).
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";

@@ -1,12 +1,7 @@
 /**
- * edit-failure-read.ts — on a failed `edit` tool call, append the target
- * file's current contents to the error result. The model then has the real
- * text to build a matching oldText from, saving the read-then-retry round
- * trip (the failed edit itself often reveals stale assumptions, so the file
- * dump goes into the error result it already sees).
- *
- * Injected content is capped like the read tool (2000 lines / 50KB, head of
- * file); non-existent or binary targets are skipped silently.
+ * edit-failure-read.ts — append the target file's current contents to a
+ * failed `edit` result so the model can retry without a read round-trip.
+ * Capped like the read tool; missing/binary targets skipped silently.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { existsSync, readFileSync } from "node:fs";

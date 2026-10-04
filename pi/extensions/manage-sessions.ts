@@ -1,31 +1,9 @@
 /**
  * manage-sessions.ts — /manage_sessions: bulk session management in $EDITOR.
- *
- * Opens a scratch file in $EDITOR (fallback vim) listing every session of
- * the current git repository's pool (session-pool.ts scope), one per line,
- * most recent first, oil.nvim-style:
- *
- *   /001   2h  hi ⎇papa
- *   /002   3d  any pi plugins that add git worktree support?…
- *
- * The /NNN prefix is the line's identity — oil.nvim does exactly this
- * (cache.format_id + mutator/parser.lua `^/(%d+) (.+)$`), rendered dim so
- * it reads as decoration while surviving every edit. Deleting a line
- * deletes the session file (after ctx.ui.confirm); editing a line's label
- * renames the session (appendSessionInfo; clearing it un-names). Lines
- * starting with # and blank lines are ignored. The CURRENT session's line
- * is marked "·current" and can never be deleted — its live SessionManager
- * re-appends the file back into existence on the next entry; it may still
- * be renamed.
- *
- * Editor handoff mirrors prompt_in_editor.ts: tui.stop() → spawn $EDITOR
- * with stdio inherited → tui.start(). The TUI handle comes from
- * leader-key's globalThis slot; this extension is inert without it.
- *
- * Files are unlinked only — session-pool needs no cache invalidation
- * because it re-lists from disk on every /resume.
- *
- * Load: auto-discovered from pi/extensions/*.ts; /reload after edits.
+ * One session per line, most recent first, with an oil.nvim-style dim /NNN
+ * prefix as the line's identity: delete a line = delete the session file
+ * (after confirm), edit its label = rename. The ·current line can never be
+ * deleted (its live SessionManager re-appends the file); it can be renamed.
  */
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { SessionManager } from "@earendil-works/pi-coding-agent";

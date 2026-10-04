@@ -1,54 +1,18 @@
 /**
- * leader-key.ts — tmux-style C-x prefix (leader key) for pi's prompt.
+ * leader-key.ts — tmux-style C-x prefix for pi's prompt. Shared HOST: other
+ * extensions register bindings via getLeaderRegistry().register(key, {...}).
  *
- * This is the shared leader-key HOST. It owns the prompt (it is the one
- * CustomEditor that may replace pi's input) and dispatches the key pressed
- * right after C-x to whatever binding is registered for it.
+ * Semantics: C-x arms with NO timeout; the next key dispatches a bound action
+ * or cancels — unknown keys (incl. Escape) are swallowed, never fall through
+ * to the editor.
  *
- * Bindings are NOT hard-coded here — other extensions register them:
- *
- *   import { getLeaderRegistry, type LeaderCtx } from "./leader-key";
- *   getLeaderRegistry().register("u", {
- *     description: "Undo to prior turn",
- *     handler: (ctx: LeaderCtx) => ctx.submit("/undo"),
- *   });
- *
- *   e  open the prompt in $EDITOR      → prompt_in_editor.ts
- *   u  undo to prior turn              → undo.ts
- *
- * Behaviour mirrors a tmux prefix:
- *   - C-x arms the prefix. There is NO timeout — it stays armed until the next
- *     key is pressed (pressing nothing does not unset it, just like tmux).
- *   - The next key dispatches a bound action, OR cancels the prefix. Unknown
- *     keys (including Escape) are swallowed — they do NOT fall through to the
- *     editor. Escape while armed only clears the prefix; it does not abort the
- *     agent (plain Escape still aborts when the prefix is not armed).
- *
- * This extension owns the prompt ONLY. Its armed/idle state is published on
- * pi's shared event bus (`pi.events.emit("leader-key:state", boolean)`),
- * available to any extension that wants to render an indicator — no direct
- * coupling.
- *
- * ── Why globalThis instead of a normal import? ──────────────────────────
- * pi loads every extension with jiti `{ moduleCache: false }`, so each
- * extension module is evaluated in its own module graph. A plain
- * `import { registry } from "./leader-key"` from undo.ts would load a SECOND
- * copy of this file with its own, separate state — the two copies would never
- * share the same map. `globalThis`, by contrast, is the single realm-global
- * shared by every module in the process, so stashing the registry there is the
- * simplest ordering-independent way to share it. (pi's `pi.events` bus is the
- * other supported cross-extension channel; we use that for the armed/idle
- * indicator.)
- *
- * Lifecycle: the registry is cleared on `session_shutdown` (ordering-safe:
- * shutdown handlers all run before any session_start) and re-populated by
- * binding extensions in their own `session_start`. Dispatch reads the registry
- * lazily at keypress, so it does not matter which extension's session_start
- * runs first.
- *
- * Load: auto-discovered from pi/extensions/*.ts (= ~/.pi/agent/extensions);
- * `/reload` after edits. Only ONE custom editor may own the prompt at a time
- * (conflicts with e.g. pi-vim-keys).
+ * Registry lives on globalThis because pi loads extensions with jiti
+ * `moduleCache: false`: a plain import of this module would give each
+ * importer its own copy with separate state. globalThis is the one realm
+ * shared by every module copy. Cleared on session_shutdown, re-populated by
+ * binding extensions' session_start; dispatch reads the registry lazily, so
+ * handler order never matters. State published as
+ * pi.events.emit("leader-key:state", boolean) for indicator rendering.
  */
 import { CustomEditor, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { matchesKey } from "@earendil-works/pi-tui";

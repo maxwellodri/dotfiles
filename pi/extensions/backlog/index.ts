@@ -1,37 +1,15 @@
 /**
- * backlog — buffer a prompt that fires only when the agent has *fully*
- * settled, or (when_afk) once you've also been idle for N minutes.
- *
- *   /backlog [m] <p>    append to the pending backlog (creates one); a
- *                       leading minute count (e.g. /backlog 30 <p>) holds
- *                       dispatch until it elapses — for rate-limit windows
- *   /backlog             cancel it and dump its text into the prompt editor
- *   /when_afk <m> <p>    append to the pending afk prompt and restart its timer
- *   /when_afk            cancel it and dump its text into the prompt editor
- *
- * One slot, one of two gates — the commands are interchangeable, so bare
- * /backlog and bare /when_afk each dump whichever queue is armed; adding
- * the OTHER kind while one is armed refuses the new text and dumps the
- * armed queue into the editor for re-issuing (see core.ts).
- *   backlog  gate = agent not mid-task: fires at invocation when idle (no
- *            task to await), else at the next full settle; an optional
- *            leading number puts a countdown in front of that gate
- *   when_afk gate = idle ≥ N minutes via scripts/when_afk (see gates.ts)
- *
- * A backlog dispatches when its gate passes AND the agent has completely
- * finished (agent_settled — after retries, compaction and queued follow-ups
- * have drained; a turn boundary mid-tool-calls never fires it). A /backlog N
- * countdown is wall-clock and survives user input (a rate-limit window
- * doesn't care whether you're typing).
- *
- * Purge rules: any message you send cancels an afk-armed queue (an active
- * user is not AFK) but never a settled one — it's gated on the agent, not
- * you. Quitting or /reload disarms timers but the entries persist in the
- * session — reloading or resuming re-arms them. Tree moves (undo, /tree)
- * re-fold the branch the same way: an armed backlog whose entries left the
- * active branch is disarmed; navigating back onto a queued tail re-arms
- * it. Undoing the fired turn itself lands on the ✓ fired entry (the parent
- * of the dispatched message) and re-arms nothing.
+ * backlog — buffer a prompt that fires only when the agent has FULLY
+ * settled (agent_settled: retries, compaction, queued continuations drained),
+ * or with when_afk once you've also been idle ≥ N minutes.
+ *   /backlog [m] <p>    queue; a leading minute count adds a wall-clock
+ *                       countdown in front of the settle gate
+ *   /when_afk <m> <p>   queue behind the idle gate
+ *   bare either         cancel + dump the armed queue into the editor
+ * One slot, one gate kind at a time. Any user message cancels an afk queue
+ * (an active user is not AFK), never a settled one. Entries persist in the
+ * session — reload/resume re-arms; tree moves disarm queues that left the
+ * active branch, and navigating back re-arms them.
  */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { createBacklogs, renderEntry } from "./core.ts";

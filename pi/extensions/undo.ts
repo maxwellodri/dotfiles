@@ -1,37 +1,9 @@
 /**
- * undo.ts — C-x u : undo the most recent turn.
- *
- * Wires two things:
- *   1. A `/undo` command that rewinds the session one user-turn back via the
- *      tree-navigation API (`ctx.navigateTree`). That API is only available on
- *      command contexts, so the real work must live in a command — it cannot
- *      be done from the leader editor's input handler directly.
- *   2. A leader-key binding for "u" that fires the command through pi's normal
- *      submit path. `ctx.submit("/undo")` routes through the interactive
- *      submit handler, which is what dispatches extension commands; calling
- *      `pi.sendUserMessage("/undo")` instead would SKIP command handling and
- *      send the literal string to the model.
- *
- * If the agent is busy when `/undo` runs, it is interrupted and the rewind
- * proceeds once idle (so `C-x u` always undoes, even mid-stream).
- *
- * "Undo to prior turn" is NON-DESTRUCTIVE: it moves the session leaf back to
- * the entry immediately before the most recent user message. The abandoned
- * turn stays in the session tree and can be revisited with `/tree`. This is
- * exactly pi's own branch-navigation primitive, just driven from a key.
- *
- * Compaction boundary: a compaction entry is treated as a wall. If the most
- * recent user message sits directly on a compaction, undo refuses rather than
- * land on the compaction (a degenerate "already compacted" leaf where
- * `/compact` fails and the last message vanishes from the active path).
- * navigateTree() always rewinds a user message to its parent, so landing on
- * the message itself isn't possible from an extension — use `/tree` to branch.
- *
- * Depends on leader-key.ts (the leader host). The binding is registered through
- * the globalThis registry rather than an import because pi loads extensions
- * with `moduleCache` disabled. See leader-key.ts for the full rationale.
- *
- * Load: auto-discovered from pi/extensions/*.ts; `/reload` after edits.
+ * undo.ts — C-x u / /undo: rewind one user-turn via navigateTree.
+ * Non-destructive (the abandoned turn stays in the tree for /tree); a busy
+ * agent is interrupted first so C-x u always undoes. Refuses to land on a
+ * compaction entry — that leaf breaks /compact. Binding registered through
+ * leader-key's globalThis registry (see leader-key.ts).
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { getLeaderRegistry, type LeaderCtx } from "./leader-key";

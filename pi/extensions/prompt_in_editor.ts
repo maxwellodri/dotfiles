@@ -1,17 +1,7 @@
 /**
- * prompt_in_editor.ts — C-x e : open the prompt in $EDITOR.
- *
- * Hands the current prompt text to $EDITOR (fallback vim) via
- * /tmp/pi/<file>.md and copies the contents back when the editor exits.
- * Mirrors pi's built-in external-editor handoff (see extension-editor.js).
- *
- * Depends on leader-key.ts (the leader host). The `e` binding is registered
- * through the globalThis registry rather than an import because pi loads
- * extensions with `moduleCache` disabled — a shared import would give each
- * extension its own copy of the registry. See leader-key.ts for the full
- * rationale.
- *
- * Load: auto-discovered from pi/extensions/*.ts; `/reload` after edits.
+ * prompt_in_editor.ts — C-x e: open the prompt in $EDITOR (fallback vim),
+ * copy back on exit. Registered through leader-key's globalThis registry
+ * (moduleCache disabled — see leader-key.ts).
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { spawn } from "node:child_process";

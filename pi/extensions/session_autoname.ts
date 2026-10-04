@@ -1,33 +1,10 @@
 /**
- * session_autoname.ts — name fresh sessions after their first turn settles;
- * /autorename regenerates the name from the full conversation, on demand.
- *
- * Manual names always win: auto-naming only fires while the session is fresh
- * (no conversation entries yet, no name). pi's /name appends session_info,
- * which flips us off via session_info_changed, and the empty-name check is
- * re-verified immediately before setSessionName so a race can't clobber a
- * name that arrived mid-generation.
- *
- * Fires on agent_settled, not before_agent_start: retries, compaction, and
- * queued continuations are done and the first assistant reply is available
- * as evidence. Bounded at MAX_AUTO_ATTEMPTS settles per session, so a
- * flaky title model gets one retry, not a retry per turn.
- *
- * Title style: name the underlying work, never restate the request —
- * a vivid gerund ("Chasing the parser flake") or a punchy noun phrase
- * ("Bevy 0.19 migration"), ≤48 chars, one technical noun verbatim. A
- * 4-gram echo check rejects word-for-word restatements and retries once.
- *
- * Title model: TITLE_MODEL below. opencode/deepseek-v4-flash — the
- * smallest tier that still picks the right thread in a long, multi-topic
- * transcript (gemini-3.5-flash-lite nails the format but grabs tangent
- * topics; titles don't need more than deepseek-flash). OpenRouter's :free
- * tier (e.g. google/gemma-4-31b-it:free) also works, but its shared
- * upstream pool 429s often — every 429 silently degrades
- * the title to the first-line fallback, i.e. the exact restatement this
- * extension avoids.
- *
- * Load: auto-discovered from pi/extensions/*.ts; /reload after edits.
+ * session_autoname.ts — name fresh sessions after the first turn settles
+ * (agent_settled; manual names always win, re-checked before write).
+ * /autorename regenerates from the full conversation on demand.
+ * Title style: name the underlying work, never restate the request — vivid
+ * gerund ("Chasing the parser flake") or punchy noun phrase, ≤48 chars, one
+ * technical noun verbatim; a 4-gram echo check rejects restatements.
  */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 

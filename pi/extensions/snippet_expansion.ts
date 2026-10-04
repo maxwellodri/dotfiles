@@ -1,65 +1,11 @@
 /**
- * snippet_expansion — `$name` text snippets with autocomplete.
- *
- * A lightweight text-expansion macro for reusable prompt fragments. A snippet
- * is either a file `<PI_CODING_AGENT_DIR>/snippets/<name>.md` or a directory
- * `<PI_CODING_AGENT_DIR>/snippets/<name>/` whose entry is the hardcoded file
- * `snippet.md` (the dotfiles wrapper points that env at `pi/snippets/`). The
- * directory layout lets you co-locate metadata next to the body — e.g.
- * `pi/snippets/swarm/{snippet.md, LICENSE_INFO.md}`. Either way, reference it
- * inline:
- *
- *   review this against $rust-style and tell me what's wrong
- *
- *   → the literal `$rust-style` token is replaced (in the context copy sent
- *     to the model — the stored session keeps what you typed) with the full
- *     contents of `snippets/rust-style.md`, right where the token sat.
- *
- * Two halves, both standard pi extension hooks:
- *
- *   1. **Autocomplete** (session_start → addAutocompleteProvider): typing `$`
- *      lists snippet names; the first markdown line of each is shown as the
- *      description. Stacks on top of fuzzy-filter.ts (which owns `@`); the
- *      two never fight because each only acts on its own trigger and
- *      delegates everything else to `inner`.
- *
- *   2. **Expansion** (context event → inline replace): finds `$name` tokens
- *      in the latest user message and substitutes the snippet body. Mirrors
- *      prompt_expansion.ts's `@path` handling but simpler — snippets are pure
- *      text macros, so there's no synthetic read tool-call, just inline
- *      substitution in the (mutable, per-turn) context copy.
- *
- *   3. **Display expansion** (registerMarkdownTransformer): the same
- *      substitution applied to user messages just before the TUI renders
- *      them, so the transcript shows the body instead of `$name`. Display-
- *      only — the stored session keeps what you typed (the docs are explicit
- *      that markdown transformers never touch session or model context; the
- *      model-facing expansion is half 2's job).
- *
- * Name rules (also enforced by the token regexes):
- *   - `[a-zA-Z0-9_-]+` only — keeps the autocomplete token unambiguous and
- *     side-steps `$5.00` / `$HOME`-style false matches (the run stops at the
- *     first char outside that class, and a token only expands if a snippet by
- *     that name exists, so `$HOME` is a no-op unless you actually create
- *     `HOME.md` or `HOME/snippet.md`).
- *   - `$` must sit at a token boundary: preceded by start-of-string or
- *     whitespace (`foo$bar` is NOT a snippet ref). Same boundary `@` uses.
- *
- * `$` over `~`: `~` collides with home-dir expansion (`@~/...`, shell `~`).
- * `$` still looks like a shell
- * variable, but the "expand only if the file exists" guard makes that benign.
- *
- * Guards / trade-offs (deliberate, mirrors prompt_expansion.ts):
- *   - only the latest user message is expanded (keeps history lean; injection
- *     is non-destructive so re-expansion each turn is cheap and idempotent)
- *   - file contents are mtime-cached; the directory listing for autocomplete
- *     has a short TTL cache (readdir per keystroke would be wasteful)
- *   - no size cap on snippet bodies — you authored them to be injected whole;
- *     re-add a cap if context bloat bites
- *
- * Load: auto-discovered from pi/extensions/*.ts (= ~/.pi/agent/extensions);
- * `/reload` after edits. Add snippets anytime — the TTL cache refreshes them
- * within LIST_CACHE_TTL_MS.
+ * snippet_expansion — `$name` text macros with `$`-triggered autocomplete.
+ * A snippet is snippets/<name>.md or snippets/<name>/snippet.md (dir layout
+ * co-locates metadata). `$name` in the latest user message is replaced by the
+ * body in the model-facing context copy AND the rendered transcript; the
+ * stored session keeps the token. Token = [a-zA-Z0-9_-]+ at a start-of-string
+ * or whitespace boundary, expanded only if the snippet file exists ($HOME and
+ * $5.00 pass through untouched). Bodies mtime-cached; listing TTL-cached.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";

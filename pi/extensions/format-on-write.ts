@@ -1,37 +1,15 @@
 /**
- * format-on-write.ts — run an in-place code formatter after the write/edit
- * tools commit a file, picked by extension. rustfmt (.rs), ruff (.py),
- * prettier (js/ts/json/css/html/md/yaml family).
+ * format-on-write.ts — run the in-place formatter for the file's extension
+ * after write/edit commits: rustfmt (.rs), ruff (.py), prettier
+ * (js/ts/json/css/html/md/yaml). Hooks tool_result (not tool_call) so a
+ * formatter rejecting unparseable code annotates the result — a free syntax
+ * check. Best-effort: formatter problems never fail a write.
  *
- * Hook choice: tool_result, not tool_call. tool_call fires BEFORE the tool
- * runs and can only block; the file doesn't exist yet, so an in-place
- * formatter has nothing to read. tool_result fires after the write lands, and
- * can patch the result content so the model is told what happened — including
- * the important case of a formatter rejecting unparseable code (rustfmt on
- * broken Rust), which gives the model a free syntax check.
- *
- * Safety:
- *  - best-effort: a formatter problem never turns a successful write into an
- *    error result, we only annotate.
- *  - each binary is PATH-checked once (cached); missing tools are skipped
- *    silently, so the table may list tools a given box lacks.
- *  - aborted via ctx.signal, bounded by a 30s timeout, cwd = project root so
- *    rustfmt.toml / Cargo.toml / .prettierrc are picked up.
- *  - files under node_modules/ or .git/ are skipped.
- *  - files are snapshotted before/after (up to 1 MiB) so reported deltas are
- *    real, not assumed.
- *
- * Override defaults with pi/format-on-write.json:
+ * Override via pi/format-on-write.json:
  *   { "map": { ".rs": ["rustfmt", "--edition", "2021"], ".nix": ["nixfmt"] },
  *     "disable": [".json"] }
- * `map` replaces the default table; `disable` removes entries. Each value is
- * the formatter argv minus the file path (appended at run time).
- *
- * rustfmt note: standalone `rustfmt file.rs` defaults to edition 2015 unless a
- * rustfmt.toml sets `edition`. If you want 2021/2024 without a rustfmt.toml,
- * set ".rs": ["rustfmt", "--edition", "2021"] in the config above.
- *
- * Load: auto-discovered from pi/extensions/*.ts; `/reload` after edits.
+ * (argv minus the file path; standalone rustfmt defaults to edition 2015
+ * without a rustfmt.toml).
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { spawnSync } from "node:child_process";

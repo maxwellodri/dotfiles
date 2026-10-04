@@ -1,59 +1,18 @@
 /**
- * browser-profiles.ts — give every pi session (and subagent) its OWN chromium
- * instance + profile for the playwright MCP server, cloned from a shared
- * template so logins/extensions are inherited.
+ * browser-profiles.ts — per-session chromium + profile for the playwright
+ * (and blender) MCP servers, cloned from a shared template so logins and
+ * extensions are inherited. WHY separate profiles: @playwright/mcp keys its
+ * persistent chromium on the client cwd, so concurrent sessions collide on
+ * Chromium's SingletonLock.
  *
- * WHY: @playwright/mcp launches a persistent chromium per server process
- * keyed on the client cwd, so all sessions land on the SAME profile dir and
- * collide on Chromium's SingletonLock ("Browser is already in use …").
+ * The servers are registered HERE (exposure "deferred"), not in pi/mcp.json —
+ * mcp.json is shared across hosts, these should only exist where the tools
+ * are installed.
  *
- * HOW:
- *   • session_start → derive the session's profile dir:
- *       /tmp/pi/chromium/<session-id>          (tmpfs: free GC on reboot)
- *     mkdir it, GC stale dirs, and register the playwright + blender MCP
- *     servers with pi's builtin MCP (exposure "deferred" — zero context
- *     until tool_search loads them). Servers are registered HERE, not in
- *     pi/mcp.json, so they only exist on machines with the tools (mcp.json
- *     is shared by every host via the repo, and the builtin connects every
- *     configured server at session start). Registering after the profile
- *     dir is known also lets PLAYWRIGHT_MCP_USER_DATA_DIR be passed inline —
- *     an mcp.json `${VAR}` would race the builtin's session-start spawn
- *     against this extension's session_start handler.
- *   • tool_call (first playwright MCP use — the tool_call hook can block, so
- *     the ~112MB template clone lands before chromium, which the server
- *     launches only on the first browser tool call, reads the dir) → clone
- *     from the template profile:
- *       $XDG_CACHE_HOME/ms-playwright-mcp/mcp-chrome-template
- *     (rsync, volatile caches/locks excluded — see EXCLUDES below), then
- *     seed the download-dir prefs (pi/browser/preferences.json), same merge
- *     apply-preferences.sh does. On rsync failure the partial dir is removed
- *     (leaving a truly empty profile, not a half-cloned one) and the stderr
- *     first line is surfaced in the warning. An existing clone from the same
- *     boot (pi --resume, /reload) is detected via its "Local State" marker
- *     and reused as-is.
- *   • session_shutdown ("quit"/"new"/"resume"/"fork") → delete the profile
- *     dir. Skipped for "reload" (same session continues; mid-session logins
- *     not yet snapshotted to the template would be lost) and while a chromium
- *     still runs on it (a previous session's already-connected server keeps
- *     the dir until `/mcp reconnect playwright` or its idle timeout —
- *     expected, harmless); skipped dirs are collected by the >3d GC on the
- *     next session_start, which also backstops crash-orphaned sessions that
- *     never reach session_shutdown.
- *
- * TEMPLATE MAINTENANCE: log into sites once in the template via
- *   pi/user-scripts/browser-template.sh
- * then close it; every future session clones that state. Clones taken while
- * the template window is open may miss the most recent unflushed logins.
- * Promote a live session's state back into the template (manual, merging)
- * with pi/user-scripts/browser-snapshot.sh — see TECHNICAL_DETAILS.md.
- *
- * pi/browser/playwright-config.json is passed to the server via --config;
- * the profile dir goes in as PLAYWRIGHT_MCP_USER_DATA_DIR env (env overrides
- * the JSON config in @playwright/mcp ≥0.0.78), read when the server process
- * spawns — i.e. at registration, well after the dir is known.
- *
- * Load: auto-discovered from pi/extensions/*.ts (= ~/.pi/agent/extensions);
- * `/reload` after edits.
+ * Template maintenance: log into sites once via
+ * pi/user-scripts/browser-template.sh; promote a live session's state back
+ * with pi/user-scripts/browser-snapshot.sh. Full mechanics in
+ * skills/web-browser-use/TECHNICAL_DETAILS.md.
  */
 import { execFile } from "node:child_process";
 import {

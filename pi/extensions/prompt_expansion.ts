@@ -25,70 +25,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * prompt_expansion — inline `@path` references into the prompt as pre-read files.
- *
- * pi's TUI inserts `@path` references as plain-text pointers; the model has to
- * call `read` to see them. This extension resolves `@path` tokens at submit time
- * and delivers the contents to the model BEFORE it replies, so there is no
- * read round-trip. What the user typed stays byte-for-byte intact.
- *
- * ## Architecture (input → before_agent_start → persistent custom message)
- *
- *   - `input` event — fires once per submit (interactive TUI, `pi -p`, RPC).
- *     Detects `@path` tokens, resolves each to a file or directory, builds
- *     pi-native `<file name="abs">…</file>` blocks, and stashes them in a
- *     closure var. Returns the prompt VERBATIM (`action:"transform"` with the
- *     original text) so the stored message keeps its `@` markers — cancel /
- *     fork / `/tree`-re-open re-triggers injection automatically (the editor
- *     prefill still shows `@foo`, so re-submitting re-injects).
- *   - `before_agent_start` event — fires right after `input` in the same
- *     `prompt()` call. Publishes the stashed blocks as ONE custom message
- *     (`customType:"promptExpansion.injected"`) appended after the user
- *     message. That message is a `CustomMessageEntry` — it PERSISTS in the
- *     session and participates in LLM context on every subsequent turn until
- *     compaction prunes it. So an `@mention` is STICKY: the file stays in
- *     context for later turns without re-injection. (This is the key win over
- *     a `context`-event approach, which is non-persistent and would have to
- *     re-inject every turn — more CPU and a worse compaction story.)
- *   - `session_start` — registers a `MessageRenderer` so the injected items
- *     render as one compact green `read <path>` / `ls <dir>/` line each
- *     (ctrl+o to expand) instead of dumping raw `<file>` blocks into the chat.
- *
- * Adapted from dabstractor/pi-file-injector (the `#@file` extension): same
- * input+before_agent_start+custom-message mechanism and budget-aware paging,
- * but keeping our bare-`@` trigger and our directory-listing semantics. Image
- * handling is deliberately omitted — binary files (images included) get a note
- * block, since the target model has no image support.
- *
- * ## What gets delivered
- *
- *   - **Text files**: whole contents in a `<file name="abs">…</file>` block
- *     when they fit the remaining context budget; otherwise an 8KB head block
- *     plus a paging directive telling the model to `read` the rest at
- *     `offset:N, limit:2000`. Budget-aware, never a silent hard truncation.
- *   - **Empty files**: `<file name="abs">\n\n</file>` (pi-native empty block).
- *   - **Binary files** (NUL-byte heuristic — incl. images): a
- *     `<binary file — contents not injected; use the read tool if needed>` note.
- *   - **Directories**: an `ls -F`-style listing (one level deep, `/` and `@`
- *     suffixes, hidden entries gated by count) as a text block — `read` has no
- *     directory equivalent. Empty directories annotate `(empty directory)`.
- *   - **Missing / unreadable**: left as written; nothing injected.
- *
- * ## Guards
- *
- *   - only `@`-prefixed refs at a token boundary (start, or after a non-word
- *     char) — matches `(@foo)` / `[@foo]`, not mid-word `foo@bar.com`, and not
- *     `#@foo` (`#` excluded). Unicode-aware.
- *   - the `input` handler short-circuits (`continue`) for extension-origin
- *     input (loop prevention), mid-stream steering (latency), and prompts with
- *     no `@` at all.
- *   - per-path try/catch: a resolution/read error leaves that token verbatim
- *     and never throws — one bad path can't fail the submit.
- *   - de-dup by resolved absolute path (`@./a.ts` + `@a.ts` inject once).
- *
- * Hook order is guaranteed: pi runs `input` → … → `before_agent_start` in one
- * awaited `prompt()` call, so the closure handoff is race-free. `/reload` after
- * edits (auto-discovered from pi/extensions/*.ts).
+ * prompt_expansion — inline `@path` refs into the prompt as pre-read files,
+ * so the model never burns a read round-trip. Resolved at submit into ONE
+ * persistent custom message after the user message — sticky in context for
+ * later turns until compaction. Typed text keeps its @ markers (cancel/fork/
+ * re-open re-injects). Text files injected whole within budget, else head +
+ * read-offset directive; directories → one-level ls -F listing; binary (NUL
+ * heuristic) → note block; missing/unreadable left verbatim.
  */
 import type { ExtensionAPI, InputEvent, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { highlightCode, getLanguageFromPath } from "@earendil-works/pi-coding-agent";

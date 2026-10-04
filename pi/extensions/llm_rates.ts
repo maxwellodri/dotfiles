@@ -1,47 +1,13 @@
 /**
- * llm_rates.ts — `/llm_rates` slash command that fetches quota/usage for each
- * LLM provider we pay for and renders one card per provider in the chat
- * transcript (TUI-only; never sent to the LLM). `/glm_rates` is kept as an
- * alias. Strictly on-demand: each invocation hits the provider APIs once.
- *
- * Sections:
- *   GLM (Z.ai coding plan — the regular agentic usage)
- *     GET https://api.z.ai/api/monitor/usage/quota/limit
- *     Authorization: Bearer <api key>
- *     Response shape reverse-engineered from the live API. Notable fields:
- *       data.level            plan tier, e.g. "pro"
- *       data.limits[].type    "TOKENS_LIMIT" | "TIME_LIMIT" | ...
- *       data.limits[].percentage   0..100 — share of the quota already USED
- *       data.limits[].currentValue / usage / remaining  window figures for
- *           TIME_LIMIT: currentValue = used, usage = total allowance (quota),
- *           remaining = left. (The API names the quota field "usage".)
- *       data.limits[].nextResetTime  epoch-ms when the window rolls over
- *       data.limits[].usageDetails   per-model breakdown (TIME_LIMIT window)
- *
- *   OpenRouter (PayGo credits — the nvim oneshot traffic)
- *     GET https://openrouter.ai/api/v1/credits   (inference key)
- *     Two shapes depending on account vintage:
- *       legacy:  { total_credits, total_usage }        balance = granted - used
- *       current: { label, usage, usage24h, usage7d, limit, limit_remaining }
- *     POST https://openrouter.ai/api/v1/analytics/query  (management key)
- *       body: { metrics: ["total_usage"], granularity: "hour"|"day",
- *               startTime, endTime }  (ISO-8601)
- *       → data.data[].total_usage, summed into 24h/7d spend windows when the
- *       credits shape doesn't carry them. (The /activity endpoint is a dead
- *       end: management keys authenticate but return no rows.)
- *     Management key resolution: OPENROUTER_MANAGEMENT_API_KEY env, else
- *     `pass show openrouter_management_key`; without it the windows render a
- *     note.
- *
- * API key resolution (first non-empty wins):
- *   GLM:        GLM_RATES_API_KEY, ZAI_API_KEY, Z_AI_API_KEY, GLM_API_KEY,
- *               ZHIPUAI_API_KEY, BIGMODEL_API_KEY
- *   OpenRouter: OPENROUTER_API_KEY
- *
- * Endpoint override: GLM_RATES_ENDPOINT.
- *
- * Load: auto-discovered from pi/extensions/*.ts (= ~/.pi/agent/extensions);
- * `/reload` after edits.
+ * llm_rates.ts — /llm_rates (alias /glm_rates): on-demand provider
+ * quota/usage cards (TUI-only). GLM Z.ai coding plan + OpenRouter credits —
+ * response shapes reverse-engineered from the live APIs; note GLM TIME_LIMIT
+ * names the quota field "usage" (currentValue = used, usage = total
+ * allowance, remaining = left).
+ * Keys: GLM via GLM_RATES_API_KEY/ZAI_API_KEY/… env, OpenRouter via
+ * OPENROUTER_API_KEY; management key via OPENROUTER_MANAGEMENT_API_KEY env
+ * else `pass show openrouter_management_key`. Endpoint override:
+ * GLM_RATES_ENDPOINT.
  */
 import type { ExtensionAPI, ExtensionCommandContext, Theme } from "@earendil-works/pi-coding-agent";
 import { Box, Text } from "@earendil-works/pi-tui";

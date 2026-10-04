@@ -1,47 +1,9 @@
 /**
- * turn-timestamps.ts — stamp the wall-clock time each turn ends into the chat
- * transcript (display-only; never sent to the LLM).
- *
- * Always recorded, hidden by default.
- *
- *   /timestamps          toggle stamp text visibility (show / hide), all stamps
- *
- * How it works:
- *  • Every `turn_end` (one LLM response plus its tool calls) appends a stamp
- *    entry carrying the timestamp of the branch's newest session entry (from
- *    `ctx.sessionManager.getBranch()`), so the displayed time is exactly the
- *    time recorded in the session jsonl — the closing assistant message or
- *    toolResult of that round. A reason → toolcall → reason run therefore gets
- *    a stamp after every round, right below the round's tool results. Stamps
- *    recorded before this used the extension's own clock (epoch ms) and are
- *    still rendered correctly.
- *  • Hidden stamps: the renderer returns `undefined`, and pi drops the entry
- *    from the chat AT ADD TIME — `addCustomEntryToChat` discards components
- *    with no content, so hidden stamps have no component in the chat tree at
- *    all (zero lines). A rendered-but-blank component can't be zero-height
- *    either: CustomEntryComponent reserves a Spacer(1) for any non-undefined
- *    renderer result.
- *  • Consequence, by direction:
- *      hide  → no rebuild needed. Shown stamps have live components; bouncing
- *              the global tools-expanded state (`setToolsExpanded(!x)` twice)
- *              walks the chat container re-running every expandable renderer,
- *              and a `undefined` return clears the component to zero height.
- *              Instant; net expansion state unchanged (a transient "Tool
- *              output: …" status line flashes — cosmetic, unavoidable).
- *      show  → needs a transcript rebuild, because dropped entries must be
- *              re-added. `ctx.reload()` is the only extension-reachable one
- *              (session.reload → rebuildChatFromMessages). Same cost as the
- *              pre-rework extension, now only paid in one direction.
- *  • `visible` is mirrored into `PI_TIMESTAMPS_VISIBLE` so the choice survives
- *    `/reload` (the show-path reload re-imports the extension); fresh pi
- *    starts still default to hidden.
- *
- * Granularity: one stamp per turn. For one stamp per settled run instead
- * (retries, compaction, queued follow-ups all collapsed), switch the handler
- * to `agent_settled`.
- *
- * Load: auto-discovered from pi/extensions/*.ts (= ~/.pi/agent/extensions);
- * `/reload` after edits.
+ * turn-timestamps.ts — stamp wall-clock turn ends into the transcript
+ * (display-only; timestamps taken from the branch's newest session entry).
+ * /timestamps toggles; hidden by default. Hide is instant (components drop
+ * to zero height); show needs ctx.reload() — dropped entries must be
+ * re-added. Choice survives /reload via PI_TIMESTAMPS_VISIBLE.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Box, Text } from "@earendil-works/pi-tui";

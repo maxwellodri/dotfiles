@@ -1,71 +1,15 @@
 /**
- * ask-user-questions — `ask_user_question` tool: interactive questions with
- * typed / checkbox answer modes.
- *
- * Ported from amosblomqvist/pi-config extensions/ask-user-question.ts
- * (https://github.com/amosblomqvist/pi-config), since heavily reworked here.
- *
- * Batching: one call asks `question` plus any `additional_questions` —
- * sequential popups ("Question 2 of 3: …") under one UI lock. Esc on a
- * later question keeps earlier answers: the result reports the partial
- * answers plus which questions went unanswered. Batch closely related
- * questions this way; unrelated decisions want separate calls.
- *
- * Cancellation ends the agent's turn: every cancelled result carries
- * `terminate: true`, so pi skips the automatic follow-up LLM call and the
- * user can immediately type why they cancelled (their next message is what
- * the model sees). Termination only takes effect when EVERY result in the
- * tool batch is terminating — if the model batches ask_user_question with
- * other tools, cancelling leaves the turn running.
- *
- * Modes per question (derived from params):
- *   - no options            → free-form text editor
- *   - options               → checkbox list + inline "Custom" editor + Submit
- *
- * Options are *parts of an answer*, not alternatives: the user checks any
- * number of them and can type extra detail into the Custom editor (row 0,
- * default focus — prefer it for detail); everything checked and typed is
- * combined into one answer. There is deliberately no single-select mode.
- *
- * Keys (the complete set — ↑↓ do nothing outside the editor, where they are
- * its history):
- *   Tab / ⇧Tab   cycle rows (wrapping). EXCEPTION on the editor row: while
- *                the editor's completion dropdown (`@`/`$`) is open, Tab
- *                accepts the completion and Esc closes the dropdown instead
- *                of cycling / cancelling the question (main-prompt parity)
- *   Enter        submit from anywhere (checked options + custom text)
- *   ⇧Enter       newline inside the editor, no-op elsewhere (main-prompt
- *                parity)
- *   Ctrl+Space   confirm — toggle the focused option and move down one; on
- *                the Custom row skips ahead to the first option; on Submit
- *                it finalizes
- *   ^C           clear the custom editor
- *   Esc          cancel the question
- *
- * RPC degradation (ctx.mode === "rpc", e.g. under a remote bridge such as
- * paseo): ctx.ui.custom() returns undefined without a terminal, which would
- * make every user-select question silently resolve "cancelled". User-select
- * falls back to ctx.ui.editor taking one answer per line (option labels or
- * your own text). Text mode already uses ctx.ui.editor and works unchanged.
- *
- * Custom carries no checkbox: the custom answer simply IS the editor text at
- * submit time, omitted when empty/whitespace. It sorts first in results,
- * mirroring the picker where it is row 0.
- *
- * User-authored answers (Custom editor, and free-form text mode) behave like
- * a regular prompt: `$name` snippets are expanded and `@path` refs inject
- * their file/dir contents, reusing snippet_expansion.ts / prompt_expansion.ts
- * directly (relative imports; pi loads extensions with the module cache off,
- * so each extension gets its own copy — fine, both are stateless for our
- * use). The transcript shows the raw typed text; the expansion lands in the
- * model-facing tool result.
- *
- * Single in-flight question at a time: pop-up UI is serialized through a
- * globalThis mutex shared with any future pop-up-style tools, since
- * ctx.ui.custom() can only host one overlay at a time.
- *
- * Load: auto-discovered from pi/extensions/ask-user-questions/index.ts;
- * `/reload` after edits.
+ * ask-user-questions — ask_user_question tool: typed / checkbox questions.
+ * One call batches question + additional_questions sequentially; options are
+ * PARTS of an answer, not alternatives — any number checkable plus a Custom
+ * editor row, no single-select mode by design. Esc cancels: earlier answers
+ * survive, and the result carries terminate:true so the user's next message
+ * explains why (termination applies only when every result in the tool batch
+ * terminates). Esc on a later question keeps partials. RPC mode degrades to
+ * line-per-answer editors. Custom/free-form answers expand $snippets and
+ * @path refs (snippet_expansion / prompt_expansion). One overlay at a time
+ * via a globalThis mutex. Ported from amosblomqvist/pi-config, heavily
+ * reworked.
  */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import {

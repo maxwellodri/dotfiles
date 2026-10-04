@@ -1,41 +1,12 @@
 /**
- * trust-gate.ts — shared content-trust gate for repo-controlled files.
- *
- * Shared HOST of the trust mechanism. Any extension about to honour
- * repo-controlled content (prompt overrides, executable skill scripts,
- * subagent's project-override gate, ...) asks the gate instead of rolling
- * its own store + prompt:
- *
- *   import { getTrustGate } from "../trust-gate";
- *   const ok = await getTrustGate().confirm("subagent-override", {
- *     label: `append override for "explore"`,
- *     path: agent.overridePath,
- *     hasUI: ctx.hasUI && Boolean(ctx.ui?.select),
- *     select: ctx.ui?.select?.bind(ctx.ui),
- *     inspect: () => openInNvim(agent), // optional
- *   });
- *
- * Behaviour:
- *   - Identity = SHA-256 of the file's CURRENT content, keyed by a canonical
- *     git-root-relative path (worktrees/symlinked checkouts of one checkout
- *     share trust; a different repo never inherits it).
- *   - Unknown content prompts: Trust (always) / [Open in editor] / Deny.
- *     "Open in editor" runs `check.inspect` (caller owns the editor UX; edits
- *     allowed) and re-prompts. "Trust (always)" persists the hash of the file
- *     as it stands NOW — post-edit content is what gets trusted.
- *   - No UI (print/JSON mode), denied, dismissed, or unreadable file → fail
- *     closed. Callers re-prompt on next use.
- *   - Store: $XDG_STATE_HOME/pi/trust-gate.json, one section per namespace,
- *     mode 0600 — machine-local, never the (git-tracked) config dir.
- *
- * ── Why globalThis instead of a normal import? ──────────────────────────
- * Same rationale as leader-key.ts: pi loads every extension with jiti
- * `{ moduleCache: false }`, so each importing extension gets its own module
- * copy. The disk store is shared either way, but the gate object itself lives
- * in a globalThis slot so every copy reaches ONE instance — a stable handle
- * for any future in-memory state (e.g. session-scoped trust) without touching
- * consumers. The default export is a no-op that only exists so pi
- * auto-discovery accepts this file as an extension.
+ * trust-gate.ts — shared content-trust gate for repo-controlled files:
+ * getTrustGate().confirm(namespace, { label, path, … }). Identity = SHA-256
+ * of current content, keyed by git-root-relative path (worktrees/symlinks of
+ * one checkout share trust; other repos never inherit). Unknown content →
+ * Trust (always) / Open in editor / Deny; no UI, denied, or unreadable →
+ * fail closed. Store: $XDG_STATE_HOME/pi/trust-gate.json (0600, machine-local,
+ * never the git-tracked config dir). Instance on globalThis — see
+ * leader-key.ts.
  */
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";

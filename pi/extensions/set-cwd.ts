@@ -1,35 +1,9 @@
 /**
- * set-cwd.ts — a shared setCwd() primitive for pi extensions.
- *
- * pi has no setCwd: the working directory is the session header's cwd, fixed
- * until the session is replaced. The supported way to "cd" a running pi is
- * session surgery — write a session file at the target cwd (carrying the
- * conversation), then switch onto it:
- *
- *   SessionManager.forkFrom(sourceFile, target)  →  ctx.switchSession(file)
- *
- * That is exactly how @narumitw/pi-worktree and pi-worktrunk move pi between
- * worktrees. This extension implements the carry-and-switch logic ONCE and
- * publishes it like leader-key.ts publishes its registry: any extension can
- *
- *   import { getCwdApi } from "./set-cwd";
- *   await getCwdApi().setCwd(ctx, "/abs/path");   // command ctx only!
- *
- * A user-facing `/cd <dir>` command rides on the same function.
- *
- * Constraints:
- *   - ctx.switchSession() lives on ExtensionCommandContext only — calling it
- *     from event handlers deadlocks (per pi docs). setCwd must therefore be
- *     invoked from a command handler. (Editor-bound callers can submit
- *     "/cd <dir>" through the leader key instead.)
- *   - The source session is left untouched — it stays resumable via /resume.
- *
- * Unlike leader-key there is no mutable registry to clear on
- * session_shutdown: the globalThis slot holds a stateless function object,
- * which also makes it /reload-proof (old and new module copies agree).
- *
- * Load: auto-discovered from pi/extensions/*.ts (= ~/.pi/agent/extensions);
- * /reload after edits.
+ * set-cwd.ts — shared setCwd() primitive + /cd <dir>: fork the session file
+ * to the target cwd, then ctx.switchSession onto it (how pi-worktree and
+ * pi-worktrunk move pi between worktrees, done once here). Call via
+ * getCwdApi().setCwd(ctx, "/abs") from COMMAND contexts only — switchSession
+ * deadlocks from event handlers. Source session stays resumable.
  */
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import type { ExtensionAPI, ExtensionCommandContext, SessionEntry } from "@earendil-works/pi-coding-agent";

@@ -1,44 +1,11 @@
 /**
- * worktree.ts — /worktree <subcommand> for pi, on top of set-cwd.ts.
- *
- * Flow:
- *   /worktree [ls]      list worktrees (default when no subcommand given)
- *   /worktree go <n>    go to worktree <git-root>/<n> on branch <n> (created
- *                       if missing), carrying the session there via
- *                       getCwdApi().setCwd().
- *   /worktree merge     ONLY valid inside a worktree: merge the worktree
- *                       branch into the main checkout's branch, then carry
- *                       the session back to the main root. On conflicts,
- *                       report "N merge conflicts: file:line, …" and carry
- *                       the session back anyway so the agent resolves them.
- *   /worktree delete [n] delete worktree <n> (branch kept) from anywhere —
- *                       or the current worktree when unnamed, carrying the
- *                       session back to the main root, preflighted BEFORE
- *                       `git worktree remove` (a failed carry after removal
- *                       strands the session in a dead cwd).
- *
- * Conventions:
- *   - main root = parent of the git common dir (<root>/.git), i.e. the
- *     primary checkout; worktrees are siblings of .git: <root>/<name>.
- *   - branch name == worktree name.
- *   - merge target = whatever branch the main checkout has checked out
- *     (usually main/master); reported in the notify.
- *   - branches are never deleted by this extension; /worktree delete keeps
- *     the branch (drop it manually with git branch -d <name>).
- *
- * Guards:
- *   - merge refuses outside a linked worktree, on a detached HEAD, with
- *     uncommitted changes in the worktree, or when the main checkout is dirty.
- *   - delete refuses on uncommitted changes in the target worktree, and
- *     requires a name when run outside any worktree.
- *
- * Git helpers are pure functions over an exec fn so they can be tested
- * against a real repo without a live pi (see /tmp/worktree-smoke.mjs).
- * The setCwd import loads a second module copy of set-cwd.ts (pi disables
- * jiti's moduleCache); getCwdApi() still returns the one shared api object
- * because it lives on globalThis — see set-cwd.ts.
- *
- * Load: auto-discovered from pi/extensions/*.ts; /reload after edits.
+ * worktree.ts — /worktree ls | go <n> | merge | delete [n], on set-cwd.
+ * Worktrees are <root>/<name> siblings of .git; branch name == worktree
+ * name. merge targets the main checkout's checked-out branch, then carries
+ * the session back (also on conflicts, so the agent resolves them). delete
+ * preflights the session carry BEFORE `git worktree remove` — a failed
+ * carry after removal strands the session in a dead cwd. Branches are never
+ * deleted here.
  */
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";

@@ -1,12 +1,8 @@
 /**
- * oneshot-edit.ts — loaded ONLY by nvim's pi.lua oneshots (via explicit -e;
- * discovery stays off there). Applies the `edit` tool itself and terminates
- * the turn: the edit is the whole job, so pi must not re-prompt the model
- * after the tool result (saves the wrap-up round trip).
- *
- * This directory is auto-discovered by every regular pi run (wrapper/TUI),
- * so the PI_NVIM_ONESHOT guard keeps those runs untouched — without it this
- * would intercept the first edit of any agentic session and end the turn.
+ * oneshot-edit.ts — loaded ONLY by nvim's pi.lua oneshots (explicit -e):
+ * applies the `edit` tool itself and ends the turn, so pi skips the wrap-up
+ * round trip. The PI_NVIM_ONESHOT guard keeps regular agentic sessions
+ * (which also auto-discover this file) untouched.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { readFileSync, writeFileSync } from "node:fs";

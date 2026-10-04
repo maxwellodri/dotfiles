@@ -1,65 +1,15 @@
 /**
- * herald.ts — attention notifications via the `herald` binary.
+ * herald.ts — attention notifications via the `herald` binary when a turn
+ * outlasts a silence threshold ("agent done, come back"). Also a shared
+ * library: other extensions call getHerald().requestAttention(pi, { key,
+ * title, body }); the shared instance lives on globalThis (moduleCache is
+ * disabled, so plain imports give each importer its own copy) — see
+ * leader-key.ts for the rationale.
  *
- * Port of the opencode herald-notifications plugin: fires a notification when
- * pi finishes a turn that ran longer than DEFAULT_THRESHOLD_MS since the
- * user's last input — i.e. "the agent is done, come back".
- *
- * This file is BOTH an extension and a shared library (same pattern as
- * leader-key.ts). Other extensions that hit a "the human's turn has arrived"
- * moment — e.g. subagent's override-trust gate — use the shared instance:
- *
- *   import { getHerald } from "./herald";
- *   await getHerald().requestAttention(pi, { key: "my-key", title: ..., body: ... });
- *
- * Two primitives, deliberately separate:
- *   touch()            — "the human just had a turn": resets the shared
- *                        silence timer and clears announced attention keys.
- *                        herald.ts calls this on every `input` event.
- *   requestAttention() — "it's the human's turn": they must come decide
- *                        something. Fires only if silence has exceeded the
- *                        threshold (or force) and this key hasn't already been
- *                        announced since the last touch().
- *
- * ── Why globalThis instead of a normal import? ──────────────────────────
- * pi loads every extension with `moduleCache: false`, so each importing
- * extension gets its own copy of this module. The shared instance (timer +
- * announced keys + focus detection) is stashed in a `globalThis` slot, so
- * every copy reaches the same one. See leader-key.ts for the full rationale.
- *
- * Event mapping from opencode:
- *   session.status(busy)  ->  "input"          (user sent a prompt)
- *   session.idle          ->  "agent_settled"  (turn fully settled — see below)
- *   message.part.updated  ->  "tool_call"      (optional heavy-tool trigger)
- *
- * Why agent_settled and not agent_end: agent_end fires once per agent-core run,
- * including before each automatic retry of a connection/API error, so notifying
- * on it would ping on every transient connection error. agent_settled fires
- * only after a run has fully settled (no retry, compaction, or queued
- * continuation left), so it is the one "the turn is really over" signal. The
- * last agent_end's assistant stopReason is captured to distinguish a clean
- * finish ("stop" / "toolUse") from a terminal error ("error", retries
- * exhausted) — the latter is reported as "I hit an error" instead of "done".
- *
- * The opencode plugin also notified on question.asked / permission.asked and on
- * subagent/todowrite use. Pi has no built-in permission/question events (those
- * happen via ctx.ui inline), so those triggers are dropped here; subagent uses
- * requestAttention() directly. Add tool_call names to HEAVY_TOOLS to revive
- * mid-turn alerts.
- *
- * ── Focus suppression ───────────────────────────────────────────────────
- * Notifications are suppressed when we're confident the user is already
- * looking at this pi instance. Two independent layers must agree:
- *   1. tmux layer (display-agnostic): the window containing this pi is the
- *      active window of an attached session. (Skipped when not in tmux.)
- *   2. display layer (X11 / Wayland backend): the OS-focused top-level window
- *      is the terminal emulator hosting this process (or one of our session's
- *      tmux clients).
- * When anything can't be determined we return false (=> still notify), so we
- * only ever suppress when confident. When nothing can be determined (tty),
- * "looking" is assumed (nowhere else to look, nowhere to render).
- *
- * Load: auto-discovered from pi/extensions/*.ts; `/reload` after edits.
+ * Fires on agent_settled, not agent_end: agent_end also fires before each
+ * automatic retry, so it would ping on transient connection errors.
+ * Suppressed only when the tmux-window AND display focus layers agree the
+ * user is looking; undetectable → notify.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { appendFileSync } from "node:fs";

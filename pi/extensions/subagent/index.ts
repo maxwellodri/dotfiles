@@ -1,30 +1,13 @@
 /**
- * Subagent Tool — Delegate tasks to specialized agents.
+ * Subagent Tool — delegate to specialized agents: single {agent, task},
+ * parallel {tasks[]}, or chain {chain[]} with {previous} substitution; one
+ * pi process per invocation (JSON mode, isolated context).
  *
- * Adapted from the official pi example at:
- *   packages/coding-agent/examples/extensions/subagent/index.ts
- * (earendil-works/pi). Kept structurally faithful so upstream changes are easy
- * to diff in, with two deliberate modifications for this machine:
- *
- *   1. REAL BINARY, NOT THE WRAPPER. `pi` on PATH here is the user's wrapper
- *      (~/bin/pi -> scripts/pi), which paints a gruvbox canvas, re-reads the
- *      API key from pass, and sets a session dir — pointless overhead (and OSC
- *      theming noise) for a headless JSON-mode child. The wrapper always
- *      launches the real binary directly as process.argv[1], so getPiInvocation
- *      re-invoices that and never falls back to PATH `pi`. See below.
- *
- *   2. --no-extensions on every child. Recon children don't need herald,
- *      footer, theming, etc. — loading them is wasted work and a source of
- *      side effects. The child's behaviour is fully pinned by --tools,
- *      --model, and --append-system-prompt.
- *
- * Spawns a separate `pi` process per subagent invocation, giving it an isolated
- * context window. Supports three modes:
- *   - Single:  { agent: "name", task: "..." }
- *   - Parallel: { tasks: [{ agent, task }, ...] }
- *   - Chain:   { chain: [{ agent, task: "... {previous} ..." }, ...] }
- *
- * Uses JSON mode to capture structured output from subagents.
+ * Adapted from the official pi example (kept structurally diff-friendly),
+ * with two local deviations: children launch the REAL pi binary
+ * (process.argv[1]) — not the user's wrapper, whose theming/key-reload are
+ * pointless overhead for a headless child — and every child runs
+ * --no-extensions.
  */
 
 import { spawn } from "node:child_process";

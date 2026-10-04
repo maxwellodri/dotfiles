@@ -1,38 +1,8 @@
 /**
- * fuzzy-filter.ts — make the `@` file mention fzf-like (true subsequence fuzzy)
- * instead of pi's default contiguous-substring matching.
- *
- * pi's built-in `@` completion shells out to `fd` (fuzzy at the fd layer) but
- * then `scoreEntry` keeps only *contiguous-substring* matches (exact /
- * startsWith / includes) and drops everything else — so `@fs` won't find
- * `footer.ts`. Slash commands already use pi-tui's `fuzzyFilter` (subsequence);
- * this extension points the same engine at `@` files.
- *
- * Mechanism: `ctx.ui.addAutocompleteProvider(factory)` wraps the base provider.
- * The factory is `(inner) => wrapped` and sees EVERY query (the `@` case is not
- * short-circuited away from us — we ARE the outer wrapper). For `@` queries we
- * run `fd` (reusing pi's own detected binary + flags via `inner.fdPath` /
- * `inner.basePath`) to list candidates, then `fuzzyFilter` for subsequence
- * ranking. Everything else — slash commands, plain paths, `applyCompletion`
- * (insertion / quoting) — is delegated to `inner` unchanged, so behavior stays
- * identical to pi outside of `@`.
- *
- * The fd listing is query-independent, so we cache it briefly (CACHE_TTL_MS) and
- * dedupe in-flight runs: the first keystroke pays the fd cost, subsequent ones
- * are instant fuzzy over the cached list.
- *
- * Notes / trade-offs:
- *  - Results are treated as files (no directory trailing-slash / "continue
- *    typing into a dir"). pi's own `@` fuzzy path doesn't distinguish dirs from
- *    `fd` output either; and fzf-style means you type more of the path rather
- *    than drilling in. Plain (non-`@`) path completion still navigates dirs via
- *    the inner provider.
- *  - Recall is capped by MAX_FD_RESULTS (fd lists at most that many). Fine for
- *    typical repos; bump it for huge monorepos.
- *
- * Load: auto-discovered from pi/extensions/*.ts (= ~/.pi/agent/extensions);
- * `/reload` after edits. `autocompleteProviderWrappers` is reset by pi on
- * reload, so no stacking guard is needed.
+ * fuzzy-filter.ts — fzf-style subsequence fuzzy for `@` file mentions (pi's
+ * default scoring keeps only contiguous substrings, so @fs misses footer.ts).
+ * Wraps the autocomplete provider; everything non-@ delegates to inner
+ * unchanged. fd listing is query-independent, so it's cached briefly.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { fuzzyFilter } from "@earendil-works/pi-tui";

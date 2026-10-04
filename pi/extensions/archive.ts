@@ -1,22 +1,9 @@
 /**
  * archive.ts — /archive: retire the current thread into archived_sessions/.
- *
- * Moving a session file out from under a live SessionManager is futile —
- * the next append recreates it at the old path (the same trap that makes
- * manage-sessions mark the ·current line undeletable). So /archive
- * switches FIRST: pi starts a fresh session, the old runtime is torn
- * down, and only then does the file move — inside withSession, operating
- * on plain captured strings, never the stale pre-switch ctx.
- *
- * Destination: PI_CODING_AGENT_ARCHIVED_SESSION_DIR when set (the pi
- * wrapper exports the XDG path), else the "archived_sessions" sibling of
- * the session dir's realpath (resolves through the XDG symlink into the
- * private-repo runtime; assumes the nested runtime/pi/<tag>/sessions
- * layout that pi_sessions.sh establishes). Archived files leave /resume, `pi -c` and
- * /manage_sessions by construction — those only ever list the live
- * session dir. Un-archive is a plain mv back.
- *
- * Load: auto-discovered from pi/extensions/*.ts; /reload after edits.
+ * Switches to a fresh session FIRST (a live SessionManager re-appends the old
+ * file on next write), then moves it inside withSession. Destination:
+ * PI_CODING_AGENT_ARCHIVED_SESSION_DIR or the "archived_sessions" sibling of
+ * the session dir. Un-archive = plain mv back.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { copyFileSync, existsSync, mkdirSync, renameSync, unlinkSync } from "node:fs";

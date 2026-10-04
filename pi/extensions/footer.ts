@@ -1,30 +1,8 @@
 /**
- * footer.ts — slim custom footer for pi: pwd/git line, a context-window
- * meter, the model name, and a dim thinking-level indicator pinned to
- * the bottom-right corner.
- *
- * This extension owns the footer ONLY.
- *
- * The thinking level is read live from `ctx.thinkingLevel` each render —
- * no event caching, so no cold-start staleness — and rendered dim on the
- * third line, right-pinned. Empty when the runtime hasn't provided a level
- * for the current model.
- *
- * ── OTHER FAITHFULNESS GAPS (also unexposed to extensions) ─────────────────
- *  • "(auto)" auto-compaction marker — session.autoCompactionEnabled is
- *    not exposed to extensions. Left as `""`.
- *  Everything else (pwd, git, session name, context %, model name, provider
- *  prefix, experimental "xp", extension statuses, thinking level) reads the
- *  same live sources pi's own footer uses, via ctx + footerData.
- *
- * ── STATS: CONTEXT METER ONLY ─────────────────────────────────────────────
- *  The context-window meter (x%/window) is the only usage figure shown.
- *  Token counts (↑in ↓out, R/W cache) and cost are deliberately omitted:
- *  the active plan is subscription-backed, so a $ figure is fictional, and
- *  real quota/usage is one `/glm_rates` away (see glm_rates.ts).
- *
- * Load: auto-discovered from pi/extensions/*.ts (= ~/.pi/agent/extensions);
- * `/reload` after edits. Only ONE custom footer may render.
+ * footer.ts — slim footer: pwd/git line, context-window meter, model name,
+ * dim right-pinned thinking level. Owns the footer ONLY. No token counts or
+ * cost (subscription plan — $ would be fictional; usage is one /glm_rates
+ * away); "(auto)" marker unexposed to extensions, left blank.
  */
 import type { ExtensionAPI, ReadonlyFooterDataProvider } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";

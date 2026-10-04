@@ -1,50 +1,12 @@
 /**
- * session-pool.ts — one session pool per git repository.
- *
- * Problem: pi scopes sessions to the session header's cwd. With a shared
- * session dir (PI_CODING_AGENT_SESSION_DIR) the /resume "local" list
- * filters to sessions whose recorded cwd is EXACTLY the current directory
- * (SessionManager.list → sessionCwdMatches, session-manager.js). Sessions
- * carried into a worktree by set-cwd.ts therefore vanish from /resume the
- * moment you are anywhere else: reopen pi in the main checkout and you
- * only see history up to the first worktree swap. (The picker's "All" tab
- * shows every session of every project — unfiltered noise, not a fix.
- * Neither @narumitw/pi-worktree nor pi-worktrunk addresses this; both stop
- * at fork-and-switch.)
- *
- * Fix: widen "local" to "same repository". While inside a git repo, the
- * local /resume list (and `pi --resume <id>` matching, and `pi -c`)
- * includes every session whose cwd shares this repo's git common dir —
- * main checkout, subdirs, linked worktrees — and, for cwds that no longer
- * exist (deleted worktrees), falls back to "sibling of .git", matching
- * how worktree.ts lays worktrees out as <root>/<name>.
- *
- * Worktree swaps fork a session chain (set-cwd.ts), and every hop leaves
- * a near-identical prefix file behind, all labeled with the same first
- * message. Two presentation details follow from the chain-fork layout:
- *   - superseded ancestors (untouched since a child forked from them, so
- *     their content is a strict prefix of that child) are hidden from
- *     the local list — a chain collapses to its tip. Resume-by-id still
- *     finds them via the global fallback.
- *   - surviving sessions whose cwd is a worktree (<root>/<name>) get a
- *     display-only `⎇ name` tag, synthesized into SessionInfo.name —
- *     never written to the session files. The picker already re-roots
- *     orphaned tree nodes, so hidden parents render fine.
- *
- * Mechanism: extensions import the SAME in-process module instance as
- * core (the loader's jiti alias resolves @earendil-works/pi-coding-agent
- * to dist/index.js, which native ESM caches once) — verified against the
- * installed package. Patching the static SessionManager.list /
- * .continueRecent here therefore reaches the TUI picker and the CLI.
- * The patch is idempotent via a globalThis guard, so /reload re-running
- * this module (jiti disables its module cache) keeps the original bound
- * reference from the first install.
- *
- * Outside a git repo, or when no session dir is given, behavior is
- * unchanged. Writes are untouched: with PI_CODING_AGENT_SESSION_DIR set,
- * every checkout already persists into the one shared dir.
- *
- * Load: auto-discovered from pi/extensions/*.ts; /reload after edits.
+ * session-pool.ts — widen /resume "local" from exact-cwd match to same git
+ * repo (main checkout, subdirs, linked worktrees; deleted-cwd fallback to
+ * "sibling of .git", matching worktree.ts layout). Chain forks from set-cwd
+ * swaps hide superseded ancestors (chain collapses to its tip; resume-by-id
+ * still finds them) and surviving worktree sessions get a display-only
+ * `⎇ name` tag. Patches SessionManager.list/.continueRecent idempotently via
+ * a globalThis guard (extensions share core's module instance). Outside a
+ * repo, behavior unchanged.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
