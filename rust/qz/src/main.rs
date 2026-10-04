@@ -161,6 +161,36 @@ fn tmux_session_exists(name: &str) -> bool {
         .unwrap_or(false)
 }
 
+// $TMUX is "<socket>,<server_pid>,<session_id>" but leaks into terminals
+// spawned from a pane; pane shells descend from the server, so only trust
+// the var when that pid is a live ancestor of this process
+fn in_tmux() -> bool {
+    let Some(server_pid) = env::var("TMUX")
+        .ok()
+        .and_then(|v| v.split(',').nth(1).and_then(|p| p.parse::<i32>().ok()))
+    else {
+        return false;
+    };
+    let mut pid = std::process::id() as i32;
+    while pid > 1 {
+        if pid == server_pid {
+            return true;
+        }
+        let ppid = std::fs::read_to_string(format!("/proc/{pid}/status"))
+            .ok()
+            .and_then(|s| {
+                s.lines()
+                    .find(|l| l.starts_with("PPid:"))
+                    .and_then(|l| l.split_whitespace().nth(1)?.parse::<i32>().ok())
+            });
+        match ppid {
+            Some(next) => pid = next,
+            None => return false,
+        }
+    }
+    false
+}
+
 fn tmux_create_session(name: &str, project: &Project) -> Result<()> {
     let path = expand_path(&project.path);
     if !path.is_dir() {
@@ -562,7 +592,7 @@ const FZF_BINDS: &[&str] = &[
 
 fn cmd_switch(gui: bool) -> Result<()> {
     let config = load_config()?;
-    let in_tmux = env::var("TMUX").is_ok();
+    let in_tmux = in_tmux();
 
     let active_sessions: Vec<String> = if !in_tmux {
         Command::new("tmux")

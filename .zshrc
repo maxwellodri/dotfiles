@@ -150,17 +150,6 @@ function _vim_in_dir {
     zle accept-line
 }
 
-function _sterm {
-    # Execute the command in background without affecting current line
-    command setsid -f st -d . 1&>/dev/null
-}
-
-function _git_root {
-    zle clear-input
-    BUFFER="cd $(git rev-parse --show-toplevel)"
-    zle accept-line
-}
-
 # qz switch outputs two line types:
 #   \x01cd '/path'\non_enter_cmd  — \x01 prefix means "cd to path, eval rest"
 #   tmux_cmd1\ntmux_cmd2           — no prefix means "put in BUFFER and accept"
@@ -223,10 +212,6 @@ zle -N _rg_fzf_widget
 bindkey '^g' _rg_fzf_widget
 bindkey -M viins '^G' _rg_fzf_widget
 bindkey -M vicmd '^G' _rg_fzf_widget
-
-zle -N _sterm
-bindkey -M vicmd '^T' _sterm
-bindkey -M viins '^T' _sterm #overrides default fzf/key-bindings.zsh
 
 ## Bind the callback
 zle -N zle-keymap-select

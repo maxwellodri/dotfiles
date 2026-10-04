@@ -28,10 +28,8 @@ primitive (auto-detects `wl-clipboard` vs `xclip`; supports `-t/--type` and
 - `scripts/open_reminders.rem.sh` — `st -f ... -e nvim`
 - `scripts/open_project.sh` — `st -d ... -e sh -c`
 - `scripts/stcmd` — `st -e zsh`
-- `.zshrc` — `_sterm` function uses `st -d .`
 - `.config/nvim/init.vim` — `st -d` terminal opener
 - `.config/faucet/faucet.yaml` — `st -e sh -c` in st_dir command
-- `.pam_environment` — `TERM='st'`
 - `scripts/nvim` — sets terminal title to `st` (cosmetic)
 
 ## feh Image Viewer (→ imv + swaybg)
