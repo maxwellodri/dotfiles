@@ -89,4 +89,9 @@ sh helper_scripts/custom_bin_scripts.sh
 sh rust/install.sh
 bash helper_scripts/install_system_configs.sh #after makesymlinks.sh always need $GIT_ROOT/.dotfile_tag file to be present
 bash helper_scripts/download_suckless.sh #provides ssh copying msg, e.g. see script
-bash helper_scripts/install_flake.sh #always last: nix-builds nix_config's dotfiles-env (needs nix + a clone of nix_config); pi updater + tmux/plugins + fonts symlinks + adapter deps; must not disturb the others
+flake="${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}/scripts/install_flake.sh"
+if [ -f "$flake" ]; then
+	bash "$flake" #always last: nix-builds nix_config's dotfiles-env (needs nix + a clone of nix_config); pi updater + tmux/plugins + fonts symlinks + adapter deps; must not disturb the others
+else
+	echo "WARNING: $flake missing — clone nix_config first, skipping flake install" >&2
+fi

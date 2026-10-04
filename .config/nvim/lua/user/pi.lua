@@ -208,7 +208,7 @@ local function spawn_child(extra_args)
     local nixcfg = vim.env.NIX_CONFIG_DIR or (vim.env.SOURCE or (os.getenv("HOME") .. "/source")) .. "/nix_config"
     local bin = nixcfg .. "/dotfiles-env-result/bin/pi"
     if not bin or vim.fn.executable(bin) ~= 1 then
-        vim.notify("π: dotfiles-env-result/bin/pi missing — run helper_scripts/install_flake.sh",
+        vim.notify("π: dotfiles-env-result/bin/pi missing — run nix_config/scripts/install_flake.sh",
             vim.log.levels.ERROR)
         return nil
     end

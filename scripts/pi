@@ -33,13 +33,13 @@ if [ -z "${PI_BIN:-}" ]; then
 	PI_BIN="${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}/dotfiles-env-result/bin/pi"
 fi
 if [ ! -x "$PI_BIN" ]; then
-	echo "pi not installed — run $(realpath -m "$dotfiles/helper_scripts/install_flake.sh") to install" >&2
+	echo "pi not installed — run ${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}/scripts/install_flake.sh to install" >&2
 	exit 1
 fi
 
 case "${1:-}" in
 	update)
-		installer="$(realpath -m "$dotfiles/helper_scripts/install_flake.sh")"
+		installer="$(realpath -m "${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}/scripts/install_flake.sh")"
 		echo "pi is nix-managed — updating via $installer --update"
 		exec "$installer" --update ;;
 	typecheck)
