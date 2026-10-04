@@ -1,6 +1,6 @@
 ---
 name: git-surgeon
-description: Dissect a dirty working tree into staged commits for user review. Never commits or performs destructive git operations. Never load unless the user explicitly prompts for it.
+description: Dissect a dirty working tree into staged commits for user review. Never commits or performs destructive git operations. Never load unless the user explicitly prompts for it. Invoke only if hunk-level git operations are necessary.
 ---
 
 # git-surgeon
@@ -8,7 +8,7 @@ description: Dissect a dirty working tree into staged commits for user review. N
 `git-surgeon` is a CLI for hunk-level git operations. In this skill it is used
 as a **read-only inspector plus a staging engine**, nothing more. The agent
 dissects a dirty tree into a series of logical commits; **the user is the
-committer**.
+committer**. The sole exception is if the user explicitly says for the agent to commit, if unsure do not guess, and let the user commit; in this case, the user may provide alternate commit messages, use those.
 
 ## Core rules (read before doing anything)
 
