@@ -36,7 +36,7 @@ If a flow seems to require the physical window (e.g. a captcha), stop and hand o
 
 All browser actions go through the playwright MCP server's tools — and through nothing else. Tools are named `mcp__playwright__browser_<action>`.
 
-- The tools are **deferred**: they cost zero context until loaded. Load them once at the start of a browser task: `tool_search({ query: "browser navigate click" })` (any browser-ish words work).
+- The tools are **deferred**: they cost zero context until loaded. Load them all at the start of a browser task: `load_mcp({ server: "playwright" })` — deterministic (tool_search's BM25 ranking can miss tools like `browser_navigate`).
 - Then call tools **directly with object args** — no gateway hop, no JSON-string escaping.
 
 ```text
@@ -49,7 +49,7 @@ Full parameter schemas arrive with the loaded tool declarations; [REFERENCE.md](
 ## Quick start (the minimal loop)
 
 ```text
-1. tool_search "browser navigate"  → loads the mcp__playwright__browser_* tools
+1. load all   → load_mcp({ server: "playwright" }) → declares every mcp__playwright__browser_* tool
 2. navigate  → mcp__playwright__browser_navigate  { url }
 3. read      → mcp__playwright__browser_snapshot   { }            (preferred)
               or mcp__playwright__browser_evaluate { function }

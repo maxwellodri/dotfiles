@@ -28,7 +28,7 @@ The `blender` MCP server (`ahujasid/blender-mcp`) can connect this tutor to the
 user's **running** Blender. The server process starts with the pi session
 (registered by `pi/extensions/browser-profiles.ts` on machines with Blender
 installed), but its tools are deferred — zero context cost until
-`tool_search` loads them — and the Blender-addon socket is only touched when
+`load_mcp({ server: "blender" })` loads them — and the Blender-addon socket is only touched when
 you actually call a tool, so probing it is free. It adds two things the manual alone can't:
 
 - **See their scene** — `get_viewport_screenshot` (an image you can view),

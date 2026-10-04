@@ -1,6 +1,6 @@
 # Playwright MCP — Tool Reference
 
-Tools are `mcp__playwright__browser_<name>` (prefix elided below), deferred — load via `tool_search({ query: "browser …" })`, then call directly with **object args** (no JSON-string encoding).
+Tools are `mcp__playwright__browser_<name>` (prefix elided below), deferred — load via `load_mcp({ server: "playwright" })`, then call directly with **object args** (no JSON-string encoding).
 
 ## Conventions
 

@@ -14,7 +14,7 @@ server (`uvx blender-mcp`) bridging stdio↔socket.
 The server's tools carry zero context cost until loaded, and the MCP server
 only talks to the Blender addon's socket when a tool actually runs. So:
 
-1. Load once: `tool_search({ query: "blender scene screenshot" })`
+1. Load once: `load_mcp({ server: "blender" })`
 2. Probe once: `mcp__blender__get_scene_info({ user_prompt: "tutor" })`
 3. If it errors (addon not installed / Blender not running / not connected) →
    **don't retry.** Fall back to manual coaching (SKILL.md) and tell the user
@@ -32,10 +32,10 @@ then proceed.
 5. Blender must run with a GUI — the addon refuses to start under `blender -b`
    (commands would never execute). On a headless box use `xvfb-run -a blender`.
 
-## 2. Tool calls (deferred tools, prefixed `mcp__blender_`)
+## 2. Tool calls (deferred tools, prefixed `mcp__blender__`)
 
-Tools are deferred: `tool_search({ query: "blender …" })` loads them, then you
-call them directly with object args. Names are `mcp__blender_<tool>`.
+Tools are deferred: `load_mcp({ server: "blender" })` loads them, then you
+call them directly with object args. Names are `mcp__blender__<tool>`.
 Relevant ones for tutoring:
 
 | Prefixed name | What it does |
