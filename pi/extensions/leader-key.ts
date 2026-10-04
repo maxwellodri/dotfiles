@@ -76,6 +76,8 @@ export interface LeaderCtx {
 	tui: LeaderTui;
 	/** Current prompt text. */
 	getText(): string;
+	/** Prompt text with `[paste #N]` markers expanded to their contents. */
+	getExpandedText(): string;
 	/** Replace the prompt text. */
 	setText(text: string): void;
 	/**
@@ -194,6 +196,7 @@ class LeaderKeyEditor extends CustomEditor {
 		return {
 			tui: this.tui,
 			getText: () => this.getText(),
+			getExpandedText: () => this.getExpandedText(),
 			setText: (text) => this.setText(text),
 			submit: (text) => {
 				this.onSubmit?.(text);

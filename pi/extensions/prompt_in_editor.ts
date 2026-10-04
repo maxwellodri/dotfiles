@@ -41,7 +41,9 @@ export default function (pi: ExtensionAPI) {
  */
 async function openExternalEditor(ctx: LeaderCtx): Promise<void> {
 	const editorCmd = process.env.EDITOR || "vim";
-	const text = ctx.getText();
+	// getExpandedText(): handing nvim the raw prompt would leak `[paste #N]`
+	// markers; what comes back via setText stays expanded, like pi's builtin handoff.
+	const text = ctx.getExpandedText();
 	const dir = "/tmp/pi";
 	const tmpFile = `${dir}/prompt-${Date.now()}.md`;
 
