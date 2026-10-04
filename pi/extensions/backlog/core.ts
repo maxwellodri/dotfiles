@@ -3,7 +3,9 @@
  * slot, one queue, gated on either the agent or the user (see index.ts):
  *   settled (/backlog) — gate is "agent not mid-task": fires at invocation
  *     when already idle (waiting would stall — there is no task to await),
- *     else at the next agent_settled.
+ *     else at the next agent_settled. With minutes set (/backlog N <prompt>)
+ *     a plain countdown gates dispatch first — ride out a rate-limit
+ *     window — and gatePassed then holds for settle like afk's.
  *   afk (/when_afk) — gate is armAfkGate() (gates.ts); if the agent is
  *     mid-run when idle is confirmed, hold for the next settle.
  * Both commands face the same slot: bare /backlog or bare /when_afk cancels
@@ -27,7 +29,7 @@ export interface BacklogData {
 	qid: string;
 	kind?: Kind; // absent on legacy "when_afk" entries
 	state: "queued" | "appended" | "fired" | "cancelled";
-	minutes?: number; // afk: queued (re-set on append), echoed when resolved
+	minutes?: number; // afk or /backlog N countdown: queued (re-set on append), echoed when resolved
 	prompt?: string; // queued snapshot
 	text?: string; // appended: just the new text
 	reason?: string; // cancelled
@@ -84,9 +86,8 @@ export function renderEntry(entry: any, _opts: { expanded: boolean }, theme: any
 	if (d.state === "queued" || d.state === "appended") return undefined;
 	const afk = (d.kind ?? "afk") === "afk";
 	if (d.state === "fired") {
-	const lead = afk && d.minutes !== undefined ? `AFK for ${dur(d.minutes)}, ` : "";
-		const msg = afk ? `${lead}backlog message fired at ${hhmm(d.at)}` : `Backlog message fired at ${hhmm(d.at)}`;
-		return new Text(theme.fg("success", "✓ ") + theme.fg("muted", msg), 0, 0);
+		const lead = d.minutes !== undefined ? `${afk ? "AFK for" : "waited"} ${dur(d.minutes)}, ` : "";
+		return new Text(theme.fg("success", "✓ ") + theme.fg("muted", `${lead}backlog message fired at ${hhmm(d.at)}`), 0, 0);
 	}
 	return new Text(theme.fg("warning", "✗ ") + theme.fg("muted", `cancelled — ${d.reason ?? ""}`), 0, 0);
 }
@@ -99,7 +100,8 @@ function preview(prompt: string): string {
 }
 
 function widgetRow(s: Slot, theme: any): Text {
-	const label = s.kind === "afk" ? `when_afk ${s.minutes}m` : "backlog";
+	const label =
+		s.kind === "afk" ? `when_afk ${s.minutes}m` : s.minutes !== undefined ? `backlog ${s.minutes}m` : "backlog";
 	return new Text(`${theme.fg("accent", "⧗")} ${theme.bold(label)} ${theme.fg("muted", preview(s.prompt))}`, 0, 0);
 }
 
@@ -109,9 +111,9 @@ interface Slot {
 	qid: string;
 	kind: Kind;
 	prompt: string;
-	minutes?: number; // afk
-	gatePassed?: boolean; // afk: idle confirmed, waiting for agent settle
-	stopGate?: () => void; // afk
+	minutes?: number; // afk, or the /backlog N countdown
+	gatePassed?: boolean; // afk/delay: gate confirmed, waiting for agent settle
+	stopGate?: () => void; // afk/delay
 }
 
 export function createBacklogs(pi: ExtensionAPI) {
@@ -147,26 +149,35 @@ export function createBacklogs(pi: ExtensionAPI) {
 		else pi.sendUserMessage(s.prompt, { deliverAs: "followUp" }); // lost a race with another run
 	};
 
+	/**
+	 * (Re)start the slot's timer: afk polls for idle, a settled slot with
+	 * minutes runs a plain countdown; no minutes (plain settled) clears it.
+	 */
 	const startGate = (s: Slot, ctx: ExtensionContext) => {
-		s.stopGate?.(); // a restart must kill the previous poller: same slot survives appends, so the qid-style guard can't
+		s.stopGate?.(); // a restart must kill the previous timer: same slot survives appends, so the qid-style guard can't
+		s.stopGate = undefined;
 		s.gatePassed = false;
-		s.stopGate = armAfkGate(
-			s.minutes!,
-			() => {
-				if (slot !== s) return;
-				s.gatePassed = true;
-				if (ctx.isIdle()) fire(ctx); // else hold for agent_settled
-			},
-			(reason) => {
+		if (s.minutes === undefined) return;
+		const minutes = s.minutes;
+		const onPass = () => {
+			if (slot !== s) return;
+			s.gatePassed = true;
+			if (ctx.isIdle()) fire(ctx); // else hold for agent_settled
+		};
+		if (s.kind === "afk") {
+			s.stopGate = armAfkGate(minutes, onPass, (reason) => {
 				if (slot === s) settle("afk", "cancelled", reason, ctx);
-			},
-		);
+			});
+			return;
+		}
+		const timer = setTimeout(onPass, minutes * 60_000);
+		s.stopGate = () => clearTimeout(timer);
 	};
 
 	const arm = (qid: string, kind: Kind, prompt: string, minutes: number | undefined, ctx: ExtensionContext) => {
 		const s: Slot = { qid, kind, prompt, minutes };
 		slot = s;
-		if (kind === "afk") startGate(s, ctx);
+		if (minutes !== undefined) startGate(s, ctx); // afk or /backlog N: the timer owns dispatch
 		else if (ctx.isIdle()) fire(ctx); // idle agent — nothing to await
 		syncWidget(ctx);
 	};
@@ -192,8 +203,10 @@ export function createBacklogs(pi: ExtensionAPI) {
 			}
 			pi.appendEntry("backlog", { qid: s.qid, kind, state: "appended", text, minutes, at: Date.now() } as BacklogData);
 			s.prompt = join(s.prompt, text);
-			if (kind === "afk") {
-				s.minutes = minutes!;
+			if (minutes !== undefined) {
+				// every /when_afk and every /backlog N re-times the slot; a plain
+				// /backlog append leaves a running countdown alone
+				s.minutes = minutes;
 				startGate(s, ctx);
 			}
 			syncWidget(ctx);
@@ -203,9 +216,9 @@ export function createBacklogs(pi: ExtensionAPI) {
 
 		settle,
 
-		/** agent_settled: the settled gate itself; afk only fires if its gate already passed. */
+		/** agent_settled: the settled gate itself; timed gates only fire once passed. */
 		onAgentSettled(ctx: ExtensionContext) {
-			if (slot?.kind === "settled") fire(ctx);
+			if (slot?.kind === "settled" && slot.minutes === undefined) fire(ctx);
 			else if (slot?.gatePassed) fire(ctx);
 		},
 
@@ -221,15 +234,16 @@ export function createBacklogs(pi: ExtensionAPI) {
 			if (s && (!f || f.qid !== s.qid || f.kind !== s.kind || !f.armed)) disarm();
 			else if (s) {
 				if (s.prompt !== f!.prompt) s.prompt = f!.prompt;
-				if (s.kind === "afk" && f!.minutes !== s.minutes) {
-					s.minutes = f!.minutes!;
+				if (f!.minutes !== s.minutes) {
+					s.minutes = f!.minutes; // undefined = plain settled: startGate clears the timer
 					startGate(s, ctx);
 				}
 			}
 			if (!slot && f?.armed) arm(f.qid, f.kind, f.prompt, f.minutes, ctx);
 			// undo//tree can re-land on a queued tail with the slot still armed and
-			// the agent idle — same rule: nothing to await, fire now
-			if (slot?.kind === "settled" && ctx.isIdle()) fire(ctx);
+			// the agent idle — same rule: nothing to await, fire now (a countdown
+			// still has something to await, so it holds)
+			if (slot?.kind === "settled" && slot.minutes === undefined && ctx.isIdle()) fire(ctx);
 			syncWidget(ctx);
 		},
 

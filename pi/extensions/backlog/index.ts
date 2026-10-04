@@ -2,7 +2,9 @@
  * backlog — buffer a prompt that fires only when the agent has *fully*
  * settled, or (when_afk) once you've also been idle for N minutes.
  *
- *   /backlog <prompt>    append to the pending backlog (creates one)
+ *   /backlog [m] <p>    append to the pending backlog (creates one); a
+ *                       leading minute count (e.g. /backlog 30 <p>) holds
+ *                       dispatch until it elapses — for rate-limit windows
  *   /backlog             cancel it and dump its text into the prompt editor
  *   /when_afk <m> <p>    append to the pending afk prompt and restart its timer
  *   /when_afk            cancel it and dump its text into the prompt editor
@@ -12,12 +14,15 @@
  * the OTHER kind while one is armed refuses the new text and dumps the
  * armed queue into the editor for re-issuing (see core.ts).
  *   backlog  gate = agent not mid-task: fires at invocation when idle (no
- *            task to await), else at the next full settle
+ *            task to await), else at the next full settle; an optional
+ *            leading number puts a countdown in front of that gate
  *   when_afk gate = idle ≥ N minutes via scripts/when_afk (see gates.ts)
  *
  * A backlog dispatches when its gate passes AND the agent has completely
  * finished (agent_settled — after retries, compaction and queued follow-ups
- * have drained; a turn boundary mid-tool-calls never fires it).
+ * have drained; a turn boundary mid-tool-calls never fires it). A /backlog N
+ * countdown is wall-clock and survives user input (a rate-limit window
+ * doesn't care whether you're typing).
  *
  * Purge rules: any message you send cancels an afk-armed queue (an active
  * user is not AFK) but never a settled one — it's gated on the agent, not
@@ -35,11 +40,13 @@ export default function (pi: ExtensionAPI) {
 	const backlogs = createBacklogs(pi);
 
 	pi.registerCommand("backlog", {
-		description: "Buffer a follow-up prompt that fires once the agent finishes (immediately if idle); no args dumps the queued prompt into the editor",
+		description: "Buffer a follow-up prompt that fires once the agent finishes (immediately if idle); an optional leading minute count delays dispatch by that long; no args dumps the queued prompt into the editor",
 		handler: async (args: string, ctx: ExtensionContext) => {
 			const text = args.trim();
-			if (!text) return backlogs.dumpToEditor(ctx);
-			backlogs.add("settled", text, undefined, ctx);
+			if (!text || /^\d+$/.test(text)) return backlogs.dumpToEditor(ctx);
+			const m = /^(?:(\d+)\s+)?([\s\S]+)$/.exec(text)!;
+			const minutes = m[1] ? parseInt(m[1], 10) : 0;
+			backlogs.add("settled", m[2], minutes > 0 ? minutes : undefined, ctx);
 		},
 	});
 
