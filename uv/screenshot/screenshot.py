@@ -189,8 +189,9 @@ def main() -> int:
     if is_wayland():
         capture_wayland(png_path, whole)
         LOCKFILE.unlink(missing_ok=True)
-        play_shutter()
-        notify("Screenshot Taken 📸")
+        if whole:
+            play_shutter()
+            notify("Screenshot Taken 📸")
         return 0
 
     ok = capture_pointer_monitor(png_path) if whole else capture_region_or_window(png_path)
@@ -199,8 +200,9 @@ def main() -> int:
         return 1
 
     spawn_owner(png_path)
-    play_shutter()
-    notify("Screenshot Taken 📸")
+    if whole:
+        play_shutter()
+        notify("Screenshot Taken 📸")
     return 0
 
 
