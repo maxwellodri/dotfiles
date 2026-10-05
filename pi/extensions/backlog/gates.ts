@@ -3,8 +3,10 @@
  *
  * Idle *measurement* stays in the shell script (scripts/when_afk, on PATH):
  * each poll spawns `bash -c 'source when_afk && afk_idle'` and reads idle ms
- * from stdout. Wayland migration = change afk_idle()'s body in the script;
- * this file is untouched. (Override the script path with $WHEN_AFK_SCRIPT.)
+ * from stdout. afk_idle() calls xidle (kernel evdev timestamps — display
+ * server agnostic, immune to programs faking X presence); swapping the
+ * measurement means changing afk_idle()'s body in the script.
+ * (Override the script path with $WHEN_AFK_SCRIPT.)
  *
  * Fire semantics mirror the script's main(): poll every 60s; once idle
  * crosses the threshold, re-check after 5s (came-back guard). The gate only

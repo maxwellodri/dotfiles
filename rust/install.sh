@@ -5,7 +5,7 @@ if [ -z "$bin" ] || [ -z "$dotfiles" ]; then
 fi
 
 # donnie (headless NixOS VPS) builds only the terminal tools — herald is a
-# notification daemon, xidle needs X11 headers that aren't on a server.
+# notification daemon, xidle reads /dev/input which a VPS lacks.
 tag="${dotfile_tag:-}"
 [ -z "$tag" ] && tag="$(cat "$dotfiles/.dotfile_tag" 2>/dev/null || true)"
 case "$tag" in

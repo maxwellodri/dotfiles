@@ -1,13 +1,13 @@
 [package]
 name = "xidle"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Maxwell Odri <maxwellodri@gmail.com>"]
-description = "Print ms since the last real X input (XSync IDLETIME) — immune to screensaver inhibition"
+description = "Print ms since the last real input (kernel evdev timestamps) — immune to X screensaver resets"
 
 [dependencies]
 anyhow = "1.0"
-x11rb = { version = "0.13", features = ["sync"] }
+libc = "0.2"
 
 [profile.release]
 opt-level = 3
