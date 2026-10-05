@@ -1,17 +1,18 @@
 /**
  * manage-sessions.ts — /manage_sessions: bulk session management in $EDITOR.
  * One session per line, most recent first, with an oil.nvim-style dim /NNN
- * prefix as the line's identity: delete a line = archive the session file
- * (after confirm), edit its label = rename. The ·current line can never be
- * archived (its live SessionManager re-appends the file); it can be renamed.
+ * prefix as the line's identity: delete a line = open that session's JSONL
+ * in $EDITOR (one invocation for all deleted lines) to edit it directly,
+ * edit its label = rename. The ·current line is never handed to the editor
+ * (its live SessionManager re-appends and would clobber the edit); it can
+ * still be renamed.
  */
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from "node:fs";
-import { moveSync, resolveArchiveDir } from "./archive";
+import { mkdirSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from "node:fs";
 import { getLeaderRegistry } from "./leader-key";
-import { basename, join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { inScope, repoScope, worktreeTag, type RepoScope } from "./session-pool";
 
 type SessionInfoLike = {
@@ -48,7 +49,7 @@ interface ManagedSession {
 	label: string;
 	/** Age column as emitted (stripped from the label on parse-back). */
 	age: string;
-	/** True for the session this pi is running right now (unarchivable). */
+	/** True for the session this pi is running right now (never edited live). */
 	isCurrent: boolean;
 }
 
@@ -77,8 +78,8 @@ export function buildBuffer(
 	const byId = new Map<number, ManagedSession>();
 	const lines: string[] = [
 		`# /manage_sessions — repo ${scope.root} (${sessions.length} sessions)`,
-		"# delete a line = archive the session · edit a label = rename · clear a label = un-name",
-		`# keep the /NNN id prefix; ${CURRENT_MARKER} sessions are protected from archiving; # lines are ignored`,
+		"# delete a line = edit that session file · edit a label = rename · clear a label = un-name",
+		`# keep the /NNN id prefix; ${CURRENT_MARKER} sessions are not editable live; # lines are ignored`,
 		"",
 	];
 	sessions.forEach((s, i) => {
@@ -190,19 +191,18 @@ async function runManageSessions(args: string, ctx: ExtensionCommandContext): Pr
 	} catch { /* ignore */ }
 
 	const currentFile = ctx.sessionManager.getSessionFile();
-	const archiveDir = resolveArchiveDir(sessionDir);
-	const toArchive: ManagedSession[] = [];
+	const toEdit: ManagedSession[] = [];
 	const toRename: { s: ManagedSession; label: string }[] = [];
 	let skippedCurrent = 0;
 	for (const [id, s] of byId) {
 		if (!kept.has(id)) {
 			// Belt and braces: the buffer marks it ·current AND this loop
-			// re-checks by canonical path — archiving the live session
-			// would strand this pi and regrow a headerless file.
+			// re-checks by canonical path — editing the live session's file
+			// races its SessionManager's appends.
 			if (s.isCurrent || sameSessionPath(s.path, currentFile)) {
 				skippedCurrent++;
 			} else {
-				toArchive.push(s);
+				toEdit.push(s);
 			}
 			continue;
 		}
@@ -211,36 +211,8 @@ async function runManageSessions(args: string, ctx: ExtensionCommandContext): Pr
 	}
 
 	const parts: string[] = [];
-	if (toArchive.length > 0) {
-		const preview = toArchive
-			.slice(0, 3)
-			.map((s) => s.label.slice(0, 40))
-			.join(" · ");
-		const more = toArchive.length > 3 ? ` (+${toArchive.length - 3} more)` : "";
-		const ok = await ctx.ui.confirm(
-			"Archive sessions?",
-			`${toArchive.length} session file(s) will be moved to ${archiveDir}:
-${preview}${more}`,
-		);
-		if (!ok) {
-			await ctx.ui.notify("aborted — nothing archived or renamed", "info");
-			return;
-		}
-		mkdirSync(archiveDir, { recursive: true });
-		let archived = 0;
-		for (const s of toArchive) {
-			try {
-				let dest = join(archiveDir, basename(s.path));
-				if (existsSync(dest)) dest = join(archiveDir, `${Date.now()}_${basename(s.path)}`);
-				moveSync(s.path, dest);
-				archived++;
-			} catch {
-				// count delta reports failures
-			}
-		}
-		parts.push(`archived ${archived}`);
-	}
 
+	// Renames first so an edited file already carries its new session_info entry.
 	let renamed = 0;
 	for (const { s, label } of toRename) {
 		try {
@@ -253,7 +225,35 @@ ${preview}${more}`,
 		}
 	}
 	if (renamed > 0) parts.push(`renamed ${renamed}`);
-	if (skippedCurrent > 0) parts.push(`kept current session (unarchivable)`);
+
+	if (toEdit.length > 0) {
+		tui.stop();
+		const editEditorCmd = args.trim() || process.env.EDITOR || "vim";
+		const [editEditor, ...editArgs] = editEditorCmd.split(/\s+/);
+		process.stdout.write(
+			`Opening ${editEditorCmd} on ${toEdit.length} session file(s)\nPi resumes when the editor exits.\n`,
+		);
+		let editExit: number | null = null;
+		try {
+			editExit = await new Promise<number | null>((resolveP) => {
+				const child = spawn(editEditor, [...editArgs, ...toEdit.map((s) => s.path)], {
+					stdio: "inherit",
+					shell: process.platform === "win32",
+				});
+				child.on("error", () => resolveP(null));
+				child.on("close", (code) => resolveP(code));
+			});
+		} finally {
+			tui.start();
+			tui.requestRender(true);
+		}
+		parts.push(
+			editExit === 0
+				? `opened ${toEdit.length} session file(s) in ${editEditorCmd}`
+				: `editor exited ${editExit ?? "error"} — edits may be partial`,
+		);
+	}
+	if (skippedCurrent > 0) parts.push(`kept current session (not editable live)`);
 	if (malformed > 0) parts.push(`${malformed} unparseable line(s) ignored`);
 
 	await ctx.ui.notify(parts.length > 0 ? parts.join(" · ") : "no changes", "info");
@@ -261,7 +261,7 @@ ${preview}${more}`,
 
 export default function (pi: ExtensionAPI) {
 	pi.registerCommand("manage_sessions", {
-		description: "Bulk archive/rename sessions of this repo in $EDITOR (oil.nvim style)",
+		description: "Bulk edit/rename sessions of this repo in $EDITOR (oil.nvim style)",
 		handler: (args, ctx) => runManageSessions(args, ctx),
 	});
 }
