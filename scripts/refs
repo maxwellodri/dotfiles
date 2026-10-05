@@ -6,7 +6,8 @@ refs IMAGE...                            board from local image files
 refs BOARD.refs                          open a saved board (zip of images + board.json)
 
 Board keys: click=select  s/r=scale/rotate (esc cancels, enter/click confirms)
-wheel=zoom canvas  empty-drag=pan  alt-drag=drag image out  drop=add  del=remove  ctrl+s=save  q=quit
+wheel=zoom canvas  empty-drag=pan  alt-drag=drag image out  drop/paste=add  del=remove
+ctrl+c/v=copy/paste image  ctrl+s=save  q=quit
 Hard-killing the window (dwm super+shift+x) skips the save prompt and prints
 an "X connection broken" line from Tk itself; use q for a clean quit.
 Dragging an image against a window edge auto-pans. Nothing is written to disk
@@ -16,6 +17,7 @@ until you save; boards land in ~/Pictures/refs/<query>-<dd_mm_yyyy>[-n].refs
 Dependencies: uv/refs project (see pyproject there); the uv fallback below
 re-execs into it on the system interpreter (tkinter needs it).
 Search: Brave Images API, key from `pass show brave_search_api_key`.
+Image clipboard needs xclip (wl-clipboard on Wayland).
 """
 import argparse
 import concurrent.futures
@@ -120,6 +122,72 @@ def download_image(url):
         return None
 
 
+CLIPBOARD_IMAGE_TARGETS = ("image/png", "image/jpeg", "image/bmp", "image/gif", "image/webp")
+
+
+def wayland_session():
+    return bool(os.environ.get("WAYLAND_DISPLAY")
+                or os.environ.get("XDG_SESSION_TYPE") == "wayland")
+
+
+def clipboard_read(command):
+    """Stdout bytes from a clipboard helper, or None when it fails."""
+    try:
+        done = subprocess.run(command, capture_output=True, timeout=5)
+        return done.stdout if done.returncode == 0 else None
+    except FileNotFoundError:
+        print(f"clipboard helper missing: {command[0]}", file=sys.stderr)
+    except Exception:
+        pass
+    return None
+
+
+def clipboard_image_bytes():
+    """Clipboard image bytes trying the usual MIME targets, or None."""
+    if wayland_session():
+        listed = clipboard_read(["wl-paste", "--list-types"])
+        fetch = lambda target: ["wl-paste", "--type", target]
+    else:
+        listed = clipboard_read(["xclip", "-selection", "clipboard", "-t", "TARGETS", "-o"])
+        fetch = lambda target: ["xclip", "-selection", "clipboard", "-t", target, "-o"]
+    targets = (listed or b"").decode("ascii", "replace").split()
+    for target in CLIPBOARD_IMAGE_TARGETS:
+        if target in targets:
+            data = clipboard_read(fetch(target))
+            if data:
+                return data
+    return None
+
+
+def clipboard_text():
+    command = (["wl-paste"] if wayland_session()
+               else ["xclip", "-selection", "clipboard", "-o"])
+    data = clipboard_read(command)
+    return data.decode("utf-8", "replace") if data else ""
+
+
+def copy_image_bytes(png_bytes):
+    command = (["wl-copy", "--type", "image/png"] if wayland_session()
+               else ["xclip", "-selection", "clipboard", "-t", "image/png"])
+    try:
+        # DEVNULL: xclip/wl-copy daemonize and hold inherited pipes open, which
+        # would block run() on pipe EOF long past the parent process exiting
+        subprocess.run(command, input=png_bytes, timeout=5,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as error:
+        print(f"clipboard copy failed: {error}", file=sys.stderr)
+
+
+def image_payload(data):
+    """(data, ext, size) for raw image bytes, or None when unreadable."""
+    try:
+        pil = Image.open(io.BytesIO(data))
+        pil.load()
+    except Exception:
+        return None
+    return data, EXTENSIONS.get(pil.format, "jpg"), pil.size
+
+
 def make_entry(index, data, ext, size):
     return {"file": f"images/{index:04d}.{ext}",
             "x": 0, "y": 0, "scale": 1.0, "rotation": 0,
@@ -212,7 +280,8 @@ class RefBoard:
 
     BG = "#282828"
     HINTS = (" | click=select/drag s/r=scale/rotate wheel=zoom empty-drag=pan"
-             " alt-drag=drag-out drop=add del=remove ctrl+s=save q=quit")
+             " alt-drag=drag-out drop/paste=add del=remove ctrl+c/v=copy/paste"
+             " ctrl+s=save q=quit")
     PAN_RANGE = 1_000_000
 
     def __init__(self, board_path=None, query="", entries=None):
@@ -255,6 +324,8 @@ class RefBoard:
         # keys bind on the root: the canvas never takes keyboard focus on click
         self.root.bind("<Delete>", self.on_delete)
         self.root.bind("<Control-s>", self.save)
+        self.root.bind("<Control-c>", self.on_copy)
+        self.root.bind("<Control-v>", self.on_paste)
         self.root.bind("<q>", lambda _event: self.close())
         for key in ("s", "r", "S", "R"):
             self.root.bind(f"<{key}>", self.on_modal_key)
@@ -569,12 +640,11 @@ class RefBoard:
                     payloads.append(downloaded)
                 continue
             try:
-                data = Path(item).read_bytes()
-                pil = Image.open(io.BytesIO(data))
-                pil.load()
-            except Exception:
+                payload = image_payload(Path(item).read_bytes())
+            except OSError:
                 continue
-            payloads.append((data, EXTENSIONS.get(pil.format, "jpg"), pil.size))
+            if payload:
+                payloads.append(payload)
         return payloads
 
     def on_drop(self, event):
@@ -604,6 +674,47 @@ class RefBoard:
         if drag_file is None:
             return None
         return ("copy", DND_FILES, str(drag_file))
+
+    # clipboard -------------------------------------------------------------
+
+    def on_copy(self, _event):
+        entry = self.focused or self.entry_at(*self.pointer_world())
+        if entry is None:
+            return
+        buffer = io.BytesIO()
+        entry["pil"].save(buffer, "PNG")
+        copy_image_bytes(buffer.getvalue())
+
+    def on_paste(self, _event):
+        if self.modal:
+            self.modal_finish(True)
+        payloads = []
+        data = clipboard_image_bytes()
+        if data is not None:
+            payload = image_payload(data)
+            if payload:
+                payloads.append(payload)
+        if not payloads:
+            text = clipboard_text()
+            if text.strip():
+                payloads = self.drop_payloads(self.root.tk.splitlist(text))
+        if not payloads:
+            return
+        world_x, world_y = self.paste_position()
+        for offset, (data, ext, size) in enumerate(payloads):
+            self.add_entry(data, ext, size,
+                           world_x + offset * 30 / self.zoom,
+                           world_y + offset * 30 / self.zoom)
+
+    def paste_position(self):
+        """World point under the pointer, or view centre when outside."""
+        width, height = self.canvas.winfo_width(), self.canvas.winfo_height()
+        pointer = (self.root.winfo_pointerx() - self.canvas.winfo_rootx(),
+                   self.root.winfo_pointery() - self.canvas.winfo_rooty())
+        if 0 <= pointer[0] < width and 0 <= pointer[1] < height:
+            return self.world_at_widget(*pointer)
+        return (self.canvas.canvasx(width / 2) / self.zoom,
+                self.canvas.canvasy(height / 2) / self.zoom)
 
     # persistence -----------------------------------------------------------
 
