@@ -10,7 +10,7 @@ import { copyFileSync, existsSync, mkdirSync, renameSync, unlinkSync } from "nod
 import { realpathSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 
-function resolveArchiveDir(sessionDir: string): string {
+export function resolveArchiveDir(sessionDir: string): string {
 	const override = process.env.PI_CODING_AGENT_ARCHIVED_SESSION_DIR;
 	if (override) return override;
 	let real = sessionDir;
@@ -24,7 +24,7 @@ function resolveArchiveDir(sessionDir: string): string {
 
 /** rename, falling back to copy+unlink across filesystems; a failed
  * copy never leaves a truncated twin of the source in the archive. */
-function moveSync(src: string, dest: string): void {
+export function moveSync(src: string, dest: string): void {
 	try {
 		renameSync(src, dest);
 	} catch (error) {

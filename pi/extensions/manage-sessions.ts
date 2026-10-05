@@ -1,16 +1,17 @@
 /**
  * manage-sessions.ts — /manage_sessions: bulk session management in $EDITOR.
  * One session per line, most recent first, with an oil.nvim-style dim /NNN
- * prefix as the line's identity: delete a line = delete the session file
+ * prefix as the line's identity: delete a line = archive the session file
  * (after confirm), edit its label = rename. The ·current line can never be
- * deleted (its live SessionManager re-appends the file); it can be renamed.
+ * archived (its live SessionManager re-appends the file); it can be renamed.
  */
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { spawn } from "node:child_process";
-import { mkdirSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from "node:fs";
+import { moveSync, resolveArchiveDir } from "./archive";
 import { getLeaderRegistry } from "./leader-key";
-import { resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { inScope, repoScope, worktreeTag, type RepoScope } from "./session-pool";
 
 type SessionInfoLike = {
@@ -47,7 +48,7 @@ interface ManagedSession {
 	label: string;
 	/** Age column as emitted (stripped from the label on parse-back). */
 	age: string;
-	/** True for the session this pi is running right now (undeletable). */
+	/** True for the session this pi is running right now (unarchivable). */
 	isCurrent: boolean;
 }
 
@@ -76,8 +77,8 @@ export function buildBuffer(
 	const byId = new Map<number, ManagedSession>();
 	const lines: string[] = [
 		`# /manage_sessions — repo ${scope.root} (${sessions.length} sessions)`,
-		"# delete a line = delete the session · edit a label = rename · clear a label = un-name",
-		`# keep the /NNN id prefix; ${CURRENT_MARKER} sessions are protected from deletion; # lines are ignored`,
+		"# delete a line = archive the session · edit a label = rename · clear a label = un-name",
+		`# keep the /NNN id prefix; ${CURRENT_MARKER} sessions are protected from archiving; # lines are ignored`,
 		"",
 	];
 	sessions.forEach((s, i) => {
@@ -189,18 +190,19 @@ async function runManageSessions(args: string, ctx: ExtensionCommandContext): Pr
 	} catch { /* ignore */ }
 
 	const currentFile = ctx.sessionManager.getSessionFile();
-	const toDelete: ManagedSession[] = [];
+	const archiveDir = resolveArchiveDir(sessionDir);
+	const toArchive: ManagedSession[] = [];
 	const toRename: { s: ManagedSession; label: string }[] = [];
 	let skippedCurrent = 0;
 	for (const [id, s] of byId) {
 		if (!kept.has(id)) {
-			// Belt and braces: the buffer marks it ·current AND the delete
-			// loop re-checks by canonical path — deleting the live session
+			// Belt and braces: the buffer marks it ·current AND this loop
+			// re-checks by canonical path — archiving the live session
 			// would strand this pi and regrow a headerless file.
 			if (s.isCurrent || sameSessionPath(s.path, currentFile)) {
 				skippedCurrent++;
 			} else {
-				toDelete.push(s);
+				toArchive.push(s);
 			}
 			continue;
 		}
@@ -209,30 +211,34 @@ async function runManageSessions(args: string, ctx: ExtensionCommandContext): Pr
 	}
 
 	const parts: string[] = [];
-	if (toDelete.length > 0) {
-		const preview = toDelete
+	if (toArchive.length > 0) {
+		const preview = toArchive
 			.slice(0, 3)
 			.map((s) => s.label.slice(0, 40))
 			.join(" · ");
-		const more = toDelete.length > 3 ? ` (+${toDelete.length - 3} more)` : "";
+		const more = toArchive.length > 3 ? ` (+${toArchive.length - 3} more)` : "";
 		const ok = await ctx.ui.confirm(
-			"Delete sessions?",
-			`${toDelete.length} session file(s) will be permanently deleted:\n${preview}${more}`,
+			"Archive sessions?",
+			`${toArchive.length} session file(s) will be moved to ${archiveDir}:
+${preview}${more}`,
 		);
 		if (!ok) {
-			await ctx.ui.notify("aborted — nothing deleted or renamed", "info");
+			await ctx.ui.notify("aborted — nothing archived or renamed", "info");
 			return;
 		}
-		let deleted = 0;
-		for (const s of toDelete) {
+		mkdirSync(archiveDir, { recursive: true });
+		let archived = 0;
+		for (const s of toArchive) {
 			try {
-				unlinkSync(s.path);
-				deleted++;
+				let dest = join(archiveDir, basename(s.path));
+				if (existsSync(dest)) dest = join(archiveDir, `${Date.now()}_${basename(s.path)}`);
+				moveSync(s.path, dest);
+				archived++;
 			} catch {
-				// already gone / unreadable: report via count delta
+				// count delta reports failures
 			}
 		}
-		parts.push(`deleted ${deleted}`);
+		parts.push(`archived ${archived}`);
 	}
 
 	let renamed = 0;
@@ -247,7 +253,7 @@ async function runManageSessions(args: string, ctx: ExtensionCommandContext): Pr
 		}
 	}
 	if (renamed > 0) parts.push(`renamed ${renamed}`);
-	if (skippedCurrent > 0) parts.push(`kept current session (undeletable)`);
+	if (skippedCurrent > 0) parts.push(`kept current session (unarchivable)`);
 	if (malformed > 0) parts.push(`${malformed} unparseable line(s) ignored`);
 
 	await ctx.ui.notify(parts.length > 0 ? parts.join(" · ") : "no changes", "info");
@@ -255,7 +261,7 @@ async function runManageSessions(args: string, ctx: ExtensionCommandContext): Pr
 
 export default function (pi: ExtensionAPI) {
 	pi.registerCommand("manage_sessions", {
-		description: "Bulk delete/rename sessions of this repo in $EDITOR (oil.nvim style)",
+		description: "Bulk archive/rename sessions of this repo in $EDITOR (oil.nvim style)",
 		handler: (args, ctx) => runManageSessions(args, ctx),
 	});
 }
