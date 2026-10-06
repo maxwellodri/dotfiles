@@ -45,12 +45,16 @@ set — so agents would see/close each other's tabs. Rejected.)
 - The server config lives in `browser-profiles.ts`, **not** `pi/mcp.json`:
   `mcp.json` is shared to every host via the repo, and pi's builtin MCP
   connects every configured server at session start — a file-configured
-  server would spawn `npx` on machines that never browse. Registration is
-  gated on `/usr/bin/chromium` existing (the executablePath the config
-  pins), so only browser-capable machines get the server. In
-  `@playwright/mcp` ≥ 0.0.78 env overrides the `--config` JSON file
-  (precedence: defaults < config file < `PLAYWRIGHT_MCP_*` env < CLI flags),
-  and an explicit `userDataDir` bypasses the cwd-hashed default dir entirely.
+  server would spawn the server binary on machines that never browse.
+  Registration is gated on `/usr/bin/chromium` existing (the executablePath
+  the config pins), so only browser-capable machines get the server. The
+  binary is nixpkgs' `playwright-mcp` from nix_config's dotfiles-env
+  (version pinned by the nixpkgs-dotfiles flake.lock; no network at
+  handshake); `npx @playwright/mcp@0.0.80` is the fallback when the nix
+  env is absent. In `@playwright/mcp` ≥ 0.0.78 env overrides the
+  `--config` JSON file (precedence: defaults < config file <
+  `PLAYWRIGHT_MCP_*` env < CLI flags), and an explicit `userDataDir`
+  bypasses the cwd-hashed default dir entirely.
 - Timing: the MCP **server process** spawns at registration (session start);
   chromium itself launches inside the server on the first browser tool call
   — the same tool call whose `tool_call` hook blocks on the clone, so the

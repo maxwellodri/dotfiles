@@ -153,7 +153,7 @@ Notes:
 - **Audit trail**: the echoed code shows which `pass` entry was used — never the secret itself.
 - `pass otp <entry>` works identically for TOTP codes.
 - **pinentry is a non-issue**: `scripts/pi` reads `pass` at every launch, so the gpg-agent cache is warm for the session; worst case a pinentry dialog appears on the user's desktop — visible, not silent.
-- The realm hop relies on `@playwright/mcp@0.0.78` (pinned in `pi/extensions/browser-profiles.ts`) being a CJS build (`process.mainModule`). If a bump breaks it, fall back to asking the user to type the credential into the headed window — that's half of why it's headed.
+- The realm hop relies on the playwright-mcp build (nixpkgs 0.0.80 via nix_config's flake.lock; `npx @playwright/mcp@0.0.80` fallback) being a CJS build (`process.mainModule`). If a bump breaks it, fall back to asking the user to type the credential into the headed window — that's half of why it's headed.
 - If a "password" field is really `type=text` (fake masking), screenshots leak too; genuine `type=password` fields render as dots.
 - `run_code_unsafe` is documented RCE-equivalent and Node's `vm` is explicitly not a security boundary — this stays within the tool's own contract.
 

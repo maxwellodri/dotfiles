@@ -7,7 +7,9 @@
  *
  * The servers are registered HERE (exposure "deferred"), not in pi/mcp.json —
  * mcp.json is shared across hosts, these should only exist where the tools
- * are installed.
+ * are installed. The playwright binary comes from nixpkgs via nix_config's
+ * dotfiles-env (version pinned by the nixpkgs-dotfiles flake.lock); npx is
+ * only the fallback for hosts without the nix env.
  *
  * Template maintenance: log into sites once via
  * pi/user-scripts/browser-template.sh; promote a live session's state back
@@ -126,6 +128,15 @@ function gcAbandonedProfiles(keep: string): void {
 	}
 }
 
+/** First PATH entry containing bin, or null (avoids spawning sh for lookup). */
+function resolveOnPath(bin: string): string | null {
+	for (const dir of process.env.PATH?.split(":") ?? []) {
+		const candidate = join(dir, bin);
+		if (existsSync(candidate)) return candidate;
+	}
+	return null;
+}
+
 /** True for any playwright browser tool call (mcp__playwright__browser_*). */
 function isPlaywrightUse(toolName: string): boolean {
 	return /playwright|_browser_|^browser_/.test(toolName);
@@ -141,20 +152,30 @@ export default function browserProfiles(pi: ExtensionAPI): void {
 		if (!agentDir) return;
 		if (existsSync("/usr/bin/chromium")) {
 			// /usr/bin/chromium is the executablePath pinned in pi/browser/playwright-config.json
+			const playwrightMcp = resolveOnPath("playwright-mcp");
 			pi.registerMcpServer("playwright", {
-				command: "npx",
-				args: ["@playwright/mcp@0.0.78", "--sandbox", "--config", "playwright-config.json"],
-			cwd: join(agentDir, "browser"),
+				command: playwrightMcp ?? "npx",
+				// no pinned version for the nix binary: the nixpkgs-dotfiles
+				// flake.lock is the pin; npx fallback pins its own
+				args: [
+					...(playwrightMcp ? [] : ["@playwright/mcp@0.0.80"]),
+					"--sandbox",
+					"--config",
+					"playwright-config.json",
+				],
+				cwd: join(agentDir, "browser"),
 				env: { PLAYWRIGHT_MCP_USER_DATA_DIR: profileDir ?? "" },
 				exposure: "deferred",
-				description: "Headed per-session chromium: navigate, click, type, screenshot, scrape, run JS. Tools load via tool_search.",
+				description: "Headed per-session chromium: navigate, click, type, screenshot, scrape, run JS. Tools load via load_mcp/tool_search.",
 			});
 		}
 		if (existsSync("/usr/bin/blender")) {
 			pi.registerMcpServer("blender", {
 				command: "uv",
-				args: ["run", "blender-mcp"],
-			cwd: join(agentDir, "..", "uv", "mcp"),
+				// --frozen: never resolve against the network at session start;
+				// the venv is pre-synced by nix_config's install_flake.sh
+				args: ["run", "--frozen", "blender-mcp"],
+				cwd: join(agentDir, "..", "uv", "mcp"),
 				env: { UV_PYTHON_PREFERENCE: "only-managed", DISABLE_TELEMETRY: "true" },
 				exposure: "deferred",
 				description: "Inspect and drive the user's running Blender: scene info, viewport screenshot, execute bpy code. Tools load via tool_search.",
