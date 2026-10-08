@@ -207,6 +207,9 @@ copy_files "system_configs/etc/pam.d"               "/etc/pam.d"                
 if [ "$dotfile_tag" = "pc" ]; then
     copy_files "system_configs/etc/systemd"         "/etc/systemd"                 true "644" "root"
 fi
+if [ -d "system_configs/host-specific/$dotfile_tag/etc/systemd" ]; then
+    copy_files "system_configs/host-specific/$dotfile_tag/etc/systemd" "/etc/systemd" true "644" "root"
+fi
 
 # host-specific (per-tag) files
 if [ -f "system_configs/host-specific/$dotfile_tag/etc/wireguard/wg-vps.conf" ]; then
@@ -233,6 +236,9 @@ enable_service --user git-reminder.timer
 enable_service --user dunst.service
 [ "$dotfile_tag" = "pc" ]       && enable_service --user vps-socks.service
 [ "$dotfile_tag" = "hackerman" ] && enable_service --user keyboard-remap.service
+case "$dotfile_tag" in
+    pc|hackerman) enable_service wg-quick@wg-vps ;;
+esac
 enable_service atd
 
 # summary (counts always; detailed lists under VERBOSE)

@@ -14,7 +14,9 @@ has_display=false
 
 
 get_active_interfaces() {
-    wg show interfaces 2>/dev/null | tr ' ' '\n' || true
+    # wg-vps is boot-persistent (wg-quick@wg-vps.service); this switcher owns
+    # user-toggled tunnels only, so keep it out of status and teardown
+    wg show interfaces 2>/dev/null | tr ' ' '\n' | grep -vx wg-vps || true
 }
 
 notify() {
