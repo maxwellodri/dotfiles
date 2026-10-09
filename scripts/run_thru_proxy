@@ -70,23 +70,23 @@ target_user() {
 }
 
 # ---- mullvad config: validate env + resolve + parse the host's conf ---------
-# Reference path: $dotfiles/system_configs/host-specific/$dotfile_tag/etc/wireguard/
-# wg-mullvad.conf. Defensively require $dotfiles/$dotfile_tag in the parent shell
-# (set by .zprofile). sudo strips those vars, so under the root-half we fall back
-# to the git-derived REPO_ROOT + the .dotfile_tag file.
+# Reference path: $nix_config/systems/dotfiles-env/files/system_configs/
+# host-specific/$dotfile_tag/etc/wireguard/wg-mullvad.conf (system_configs
+# moved from this repo to nix_config). sudo strips env vars, so under the
+# root-half the nix_config checkout is anchored as this repo's sibling
+# (both live in ~/source), with NIX_CONFIG_DIR as the override.
 field() { grep -iE "^[[:space:]]*$1[[:space:]]*=" "$CONF" | head -1 | sed -E 's/^[^=]*=[[:space:]]*//'; }
 
 load_mullvad_conf() {
     if (( EUID != 0 )); then
-        [[ -n "${dotfiles:-}" ]]    || die "\$dotfiles is not set - source your shell profile (e.g. .zprofile)"
         [[ -n "${dotfile_tag:-}" ]] || die "\$dotfile_tag is not set - source your shell profile (e.g. .zprofile)"
     fi
-    local root="${dotfiles:-$REPO_ROOT}"
+    local nixcfg="${NIX_CONFIG_DIR:-$REPO_ROOT/../nix_config}"
     local tag="${dotfile_tag:-}"
     [[ -n "$tag" ]] || tag="$(cat "$REPO_ROOT/.dotfile_tag" 2>/dev/null || true)"
     [[ -n "$tag" ]] || die "can't determine dotfile_tag (env unset and no $REPO_ROOT/.dotfile_tag)"
 
-    CONF="$root/system_configs/host-specific/$tag/etc/wireguard/wg-mullvad.conf"
+    CONF="$nixcfg/systems/dotfiles-env/files/system_configs/host-specific/$tag/etc/wireguard/wg-mullvad.conf"
     [[ -f "$CONF" ]] || die "no wg-mullvad.conf for host '$tag': $CONF"
 
     # ini-ish parse; field names are unique across [Interface]/[Peer].
@@ -105,7 +105,7 @@ load_mullvad_conf() {
 }
 
 # Early validation for the netns paths (up / run-a-command / ephemeral): require
-# $dotfiles+$dotfile_tag + a readable wg-mullvad.conf, AND a non-stale running
+# $dotfile_tag + a readable wg-mullvad.conf, AND a non-stale running
 # kernel. wireguard is a loadable module; after a kernel upgrade with no reboot
 # its modules are missing and `ip link add ... type wireguard` then dies with a
 # cryptic "Unknown device type" - so gate on check_kernel up front, as non-root,
