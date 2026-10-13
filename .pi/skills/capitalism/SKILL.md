@@ -150,6 +150,13 @@ Before recommending a shortlisted product, cross-reference it with **off-site re
 - Surface known-failure patterns (wobble, motor lifespan, peeling upholstery) against the user's use case — a flaw that doesn't touch their use case is not a disqualifier.
 - If no external coverage exists, say so — that absence is itself information for a high-stakes purchase.
 
+### 4.6 Coupon check (Amazon, before adding to cart)
+
+Some Amazon listings carry a **coupon checkbox that is unchecked by default** — the discount only applies if clicked before/at add-to-cart. Possibly an anti-bot/anti-agent pattern, or just friction; either way, check for savings:
+
+- On every product page before adding to cart, look for a coupon element ("Apply $X coupon", "X% off coupon") near the price/buy box. **Tick it** if present.
+- Only apply unconditional coupons — skip coupons/deals that require a specific payment method, subscribe & save, app purchase, or bundle.
+
 ### 5. Deep-dive with Playwright (optional)
 
 If `web_search` results lack sufficient detail (missing prices, specs, stock status, shipping info), use Playwright MCP to scrape individual store pages:
@@ -210,6 +217,7 @@ User may ask to narrow results, check more stores, open product pages, or compar
 - [ ] Pre-flight check passed (web_search functional)
 - [ ] staticICE checked as first port of call (if Playwright available; skipped for second-hand gear — eBay AU, step 3.5 — and for non-PC SKUs, see REFERENCE.md)
 - [ ] Shortlisted items cross-checked against external reviews (step 4.5)
+- [ ] Amazon items: coupon checkbox checked and ticked if unconditional (step 4.6)
 - [ ] `web_search` used for supplementary product discovery
 - [ ] At least 2 stores represented in results (AU storefronts first)
 - [ ] All prices in AUD
