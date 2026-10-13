@@ -14,7 +14,7 @@ If a task is just "search the web for X", try `web_search` first. Reach for the 
 
 ## Browser, profile & downloads
 
-- The MCP launches **ungoogled-chromium** (`/usr/bin/chromium`) — not Firefox (Playwright doesn't work with this user's Firefox). Each pi session (and subagent) gets **its own chromium instance/window/profile**, cloned from a shared template so logins are inherited.
+- The MCP launches **ungoogled-chromium** (`~/bin/chromium`, nix-managed via nix_config's dotfiles-env) — not Firefox (Playwright doesn't work with this user's Firefox). Each pi session (and subagent) gets **its own chromium instance/window/profile**, cloned from a shared template so logins are inherited.
 - The window is **headed on purpose**: it exists so the *user* can intervene — solve a captcha, log in, or type a password directly into the page without leaking it to the agent.
 - **Downloads land in `~/Downloads/pi/`** — both files downloaded via MCP calls (`outputDir`) and manual downloads in the visible window (profile pref). Screenshots taken with a `filename` also save there.
 - **Audio is muted by default** (seeded pref `sound: 2`) — videos/music play silent until the *user* unmutes in the window (omnibox speaker icon → "Allow sound", or the player's unmute button). Unmuting is the human's call; don't override the setting via CDP/automation.

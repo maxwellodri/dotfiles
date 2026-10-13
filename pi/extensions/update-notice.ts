@@ -64,16 +64,7 @@ export default function (pi: ExtensionAPI) {
 				const version = eligibleUpdate(packument, new Date());
 				if (version === undefined) return;
 
-				const latest = packument["dist-tags"]?.latest;
-				const cooling =
-					latest !== undefined && PLAIN_SEMVER.test(latest) && compareSemver(latest, version) > 0
-						? `\n(latest ${latest} is still inside the ${cooldownDays()}-day npm cooldown)`
-						: "";
-
-				ctx.ui.notify(
-					`Update Available\nNew version ${version} is available. Run scripts/install_flake.sh --update\nChangelog: https://pi.dev/changelog${cooling}`,
-					"warning",
-				);
+				ctx.ui.notify(`Update Available\nNew version ${version} is available.`, "warning");
 			})
 			.catch(() => {
 				/* offline or registry hiccup — no notice */

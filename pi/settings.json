@@ -3,7 +3,7 @@
   "defaultProvider": "zai",
   "defaultModel": "glm-5.3",
   "defaultThinkingLevel": "high",
-  "quietStartup": false,
+  "quietStartup": "header",
   "tuiMode": "regular",
   "lastChangelogVersion": "1.0.0",
   "hideThinkingBlock": false,

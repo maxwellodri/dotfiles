@@ -4,7 +4,7 @@
     "launchOptions": {
       "chromiumSandbox": true,
       "headless": false,
-      "executablePath": "/usr/bin/chromium",
+      "executablePath": "/home/maxwell/bin/chromium",
       "args": ["--test-type", "--disable-gpu", "--disable-dev-shm-usage", "--disable-extensions-except=/home/maxwell/.local/share/pi-browser-extensions/vdh,/home/maxwell/.local/share/pi-browser-extensions/ublock,/home/maxwell/.local/share/pi-browser-extensions/darkreader", "--load-extension=/home/maxwell/.local/share/pi-browser-extensions/vdh,/home/maxwell/.local/share/pi-browser-extensions/ublock,/home/maxwell/.local/share/pi-browser-extensions/darkreader"]
     }
   }

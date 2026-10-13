@@ -15,4 +15,4 @@ set -euo pipefail
 template="${XDG_CACHE_HOME:-$HOME/.cache}/ms-playwright-mcp/mcp-chrome-template"
 mkdir -p "$template"
 
-exec /usr/bin/chromium --user-data-dir="$template" "$@"
+exec "$HOME/bin/chromium" --user-data-dir="$template" "$@"

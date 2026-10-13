@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "entries": {
+    "[\"npx\",\"@playwright/mcp@0.0.78\",\"--config\",\"playwright-config.json\"]": {
+      "resolvedBin": "/home/maxwell/.cache/npm/_npx/a5b920f00216d246/node_modules/@playwright/mcp/cli.js",
+      "resolvedAt": 1789351524737,
+      "packageVersion": "0.0.78",
+      "isJs": true
+    }
+  }
+}

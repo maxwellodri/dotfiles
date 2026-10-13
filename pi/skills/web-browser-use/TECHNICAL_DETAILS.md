@@ -46,7 +46,7 @@ set — so agents would see/close each other's tabs. Rejected.)
   `mcp.json` is shared to every host via the repo, and pi's builtin MCP
   connects every configured server at session start — a file-configured
   server would spawn the server binary on machines that never browse.
-  Registration is gated on `/usr/bin/chromium` existing (the executablePath
+  Registration is gated on `~/bin/chromium` existing (the executablePath
   the config pins), so only browser-capable machines get the server. The
   binary is nixpkgs' `playwright-mcp` from nix_config's dotfiles-env
   (version pinned by the nixpkgs-dotfiles flake.lock; no network at

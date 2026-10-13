@@ -55,7 +55,7 @@ web_search { query: "headphones site:amazon.com.au OR site:jbhifi.com.au" }
 
 | Store | Search URL | Notes |
 |-------|-----------|-------|
-| staticICE | `https://www.staticice.com.au/cgi-bin/search.cgi?q={query}` | **First port of call.** AU price aggregator covering 30+ stores (MSY, Scorptec, PCCG, UMart, CPL, Mwave, etc.). Server-rendered — no JS wait needed. Extract via `document.body.innerText.substring(0, 3000)`. Supports negation with `-` prefix (e.g. `-ARGB -V2`). Shows price, store, stock status, and last-updated date. Use Playwright to scrape. |
+| staticICE | `https://www.staticice.com.au/cgi-bin/search.cgi?q={query}` | **First port of call** — PC-part SKUs only. **No furniture/appliance SKU coverage** (desks, chairs, treadmills etc. return nothing useful) — skip straight to web_search for those. Server-rendered — no JS wait needed. Extract via `document.body.innerText.substring(0, 3000)`. Supports negation with `-` prefix (e.g. `-ARGB -V2`). Shows price, store, stock status, and last-updated date. Use Playwright to scrape. |
 
 ### Tech / General
 
@@ -226,7 +226,7 @@ Uses a config file for launch options: `playwright-config.json`, living in `pi/b
   "browser": {
     "launchOptions": {
       "headless": false,
-      "executablePath": "/usr/bin/chromium",
+      "executablePath": "/home/maxwell/bin/chromium",
       "args": ["--disable-gpu", "--disable-dev-shm-usage"]
     }
   }
@@ -250,4 +250,4 @@ entry):
 
 On manual-enable harnesses the user turns this on by hand (MCPs can be context-heavy); on pi the tools are deferred and load on demand via `tool_search` with no manual step.
 
-**Note:** The ungoogled-chromium-bin AUR package installs with restrictive `750` permissions on `/usr/bin/chromium` and `/usr/lib/chromium/`. A pacman hook at `system_configs/etc/pacman.d/hooks/ungoogled-chromium-permissions.hook` auto-fixes this on install/upgrade.
+**Note:** Chromium is nix-managed (ungoogled-chromium via nix_config's dotfiles-env, exposed at `~/bin/chromium`); extensions ship patched in the store. The old ungoogled-chromium-bin AUR package and its pacman permissions hook are obsolete.

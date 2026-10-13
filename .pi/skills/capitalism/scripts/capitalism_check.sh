@@ -25,9 +25,9 @@ fi
 echo "PASS: web_search ready (pass with brave_search_api_key)"
 echo ""
 
-BINARY="/usr/bin/chromium"
+BINARY="$HOME/bin/chromium"
 if ! test -x "$BINARY"; then
-    WARNINGS+=("chromium not found at $BINARY — Playwright deep-dive unavailable (install: paru -S ungoogled-chromium-bin)")
+    WARNINGS+=("chromium not found at $BINARY — Playwright deep-dive unavailable (install: run nix_config's install_flake.sh)")
 fi
 
 if ! command -v npx &>/dev/null; then

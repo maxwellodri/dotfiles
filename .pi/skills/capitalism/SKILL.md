@@ -141,6 +141,15 @@ Repeat with varied queries to cover different stores and product variants.
 
 **Free shipping:** If an item's price meets a store's free shipping threshold (see REFERENCE.md), treat shipping as free. Do not assume any paid membership (e.g. Amazon Prime).
 
+### 4.5 External review cross-check (do for shortlisted items)
+
+Before recommending a shortlisted product, cross-reference it with **off-site reviews** (Reddit, independent review sites, YouTube). Trust weighting:
+
+- **External > on-site, always.** On-site ratings (Amazon especially) skew inflated — incentivised/undisclosed reviews are common. Treat them as a rough popularity signal only.
+- Reddit is the strongest signal: owner threads with specifics ("mine died after 8 months", "support shipped a free piston") beat any star rating. Search `site:reddit.com {product} review OR problems` plus the product name alone.
+- Surface known-failure patterns (wobble, motor lifespan, peeling upholstery) against the user's use case — a flaw that doesn't touch their use case is not a disqualifier.
+- If no external coverage exists, say so — that absence is itself information for a high-stakes purchase.
+
 ### 5. Deep-dive with Playwright (optional)
 
 If `web_search` results lack sufficient detail (missing prices, specs, stock status, shipping info), use Playwright MCP to scrape individual store pages:
@@ -199,7 +208,8 @@ User may ask to narrow results, check more stores, open product pages, or compar
 
 - [ ] Build mode gate enforced — refused if in build mode
 - [ ] Pre-flight check passed (web_search functional)
-- [ ] staticICE checked as first port of call (if Playwright available; skipped for second-hand gear — eBay AU, step 3.5)
+- [ ] staticICE checked as first port of call (if Playwright available; skipped for second-hand gear — eBay AU, step 3.5 — and for non-PC SKUs, see REFERENCE.md)
+- [ ] Shortlisted items cross-checked against external reviews (step 4.5)
 - [ ] `web_search` used for supplementary product discovery
 - [ ] At least 2 stores represented in results (AU storefronts first)
 - [ ] All prices in AUD

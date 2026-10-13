@@ -47,7 +47,6 @@ primitive (auto-detects `wl-clipboard` vs `xclip`; supports `-t/--type` and
 - `.config/X11/xinitrc` — X11 session startup → compositor config or `exec` in `.zprofile`
 - `.config/bspwm/bspwmrc` — bspwm WM config → sway/hyprland config
 - `.config/i3/config.base` — i3 base config → sway config (mostly compatible)
-- `.config/i3/config.laptop` — i3 laptop config → sway config
 - `.config/i3/config.thinkpad` — i3 thinkpad config → sway config
 - `.config/i3/config.pc` — i3 PC config → sway config
 - `.config/i3/config.chromebook` — i3 chromebook config → sway config
@@ -60,9 +59,7 @@ primitive (auto-detects `wl-clipboard` vs `xclip`; supports `-t/--type` and
 - `.zprofile.thinkpad` — `startx`
 - `.zprofile.pc` — `startx`
 - `.zprofile.hackerman` — `startx`
-- `.zprofile.laptop` — `startx`, i3 workspace refs
 - `.bash_profile.thinkpad` — `setxkbmap`, `startx`
-- `.bash_profile.laptop` — `startx`
 - `.config/sh/shrc` — aliases for `xrdb`, `sxhkd`, `bspwm`, `i3`, `picom`
 
 ### Input / hardware

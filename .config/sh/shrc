@@ -29,9 +29,19 @@ export PI_CODING_AGENT_DIR="$SOURCE/pi"
 export PASSWORD_STORE_GENERATED_LENGTH=30
 export QMK="$SOURCE/qmk_firmware"
 export JUPYTERLAB_DIR="$HOME/.local/share/jupyter/lab"
+# keep in sync: systemd --user service PATH lives in nix_config
+# (systems/dotfiles-env/files/environment.d, deployed to ~/.config/environment.d)
 export PATH="$SOURCE/dotfiles/pi/scripts:$BIN:$BIN/steam_scripts:$HOME/.local/share/cargo/bin:$HOME/.local/bin:$PATH"
 export MANPAGER='nvim +Man!'
-# systemctl --user import-environment moved to .zshrc_extra.<tag> (per-platform, not for agent users)
+# gpg-agent ssh emulation; socket-activated, exists only where enabled
+if command -v gpgconf >/dev/null 2>&1; then
+    _gpg_ssh_sock="$(gpgconf --list-dirs agent-ssh-socket 2>/dev/null)"
+    [ -S "${_gpg_ssh_sock:-}" ] && export SSH_AUTH_SOCK="$_gpg_ssh_sock"
+    unset _gpg_ssh_sock
+fi
+# systemd --user service env: static vars in .config/environment.d/, graphical
+# vars imported per-session by .config/X11/xinitrc — never import from shells
+# (a wedged manager would block every terminal)
 
 ################
 #Functions:

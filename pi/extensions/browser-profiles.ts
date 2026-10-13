@@ -150,8 +150,9 @@ export default function browserProfiles(pi: ExtensionAPI): void {
 	const registerMcpServers = (): void => {
 		const agentDir = process.env.PI_CODING_AGENT_DIR;
 		if (!agentDir) return;
-		if (existsSync("/usr/bin/chromium")) {
-			// /usr/bin/chromium is the executablePath pinned in pi/browser/playwright-config.json
+		const chromiumBin = join(homedir(), "bin", "chromium");
+		if (existsSync(chromiumBin)) {
+			// ~/bin/chromium is the executablePath pinned in pi/browser/playwright-config.json (nix-managed ungoogled-chromium via dotfiles-env)
 			const playwrightMcp = resolveOnPath("playwright-mcp");
 			pi.registerMcpServer("playwright", {
 				command: playwrightMcp ?? "npx",

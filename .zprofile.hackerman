@@ -24,8 +24,8 @@ export dotfile="$HOME/source/dotfiles"
 export dotfiles_tag="hackerman"
 export dotfile_tag="hackerman"
 
-[ -f "$(which transmission-daemon)" ] && transmission-daemon --no-auth
-eval "$(command ssh-agent)" > /dev/null
+# comm truncates to 15 chars, so pgrep -x can't use the full binary name
+command -v transmission-daemon >/dev/null && ! pgrep -x transmission-da >/dev/null && transmission-daemon --no-auth
 #command xfce-polkit
 
 if [ -z "$WM" ] ; then
