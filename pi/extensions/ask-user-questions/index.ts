@@ -2,10 +2,12 @@
  * ask-user-questions — ask_user_question tool: typed / checkbox questions.
  * One call batches question + additional_questions sequentially; options are
  * PARTS of an answer, not alternatives — any number checkable plus a Custom
- * editor row, no single-select mode by design. Esc cancels: earlier answers
- * survive, and the result carries terminate:true so the user's next message
- * explains why (termination applies only when every result in the tool batch
- * terminates). Esc on a later question keeps partials. RPC mode degrades to
+ * editor row, no single-select mode by design. ^C clears the pending answer
+ * (checked options + typed text), cancelling only once nothing is pending —
+ * main-prompt parity. Esc always cancels: earlier answers survive, and the
+ * result carries terminate:true so the user's next message explains why
+ * (termination applies only when every result in the tool batch terminates).
+ * Esc on a later question keeps partials. RPC mode degrades to
  * line-per-answer editors. Custom/free-form answers expand $snippets and
  * @path refs (snippet_expansion / prompt_expansion). One overlay at a time
  * via a globalThis mutex. Ported from amosblomqvist/pi-config, heavily
@@ -238,7 +240,8 @@ function renderCappedPopup(args: {
 	theme: any;
 	question: string;
 	context?: string;
-	customLabelLine: string;
+	/** Label row above the editor; omitted in text mode (no options). */
+	customLabelLine?: string;
 	editorLines: string[];
 	options: PopupSection[];
 	focusedOption: number; // index into options; -1 when the editor row has focus
@@ -251,7 +254,7 @@ function renderCappedPopup(args: {
 
 	// Fixed overhead: rules + custom row (label + editor) + submit (multi).
 	const submitCount = submitLine ? 1 : 0;
-	const overhead = 2 /* rules */ + 1 + editorLines.length + submitCount;
+	const overhead = 2 /* rules */ + (customLabelLine ? 1 : 0) + editorLines.length + submitCount;
 
 	const questionFull = wrapTextWithAnsi(theme.fg("text", ` ${question}`), width);
 	const contextFull = context ? wrapTextWithAnsi(theme.fg("muted", ` ${context}`), width) : [];
@@ -268,7 +271,7 @@ function renderCappedPopup(args: {
 			for (const line of contextFull) add(lines, truncateToWidth(line, width));
 		}
 		lines.push("");
-		add(lines, customLabelLine);
+		if (customLabelLine) add(lines, customLabelLine);
 		for (const line of editorLines) add(lines, line);
 		for (const option of options) {
 			add(lines, option.line);
@@ -298,7 +301,7 @@ function renderCappedPopup(args: {
 		add(lines, topRule());
 		for (const line of questionLines) add(lines, line);
 		if (withBlank) lines.push("");
-		add(lines, customLabelLine);
+		if (customLabelLine) add(lines, customLabelLine);
 		for (const line of editorLines) add(lines, line);
 		if (withMarkers && window.from > 0) {
 			add(lines, theme.fg("dim", `   …↑ ${window.from} more`));
@@ -384,7 +387,8 @@ async function askMultiChoice(
 	}));
 	const submitItem: DisplayOption = { id: "submit", label: "Submit", value: "__submit__", isSubmit: true };
 	// Row 0 is the inline Custom editor; options occupy rows 1..n, Submit last.
-	const allItems: DisplayOption[] = [...choiceItems, submitItem];
+	// Text mode (no options): the editor alone — Enter submits, no Submit row.
+	const allItems: DisplayOption[] = options.length > 0 ? [...choiceItems, submitItem] : choiceItems;
 
 	return ctx.ui.custom<AskAnswer[] | null>((tui: any, theme: any, _kb: any, done: (result: AskAnswer[] | null) => void) => {
 		let rowIndex = 0;
@@ -424,7 +428,8 @@ async function askMultiChoice(
 			if (text) {
 				answers.push({ type: "custom", label: text, value: text });
 			}
-			if (answers.length > 0) {
+			// Text mode can submit an empty answer.
+			if (answers.length > 0 || options.length === 0) {
 				done(sortAnswers(answers));
 			}
 		}
@@ -452,6 +457,19 @@ async function askMultiChoice(
 				return;
 			}
 
+			// ^C mirrors the main prompt: clear the pending answer, cancel
+			// only when nothing is pending.
+			if (matchesKey(data, Key.ctrl("c"))) {
+				if (selected.size > 0 || editor.getText().trim()) {
+					selected.clear();
+					editor.setText("");
+					refresh();
+					return;
+				}
+				done(null);
+				return;
+			}
+
 			// Tab / ⇧Tab cycle focus through the rows, wrapping at the edges.
 			if (matchesKey(data, Key.tab)) {
 				editor.focused = false;
@@ -467,21 +485,13 @@ async function askMultiChoice(
 			}
 
 			if (rowIndex === 0) {
-				// Editor row: no checkbox — the custom answer simply IS the
-				// editor text at submit time. ↑↓ are the editor's history,
-				// Enter a no-op; ^C clears the text.
 				if (matchesKey(data, Key.escape)) {
 					done(null);
 					return;
 				}
-				if (matchesKey(data, Key.ctrl("c"))) {
-					editor.setText("");
-					refresh();
-					return;
-				}
 				if (matchesKey(data, "ctrl+space")) {
 					editor.focused = false; // nothing to confirm here; move along
-					rowIndex = 1;
+					rowIndex = Math.min(1, allItems.length);
 					refresh();
 					return;
 				}
@@ -544,16 +554,20 @@ async function askMultiChoice(
 			const submitIsFocused = rowIndex === allItems.length;
 			const submitPrefix = submitIsFocused ? theme.fg("accent", "> ") : "  ";
 			const submitLabel = pending > 0 ? `✓ ${submitItem.label} (${pending} selected)` : `○ ${submitItem.label}`;
-			const submitLine = `${submitPrefix}${submitIsFocused ? theme.fg("accent", submitLabel) : theme.fg(pending > 0 ? "success" : "dim", submitLabel)}`;
+			const submitLine = options.length
+				? `${submitPrefix}${submitIsFocused ? theme.fg("accent", submitLabel) : theme.fg(pending > 0 ? "success" : "dim", submitLabel)}`
+				: undefined;
 
 			const hints: string[] = [];
-			if (rowIndex === 0) {
+			if (options.length === 0) {
+				hints.push(theme.fg("dim", " ^C clear • Enter submit • Esc cancel"));
+			} else if (rowIndex === 0) {
 				hints.push(theme.fg("dim", " Tab completes when list open • Tab/⇧Tab rows • ^C clear • Enter submit • Esc cancel"));
 			} else {
 				if (pending === 0) {
 					hints.push(theme.fg("warning", " Select at least one answer before submitting."));
 				}
-				hints.push(theme.fg("dim", " Tab/⇧Tab rows • Ctrl+Space toggle+down • Enter submit • Esc cancel"));
+				hints.push(theme.fg("dim", " Tab/⇧Tab rows • Ctrl+Space toggle+down • ^C clear • Enter submit • Esc cancel"));
 			}
 
 			const lines = renderCappedPopup({
@@ -562,7 +576,7 @@ async function askMultiChoice(
 				theme,
 				question,
 				context,
-				customLabelLine: `${customPrefix}${customRow}`,
+				customLabelLine: options.length ? `${customPrefix}${customRow}` : undefined,
 				editorLines,
 				options: optionSections,
 				focusedOption: rowIndex - 1 >= choiceItems.length ? choiceItems.length - 1 : rowIndex - 1,
@@ -602,7 +616,7 @@ async function askMultiChoiceRpc(
 ): Promise<AskAnswer[] | null> {
 	const title =
 		(context ? `${question}\n\n${context}` : question) +
-		"\n\nEnter one answer per line — an option label or your own text.";
+		(options.length ? "\n\nEnter one answer per line — an option label or your own text." : "");
 	const raw = await ctx.ui.editor(title);
 	if (raw === undefined) return null;
 	const answers: AskAnswer[] = [];
@@ -777,11 +791,14 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 					const spec = specs[i];
 					const mode = modeFor(spec);
 					const title = multi ? `Question ${i + 1} of ${specs.length}: ${spec.question}` : spec.question;
+					const askSelect = ctx.mode === "rpc" ? askMultiChoiceRpc : askMultiChoice;
 
 					if (mode === "text") {
-						const answer = await ctx.ui.editor(spec.context ? `${title}\n\n${spec.context}` : title);
-						if (answer === undefined) break; // Esc: keep what we have
-						const trimmed = answer.trim();
+						// Text mode = the popup with zero options: same editor and
+						// same ^C clear / Esc cancel keys as every other question.
+						const answers = await askSelect(ctx, title, spec.context, []);
+						if (!answers) break; // Esc: keep what we have
+						const trimmed = answers.find((a) => a.type === "custom")?.label.trim() ?? "";
 						let expanded = trimmed;
 						if (trimmed) {
 							const expansion = await expandAnswerText(trimmed, ctx);
@@ -792,7 +809,6 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 						// shape); the expansion rides along for the model-facing text only
 						results.push({ question: spec.question, context: spec.context, mode, status: "answered", answers: trimmed ? [{ type: "text", label: trimmed, value: trimmed }] : [], expandedAnswer: trimmed ? expanded : undefined });
 					} else {
-						const askSelect = ctx.mode === "rpc" ? askMultiChoiceRpc : askMultiChoice;
 						const answers = await askSelect(ctx, title, spec.context, spec.options);
 						if (!answers) break; // Esc: keep what we have
 						const custom = answers.find((a) => a.type === "custom");
