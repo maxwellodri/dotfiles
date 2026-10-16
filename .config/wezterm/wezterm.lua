@@ -2,7 +2,7 @@ local wezterm = require("wezterm")
 
 local config = {}
 
-config.front_end = "Software"
+config.front_end = "OpenGL"
 config.max_fps = 60
 
 -- I use tmux btw
