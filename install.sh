@@ -55,7 +55,7 @@ if [ "$tag" = "donnie" ]; then
 	# NixOS server: packages and system config are nix_config's job (deploy-rs),
 	# so no elevation and none of the arch/desktop helpers. pi + tmux come from
 	# the system profile (nix_config's pi + tmux-env packages); dotfiles-env-result
-	# points scripts/pi + tmux plugins at it.
+	# points scripts/pi at it.
 	sh helper_scripts/makesymlinks.sh "$tag"
 	sh helper_scripts/custom_bin_scripts.sh
 	bash rust/install.sh
@@ -92,7 +92,7 @@ sh rust/install.sh
 bash helper_scripts/download_suckless.sh #provides ssh copying msg, e.g. see script
 flake="${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}/scripts/install_flake.sh"
 if [ -f "$flake" ]; then
-	bash "$flake" #always last: nix-builds nix_config's dotfiles-env (needs nix + a clone of nix_config); pi updater + tmux/plugins + fonts symlinks + adapter deps; must not disturb the others
+	bash "$flake" #always last: nix-builds nix_config's dotfiles-env (needs nix + a clone of nix_config); pi updater + fonts symlinks + adapter deps; must not disturb the others
 else
 	echo "WARNING: $flake missing — clone nix_config first, skipping flake install" >&2
 fi
