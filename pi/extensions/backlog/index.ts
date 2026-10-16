@@ -4,7 +4,7 @@
  * or with when_afk once you've also been idle ≥ N minutes.
  *   /backlog [m] <p>    queue; a leading minute count adds a wall-clock
  *                       countdown in front of the settle gate
- *   /when_afk <m> <p>   queue behind the idle gate
+ *   /when_afk [m] <p>   queue behind the idle gate; m defaults to 30
  *   bare either         cancel + dump the armed queue into the editor
  * One slot, one gate kind at a time. Any user message cancels an afk queue
  * (an active user is not AFK), never a settled one. Entries persist in the
@@ -29,11 +29,12 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("when_afk", {
-		description: "Queue a prompt to fire once idle ≥ N minutes; no args dumps the queued prompt into the editor",
+		description: "Queue a prompt to fire once idle ≥ N minutes (default 30); no args dumps the queued prompt into the editor",
 		handler: async (args: string, ctx: ExtensionContext) => {
-			const m = /^(\d+)\s+([\s\S]+)$/.exec(args.trim());
-			if (!m) return backlogs.dumpToEditor(ctx);
-			backlogs.add("afk", m[2], parseInt(m[1], 10), ctx);
+			const text = args.trim();
+			if (!text) return backlogs.dumpToEditor(ctx);
+			const m = /^(?:(\d+)\s+)?([\s\S]+)$/.exec(text)!;
+			backlogs.add("afk", m[2], m[1] ? parseInt(m[1], 10) : 30, ctx);
 		},
 	});
 
