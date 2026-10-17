@@ -52,7 +52,7 @@ struct FilterOpts {
     max_depth: Option<usize>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 struct Project {
     path: String,
     #[serde(default)]
@@ -75,6 +75,26 @@ struct Project {
     find_skip: bool,
     #[serde(default)]
     tmux_windows: IndexMap<String, Window>,
+    /// Fleet machines (dotfile_tags) allowed to host this project; absent = all.
+    #[serde(default)]
+    valid_dotfile_tags: Option<Vec<String>>,
+}
+
+impl Project {
+    fn allows_tag(&self, tag: Option<&str>) -> bool {
+        match (&self.valid_dotfile_tags, tag) {
+            (Some(tags), Some(tag)) => tags.iter().any(|t| t == tag),
+            _ => true,
+        }
+    }
+}
+
+fn local_dotfile_tag() -> Option<String> {
+    // .zprofile.nox predates the short spelling; both stay until it's migrated
+    env::var("dotfile_tag")
+        .or_else(|_| env::var("dotfiles_tag"))
+        .ok()
+        .filter(|t| !t.is_empty())
 }
 
 #[derive(Debug, Deserialize)]
@@ -376,6 +396,9 @@ fn cmd_switch(gui: bool) -> Result<()> {
     }
 
     for (name, project) in &config.projects {
+        if !project.allows_tag(local_dotfile_tag().as_deref()) {
+            continue;
+        }
         let dir = expand_path(&project.path);
         if !dir.is_dir() {
             continue;
@@ -506,7 +529,9 @@ fn cmd_find(gui: bool, path_only: bool) -> Result<()> {
     let project = config.as_ref().and_then(|c| {
         c.projects.iter().find(|(_, p)| {
             let ppath = expand_path(&p.path);
-            !p.find_skip && (cwd.starts_with(&ppath) || cwd == ppath)
+            !p.find_skip
+                && p.allows_tag(local_dotfile_tag().as_deref())
+                && (cwd.starts_with(&ppath) || cwd == ppath)
         })
     });
 
@@ -659,6 +684,9 @@ fn cmd_list(clean: bool, tmux: bool, notmux: bool) -> Result<()> {
 
     if clean {
         for (_, project) in &config.projects {
+            if !project.allows_tag(local_dotfile_tag().as_deref()) {
+                continue;
+            }
             let path = expand_path(&project.path);
             if !path.is_dir() {
                 continue;
@@ -675,6 +703,9 @@ fn cmd_list(clean: bool, tmux: bool, notmux: bool) -> Result<()> {
     } else {
         println!("Projects:");
         for (name, project) in &config.projects {
+            if !project.allows_tag(local_dotfile_tag().as_deref()) {
+                continue;
+            }
             let path = expand_path(&project.path);
             if !path.is_dir() {
                 continue;
@@ -712,4 +743,33 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn allows_tag_enumerates_allowed_machines() {
+        let mut project = Project::default();
+        assert!(project.allows_tag(Some("pc")));
+        project.valid_dotfile_tags = Some(vec!["pc".into(), "snuggy".into()]);
+        assert!(project.allows_tag(Some("pc")));
+        assert!(project.allows_tag(Some("snuggy")));
+        assert!(!project.allows_tag(Some("hackerman")));
+        // unset dotfile_tag: machine identity unknown, cannot enforce
+        assert!(project.allows_tag(None));
+    }
+
+    #[test]
+    fn valid_dotfile_tags_serde_contract() {
+        let absent: Project = serde_norway::from_str("path: /tmp").unwrap();
+        assert!(absent.valid_dotfile_tags.is_none());
+        let null: Project = serde_norway::from_str("path: /tmp\nvalid_dotfile_tags: null").unwrap();
+        assert!(null.valid_dotfile_tags.is_none());
+        let empty: Project = serde_norway::from_str("path: /tmp\nvalid_dotfile_tags: []").unwrap();
+        assert!(empty.valid_dotfile_tags.as_deref().unwrap().is_empty());
+        assert!(!empty.allows_tag(Some("pc")));
+        assert!(empty.allows_tag(None));
+    }
 }
