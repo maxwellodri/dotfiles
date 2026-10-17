@@ -51,7 +51,7 @@ if [ -n "$dotfile_tag" ] && [ "$dotfile_tag" != "$tag" ]; then
 	exit 1
 fi
 
-if [ "$tag" = "donnie" ]; then
+if [ "$tag" = "donnie" ] || [ "$tag" = "snuggy" ]; then
 	# NixOS server: packages and system config are nix_config's job (deploy-rs),
 	# so no elevation and none of the arch/desktop helpers. pi + tmux come from
 	# the system profile (nix_config's pi + tmux-env packages); dotfiles-env-result

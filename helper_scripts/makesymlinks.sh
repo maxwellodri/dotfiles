@@ -50,6 +50,7 @@ files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gitconfig $npm $faucet
 pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $eww $desktop_apps $heraldcfg" #platform specific dotfiles
 hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $qz $eww $desktop_apps $heraldcfg $gpgagent"
 donniefiles=" $zsh $nix $dotfiles $qz" #headless NixOS server
+snuggyfiles=" $zsh $nix $dotfiles $qz" #headless NixOS server (devbox replacement)
 
 ##########
 
@@ -72,6 +73,10 @@ case $1 in
 
     "donnie")       tag="$1"
         files=$donniefiles$files
+        ;;
+
+    "snuggy")       tag="$1"
+        files=$snuggyfiles$files
         ;;
 
     "clean")        echo "Removing all symlinks..."

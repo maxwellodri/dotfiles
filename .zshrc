@@ -115,8 +115,12 @@ bindkey -M vicmd 'y' vi-yank-xclip
 
 bindkey '^n' history-search-forward
 
-source /usr/share/fzf/key-bindings.zsh
-source /usr/share/fzf/completion.zsh
+# NixOS system profile first (headless boxes), distro path second
+for _fzd in /run/current-system/sw/share /usr/share; do
+    [ -e "$_fzd/fzf/key-bindings.zsh" ] && source "$_fzd/fzf/key-bindings.zsh"
+    [ -e "$_fzd/fzf/completion.zsh" ] && source "$_fzd/fzf/completion.zsh"
+done
+unset _fzd
 
 function _fuzzy_vim {
     # Execute the script and capture the output
@@ -229,6 +233,9 @@ PS1="%B%{$fg[yellow]%}[%{$fg[magenta]%}%n%{$fg[green]%}@%{$fg[blue]%}%M %{$fg[re
 [ -e "$HOME/.config/sh/shrc" ] && source "$HOME/.config/sh/shrc" #load alias and exports
 [ -e "$HOME/.zshrc_extra" ] && source "$HOME/.zshrc_extra" #load platform specifcs
 [ -e "/usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ] && source "/usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+[ -e "/run/current-system/sw/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ] && source "/run/current-system/sw/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+[ -e "/usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ] && source "/usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+[ -e "/run/current-system/sw/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ] && source "/run/current-system/sw/share/zsh-autosuggestions/zsh-autosuggestions.zsh" && bindkey '^ ' autosuggest-accept
 [ -e "/usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" ] && source "/usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" && bindkey '^ ' autosuggest-accept
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#46ff00,bg=black,bold,underline"
 # Basic auto/tab complete:
