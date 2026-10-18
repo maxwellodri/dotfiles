@@ -12,8 +12,9 @@ serde_norway = "0.9"
 anyhow = "1"
 shellexpand = "3"
 regex = "1"
-dirs = "6"
+dirs = "7"
 indexmap = { version = "2", features = ["serde"] }
+rand = "0.10"
 
 [profile.release]
 opt-level = 3
