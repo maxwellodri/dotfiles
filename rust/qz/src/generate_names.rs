@@ -1,9 +1,7 @@
-#!/usr/bin/env python3
-"""Random alliterative creature name, e.g. "Terrific Triceratops"."""
+//! Ported from scripts/alliterate_name.py (deleted in the same move):
+//! random alliterative creature name, e.g. "Terrific Triceratops".
 
-import random
-
-ADJECTIVES = [
+pub const ADJECTIVE_LIST: &[&str] = &[
     "adorable",
     "adventurous",
     "affable",
@@ -676,9 +674,9 @@ ADJECTIVES = [
     "zingy",
     "zippy",
     "zonked",
-]
+];
 
-NOUNS = [
+pub const NOUN_LIST: &[&str] = &[
     "aardvark",
     "aardwolf",
     "afreet",
@@ -1051,18 +1049,74 @@ NOUNS = [
     "zorse",
     "zuniceratops",
     "zuul",
-]
+];
 
+use rand::seq::IndexedRandom;
 
-def main():
-    random.seed()
-    while True:
-        noun = random.choice(NOUNS)
-        candidates = [adj for adj in ADJECTIVES if adj.startswith(noun[0])]
-        if candidates:
-            break
-    print(f"{random.choice(candidates).title()} {noun.title()}")
+fn title(word: &str) -> String {
+    let mut chars = word.chars();
+    match chars.next() {
+        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+        None => String::new(),
+    }
+}
 
+/// "Adjective Noun", alliterative; e.g. window names use
+/// `generate_name().to_lowercase().replace(' ', "_")`.
+pub fn generate_name() -> String {
+    let mut rng = rand::rng();
+    loop {
+        let noun = NOUN_LIST.choose(&mut rng).expect("NOUN_LIST nonempty");
+        let first = noun.chars().next().expect("nonempty word");
+        let candidates: Vec<&str> = ADJECTIVE_LIST
+            .iter()
+            .copied()
+            .filter(|adj| adj.starts_with(first))
+            .collect();
+        if let Some(adjective) = candidates.choose(&mut rng) {
+            return format!("{} {}", title(adjective), title(noun));
+        }
+    }
+}
 
-if __name__ == "__main__":
-    main()
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_noun_letter_has_an_adjective() {
+        for noun in NOUN_LIST {
+            assert!(
+                ADJECTIVE_LIST
+                    .iter()
+                    .any(|adj| adj.starts_with(noun.chars().next().expect("nonempty word"))),
+                "no adjective for {noun}"
+            );
+        }
+    }
+
+    #[test]
+    fn lists_are_ascii_lowercase() {
+        for word in ADJECTIVE_LIST.iter().chain(NOUN_LIST.iter()) {
+            assert!(
+                word.bytes().all(|b| b.is_ascii_lowercase()),
+                "breaks the lowercase word contract"
+            );
+        }
+    }
+
+    #[test]
+    fn generate_name_is_alliterative_title_pair() {
+        for _ in 0..50 {
+            let name = generate_name();
+            let (adjective, noun) = name.split_once(' ').expect("two words");
+            assert!(adjective.len() > 1 && noun.len() > 1);
+            assert_eq!(
+                adjective.chars().next().unwrap(),
+                noun.chars().next().unwrap()
+            );
+            assert!(adjective.chars().next().unwrap().is_uppercase());
+            assert!(noun.chars().next().unwrap().is_uppercase());
+        }
+    }
+}

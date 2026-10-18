@@ -8,6 +8,8 @@ use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+mod generate_names;
+
 #[derive(Parser)]
 #[command(
     author,
@@ -40,6 +42,8 @@ enum Commands {
         #[arg(long, help = "Exclude tmux projects (requires --clean)")]
         notmux: bool,
     },
+    /// Random alliterative creature name, e.g. "Terrific Triceratops"
+    GenerateName,
 }
 
 #[derive(Debug, Deserialize)]
@@ -737,6 +741,7 @@ fn main() -> Result<()> {
             tmux,
             notmux,
         }) => cmd_list(clean, tmux, notmux)?,
+        Some(Commands::GenerateName) => println!("{}", generate_names::generate_name()),
         None => {
             Cli::parse_from(["qz", "--help"]);
         }
