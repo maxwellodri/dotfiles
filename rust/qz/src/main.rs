@@ -110,6 +110,9 @@ struct Window {
 }
 
 const SOH: char = '\x01';
+// scratch panes park in this background tmux session (.config/tmux/_tmux_scratch);
+// never offer it as a switch target
+const TMUX_PARKING_SESSION: &str = "tmux_scratch_pane_parking";
 
 enum Action {
     Cd {
@@ -157,7 +160,9 @@ fn expand_path(path: &str) -> PathBuf {
 
 fn tmux_session_exists(name: &str) -> bool {
     Command::new("tmux")
-        .args(["has-session", "-t", name])
+        // "=" forces exact-name matching; bare names prefix-match, so a
+        // project named e.g. "tmux" would resolve to the parking session
+        .args(["has-session", "-t", &format!("={name}")])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
@@ -375,6 +380,7 @@ fn cmd_switch(gui: bool) -> Result<()> {
                 String::from_utf8_lossy(&o.stdout)
                     .lines()
                     .filter_map(|line| line.split(':').next().map(String::from))
+                    .filter(|s| s != TMUX_PARKING_SESSION)
                     .collect()
             })
             .unwrap_or_default()

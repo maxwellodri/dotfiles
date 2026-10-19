@@ -2,7 +2,6 @@
 
 target=$(tmux list-windows -F "#{window_index}: #{window_name}" \
   | grep -v "^$(tmux display-message -p "#I"):" \
-  | grep -v ": terminal$" \
   | fzf-tmux -p 40%,30% --prompt="Move to: " \
   | cut -d: -f1)
 

@@ -1,0 +1,111 @@
+#!/bin/sh
+# Scratch pane manager: toggle | guard-break | gc
+#
+# Shown  = scratch joined into the current window as a split pane.
+# Hidden = pane parked in session tmux_scratch_pane_parking (lazily created,
+#          kept alive by a `sleep infinity` sentinel, flagged @park=1).
+# Tracked by pane flags only: @scratch=1 + @scratch-origin=<session_id>
+# (ids survive renames and never contain the '|' delimiter). One scratch
+# per session. Reaping: the session-closed hook runs gc, and every toggle
+# runs gc first — either path reaps parked panes whose origin session is
+# gone. If the park session itself is killed, every parked scratch dies
+# with it and the next toggle recreates lazily.
+
+PARK=tmux_scratch_pane_parking
+
+scratch_find() { # $1 = session id -> pane_id or empty
+    tmux list-panes -a -F "#{pane_id}|#{@scratch}|#{@scratch-origin}" |
+        awk -v s="$1" -F'|' '$2 == "1" && $3 == s {print $1; exit}'
+}
+
+live_session_ids() {
+    tmux list-sessions -F '#{session_id}'
+}
+
+park_session_ensure() {
+    if ! tmux has-session -t "=$PARK" 2>/dev/null; then
+        tmux new-session -d -s "$PARK" "exec sleep infinity"
+        tmux set-option -t "$PARK" @park 1
+    fi
+}
+
+park() { # $1 = scratch pane id, $2 = window id the scratch is leaving
+    park_session_ensure
+    # a clientless session defaults to 80x24 and window-size automatic would
+    # clamp it right back; pin the size manually or TUIs garble on every cycle.
+    # -t "$2": new-session above repoints the context at the 80x24 park window.
+    tmux set-window-option -t "$PARK:0" window-size manual 2>/dev/null
+    tmux resize-window -t "$PARK:0" \
+        -x "$(tmux display-message -p -t "$2" '#{window_width}')" \
+        -y "$(tmux display-message -p -t "$2" '#{window_height}')" 2>/dev/null
+    tmux join-pane -s "$1" -t "$PARK:0.0"
+}
+
+gc() { # reap parked scratches whose origin session no longer exists
+    tmux has-session -t "=$PARK" 2>/dev/null || return 0
+    tmux list-panes -t "$PARK" -F "#{pane_id}|#{@scratch}|#{@scratch-origin}" |
+        awk -F'|' -v live="$(live_session_ids | tr '\n' ',')" '
+            $2 == "1" && index("," live ",", "," $3 ",") == 0 {print $1}' |
+        while read -r p; do tmux kill-pane -t "$p" 2>/dev/null; done
+}
+
+toggle() {
+    name=$(tmux display-message -p '#{session_name}')
+    [ "$name" = "$PARK" ] && exit 0
+    gc
+    session=$(tmux display-message -p "#{session_id}")
+    current_pane=$(tmux display-message -p "#{pane_id}")
+    current_window=$(tmux display-message -p "#{window_id}")
+    scratch=$(scratch_find "$session")
+
+    if [ -z "$scratch" ]; then
+        new=$(tmux split-window -v -l 30% -c "#{pane_current_path}" -P -F "#{pane_id}")
+        tmux set-option -p -t "$new" @scratch 1
+        tmux set-option -p -t "$new" @scratch-origin "$session"
+        exit 0
+    fi
+
+    if [ "$(tmux display-message -p -t "$scratch" '#{window_id}')" = "$current_window" ]; then
+        # shown here -> hide. If we're focused on it, hand focus to a real pane first.
+        if [ "$current_pane" = "$scratch" ]; then
+            fallback=$(tmux list-panes -t "$current_window" -F '#{pane_id}' |
+                grep -v "^$scratch$" | head -1)
+            [ -n "$fallback" ] && tmux select-pane -t "$fallback"
+        fi
+        # parking the session's last pane would destroy the session;
+        # leave a fresh window behind instead
+        if [ "$(tmux list-windows -t "$session" | wc -l)" -eq 1 ] &&
+           [ "$(tmux list-panes -t "$current_window" | wc -l)" -eq 1 ]; then
+            tmux new-window -t "$session"
+        fi
+        park "$scratch" "$current_window"
+        exit 0
+    fi
+
+    # parked (or shown elsewhere) -> show as a 40% split under the current pane
+    tmux join-pane -s "$scratch" -t "$current_pane" -v -l 40%
+}
+
+guard_break() {
+    # never break the scratch out alone; break only if a real pane stays behind
+    name=$(tmux display-message -p '#{session_name}')
+    [ "$name" = "$PARK" ] && exit 0
+    session=$(tmux display-message -p '#{session_id}')
+    window=$(tmux display-message -p "#{window_id}")
+    pane=$(tmux display-message -p "#{pane_id}")
+    scratch=$(scratch_find "$session")
+    [ "$pane" = "$scratch" ] && exit 0
+    others=$(tmux list-panes -t "$window" -F '#{pane_id}' |
+        grep -v "^${scratch:-none}$" | grep -v "^$pane$" | wc -l)
+    if [ "$others" -ge 1 ]; then
+        new=$(tmux break-pane -P -F '#{window_id}')
+        tmux select-window -t "$new"
+    fi
+}
+
+case "${1:-}" in
+    toggle) toggle ;;
+    guard-break) guard_break ;;
+    gc) gc ;;
+    *) echo "usage: $0 {toggle|guard-break|gc}" >&2; exit 2 ;;
+esac
