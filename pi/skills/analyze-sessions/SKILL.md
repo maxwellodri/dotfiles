@@ -1,6 +1,6 @@
 ---
 name: analyze-sessions
-description: Mine past pi sessions for recurring user responses and turn them into $-snippets; also transcript search, session replay, and token-usage rollups.
+description: Mine past pi sessions for recurring user responses and turn them into $-snippets, and prune unused ones; also transcript search, session replay, and token-usage rollups.
 disable-model-invocation: true
 ---
 
@@ -20,7 +20,7 @@ already split into input/output/cacheRead/cacheWrite/total.
 ## Persistent memory between runs
 
 `~/source/private/runtime/pi/analyze_sessions_notes.md` carries findings
-across runs: snippets created/edited, rejected candidates and why, and
+across runs: snippets created/edited/retired, rejected candidates and why, and
 method notes. Read it before proposing — a recorded rejection stands unless
 usage has clearly changed. After the user has answered this run's proposals,
 append a `## Run <date>` section with the verdicts (fill in any PENDING
@@ -28,8 +28,10 @@ entries). Never delete old sections — the history is the trend signal.
 
 ## The main event: recurring responses → new snippets
 
-The biggest win this skill offers: text the user types over and over is a
-snippet waiting to exist. Find it, check it isn't covered, propose it.
+The biggest win this skill offers: text the user types over and over means
+the environment is missing something — usually a snippet, sometimes standing
+steering or automation. Find it, triage the fix, check it isn't covered,
+propose it.
 
 ### 1. Dump prompts
 
@@ -41,7 +43,22 @@ Output is markdown grouped by project. Wider windows (`90d`, `--until` to
 bound an era) give a stronger frequency signal; the char cap keeps pasted
 context out.
 
-### 2. Spot recurring responses
+### 2. Start where it hurt
+
+Corrections cluster around struggle; a smooth session has little to teach.
+Narrow the dump to sessions with failed tool calls, then drill into the
+worst:
+
+```bash
+python3 scripts/prompts.py --since 30d --errors-only
+python3 scripts/cost.py --since 30d --by session --errors-only --limit 10
+python3 scripts/show_session.py --session <id>   # bare filters render the newest match
+```
+
+The `show_session.py` header carries duration, message counts, and error
+count — high errors plus long duration is the profile worth mining.
+
+### 3. Spot recurring responses
 
 Look for **user-authored text that repeats across sessions, ideally across
 projects** — the frequency across independent sessions is the signal. The
@@ -49,7 +66,8 @@ fruitful shapes:
 
 - **Steering & corrections** — the same nudge re-sent ("verify with
   shellcheck", "don't commit, I'll review"): each repetition is a session
-  where a snippet would have saved a round-trip
+  where the right fix — snippet, steering, or hook (step 4) — would have
+  saved a round-trip
 - **Standing context** — the same setup paragraph re-typed (environment
   notes, preferences, constraints that apply most sessions)
 - **Standard replies** — the same canned answer to recurring agent
@@ -57,6 +75,12 @@ fruitful shapes:
 
 Not candidates: one-off asks, pasted blobs, anything with project-specific
 paths or names that won't generalize to other repos.
+
+Expansions never pollute this signal: `$name` and `@path` expansions are
+logged as separate `custom_message` records (`customType:
+"promptExpansion.injected"`), never as user prompts — anything recurring in
+`prompts.py` output was genuinely typed. The same marker doubles as a
+snippet usage counter (step 7).
 
 Once a candidate phrase is spotted, quantify it — exact repeats are
 greppable:
@@ -68,7 +92,20 @@ python3 scripts/search.py "verify with shellcheck" --in user --since 90d
 Hits across several sessions (not several hits in one session) are the
 good ones.
 
-### 3. Filter against existing snippets
+### 4. Triage the fix — not every recurrence is a snippet
+
+A snippet only works when the user remembers to type `$name`; a repeated
+response may point at a fix that doesn't depend on the user at all. Classify
+each candidate:
+
+| Recurrence shape | Fix |
+| --- | --- |
+| Should apply in (nearly) every session | Steering — `pi/APPEND_SYSTEM.md` (global) or the repo's `AGENTS.md` |
+| Tied to a task type or whole workflow | A skill |
+| Mechanically checkable; the agent should never get it wrong | An extension or hook — prose can't fail a build |
+| The user's in-the-moment call, each time | Snippet — continue below |
+
+### 5. Filter against existing snippets
 
 List `$PI_CODING_AGENT_DIR/snippets/` (`pi/snippets/` in the dotfiles
 repo). Layout: `<name>.md` or `<name>/snippet.md`. **Read the bodies**, not
@@ -80,12 +117,13 @@ The run-notes file (see *Persistent memory between runs*) records the
 snippet inventory as of the last run; the directory listing is always
 authoritative.
 
-### 4. Propose up to 5, then wait
+### 6. Propose up to 5, then wait
 
 Each proposal: `name` (`[a-zA-Z0-9_-]+`, short, reads as a word — users
 type `$name`), `body` (the reusable text — its **first line doubles as the
 autocomplete description**, keep it a clear one-liner), and the evidence
-(which sessions/projects it recurred in). A good snippet is a fragment,
+(which sessions/projects it recurred in), ordered strongest-first by
+distinct-session count. A good snippet is a fragment,
 not a document; generic across projects; something the user would actually
 bother typing `$name` for.
 
@@ -93,6 +131,24 @@ Create files in `pi/snippets/<name>.md` **only after the user approves**.
 Snippets go live in autocomplete within ~2 s (mtime/TTL caches in
 snippet_expansion.ts), no reload needed. Then record the run's verdicts in
 the run-notes file (see *Persistent memory between runs*).
+
+### 7. Retire unused snippets (run occasionally)
+
+Snippet usage is directly countable: every `$name` expansion is logged with
+the snippet's path via the `promptExpansion.injected` marker (`@path`
+includes use the same marker — filter to `/snippets/`):
+
+```bash
+SESS="${PI_CODING_AGENT_SESSION_DIR:-$HOME/.local/state/pi/sessions}"
+for f in $(rg -l promptExpansion.injected "$SESS" -g '*.jsonl'); do
+  rg promptExpansion.injected "$f" | jq -r '.details.files[]?.path // empty' 2>/dev/null
+done | grep '/snippets/' | sort | uniq -c | sort -rn
+```
+
+Snippets with zero hits over the window are retire candidates. Don't gauge
+usage by grepping snippet body text — assistant thinking quotes bodies and
+inflates counts. Propose retirement like any other change (delete only
+after approval) and record the verdict in the run-notes.
 
 ## Scripts
 
