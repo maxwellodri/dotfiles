@@ -1,28 +1,38 @@
--- GitSplit: open a fugitive-style vertical diff (HEAD on the left, working
--- tree on the right) for every dirty / untracked file in the repo, in a fresh
--- dedicated tab.
+-- GitSplit: open a stacked review — the working file on top (editable), its
+-- HEAD version mirrored below (read-only, same filetype, diff-paired) — for
+-- every dirty / untracked file in the repo, in a fresh dedicated tab. Same
+-- shape as the WorktreeReview tab; this one reviews dirty changes on the
+-- upstream branch directly instead of picked worktree commits.
 --
 --   :GitSplit        (not bound to any key by default)
---   :GitSplitStaged  (also <leader>gs)
+--   :GitSplitStaged  (also <leader>gws)
 --
 -- Behaviour:
 --   * "Git tree is clean" + early no-op if nothing is dirty/untracked.
---   * LHS = HEAD version of the file; RHS = the working-tree file (editable).
---   * Untracked / brand-new files have an empty LHS with a virtual banner, so
---     the whole file reads as added.
+--   * TOP = the working-tree file (editable); BOTTOM = its HEAD version
+--     (read-only). Untracked / brand-new files show an empty bottom pane with
+--     a virtual banner, so the whole file reads as added.
 --   * Binary files are skipped; vim.g.GitSplitIgnore (default {}) lists
 --     repo-relative files/directories to always skip as well.
+--   * Saving a right-pane buffer stages the written delta (3-way into the
+--     index): edits land staged while unrelated unstaged hunks in the same
+--     file stay unstaged; a write overlapping an unstaged hunk stages
+--     nothing and warns. Untracked files are exempt — saving one just
+--     writes the file, it stays untracked.
 --   * <leader>bn / <leader>bp / <leader>bd work from EITHER pane and keep both
 --     in sync: there is one shared "current file" index, and advancing it
 --     updates both panes together. `bd` drops the current file and moves on.
---   * <leader>gS toggles the diff highlighting. Diff mode is pairwise per
+--   * <leader>gh toggles the diff highlighting. Diff mode is pairwise per
 --     window, so it always applies to BOTH panes (diffoff on one side would
 --     break the pair -- killing the highlighting on both sides anyway) and
 --     file navigation preserves the chosen state.
---   * `q` (LHS pane only, so the RHS keeps macro recording) closes the session
---     (the tab); working-tree buffers are left in the buffer list for editing.
+--   * `q` (bottom pane only, so the top keeps macro recording) closes the
+--     session (the tab); working-tree buffers are left in the buffer list for
+--     editing.
 
 local M = {}
+
+local gitwrite = require('user.git.write')
 
 local ns = vim.api.nvim_create_namespace('user.git.gitsplit')
 local augroup = vim.api.nvim_create_augroup('user.git.gitsplit', { clear = true })
@@ -34,9 +44,9 @@ local state = nil -- populated by M.open, cleared by M.close
 -- are stripped). A file is skipped if it equals an entry or lives beneath one.
 vim.g.GitSplitIgnore = vim.g.GitSplitIgnore or {}
 
--- the nav keys bound on every session buffer (LHS + RHS). `q` is bound only
--- on the LHS pane, so it is not part of this set.
-local SESSION_KEYS = { '<leader>bn', '<leader>bp', '<leader>bd', '<leader>gS' }
+-- the nav keys bound on every session buffer (top + bottom). `q` is bound
+-- only on the bottom pane, so it is not part of this set.
+local SESSION_KEYS = { '<leader>bn', '<leader>bp', '<leader>bd', '<leader>gh' }
 
 local function clear_buf_keymaps(b)
   if not vim.api.nvim_buf_is_valid(b) then return end
@@ -123,9 +133,9 @@ end
 -- rendering
 --------------------------------------------------------------------------------
 
--- Fill the shared left scratch buffer with the HEAD version of `file`, or leave
--- it empty with a virtual banner for untracked / brand-new files. `ft` is the
--- on-screen file's filetype, used to light up the LHS.
+-- Fill the shared bottom scratch buffer with the HEAD version of `file`, or
+-- leave it empty with a virtual banner for untracked / brand-new files. `ft`
+-- is the on-screen file's filetype, used to light up the mirror.
 local function set_lhs_content(buf, root, file, ft)
   vim.bo[buf].modifiable = true
   local banner
@@ -215,7 +225,7 @@ local function refresh()
   if ft == '' then ft = vim.filetype.match({ filename = file.abs }) or '' end
   set_lhs_content(state.lhs_buf, state.root, file, ft)
 
-  -- re-enter diff mode unless the highlighting is toggled off (<leader>gS)
+  -- re-enter diff mode unless the highlighting is toggled off (<leader>gh)
   if not state.hl_off then
     for _, w in ipairs({ state.lhs_win, state.rhs_win }) do
       if vim.api.nvim_win_is_valid(w) then
@@ -252,7 +262,7 @@ end
 local function next_file() goto_index((state and state.index or 1) + 1) end
 local function prev_file() goto_index((state and state.index or 1) - 1) end
 
--- Toggle the diff highlighting on/off (<leader>gS). Diff mode is per-window
+-- Toggle the diff highlighting on/off (<leader>gh). Diff mode is per-window
 -- but pairwise: taking ONE pane out of diff breaks the pair and drops the
 -- highlighting from BOTH windows anyway (while leaving scrollbind / folds
 -- desynced), so the toggle always applies to both panes at once. refresh()
@@ -330,6 +340,7 @@ M.next_file = next_file
 M.prev_file = prev_file
 M.delete_current = delete_current
 M.toggle_hl = toggle_hl
+M.session = function() return state end
 
 --------------------------------------------------------------------------------
 -- session lifecycle
@@ -340,7 +351,7 @@ local function session_keymaps(b)
   vim.keymap.set('n', '<leader>bn', next_file, o)
   vim.keymap.set('n', '<leader>bp', prev_file, o)
   vim.keymap.set('n', '<leader>bd', delete_current, o)
-  vim.keymap.set('n', '<leader>gS', toggle_hl, o)
+  vim.keymap.set('n', '<leader>gh', toggle_hl, o)
 end
 
 local function clear_rhs_keymaps(s)
@@ -396,6 +407,12 @@ end
 function M.open(staged_only)
   if state then M.close() end
 
+  local wt_ok, wt = pcall(require, 'user.git.worktree')
+  if wt_ok and wt.session() then
+    return vim.notify('GitSplit: close the WorktreeReview session first (both want the same buffers)',
+      vim.log.levels.ERROR)
+  end
+
   local root = git_root()
   if not root then
     return vim.notify('GitSplit: not inside a git repository', vim.log.levels.ERROR)
@@ -406,7 +423,7 @@ function M.open(staged_only)
     return vim.notify(staged_only and 'No staged changes' or 'Git tree is clean', vim.log.levels.INFO)
   end
 
-  -- shared left pane (HEAD version), a nofile scratch we rewrite per file
+  -- shared bottom mirror (HEAD version), a nofile scratch we rewrite per file
   local lhs_buf = vim.api.nvim_create_buf(false, true)
   vim.bo[lhs_buf].buftype = 'nofile'
   vim.bo[lhs_buf].bufhidden = 'hide'
@@ -426,16 +443,16 @@ function M.open(staged_only)
     table.insert(rhs_bufs, b)
   end
 
-  -- fresh dedicated tab; LHS on the left, RHS on the right (no global option churn)
+  -- fresh dedicated tab: the working file on top, the HEAD mirror below
+  -- (same 2/3-1/3 stack as the WorktreeReview tab; no global option churn)
   vim.cmd('tabnew')
   local junk = vim.api.nvim_get_current_buf()
+  local rhs_win = vim.api.nvim_get_current_win()
+  vim.cmd('rightbelow split')
   local lhs_win = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(lhs_win, lhs_buf)
-  if vim.api.nvim_buf_is_valid(junk) and junk ~= lhs_buf then
-    pcall(vim.cmd, 'bwipe ' .. junk)
-  end
-  vim.cmd('rightbelow vsplit')
-  local rhs_win = vim.api.nvim_get_current_win()
+  -- junk is wiped after refresh(): it is displayed in rhs_win until then, and
+  -- wiping a displayed buffer closes its window
 
   state = {
     root = root,
@@ -451,12 +468,18 @@ function M.open(staged_only)
   -- reset any stale autocmds from a previous session, then wire this one
   vim.api.nvim_clear_autocmds({ group = augroup })
   session_keymaps(lhs_buf)
-  for _, b in ipairs(rhs_bufs) do
+  for i, b in ipairs(rhs_bufs) do
     session_keymaps(b)
     vim.api.nvim_create_autocmd('BufDelete', {
       group = augroup, buffer = b,
       callback = function() vim.schedule(function() on_rhs_deleted(b) end) end,
     })
+    -- saving an RHS file stages it: both panes show the full working-tree
+    -- state, so a save means "this content is reviewed". Untracked files
+    -- stay untracked — staging one is a deliberate act.
+    if not files[i].untracked then
+      gitwrite.stage_on_write(augroup, root, b)
+    end
     -- keep the diff in sync as the working file is edited: vim won't recompute
     -- on its own (the LHS is a nofile partner). Repaint now AND on the next tick
     -- -- the screen grid settles asynchronously after an edit, just like a swap.
@@ -470,8 +493,8 @@ function M.open(staged_only)
       callback = repaint_debounced,
     })
   end
-  -- `q` to quit lives only on the (non-editable) LHS so the RHS keeps macro
-  -- recording (`q{reg}`) available.
+  -- `q` to quit lives only on the (non-editable) bottom pane so the top keeps
+  -- macro recording (`q{reg}`) available.
   vim.keymap.set('n', 'q', M.close, { buffer = lhs_buf, silent = true })
   -- if the user closes our tab directly, tear the session down cleanly
   vim.api.nvim_create_autocmd('TabClosed', {
@@ -490,6 +513,14 @@ function M.open(staged_only)
   })
 
   refresh()
+  if vim.api.nvim_buf_is_valid(junk) and junk ~= lhs_buf then
+    pcall(vim.cmd, 'bwipe ' .. junk)
+  end
+  -- 1/3 bottom mirror, 2/3 top editor
+  if vim.api.nvim_win_is_valid(lhs_win) and vim.api.nvim_win_is_valid(rhs_win) then
+    local total = vim.api.nvim_win_get_height(rhs_win) + vim.api.nvim_win_get_height(lhs_win) + 1
+    vim.api.nvim_win_set_height(lhs_win, math.max(1, math.floor(total / 3)))
+  end
   if vim.api.nvim_win_is_valid(rhs_win) then
     vim.api.nvim_set_current_win(rhs_win)
   end
@@ -498,7 +529,7 @@ end
 vim.api.nvim_create_user_command('GitSplit', function() M.toggle() end, {})
 vim.api.nvim_create_user_command('GitSplitStaged', function() M.toggle(true) end, {})
 
-vim.keymap.set('n', '<leader>gs', function() M.toggle(true) end,
+vim.keymap.set('n', '<leader>gws', function() M.toggle(true) end,
   { desc = 'GitSplit: toggle HEAD vs staged diff for staged files only' })
 
 return M
