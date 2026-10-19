@@ -95,6 +95,68 @@ if [ -f "$PWD/.pi/APPEND_SYSTEM.md" ]; then
 	APPEND_FLAGS+=(--append-system-prompt "$PWD/.pi/APPEND_SYSTEM.md")
 fi
 
+# tmux snapshot registry: give this pi pane a stable session id so
+# snapshot.sh can record pi:<uuid> for it and restore.sh can resume it.
+# Skipped outside tmux; a caller-picked session (--session/--fork/…) joins
+# the registry when its id is knowable, else stays out (pane restores as a
+# shell next snapshot).
+pi_registry="${XDG_STATE_HOME:-$HOME/.local/state}/tmux/pi_registry"
+pi_reg_uuid=""
+pi_reg_ident() {
+	printf '%s:%s' "$(cut -c1-8 /proc/sys/kernel/random/boot_id 2>/dev/null || echo noboot)" \
+		"$(printf '%s' "${TMUX:-}" | cut -d, -f2)"
+}
+pi_registry_write() {
+	mkdir -p "$(dirname "$pi_registry")"
+	local ident="$(pi_reg_ident)"
+	# replace this pane's row; drop rows whose session file no longer exists
+	awk -F'\t' -v OFS='\t' -v i="$ident" -v k="${TMUX_PANE:-}" -v u="$pi_reg_uuid" \
+		-v sdir="$PI_CODING_AGENT_SESSION_DIR" '
+		BEGIN { ufile = sdir "/_" u ".jsonl" }
+		function dead(row) { split(row, f, "\t"); return (system("[ ! -e " sdir "/*_" f[3] ".jsonl ]") == 0) }
+		($1 == i && $2 == k) { next }
+		!dead($0) { print }
+	' "$pi_registry" 2>/dev/null > "$pi_registry.tmp" || true
+	printf '%s\t%s\t%s\n' "$ident" "${TMUX_PANE:-}" "$pi_reg_uuid" >> "$pi_registry.tmp"
+	mv -f "$pi_registry.tmp" "$pi_registry"
+}
+pi_registry_clear() {
+	[ -n "$pi_reg_uuid" ] || return 0
+	[ -f "$pi_registry" ] || return 0
+	local ident="$(pi_reg_ident)"
+	awk -F'\t' -v OFS='\t' -v i="$ident" -v k="${TMUX_PANE:-}" \
+		'!($1 == i && $2 == k)' "$pi_registry" > "$pi_registry.tmp" || true
+	mv -f "$pi_registry.tmp" "$pi_registry"
+}
+if [ -n "${TMUX:-}" ] && [ -n "${TMUX_PANE:-}" ]; then
+	pi_pick=""
+	for a in "$@"; do
+		case "$a" in
+			--session-id|--session) pi_pick="$a" ;;
+			--continue|-c|--resume|-r|--fork) pi_pick=unknown; break ;;
+		esac
+	done
+	if [ -n "$pi_pick" ]; then
+		# join the registry with the caller-picked id when it is the next arg
+		prev=""
+		for a in "$@"; do
+			if [ "$prev" = "--session-id" ] || [ "$prev" = "--session" ]; then
+				pi_reg_uuid="${a%.jsonl}"
+				break
+			fi
+			prev="$a"
+		done
+	else
+		pi_reg_uuid="$(cat /proc/sys/kernel/random/uuid)"
+		set -- --session-id "$pi_reg_uuid" "$@"
+	fi
+	[ -n "$pi_reg_uuid" ] && pi_registry_write
+fi
+
 # Run pi (child, not exec) so the trap fires on its return. Pass --session-dir
-# explicitly (highest precedence; reliable across pi versions).
-ZAI_API_KEY="$ZAI_API_KEY" "${NICE[@]}" "$PI_BIN" --session-dir "$PI_CODING_AGENT_SESSION_DIR" "${APPEND_FLAGS[@]}" "$@"
+# explicitly (highest precedence; reliable across pi versions). Registry row
+# is cleared on exit: pi no longer runs in this pane.
+rc=0
+ZAI_API_KEY="$ZAI_API_KEY" "${NICE[@]}" "$PI_BIN" --session-dir "$PI_CODING_AGENT_SESSION_DIR" "${APPEND_FLAGS[@]}" "$@" || rc=$?
+pi_registry_clear
+exit "$rc"
