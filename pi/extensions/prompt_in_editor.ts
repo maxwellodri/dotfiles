@@ -1,81 +1,23 @@
 /**
- * prompt_in_editor.ts — C-x e: open the prompt in $EDITOR (fallback vim),
- * copy back on exit. Registered through leader-key's globalThis registry
- * (moduleCache disabled — see leader-key.ts).
+ * prompt_in_editor.ts — C-x e: open the prompt in pi's native external
+ * editor (the Ctrl+G feature). Registered through leader-key's globalThis
+ * registry (moduleCache disabled — see leader-key.ts).
  */
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { spawn } from "node:child_process";
-import * as fs from "node:fs";
-import { getLeaderRegistry, type LeaderCtx } from "./leader-key";
+import type { AppKeybinding, ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { getLeaderRegistry } from "./leader-key";
 
 const BINDING_KEY = "e";
+const EXTERNAL_EDITOR_ACTION: AppKeybinding = "app.editor.external";
 
 export default function (pi: ExtensionAPI) {
 	pi.on("session_start", () => {
 		getLeaderRegistry().register(BINDING_KEY, {
-			description: "Open the prompt in $EDITOR",
-			handler: (ctx: LeaderCtx) => {
-				void openExternalEditor(ctx);
-			},
+			description: "Open the prompt in an external editor",
+			handler: (ctx) => ctx.invokeAppAction(EXTERNAL_EDITOR_ACTION),
 		});
 	});
 
 	pi.on("session_shutdown", () => {
 		getLeaderRegistry().unregister(BINDING_KEY);
 	});
-}
-
-/**
- * Open the prompt in $EDITOR via /tmp/pi/<file>.md; copy back on exit.
- * The caller (leader-key) passes the editor-level context.
- */
-async function openExternalEditor(ctx: LeaderCtx): Promise<void> {
-	const editorCmd = process.env.EDITOR || "vim";
-	// getExpandedText(): handing nvim the raw prompt would leak `[paste #N]`
-	// markers; what comes back via setText stays expanded, like pi's builtin handoff.
-	const text = ctx.getExpandedText();
-	const dir = "/tmp/pi";
-	const tmpFile = `${dir}/prompt-${Date.now()}.md`;
-
-	try {
-		fs.mkdirSync(dir, { recursive: true });
-		fs.writeFileSync(tmpFile, text, "utf-8");
-
-		// Release the terminal for the editor. tui.stop() is synchronous, so
-		// by the time this (sync) handler returns the TUI is already paused
-		// and the child can take over stdin/stdout.
-		ctx.tui.stop();
-
-		const [editor, ...editorArgs] = editorCmd.split(" ");
-		process.stdout.write(
-			`Opening ${editorCmd} ${tmpFile}\nPi resumes when the editor exits.\n`,
-		);
-
-		// Not spawnSync: on some platforms a synchronous child_process call
-		// keeps libuv's console-input read alive after tui.stop(), racing the
-		// editor for the input buffer (same rationale as pi's own code).
-		const status = await new Promise<number | null>((resolveP) => {
-			const child = spawn(editor, [...editorArgs, tmpFile], {
-				stdio: "inherit",
-				shell: process.platform === "win32",
-			});
-			child.on("error", () => resolveP(null));
-			child.on("close", (code) => resolveP(code));
-		});
-
-		if (status === 0) {
-			const content = fs.readFileSync(tmpFile, "utf-8").replace(/\n$/, "");
-			ctx.setText(content);
-		}
-	} catch {
-		// best-effort; the finally block resumes the TUI regardless
-	} finally {
-		try {
-			fs.unlinkSync(tmpFile);
-		} catch {
-			// ignore cleanup errors
-		}
-		ctx.tui.start();
-		ctx.requestRender(true); // full re-render: editor used the alt screen
-	}
 }

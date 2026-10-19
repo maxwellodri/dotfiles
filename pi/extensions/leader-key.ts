@@ -14,7 +14,11 @@
  * handler order never matters. State published as
  * pi.events.emit("leader-key:state", boolean) for indicator rendering.
  */
-import { CustomEditor, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import {
+	CustomEditor,
+	type AppKeybinding,
+	type ExtensionAPI,
+} from "@earendil-works/pi-coding-agent";
 import { matchesKey } from "@earendil-works/pi-tui";
 
 const LEADER_KEY = "ctrl+x";
@@ -54,6 +58,11 @@ export interface LeaderCtx {
 	submit(text: string): void;
 	/** Request a re-render of the TUI; pass true for a full repaint. */
 	requestRender(full?: boolean): void;
+	/**
+	 * Run a native app keybinding action (e.g. "app.editor.external") on the
+	 * live editor, regardless of which key it is bound to.
+	 */
+	invokeAppAction(action: AppKeybinding): void;
 }
 
 /** A binding registered against a single key pressed after the leader. */
@@ -166,6 +175,9 @@ class LeaderKeyEditor extends CustomEditor {
 				this.onSubmit?.(text);
 			},
 			requestRender: (full) => this.tui.requestRender(full),
+			invokeAppAction: (action) => {
+				this.actionHandlers.get(action)?.();
+			},
 		};
 	}
 }
