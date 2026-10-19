@@ -4,9 +4,9 @@ description: Use when the user asks for a divergent plan.
 license: MIT
 compatibility: any
 ---
-Deep autonomous planning. The agent explores the whole solution space alone, deferring every non-obvious decision into a fork whose options are each fully explored, then spends the user's attention once: a single batched handoff where the user collapses the DAG into an implementation-ready linear plan via a series of questions.
+Deep autonomous planning. The agent explores the whole solution space alone, deferring every non-obvious decision into a fork whose options are each fully explored, then spends the user's attention once: a single batched handoff where the user collapses the DAG into an implementation-ready linear plan via a series of questions. Implementation can then follow.
 
-The human has limited attention, sleeps, and runs several agents at once. The agent is single-purpose and can work a task essentially without limit — **if the task is fully specified and "done" is defined.** Divide planning accordingly: **the agent plans alone for as long as possible**, and the human's attention is spent **once, at the end, in one batch**.
+A broad goal of this skill is to minimise human attention necessary. The human has limited attention, sleeps, and runs several agents at once. The agent is single-purpose and can work a task essentially without limit — **if the task is fully specified and "done" is defined.** Divide planning accordingly: **the agent plans alone for as long as possible**, and the human's attention is spent **once, at the end, in one batch**.
 
 A divergent plan is a **DAG of named nodes** in which every non-obvious decision is **deferred into a fork** — two or more options, each explored as far as if it had been chosen. Planning is complete when the only things left open are the calls only a human can make, and *any* combination of those calls yields a plan with nothing left to ask.
 
@@ -22,7 +22,8 @@ Most questions a plan waits on can be answered by running real code, not by aski
 - **Scratch lives in one place: `worktrees/<adjective_noun>/.scratch/`** (gitignored). A single-question one-off — a throwaway bash/python/ts script — is deleted once answered; an experiment worth keeping as evidence for the future ("x causes y because z") stays. Write it as if it could theoretically be copied into the repo and committed: the repo's language and patterns. Never anywhere else in the worktree.
 - **Headless first.** CLI runs, script harnesses, headless drivers — the cheapest experiment that answers the question wins. GUIs are the hard case, not the norm.
 - **Web UIs** — drive with the `web-browser-use` skill rather than hand-rolled automation.
-- **Desktop GUIs (agent-facing)** — drive with `~/source/gui_automation`: `export GA_INSTANCE=$(uuidgen)` first (required, one VM per agent), then the `ga` CLI sees (screenshots) and drives (key, type, click, drag) a real app inside a local QEMU VM, without touching the host display or input.
+- **Desktop GUIs (agent-facing)** — drive with the `gui-automation` skilll.
+- Phone Apps - ask the user to provide an (Android) phone with USB debugging capabilities ; test in the UI in a loop via installing over ADB -> launching the App -> manually test the feature/functionality/take a screenshot
 - **Consideration scales with the machine.** Gate all host-display behaviour on `$dotfile_tag`. `hackerman`/`pc` are the user's personal devices — pin every window the agent spawns with `DWM_FORCE_MONITOR=0 DWM_FORCE_TAG=8` (dwm reads these from the client's environment; export on the launcher so whole process trees inherit them), and never screenshot the host display: the user works concurrently, tag 8 isn't focused, and a host screenshot would capture their unrelated work. `snuggy` is a standalone server — nobody is watching, go wild.
 - **User-facing windows (handoff)** — spawn the window as usual on the host display; on personal devices the only addition is the pinning env vars above.
 - **Verify what you can't see.** Screenshots — `ga snap` in the VM, or on snuggy the host display too — go to an image subagent for vision tasks: layout, state, differences, "is the VFX effect rendering correctly", and similar. This flow runs regardless of the model's own capabilities; defer to the image subagent whenever the model lacks image comprehension.
@@ -30,7 +31,7 @@ Most questions a plan waits on can be answered by running real code, not by aski
 
 ## The artifact
 
-Generate a name with `qz generate-name` — a human-memorable handle (e.g. *Furious Fennec*) the user can refer to this effort by across sessions and agents. Once coined, retitle this session via the `name_session` tool: `Adjective Noun: <short description>` (e.g. *Furious Fennec: portal renderer*). The description names the **work**, never the planning of it — the same session typically rolls into implementation once the user signs the plan off, and "portal renderer plan" would age out at handoff. The plan lives at `~/.local/state/pi/divergent_plans/<adjective_noun>/PLAN.md`, updated **continuously as you go** — the document is the durable state, so a fresh session, this one ends, or a context window gets filled, resumes from it alone. Bulky evidence — research findings, prototype notes — goes in sibling files under `~/.local/state/pi/divergent_plans/<adjective_noun>/`; the plan gists and links, never pastes.
+Generate a name with `qz generate-name`; a human-memorable handle (e.g. *Furious Fennec*) the user can refer to this effort by across sessions and agents. Once coined, retitle this session via the `name_session` tool: `Adjective Noun: <short description>` (e.g. *Furious Fennec: portal renderer*). The description names the **work**, never the planning of it — the same session typically rolls into implementation once the user signs the plan off, and "portal renderer plan" would age out at handoff. The plan lives at `~/.local/state/pi/divergent_plans/<adjective_noun>/PLAN.md`, updated **continuously as you go** — the document is the durable state, so a fresh session, this one ends, or a context window gets filled, resumes from it alone. Bulky evidence — research findings, prototype notes — goes in sibling files under `~/.local/state/pi/divergent_plans/<adjective_noun>/`; the plan gists and links, never pastes.
 
 ```markdown
 # <Alliterative Name> — <one-line title>
@@ -40,14 +41,14 @@ Generate a name with `qz generate-name` — a human-memorable handle (e.g. *Furi
 ## Settled       <!-- facts and assumptions resolved autonomously, one line each -->
 ## The DAG       <!-- ascii diagram of named nodes and forks -->
 ### <node>       <!-- what happens here + its done-check -->
-### Fork f-<name> <!-- the question; each option explored to closure; recommendation -->
+### Decision decision-<name> <!-- the question; each option explored to closure; recommendation -->
 ## Fog           <!-- in scope but not yet sharp enough to node or fork -->
 ## Out of scope  <!-- ruled out beyond the destination; never graduates -->
 ```
 
 Every node carries a **done-check** — the computable test that the node is finished. That is how "done" is defined before implementation ever starts.
 
-**Refer by name.** In everything the human reads, a node or fork is referred to by its name (`f-keybinds — hotkey dispatch scope`), never a bare id.
+**Refer by name.** In everything the human reads, a node or fork is referred to by its name (`decision-keybinds — hotkey dispatch scope`), never a bare id.
 
 ## Flow
 
@@ -77,9 +78,9 @@ The user may interject at any time — they're running other agents. An interjec
 
 Before spending human attention, spend machine attention: run a `review` subagent over the plan, then challenge its findings with `review-reflect`. Fold in what survives. For a large plan, repeat until a round produces no surviving findings.
 
-### 4 · Handoff — one batch, then collapse
+### 4 · Handoff as one batch of questions then collapse
 
-Summarise the plan in your context window, then put **every open fork to the user in a single `ask_user_question` call**: dependency order, each question's options are the fork's options, **recommendation listed first** with its one-line why. Mark conditional forks ("if f-x = A, f-y is moot") so a partial answer collapses cleanly. Include the human-only action items from step 2. Taste forks resolve side-by-side: leave their labelled option artifacts (A/B) running on tag 8, and make the pick one of the questions. The user may simply accept all recommendations.
+Summarise the plan in your context window, then put **every open fork to the user in a single `ask_user_question` call**: dependency order, each question's options are the fork's options, **recommendation listed first** with its one-line why. Mark conditional forks ("if decision-x = A, decision-y is moot") so a partial answer collapses cleanly. Include the human-only action items from step 2. Taste forks resolve side-by-side: leave their labelled option artifacts (A/B) running on tag 8, and make the pick one of the questions. The user may simply accept all recommendations.
 
 Then **collapse**: rewrite the artifact in place as a **linear plan** — one path through the DAG. Each fork becomes a line in a decision log (chosen option + why; ADR-flagged forks get their ADR at implementation time). Nodes keep their done-checks. The result is implementation-ready: nothing left to decide, nothing left to ask.
 
@@ -89,3 +90,15 @@ Keep expanding until one fires:
 
 - **The space is exhausted** — Fog empty, every fork option closed under the closure test, every node carrying a done-check. Proceed to critique and handoff unprompted.
 - **The user says stop.** Go straight to handoff with the plan as it stands; forks whose options aren't fully closed are marked, with the gaps named.
+
+
+## Implementation.
+Only proceed once the user has approved the plan. Given the prior plan, implementation should be straightforward.
+
+Small logical commits are imperative for the human to easily review. Keep commits small but numerous, the user can interactively rebase them into a smaller number later. A good rule of thumb is 200-400 LOC and maximum of 2-3 changed files for behavioural changes. Renames/lockfile/refactorings churn etc are exempt from the prior numerical counts. A good sniff test is that you can describe in a single sentence without “and”. Tests with the code they cover, in the same commit.
+
+Kernel style commit messages, under ~100 chars, as "<topic>: <short description>", refer to prior commit messages if available for a style guide.
+
+## Post-implementation
+Before handoff back to the user, rerun a review subagent then challenge its findings with `review-reflect`, and for a large block of work repeat until a round produces no surviving findings.
+

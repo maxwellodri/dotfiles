@@ -1,9 +1,14 @@
 ---
 name: gui-automation
 license: MIT
-description: Use when presenting a gui to the user OR when testing gui code yourself.
+description: Use when presenting a GUI to the user OR when testing GUI code yourself.
 ---
-If the user asks you to present a gui to them, and the code itself is obvious/testable ; simply set env vars DWM_FORCE_TAG=8 and DWM_FORCE_MONITOR=0 when running the window.
-If the user asks you to test gui code, e.g. xdotool automation or screenshots; use the ~/source/gui_automation repo to spin up a VM to test the code, refer to its README.md for specific uses. Once you're done, when handing back to the user, ensure you spin down the VM. The VM is not visible to the user; so if the user also asks for a demo once you've tested the gui, you'll need to use the above env vars to spawn the program outside of the VM, in the correct tag/monitor.
-To interpet screenshots of guis use the Image subagent; give the subagent specific things to confirm exist, as well as a general description.
+This skill only applies to non-web UIs. For web UIs, use the `web-browser-use` skill instead.
 
+# Handoff GUIs to the user
+Whenever you present a GUI for the user to test/interact with; where a GUI is defined as spawning *any* X11/Wayland window; including for them to approve e.g.a  oneoff demo or if you feel a feature is "done", then:
+Set env vars DWM_FORCE_TAG=8 and DWM_FORCE_MONITOR=0 to the process that spawns the window, e.g. `DWM_FORCE_TAG=8 DWM_FORCE_MONITOR=0 cargo lrun`
+
+# LLM driven manual testing of GUIs
+If "done" requires you to verify GUI code then use the ~/source/GUI_automation repo to spin up a VM to test the code. Refer to its README.md for a usage guide.
+Once you're done, when handing back to the user, ensure you spin down the VM. The VM is not visible to the user; so if the user also asks for a demo once you've tested the GUI, you'll need to use the above env vars to spawn the program outside of the VM, in the correct tag/monitor. The VM should contain an X11 session, so use standard xdotool automation and screenshots (interpret via `image` subagent) to verify correctness. If you control the rendering of the App, it may be helpful to use bright obvious colours as debugging aids, e.g. `image` subagents will have an easier time to pick out an obvious red icon.
