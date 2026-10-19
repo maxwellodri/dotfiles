@@ -29,7 +29,7 @@ if "$tbin" has-session -t "=$sess" 2>/dev/null; then
 fi
 
 work=$(mktemp)
-trap 'rm -f "$work"; rm -f "$dir/.restoring"' EXIT INT TERM
+trap 'rm -f "$work"; rm -f "$dir/.restoring"' EXIT INT TERM HUP
 cp "$file" "$work"
 : > "$dir/.restoring"
 
@@ -84,6 +84,7 @@ burn_ids() {
         i=0
         while [ "$i" -le "$maxid" ]; do
             "$tbin" new-window -d -t blithe-idburn
+            : > "$dir/.restoring"
             i=$((i + 1))
         done
         "$tbin" kill-session -t blithe-idburn

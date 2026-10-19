@@ -79,7 +79,9 @@ if [ -t 1 ] && [ -z "${PI_NO_CANVAS:-}" ]; then
 	clear
 	# shellcheck disable=SC1003
 	printf '\033]11;#282828\033\\'
-	trap 'clear; printf "\033]111\033\\"' EXIT INT TERM
+	trap 'pi_registry_clear 2>/dev/null || true; clear; printf "\033]111\033\\"' EXIT INT TERM HUP
+else
+	trap 'pi_registry_clear 2>/dev/null || true' EXIT INT TERM HUP
 fi
 
 # Pi's APPEND_SYSTEM.md discovery is shadowing-only: a project file hides
@@ -116,34 +118,39 @@ pi_registry_write() {
 		function dead(row) { split(row, f, "\t"); return (system("[ ! -e " sdir "/*_" f[3] ".jsonl ]") == 0) }
 		($1 == i && $2 == k) { next }
 		!dead($0) { print }
-	' "$pi_registry" 2>/dev/null > "$pi_registry.tmp" || true
-	printf '%s\t%s\t%s\n' "$ident" "${TMUX_PANE:-}" "$pi_reg_uuid" >> "$pi_registry.tmp"
-	mv -f "$pi_registry.tmp" "$pi_registry"
+	' "$pi_registry" 2>/dev/null > "$pi_registry.tmp.$$" || true
+	printf '%s\t%s\t%s\n' "$ident" "${TMUX_PANE:-}" "$pi_reg_uuid" >> "$pi_registry.tmp.$$"
+	mv -f "$pi_registry.tmp.$$" "$pi_registry"
 }
 pi_registry_clear() {
 	[ -n "$pi_reg_uuid" ] || return 0
 	[ -f "$pi_registry" ] || return 0
 	local ident="$(pi_reg_ident)"
 	awk -F'\t' -v OFS='\t' -v i="$ident" -v k="${TMUX_PANE:-}" \
-		'!($1 == i && $2 == k)' "$pi_registry" > "$pi_registry.tmp" || true
-	mv -f "$pi_registry.tmp" "$pi_registry"
+		'!($1 == i && $2 == k)' "$pi_registry" > "$pi_registry.tmp.$$" || true
+	mv -f "$pi_registry.tmp.$$" "$pi_registry"
 }
 if [ -n "${TMUX:-}" ] && [ -n "${TMUX_PANE:-}" ]; then
 	pi_pick=""
 	for a in "$@"; do
 		case "$a" in
+			--) break ;;
 			--session-id|--session) pi_pick="$a" ;;
 			--continue|-c|--resume|-r|--fork) pi_pick=unknown; break ;;
+			-*) ;;  # other flags: keep scanning
+			*) break ;;  # first positional: option section over
 		esac
 	done
 	if [ -n "$pi_pick" ]; then
 		# join the registry with the caller-picked id when it is the next arg
 		prev=""
 		for a in "$@"; do
+			case "$a" in --) break ;; esac
 			if [ "$prev" = "--session-id" ] || [ "$prev" = "--session" ]; then
 				pi_reg_uuid="${a%.jsonl}"
 				break
 			fi
+			case "$a" in -*) ;; *) break ;; esac
 			prev="$a"
 		done
 	else

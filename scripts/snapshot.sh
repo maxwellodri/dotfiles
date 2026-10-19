@@ -25,20 +25,38 @@ set -eu
 
 tbin="${TMUX_BIN:-tmux}"
 dir="${XDG_STATE_HOME:-$HOME/.local/state}/tmux"
-[ -e "$dir/.restoring" ] && exit 0
+if [ -e "$dir/.restoring" ]; then
+    # fresh marker: a restore is running right now
+    if find "$dir/.restoring" -mmin -5 2>/dev/null | grep -q .; then
+        exit 0
+    fi
+    # stale: the restore died without its trap (kill -9, power loss)
+    if find "$dir/.restoring" -mmin -5 2>/dev/null | grep -q .; then
+        exit 0
+    fi
+    echo "snapshot.sh: stale .restoring marker — bypassing" >&2
+    rm -f "$dir/.restoring"
+fi
 mkdir -p "$dir"
 
-# sessions never snapshotted (case patterns, | separated): the scratch-pane
-# parking session (_tmux_scratch) is infrastructure, not work
-exclude="tmux_scratch_pane_parking"
-# shellcheck disable=SC2254  # unquoted: these are case patterns
-excluded() { case "$1" in $exclude) return 0 ;; *) return 1 ;; esac }
+# sessions never snapshotted (glob patterns, whitespace separated): the
+# scratch-pane parking session (_tmux_scratch) and restore's id-burner are
+# infrastructure, not work
+exclude="tmux_scratch_pane_parking blithe-idburn"
+excluded() {
+    for pat in $exclude; do
+        # shellcheck disable=SC2254  # unquoted: these are case patterns
+        case "$1" in $pat) return 0 ;; esac
+    done
+    return 1
+}
 
 case "${1:-}" in
     --all)
         only=$("$tbin" list-sessions -F '#{session_name}' | while IFS= read -r s; do
             excluded "$s" || printf '%s\n' "$s"
         done)
+        [ -n "$only" ] || { echo "no sessions to snapshot" >&2; exit 0; }
         ;;
     "")
         if [ -n "${TMUX:-}" ]; then
@@ -62,13 +80,63 @@ esac
 
 ident="$(cut -c1-8 /proc/sys/kernel/random/boot_id 2>/dev/null || echo noboot):$("$tbin" display-message -p '#{pid}')"
 
+# Two pane programs hide behind wrapper scripts (curcmd reports the shell):
+# pi (registry gives the exact session uuid) and nvim (scripts/nvim runs
+# /usr/bin/nvim as a child). Registry rows are verified by walking the
+# pane's process tree — a stale row from a killed pane must not hijack a
+# recycled pane id. nvim is tagged by the same walk on shell-idle panes;
+# nvim typed at a zsh prompt reports curcmd=nvim natively and needs nothing.
+tree_has() { # $1 = pane pid, $2 = process basename to match (argv0/argv1)
+    seen=" $1 "
+    frontier=$1
+    depth=0
+    while [ -n "$frontier" ] && [ "$depth" -lt 12 ]; do
+        next=""
+        for p in $frontier; do
+            if tr '\0' '\n' < "/proc/$p/cmdline" 2>/dev/null | head -2 | grep -qx "\(.*/\)\?$2"; then
+                return 0
+            fi
+            for k in $(pgrep -P "$p" 2>/dev/null); do
+                case "$seen" in *" $k "*) ;; *) seen="$seen$k "; next="$next $k" ;; esac
+            done
+        done
+        frontier=${next# }
+        depth=$((depth + 1))
+    done
+    return 1
+}
+regf=""
+nvf=$(mktemp)
+tab=$(printf '\t')
+"$tbin" list-panes -a -F "#{pane_id}${tab}#{pane_pid}${tab}#{pane_current_command}" > "$nvf.dump" 2>/dev/null || true
+if [ -f "$dir/pi_registry" ]; then
+    regf=$(mktemp)
+    while IFS="$(printf '\t')" read -r rident rpane ruuid; do
+        [ "$rident" = "$ident" ] || continue
+        pid=$(awk -F'\t' -v k="$rpane" '$1 == k { print $2; exit }' "$nvf.dump")
+        [ -n "$pid" ] || continue
+        tree_has "$pid" pi && printf '%s\t%s\t%s\n' "$rident" "$rpane" "$ruuid" >> "$regf.rows"
+    done < "$dir/pi_registry"
+    [ -f "$regf.rows" ] || : > "$regf.rows"
+    mv -f "$regf.rows" "$regf"
+fi
+while IFS="$(printf '\t')" read -r rpane pid rcmd; do
+    case "$rcmd" in
+        sh|bash|zsh|dash|fish) ;;
+        *) continue ;;
+    esac
+    tree_has "$pid" nvim && printf '%s\t%s\n' "$rpane" "$rcmd" >> "$nvf.tags"
+done < "$nvf.dump"
+[ -f "$nvf.tags" ] && mv -f "$nvf.tags" "$nvf" || : > "$nvf"
+rm -f "$nvf.dump"
+
 # pane rows are buffered per window so a scratch/parked pane seen at any
 # index degrades its window's layout before the window row is written;
 # windows with no surviving panes (a parked scratch window) vanish entirely.
 # awk writes unique tmp files and a tmp<TAB>key manifest on stdout; the mv
 # runs in sh so filenames with quotes/spaces can't break system() quoting.
 "$tbin" list-panes -a -F '#{session_name}	#{window_index}	#{window_active}	#{window_zoomed_flag}	#{window_name}	#{window_layout}	#{pane_index}	#{pane_active}	#{pane_current_path}	#{pane_current_command}	#{pane_id}	#{@scratch}	#{pane_left}	#{pane_top}	#{@park}' |
-awk -F'\t' -v out="$dir" -v me="$$" -v ident="$ident" -v regf="$dir/pi_registry" -v only="$only" '
+awk -F'\t' -v out="$dir" -v me="$$" -v ident="$ident" -v regf="$regf" -v nvf="$nvf" -v only="$only" '
 function safe(s) { gsub(/\t/, " ", s); return s }
 function flush(s,    k, f, wi, lay, n, i) {
     if (s == "") return
@@ -91,6 +159,7 @@ BEGIN {
     n = split(only, wantarr, "\n")
     for (i = 1; i <= n; i++) want[wantarr[i]] = 1
     if (regf != "") while ((getline rl < regf) > 0) { split(rl, r, "\t"); if (r[1] == ident) reg[r[2]] = r[3] }
+    while ((getline nl < nvf) > 0) { split(nl, nvrow, "\t"); nvtag[nvrow[1]] = 1 }
 }
 $12 == "1" || $15 == "1" { scratchin[$1, $2] = 1; next }
 {
@@ -104,7 +173,7 @@ $12 == "1" || $15 == "1" { scratchin[$1, $2] = 1; next }
         zoom[sess, wi] = $4; wlayout[sess, wi] = $6; nkeep[sess, wi] = 0
     }
     nkeep[sess, wi]++
-    cmd = ($11 in reg) ? "pi:" reg[$11] : $10
+    cmd = ($11 in reg) ? "pi:" reg[$11] : ($11 in nvtag) ? "nvim" : $10
     row = sprintf("p\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s", wi, $7, $8, safe($9), cmd, $11, $13, $14)
     panes[sess, wi] = (panes[sess, wi] == "" ? "" : panes[sess, wi] "\n") row
 }
@@ -112,3 +181,5 @@ END { flush(prev) }
 ' | while IFS="$(printf '\t')" read -r tmp final; do
     mv -f "$tmp" "$final"
 done
+rm -f "$nvf" 2>/dev/null || true
+[ -n "${regf:-}" ] && rm -f "$regf" 2>/dev/null || true
