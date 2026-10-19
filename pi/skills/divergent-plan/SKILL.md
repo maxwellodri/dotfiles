@@ -30,7 +30,7 @@ Most questions a plan waits on can be answered by running real code, not by aski
 
 ## The artifact
 
-Generate a name with `qz generate-name` — a human-memorable handle (e.g. *Furious Fennec*) the user can refer to this effort by across sessions and agents. The plan lives at `~/.local/state/pi/divergent_plans/<adjective_noun>/PLAN.md`, updated **continuously as you go** — the document is the durable state, so a fresh session, this one ends, or a context window gets filled, resumes from it alone. Bulky evidence — research findings, prototype notes — goes in sibling files under `~/.local/state/pi/divergent_plans/<adjective_noun>/`; the plan gists and links, never pastes.
+Generate a name with `qz generate-name` — a human-memorable handle (e.g. *Furious Fennec*) the user can refer to this effort by across sessions and agents. Once coined, retitle this session via the `name_session` tool: `Adjective Noun: <short description>` (e.g. *Furious Fennec: portal renderer*). The description names the **work**, never the planning of it — the same session typically rolls into implementation once the user signs the plan off, and "portal renderer plan" would age out at handoff. The plan lives at `~/.local/state/pi/divergent_plans/<adjective_noun>/PLAN.md`, updated **continuously as you go** — the document is the durable state, so a fresh session, this one ends, or a context window gets filled, resumes from it alone. Bulky evidence — research findings, prototype notes — goes in sibling files under `~/.local/state/pi/divergent_plans/<adjective_noun>/`; the plan gists and links, never pastes.
 
 ```markdown
 # <Alliterative Name> — <one-line title>
