@@ -1,12 +1,20 @@
 /**
- * session_autoname.ts — name fresh sessions after the first turn settles
- * (agent_settled; manual names always win, re-checked before write).
- * /autorename regenerates from the full conversation on demand.
+ * session_naming.ts — session titles, two ways.
+ *
+ * 1. name_session tool — the agent renames the session on request
+ *    (the divergent-plan skill uses it to stamp its alliterative name
+ *    onto the session once coined).
+ * 2. Auto-naming — name fresh sessions after the first turn settles
+ *    (agent_settled; manual names always win, re-checked before write).
+ *    /autorename regenerates from the full conversation on demand.
+ *
  * Title style: name the underlying work, never restate the request — vivid
  * gerund ("Chasing the parser flake") or punchy noun phrase, ≤48 chars, one
  * technical noun verbatim; a 4-gram echo check rejects restatements.
  */
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { Type } from "typebox";
+import { Text } from "@earendil-works/pi-tui";
+import type { AgentToolResult, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 const TITLE_MODEL = { provider: "opencode", modelId: "deepseek-v4-flash" };
 const TITLE_TEMPERATURE = 0.7;
@@ -295,6 +303,28 @@ export async function autoRenameSession(
 }
 
 export default function (pi: ExtensionAPI): void {
+	// Agent-facing rename; setSessionName fires session_info_changed, which
+	// clears `fresh` and stands the auto-namer down alongside manual names.
+	pi.registerTool({
+		name: "name_session",
+		label: "name_session",
+		description: "Rename this pi session. Should not be invoked unless requested.",
+		parameters: Type.Object({
+			title: Type.String({ description: "New session title" }),
+		}),
+		async execute(_id, params): Promise<AgentToolResult> {
+			pi.setSessionName(params.title);
+			return { content: [{ type: "text", text: `Session renamed: ${params.title}` }], details: {} };
+		},
+		renderCall(args, theme) {
+			return new Text(
+				`${theme.fg("toolTitle", theme.bold("name_session"))} ${theme.fg("accent", args.title || "…")}`,
+				0,
+				0,
+			);
+		},
+	});
+
 	let fresh = false;
 	let attempts = 0;
 
