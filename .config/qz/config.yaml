@@ -1,3 +1,6 @@
+settings:
+  ignore_sessions:
+    - tmux_scratch_pane_parking
 projects:
   mykaelium:
     path: $SOURCE/mykaelium

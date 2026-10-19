@@ -46,8 +46,17 @@ enum Commands {
     GenerateName,
 }
 
+#[derive(Debug, Default, Deserialize)]
+struct Settings {
+    /// tmux sessions qz never lists (background junk: rsync, parking panes)
+    #[serde(default)]
+    ignore_sessions: Vec<String>,
+}
+
 #[derive(Debug, Deserialize)]
-struct Config {
+pub(crate) struct Config {
+    #[serde(default)]
+    settings: Settings,
     projects: IndexMap<String, Project>,
 }
 
@@ -110,9 +119,6 @@ struct Window {
 }
 
 const SOH: char = '\x01';
-// scratch panes park in this background tmux session (.config/tmux/_tmux_scratch);
-// never offer it as a switch target
-const TMUX_PARKING_SESSION: &str = "tmux_scratch_pane_parking";
 
 enum Action {
     Cd {
@@ -380,7 +386,6 @@ fn cmd_switch(gui: bool) -> Result<()> {
                 String::from_utf8_lossy(&o.stdout)
                     .lines()
                     .filter_map(|line| line.split(':').next().map(String::from))
-                    .filter(|s| s != TMUX_PARKING_SESSION)
                     .collect()
             })
             .unwrap_or_default()
@@ -394,7 +399,7 @@ fn cmd_switch(gui: bool) -> Result<()> {
         let project_names: Vec<&String> = config.projects.keys().collect();
         let mut adhoc: Vec<&String> = active_sessions
             .iter()
-            .filter(|s| !project_names.contains(s))
+            .filter(|s| !project_names.contains(s) && !config.settings.ignore_sessions.contains(s))
             .collect();
         adhoc.sort();
         for session in adhoc {
@@ -782,5 +787,16 @@ mod tests {
         assert!(empty.valid_dotfile_tags.as_deref().unwrap().is_empty());
         assert!(!empty.allows_tag(Some("pc")));
         assert!(empty.allows_tag(None));
+    }
+
+    #[test]
+    fn ignore_sessions_config_contract() {
+        let config: Config =
+            serde_norway::from_str("settings:\n  ignore_sessions:\n    - junk\nprojects: {}\n")
+                .unwrap();
+        assert_eq!(config.settings.ignore_sessions, ["junk"]);
+
+        let config: Config = serde_norway::from_str("projects: {}").unwrap();
+        assert!(config.settings.ignore_sessions.is_empty());
     }
 }
