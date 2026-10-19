@@ -1,8 +1,9 @@
 -- Shared "a save during review persists the edit into git" primitive.
 -- GitSplit (dirty tree) stages the file's written DELTA into the index;
--- WorktreeReview (a picked commit) squashes the edit into the commit on
--- write. Same rule, different git level: what was approved on screen is what
--- git records — and nothing else.
+-- WorktreeReview (a picked commit) records the edit as a "WIP: human edits"
+-- commit on the worktree branch on write — squashed into its base commit
+-- only when that commit is picked onto upstream. Same rule, different git
+-- level: what was approved on screen is what git records — and nothing else.
 local M = {}
 
 local baselines = {} -- buf -> file bytes whose delta is already staged
@@ -97,8 +98,8 @@ end
 -- can ignore unchanged writes), `apply` persists the batch. One apply per
 -- write burst: `:wa` fires BufWriteCmd for every session buffer before any
 -- scheduled callback runs, and the shared `session.pending_write` flag
--- coalesces them into a single squash.
-function M.squash_on_write(augroup, buf, session, capture, apply)
+-- coalesces them into a single pass.
+function M.on_write(augroup, buf, session, capture, apply)
   vim.api.nvim_create_autocmd('BufWriteCmd', {
     group = augroup, buffer = buf,
     callback = function(args)

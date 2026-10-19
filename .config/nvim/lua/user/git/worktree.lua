@@ -1,31 +1,39 @@
 -- WorktreeReview: review-and-upstream queue for agent worktrees.
 --
---   <leader>gS  pick a worktree under <root>/worktrees/ -> pick a commit
---               (oldest un-upstreamed first) -> review tab
+--   <leader>gS  pick a worktree under <root>/worktrees/ -> pick commits
+--               (multi-select, oldest un-upstreamed first) -> review tab
 --
--- The review tab mirrors GitSplit: left = commit^, right = commit, one file
--- pair at a time. The right pane is an editable virtual buffer: edit it and
--- :w — the edit is squashed into the commit (patch + fixup + autosquash
--- rebase) and the rewritten commit re-opens. <leader>gcp cherry-picks the
--- commit onto the upstream branch in the main worktree — the pick only; no
--- worktree rebase, conflicts are resolved by hand. The queue tracks picks by
--- patch-id, so a picked commit drops out even before the worktree is
--- rebased onto upstream. <leader>gcp also works OUTSIDE the session (any
--- window): it picks the last reviewed commit; the pointer clears on a
--- successful pick.
+-- The review tab mirrors GitSplit: left = selection^ (state before the
+-- selected range), right = newest selected commit, one file pair at a time.
+-- The right pane is an editable virtual buffer: edit it and :w — the edits
+-- become a "WIP: human edits" commit on top of the selection (defer the
+-- fixing to the agent), and it re-opens for a second look. WIP commits are
+-- ordinary commits: they show in the queue and can be picked as-is; they are
+-- only special as the session's `aux` — a :w-created edit commit that
+-- <leader>gcp folds into the last pick so upstream stays clean.
+-- <leader>gcp cherry-picks onto the upstream branch in the main worktree —
+-- the pick only; no worktree rebase, conflicts are resolved by hand. The
+-- queue tracks picks by patch-id, so picked commits drop out even before the
+-- worktree is rebased onto upstream. <leader>gcp also works OUTSIDE the
+-- session (any window): it picks the last reviewed commits; the pointer
+-- clears on a successful pick.
 --
--- The worktree must be clean for :w-squash (agent leftovers would tangle the
--- rebase). Binary files are skipped; deleted files show content on the left
+-- The worktree must be clean for :w (agent leftovers would tangle the
+-- replay). Binary files are skipped; deleted files show content on the left
 -- only. `?` opens a lazygit-style keybinding menu.
 local M = {}
 
 local gitwrite = require('user.git.write')
 
+local WIP_SUBJECT = 'WIP: human edits'
+local EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
+
 local augroup = vim.api.nvim_create_augroup('user.worktree.review', { clear = true })
 local ns = vim.api.nvim_create_namespace('user.worktree.review')
 local state = nil -- populated by M.review, cleared by M.close
--- last commit shown in a review session; survives M.close so <leader>gcp
--- still works from a regular window. Cleared by a successful pick.
+-- last selection shown in a review session ({ commits, aux }); survives
+-- M.close so <leader>gcp still works from a regular window. Cleared by a
+-- successful pick.
 local last_reviewed = nil
 
 --------------------------------------------------------------------------------
@@ -129,12 +137,12 @@ end
 
 local function is_binary(raw) return raw:sub(1, 8192):find('\0', 1, true) ~= nil end
 
--- Changed files of a commit: { rel, deleted }. Binary files are skipped
--- (counted in the second return). --no-renames keeps every record a flat
--- 'X<%z>path' pair.
-local function changed_files(wt, sha)
-  local out = git_ok(wt, { 'diff-tree', '--no-renames', '-r', '--root', '--no-commit-id',
-    '--name-status', '-z', sha })
+-- Changed files across a commit range base..newest: { rel, deleted }.
+-- Binary files are skipped (counted in the second return). --no-renames
+-- keeps every record a flat 'X<%z>path' pair.
+local function changed_files(wt, base, newest)
+  local out = git_ok(wt, { 'diff-tree', '--no-renames', '-r', '--no-commit-id',
+    '--name-status', '-z', base, newest })
   if not out then return {}, 0 end
   local fields = {}
   for f in out:gmatch('[^%z]+') do table.insert(fields, f) end
@@ -144,7 +152,7 @@ local function changed_files(wt, sha)
     if status == 'D' then
       table.insert(files, { rel = rel, deleted = true })
     else
-      local content = blob(wt, sha .. ':' .. rel)
+      local content = blob(wt, newest .. ':' .. rel)
       if content and is_binary(content) then
         skipped = skipped + 1
       elseif content then
@@ -153,12 +161,6 @@ local function changed_files(wt, sha)
     end
   end
   return files, skipped
-end
-
-local function write_file(path, data)
-  local f = assert(io.open(path, 'wb'))
-  f:write(data)
-  f:close()
 end
 
 --------------------------------------------------------------------------------
@@ -233,14 +235,14 @@ local function refresh()
     vim.api.nvim_win_set_buf(state.rhs_win, rhs)
   end
 
-  local parent_raw = blob(state.wt, state.sha .. '^:' .. file.rel)
+  local parent_raw = blob(state.wt, state.base_sha .. ':' .. file.rel)
   vim.bo[state.lhs_buf].modifiable = true
   if parent_raw then
     vim.api.nvim_buf_set_lines(state.lhs_buf, 0, -1, false, raw_to_lines(parent_raw))
     banner(state.lhs_buf, nil)
   else
     vim.api.nvim_buf_set_lines(state.lhs_buf, 0, -1, false, {})
-    banner(state.lhs_buf, '[ added in this commit — no parent version ]')
+    banner(state.lhs_buf, '[ added — not present before the selection ]')
   end
   vim.bo[state.lhs_buf].modifiable = false
   vim.bo[state.lhs_buf].syntax = vim.bo[rhs].filetype ~= '' and vim.bo[rhs].filetype
@@ -253,12 +255,12 @@ local function refresh()
   end
 
   if vim.api.nvim_win_is_valid(state.lhs_win) then
-    vim.wo[state.lhs_win].winbar = '[parent] ' .. file.rel
+    vim.wo[state.lhs_win].winbar = '[base] ' .. file.rel
       .. (parent_raw == nil and '  (new file)' or '')
   end
   if vim.api.nvim_win_is_valid(state.rhs_win) then
     vim.wo[state.rhs_win].winbar = ('[%s] %s  (%d/%d)'):format(
-      state.short, file.rel, state.index, #state.files)
+      state.range_short, file.rel, state.index, #state.files)
   end
   repaint()
   vim.schedule(repaint)
@@ -283,7 +285,7 @@ local function menu_toggle()
     '',
     '  <leader>bn / <leader>bp   next / previous file',
     '  <leader>bd                skip this file',
-    '  :w                        squash nits into the commit',
+    '  :w                        commit nits ("WIP: human edits")',
     '  <leader>gcp               cherry-pick onto ' .. state.branch,
     '  ?                         toggle this menu',
     '  q                         close review (left pane only)',
@@ -339,87 +341,88 @@ local function assert_clean(wt, what)
   return true
 end
 
--- Squash right-pane edits into the reviewed commit: build a patch in a temp
--- dir (blob vs buffer), apply 3-way onto the worktree (merges with any later
--- commits), commit --fixup, then autosquash-rebase it home.
-function M.apply_nits()
+-- Record right-pane edits as a "WIP: human edits" commit parented on the
+-- reviewed commit (a WIP under review, or an existing WIP child of the base,
+-- is replaced in place); the rest of the branch replays on top, so conflicts
+-- with later commits surface during the replay and are resolved by hand.
+function M.commit_nits()
   if not state then return end
   local idx = nit_indices()
   if #idx == 0 then return vim.notify('WorktreeReview: no nits to apply') end
-  if not assert_clean(state.wt, 'applying nits') then return end
+  if not assert_clean(state.wt, 'committing nits') then return end
 
-  local tmp = vim.fn.tempname()
-  local patches = {}
+  -- base = the real commit the nits annotate; marker = what the branch is
+  -- cut at for the replay
+  local base = state.sha
+  if state.subject == WIP_SUBJECT then
+    base = chomp(git_ok(state.wt, { 'rev-parse', state.sha .. '^' }) or '')
+    if base == '' then
+      return vim.notify('WorktreeReview: WIP commit has no parent', vim.log.levels.ERROR)
+    end
+  end
+  local marker = base
+  local after = git_ok(state.wt, { 'rev-list', '--reverse', '--no-merges', base .. '..HEAD' }) or ''
+  if after ~= '' then
+    local first_after = vim.split(chomp(after), '\n', { plain = true })[1]
+    local subject = chomp(git_ok(state.wt, { 'log', '-1', '--format=%s', first_after }) or '')
+    if subject == WIP_SUBJECT then marker = first_after end
+  end
+
+  -- build the WIP tree in a scratch index (the worktree's real index is
+  -- never touched): base's tree with the edited buffers swapped in
+  local scratch_env = { GIT_INDEX_FILE = vim.fn.tempname() }
+  local code, _, err = git(state.wt, { 'read-tree', base }, scratch_env)
+  if code ~= 0 then
+    return vim.notify('WorktreeReview: read-tree failed:\n' .. err, vim.log.levels.ERROR)
+  end
   for _, i in ipairs(idx) do
     local f = state.files[i]
-    local old = blob(state.wt, state.sha .. ':' .. f.rel) or ''
-    local new = table.concat(vim.api.nvim_buf_get_lines(state.rhs_bufs[i], 0, -1, false), '\n')
-    if old:sub(-1) == '\n' then new = new .. '\n' end
-    vim.fn.mkdir(vim.fs.dirname(tmp .. '/a/' .. f.rel), 'p')
-    vim.fn.mkdir(vim.fs.dirname(tmp .. '/b/' .. f.rel), 'p')
-    write_file(tmp .. '/a/' .. f.rel, old)
-    write_file(tmp .. '/b/' .. f.rel, new)
-    -- exit code 1 means "files differ" (the patch we want), 0 = identical.
-    -- Empty --src/--dst prefixes keep the header paths at a/<rel> b/<rel>,
-    -- which is what `git apply` in the worktree expects.
-    local code, diff = git(tmp, { 'diff', '--no-index', '--src-prefix=', '--dst-prefix=',
-      '--', 'a/' .. f.rel, 'b/' .. f.rel })
-    if code == 1 then table.insert(patches, diff) end
+    local content = table.concat(vim.api.nvim_buf_get_lines(state.rhs_bufs[i], 0, -1, false), '\n')
+    if (blob(state.wt, base .. ':' .. f.rel) or ''):sub(-1) == '\n' then content = content .. '\n' end
+    local res = vim.system({ 'git', '-C', state.wt, 'hash-object', '-w', '--stdin' },
+      { stdin = content }):wait()
+    if res.code ~= 0 then
+      return vim.notify('WorktreeReview: hash-object failed:\n' .. (res.stderr or ''),
+        vim.log.levels.ERROR)
+    end
+    local mode = (git_ok(state.wt, { 'ls-tree', base, '--', f.rel }) or ''):match('^(%d+)')
+    git(state.wt, { 'update-index', '--add', '--cacheinfo',
+      (mode or '100644') .. ',' .. chomp(res.stdout) .. ',' .. f.rel }, scratch_env)
   end
-  if #patches == 0 then
-    for _, i in ipairs(idx) do vim.bo[state.rhs_bufs[i]].modified = false end
-    state.nits = {}
-    return vim.notify('WorktreeReview: no textual changes')
+  local tree = git_ok(state.wt, { 'write-tree' }, scratch_env)
+  local wip = tree and git_ok(state.wt, { 'commit-tree', chomp(tree), '-p', base, '-m', WIP_SUBJECT })
+  if not wip then
+    return vim.notify('WorktreeReview: could not build the WIP commit', vim.log.levels.ERROR)
+  end
+  wip = chomp(wip)
+
+  -- nothing above the marker: move the branch; otherwise replay the rest
+  local head = chomp(git_ok(state.wt, { 'rev-parse', 'HEAD' }) or '')
+  if head == marker then
+    git(state.wt, { 'reset', '--hard', wip })
+  else
+    code, _, err = git(state.wt, { 'rebase', '--onto', wip, marker },
+      { GIT_SEQUENCE_EDITOR = ':', GIT_EDITOR = ':' })
+    if code ~= 0 then
+      return vim.notify('WorktreeReview: branch replay stopped — resolve and '
+        .. '`git rebase --continue`:\n' .. err, vim.log.levels.ERROR)
+    end
   end
 
-  local patchfile = tmp .. '/nits.patch'
-  write_file(patchfile, table.concat(patches))
-  local code, _, err = git(state.wt, { 'apply', '--3way', patchfile })
-  if code ~= 0 then
-    -- tree was verified clean, so restoring HEAD loses nothing of the user's
-    git(state.wt, { 'reset', '--hard' })
-    return vim.notify('WorktreeReview: nits conflicted with later commits:\n' .. err,
-      vim.log.levels.ERROR)
-  end
-
-  local addargs = { 'add', '--' }
-  for _, i in ipairs(idx) do table.insert(addargs, state.files[i].rel) end
-  git(state.wt, addargs)
-  code, _, err = git(state.wt, { 'commit', '--fixup=' .. state.sha })
-  if code ~= 0 then
-    git(state.wt, { 'reset', '--hard' })
-    return vim.notify('WorktreeReview: fixup commit failed:\n' .. err, vim.log.levels.ERROR)
-  end
-
-  local parent = git_ok(state.wt, { 'rev-parse', state.sha .. '^' })
-  local rebaseargs = parent and { 'rebase', '-i', '--autosquash', chomp(parent) }
-    or { 'rebase', '-i', '--autosquash', '--root' }
-  code, _, err = git(state.wt, rebaseargs, { GIT_SEQUENCE_EDITOR = ':', GIT_EDITOR = ':' })
-  if code ~= 0 then
-    return vim.notify('WorktreeReview: autosquash rebase stopped — resolve and '
-      .. '`git rebase --continue`:\n' .. err, vim.log.levels.ERROR)
-  end
-
-  -- the rebase rewrote shas; find the squashed commit by its (preserved)
-  -- subject, falling back to the oldest un-upstreamed commit
-  local new_sha
-  local log = git_ok(state.wt, { 'log', '--format=%H %s', state.branch .. '..HEAD' }) or ''
-  for line in log:gmatch('[^\n]+') do
-    if line:sub(42) == state.subject then new_sha = line:sub(1, 40) break end
-  end
-  new_sha = new_sha or unupstreamed(state.wt, state.branch)[1]
   -- the nits are committed; the scratch buffers are spent, so a following
   -- close/reopen must not prompt about "unsaved nits"
   for _, b in ipairs(state.rhs_bufs) do vim.bo[b].modified = false end
   state.nits = {}
-  vim.notify(('WorktreeReview: nits squashed into %s → %s'):format(state.short, new_sha:sub(1, 7)))
-  return true, new_sha
+  vim.notify(('WorktreeReview: nits committed as %s ("%s")'):format(wip:sub(1, 7), WIP_SUBJECT))
+  return true, wip
 end
 
--- Shared pick: cherry-pick `entry.sha` (fields: root, branch, sha, wt) onto
--- the upstream branch checked out in the main worktree. Just the pick —
--- conflicts are resolved by hand in the main worktree, and patch-id tracking
--- means the commit leaves the queue even before the worktree is rebased.
+-- Shared pick: cherry-pick `entry.commits` (fields: root, branch, commits,
+-- wt, aux) onto the upstream branch checked out in the main worktree, in
+-- order; `aux` (a :w-created edit commit) is folded into the LAST pick so
+-- upstream receives clean commits. Just picks — conflicts are resolved by
+-- hand in the main worktree. Patch-id tracking means plain picks leave the
+-- queue even before the worktree is rebased.
 local function cherry_pick_onto_upstream(entry)
   local head = chomp(git_ok(entry.root, { 'symbolic-ref', '--short', 'HEAD' }) or '')
   if head ~= entry.branch then
@@ -427,13 +430,37 @@ local function cherry_pick_onto_upstream(entry)
       :format(entry.root, head ~= '' and head or 'a detached HEAD', entry.branch),
       vim.log.levels.ERROR)
   end
-  local code, _, err = git(entry.root, { 'cherry-pick', entry.sha })
-  if code ~= 0 then
-    return vim.notify(('WorktreeReview: cherry-pick onto %s failed:\n%s\nresolve in %s '
-      .. '(or `git cherry-pick --abort`), then retry'):format(entry.branch, err, entry.root),
-      vim.log.levels.ERROR)
+  for _, sha in ipairs(entry.commits) do
+    local code, _, err = git(entry.root, { 'cherry-pick', sha })
+    if code ~= 0 then
+      return vim.notify(('WorktreeReview: cherry-pick %s onto %s failed:\n%s\nresolve in %s '
+        .. '(or `git cherry-pick --abort`), then retry')
+        :format(sha:sub(1, 7), entry.branch, err, entry.root), vim.log.levels.ERROR)
+    end
+    if entry.picked then entry.picked[sha] = true end
   end
-  return true, unupstreamed(entry.wt, entry.branch)[1]
+  if entry.aux then
+    local code, _, err = git(entry.root, { 'cherry-pick', '-n', entry.aux })
+    if code ~= 0 then
+      return vim.notify(('WorktreeReview: folding %s into the pick conflicted:\n%s\n'
+        .. '`git cherry-pick --abort` in %s undoes just the fold (the picks stay)')
+        :format(WIP_SUBJECT, err, entry.root), vim.log.levels.ERROR)
+    end
+    code, _, err = git(entry.root, { 'commit', '--amend', '--no-edit' })
+    if code ~= 0 then
+      return vim.notify('WorktreeReview: amending the pick failed:\n' .. err, vim.log.levels.ERROR)
+    end
+    -- the folded pick is NOT patch-equivalent to the base commit, so the
+    -- queue cannot drop the pair on its own
+    if entry.picked then entry.picked[entry.aux] = true end
+  end
+  -- next in queue, skipping anything picked this session
+  local picked = entry.picked or {}
+  local next_sha
+  for _, s in ipairs(unupstreamed(entry.wt, entry.branch)) do
+    if not picked[s] then next_sha = s break end
+  end
+  return true, next_sha
 end
 
 function M.upstream_commit()
@@ -444,8 +471,8 @@ function M.upstream_commit()
   return true, next_sha
 end
 
--- <leader>gcp from any window: pick the last reviewed commit. Errors loudly
--- when nothing has been reviewed (or the last pick consumed it).
+-- <leader>gcp from any window: pick the last reviewed selection. Errors
+-- loudly when nothing has been reviewed (or the last pick consumed it).
 function M.cherry_pick_last()
   if not last_reviewed then
     return vim.notify('WorktreeReview: nothing reviewed to cherry-pick yet',
@@ -455,7 +482,8 @@ function M.cherry_pick_last()
   local ok = cherry_pick_onto_upstream(entry)
   if not ok then return end
   last_reviewed = nil
-  vim.notify(('WorktreeReview: cherry-picked %s onto %s'):format(entry.short, entry.branch))
+  local n = #entry.commits + (entry.aux and 1 or 0)
+  vim.notify(('WorktreeReview: cherry-picked %d commit(s) onto %s'):format(n, entry.branch))
 end
 
 --------------------------------------------------------------------------------
@@ -558,29 +586,44 @@ local function session_keymaps(b)
       if next_sha then
         M.review(wt, next_sha, branch)
       else
-        vim.notify('WorktreeReview: worktree fully upstreamed — rebase or '
-          .. '`git worktree remove ' .. wt .. '` when done')
+        vim.notify('WorktreeReview: worktree fully upstreamed — `git rebase '
+          .. branch .. '` in ' .. wt .. ' clears the queue (or `git worktree remove` it)')
       end
     end)
   end, o)
 end
 
-function M.review(wt, sha, branch)
+-- Review a contiguous selection of commits (oldest-first list, or a single
+-- sha string). `aux` marks the last entry as a :w-created edit commit: it is
+-- excluded from the pick list so <leader>gcp folds it into the last pick
+-- instead of cherry-picking it separately.
+function M.review(wt, shas, branch, aux)
+  if type(shas) == 'string' then shas = { shas } end
   branch = branch or upstream_branch(wt)
   if not branch then
     return vim.notify('WorktreeReview: no main/master branch found', vim.log.levels.ERROR)
   end
-  local files, skipped_bin = changed_files(wt, sha)
+  if #shas == 0 then return vim.notify('WorktreeReview: empty selection') end
+  local newest = shas[#shas]
+  local base = chomp(git_ok(wt, { 'rev-parse', shas[1] .. '^' }) or '')
+  if base == '' then base = EMPTY_TREE end
+
+  local files, skipped_bin = changed_files(wt, base, newest)
   if skipped_bin > 0 then
     vim.notify(('WorktreeReview: %d binary file(s) skipped'):format(skipped_bin))
   end
   if #files == 0 then
-    return vim.notify('WorktreeReview: nothing reviewable in ' .. sha:sub(1, 7))
+    return vim.notify('WorktreeReview: nothing reviewable in ' .. shas[1]:sub(1, 7))
   end
   if state and not M.close() then return end
 
-  local subject = chomp(git_ok(wt, { 'log', '-1', '--format=%s', sha }) or '')
-  local short = chomp(git_ok(wt, { 'rev-parse', '--short', sha }) or sha)
+  local subject = chomp(git_ok(wt, { 'log', '-1', '--format=%s', newest }) or '')
+  local short = chomp(git_ok(wt, { 'rev-parse', '--short', newest }) or newest)
+  local range_short = short
+  if #shas > 1 then
+    range_short = chomp(git_ok(wt, { 'rev-parse', '--short', shas[1] }) or shas[1]) .. '..' .. short
+  end
+  local commits = aux and vim.list_slice(shas, 1, #shas - 1) or vim.list_slice(shas)
 
   local lhs_buf = vim.api.nvim_create_buf(false, true)
   vim.bo[lhs_buf].buftype = 'nofile'
@@ -597,9 +640,9 @@ function M.review(wt, sha, branch)
     vim.bo[b].buflisted = true
     vim.bo[b].swapfile = false
     pcall(vim.api.nvim_buf_set_name, b, ('WorktreeReview://%s/%s'):format(short, f.rel))
-    fill_scratch(b, f.deleted and '' or (blob(wt, sha .. ':' .. f.rel) or ''))
+    fill_scratch(b, f.deleted and '' or (blob(wt, newest .. ':' .. f.rel) or ''))
     vim.bo[b].modifiable = not f.deleted
-    if f.deleted then banner(b, '[ deleted in this commit ]') end
+    if f.deleted then banner(b, '[ deleted in this selection ]') end
     vim.bo[b].filetype = vim.filetype.match({ filename = wt .. '/' .. f.rel }) or ''
     table.insert(rhs_bufs, b)
   end
@@ -618,19 +661,28 @@ function M.review(wt, sha, branch)
     wt = wt,
     root = main_root(wt),
     branch = branch,
-    sha = sha,
+    shas = shas,
+    base_sha = base,
+    commits = commits,
+    aux = aux,
+    sha = newest,
     short = short,
+    range_short = range_short,
     subject = subject,
     files = files,
     rhs_bufs = rhs_bufs,
     nits = {},
+    picked = {}, -- shas already picked onto upstream this session (a folded
+                 -- pick is not patch-equivalent, so it lingers in the queue
+                 -- until the worktree is rebased)
     lhs_buf = lhs_buf,
     lhs_win = lhs_win,
     rhs_win = rhs_win,
     index = 1,
     tab = vim.api.nvim_get_current_tabpage(),
   }
-  last_reviewed = { wt = wt, root = state.root, branch = branch, sha = sha, short = short }
+  last_reviewed = { wt = wt, root = state.root, branch = branch, commits = commits,
+    aux = aux, short = short, subject = subject }
 
   vim.api.nvim_clear_autocmds({ group = augroup })
   session_keymaps(lhs_buf)
@@ -640,8 +692,8 @@ function M.review(wt, sha, branch)
       group = augroup, buffer = b,
       callback = function() vim.schedule(function() on_rhs_deleted(b) end) end,
     })
-    -- :w on the virtual buffer means "squash my nits into the commit"
-    gitwrite.squash_on_write(augroup, b, state,
+    -- :w on the virtual buffer means "commit my nits into the worktree"
+    gitwrite.on_write(augroup, b, state,
       function(buf)
         -- only changed writes count; a bare :w stays a no-op
         if vim.bo[buf].modified then state.nits[buf] = true end
@@ -649,8 +701,14 @@ function M.review(wt, sha, branch)
       function()
         if not state or #nit_indices() == 0 then return end
         local wt, branch = state.wt, state.branch
-        local ok, new_sha = M.apply_nits()
-        if ok and new_sha then M.review(wt, new_sha, branch) end
+        local had_aux = state.aux
+        local shas = vim.list_slice(state.shas)
+        local ok, wip = M.commit_nits()
+        if ok and wip then
+          -- reviewing the selection's own aux replaces it in the last slot
+          if had_aux then shas[#shas] = wip else shas[#shas + 1] = wip end
+          M.review(wt, shas, branch, wip)
+        end
       end)
     if vim.bo[b].modifiable then
       vim.api.nvim_create_autocmd({ 'TextChanged', 'InsertLeave' }, {
@@ -687,6 +745,98 @@ end
 -- Exposed for tests / scripting.
 function M.session() return state end
 
+-- Multi-select commit picker float: space toggles, a toggles all, enter
+-- reviews (the cursor line when nothing is toggled), q/Esc cancels. The
+-- selection must be contiguous in queue order — a range is the only shape
+-- with a coherent single diff.
+local function pick_commits(wt, branch)
+  local queue = unupstreamed(wt, branch)
+  if #queue == 0 then
+    return vim.notify(('WorktreeReview: nothing ahead of %s in %s'):format(branch, wt))
+  end
+  local labels = {}
+  local width = 12
+  for i, s in ipairs(queue) do
+    labels[i] = commit_label(wt, s, i == 1)
+    width = math.max(width, vim.fn.strdisplaywidth(labels[i]) + 6)
+  end
+  width = math.min(width, 86)
+  local height = math.min(#queue, math.max(3, math.floor(vim.o.lines * 0.6)))
+
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].bufhidden = 'wipe'
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = 'editor', width = width, height = height,
+    row = (vim.o.lines - height) / 2, col = (vim.o.columns - width) / 2,
+    style = 'minimal', border = 'rounded',
+    title = ' space toggle · a all · enter review · q cancel ',
+    title_pos = 'center', footer = ' oldest first — selection must be contiguous ',
+    footer_pos = 'center',
+  })
+  vim.wo[win].cursorline = true
+  vim.wo[win].wrap = false
+
+  local selected, cursor = {}, 1
+  local function render()
+    local lines = {}
+    for i, l in ipairs(labels) do
+      lines[i] = (selected[i] and '[x] ' or '[ ] ') .. l
+    end
+    vim.bo[buf].modifiable = true
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.bo[buf].modifiable = false
+    vim.api.nvim_win_set_cursor(win, { math.min(cursor, #queue), 0 })
+  end
+
+  local function confirm()
+    local idx = {}
+    for i in pairs(selected) do idx[#idx + 1] = i end
+    if #idx == 0 then
+      idx = { cursor }
+    else
+      table.sort(idx)
+      for i = 2, #idx do
+        if idx[i] ~= idx[i - 1] + 1 then
+          return vim.notify('WorktreeReview: selection must be contiguous in queue order',
+            vim.log.levels.WARN)
+        end
+      end
+    end
+    local shas = {}
+    for k, i in ipairs(idx) do shas[k] = queue[i] end
+    vim.api.nvim_win_close(win, true)
+    M.review(wt, shas, branch)
+  end
+
+  local function move(d)
+    cursor = math.min(math.max(cursor + d, 1), #queue)
+    render()
+  end
+
+  local o = { buffer = buf, silent = true, nowait = true }
+  vim.keymap.set('n', 'j', function() move(1) end, o)
+  vim.keymap.set('n', 'k', function() move(-1) end, o)
+  vim.keymap.set('n', '<Down>', function() move(1) end, o)
+  vim.keymap.set('n', '<Up>', function() move(-1) end, o)
+  vim.keymap.set('n', '<Space>', function()
+    selected[cursor] = not selected[cursor] or nil
+    move(1)
+  end, o)
+  vim.keymap.set('n', 'a', function()
+    local all = true
+    for i = 1, #queue do
+      if not selected[i] then all = false break end
+    end
+    selected = {}
+    if not all then for i = 1, #queue do selected[i] = true end end
+    render()
+  end, o)
+  vim.keymap.set('n', '<CR>', confirm, o)
+  vim.keymap.set('n', 'q', function() vim.api.nvim_win_close(win, true) end, o)
+  vim.keymap.set('n', '<Esc>', function() vim.api.nvim_win_close(win, true) end, o)
+  render()
+end
+
 function M.start()
   local root = main_root(vim.uv.cwd())
   if not root then
@@ -710,19 +860,11 @@ function M.start()
   }, function(w)
     if not w then return end
     local branch = upstream_branch(w.path)
-    local shas = branch and unupstreamed(w.path, branch) or {}
-    if #shas == 0 then
+    if not branch or #unupstreamed(w.path, branch) == 0 then
       return vim.notify(('WorktreeReview: %s has nothing ahead of %s')
         :format(w.path, branch or 'main'))
     end
-    local items = {}
-    for i, s in ipairs(shas) do items[i] = { sha = s, label = commit_label(w.path, s, i == 1) } end
-    vim.ui.select(items, {
-      prompt = 'Commit to review (oldest first):',
-      format_item = function(c) return c.label end,
-    }, function(c)
-      if c then M.review(w.path, c.sha, branch) end
-    end)
+    pick_commits(w.path, branch)
   end)
 end
 
