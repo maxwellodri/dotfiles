@@ -1,1 +1,1 @@
-Stage your changes for my review. Use the git-surgeon skill if finer grain than per-file is useful. Don't commit — I'll review and commit myself.
+Stage YOUR changes for my review — only the work you performed this session. The working tree may carry concurrent dirty state from other sessions or the user; never stage files or hunks you didn't touch. Use the git-surgeon skill if finer grain than per-file is useful. Don't commit — I'll review and commit myself.
