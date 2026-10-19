@@ -12,10 +12,15 @@
 --     the whole file reads as added.
 --   * Binary files are skipped; vim.g.GitSplitIgnore (default {}) lists
 --     repo-relative files/directories to always skip as well.
+--   * Saving a right-pane buffer stages the written delta (3-way into the
+--     index): edits land staged while unrelated unstaged hunks in the same
+--     file stay unstaged; a write overlapping an unstaged hunk stages
+--     nothing and warns. Untracked files are exempt — saving one just
+--     writes the file, it stays untracked.
 --   * <leader>bn / <leader>bp / <leader>bd work from EITHER pane and keep both
 --     in sync: there is one shared "current file" index, and advancing it
 --     updates both panes together. `bd` drops the current file and moves on.
---   * <leader>gS toggles the diff highlighting. Diff mode is pairwise per
+--   * <leader>gh toggles the diff highlighting. Diff mode is pairwise per
 --     window, so it always applies to BOTH panes (diffoff on one side would
 --     break the pair -- killing the highlighting on both sides anyway) and
 --     file navigation preserves the chosen state.
@@ -23,6 +28,8 @@
 --     (the tab); working-tree buffers are left in the buffer list for editing.
 
 local M = {}
+
+local gitwrite = require('user.git.write')
 
 local ns = vim.api.nvim_create_namespace('user.git.gitsplit')
 local augroup = vim.api.nvim_create_augroup('user.git.gitsplit', { clear = true })
@@ -36,7 +43,7 @@ vim.g.GitSplitIgnore = vim.g.GitSplitIgnore or {}
 
 -- the nav keys bound on every session buffer (LHS + RHS). `q` is bound only
 -- on the LHS pane, so it is not part of this set.
-local SESSION_KEYS = { '<leader>bn', '<leader>bp', '<leader>bd', '<leader>gS' }
+local SESSION_KEYS = { '<leader>bn', '<leader>bp', '<leader>bd', '<leader>gh' }
 
 local function clear_buf_keymaps(b)
   if not vim.api.nvim_buf_is_valid(b) then return end
@@ -215,7 +222,7 @@ local function refresh()
   if ft == '' then ft = vim.filetype.match({ filename = file.abs }) or '' end
   set_lhs_content(state.lhs_buf, state.root, file, ft)
 
-  -- re-enter diff mode unless the highlighting is toggled off (<leader>gS)
+  -- re-enter diff mode unless the highlighting is toggled off (<leader>gh)
   if not state.hl_off then
     for _, w in ipairs({ state.lhs_win, state.rhs_win }) do
       if vim.api.nvim_win_is_valid(w) then
@@ -252,7 +259,7 @@ end
 local function next_file() goto_index((state and state.index or 1) + 1) end
 local function prev_file() goto_index((state and state.index or 1) - 1) end
 
--- Toggle the diff highlighting on/off (<leader>gS). Diff mode is per-window
+-- Toggle the diff highlighting on/off (<leader>gh). Diff mode is per-window
 -- but pairwise: taking ONE pane out of diff breaks the pair and drops the
 -- highlighting from BOTH windows anyway (while leaving scrollbind / folds
 -- desynced), so the toggle always applies to both panes at once. refresh()
@@ -340,7 +347,7 @@ local function session_keymaps(b)
   vim.keymap.set('n', '<leader>bn', next_file, o)
   vim.keymap.set('n', '<leader>bp', prev_file, o)
   vim.keymap.set('n', '<leader>bd', delete_current, o)
-  vim.keymap.set('n', '<leader>gS', toggle_hl, o)
+  vim.keymap.set('n', '<leader>gh', toggle_hl, o)
 end
 
 local function clear_rhs_keymaps(s)
@@ -451,12 +458,18 @@ function M.open(staged_only)
   -- reset any stale autocmds from a previous session, then wire this one
   vim.api.nvim_clear_autocmds({ group = augroup })
   session_keymaps(lhs_buf)
-  for _, b in ipairs(rhs_bufs) do
+  for i, b in ipairs(rhs_bufs) do
     session_keymaps(b)
     vim.api.nvim_create_autocmd('BufDelete', {
       group = augroup, buffer = b,
       callback = function() vim.schedule(function() on_rhs_deleted(b) end) end,
     })
+    -- saving an RHS file stages it: both panes show the full working-tree
+    -- state, so a save means "this content is reviewed". Untracked files
+    -- stay untracked — staging one is a deliberate act.
+    if not files[i].untracked then
+      gitwrite.stage_on_write(augroup, root, b)
+    end
     -- keep the diff in sync as the working file is edited: vim won't recompute
     -- on its own (the LHS is a nofile partner). Repaint now AND on the next tick
     -- -- the screen grid settles asynchronously after an edit, just like a swap.
