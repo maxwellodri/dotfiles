@@ -90,32 +90,38 @@ needed; only once the user signs off do you begin Phase 4.
 For each planned commit:
 
 1. Announce: `Staging commit N/M: <subject>`.
-2. Stage tracked hunks for this commit:
+2. Stage this commit in ONE bash tool call — a `&&` chain that verifies
+   the index is clean, stages the tracked hunks and any untracked files,
+   and prints the staged set (one round trip instead of separate
+   check → stage → verify calls):
    ```bash
-   git-surgeon stage <id1> <id2> ...
-   git-surgeon stage <id> --lines 5-30   # for a partial hunk
+   git diff --cached --quiet \
+     && git-surgeon stage <id1> <id2> \
+     && git add <file1> <file2> \
+     && git diff --cached --stat
    ```
-3. Stage any untracked files that belong to this commit:
-   ```bash
-   git add <file1> <file2>
-   ```
-   Untracked files are atomic — the whole file goes into exactly one commit.
-4. Verify the staged set matches the plan (nothing extra, nothing missing):
-   ```bash
-   git diff --cached --stat
-   git-surgeon hunks --staged
-   ```
-5. STOP. Hand the user the suggested commit command with the proposed message:
+   - `git diff --cached --quiet` exits 1 when anything is already staged,
+     short-circuiting the chain before the index is touched.
+   - Omit the `git add` link when the commit has no untracked files.
+     Untracked files are atomic — the whole file goes into exactly one
+     commit.
+   - Partial hunk: give it its own link with a line range
+     (`git-surgeon stage <id> --lines 5-30`).
+   - Non-zero exit with no output → index wasn't clean: STOP and re-enter
+     **Preflight**. Non-zero exit from `stage` (likely a stale hunk ID) →
+     re-run `git-surgeon hunks` for fresh IDs, then retry the chain.
+3. Verify the stat output matches the plan (nothing extra, nothing missing).
+   Use `git-surgeon hunks --staged` for a closer look if needed.
+4. STOP. Hand the user the suggested commit command with the proposed message:
    ```
    Review the staged changes, then commit (or ask me to adjust):
      git commit -m "<subject>" [-m "<body>"]
    ```
-6. WAIT. Do not proceed to the next commit until the user confirms they
+5. WAIT. Do not proceed to the next commit until the user confirms they
    committed.
-7. After confirmation, re-run `git status --porcelain`. If the index is not
-   clean again (user unstaged, made new edits, etc.), re-enter **Preflight**
-   and ask how to proceed.
-8. Move to the next planned commit. Repeat.
+6. After confirmation, stage the next planned commit — its chain re-checks
+   the index automatically. If the index is dirty (user unstaged, made new
+   edits, etc.), re-enter **Preflight** and ask how to proceed.
 
 ### Phase 5 — Wrap up
 

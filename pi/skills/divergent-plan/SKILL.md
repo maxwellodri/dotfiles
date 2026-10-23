@@ -14,26 +14,23 @@ A divergent plan is a **DAG of named nodes** in which every non-obvious decision
 
 Planning produces decisions, not deliverables. The pull to just start building is usually the signal that the map is done. Two sanctioned exceptions: **prototypes**, which answer questions and are thrown away, and **chores that unblock a decision** (provisioning, signing up) — do the ones you can; batch the human-only ones into the handoff as action items.
 
-## Experiments
+## Plans can still have deliverables.
+### Experiments
+Most questions a plan waits on can be answered by running real code, not by asking. **Experiment before you fork:** test the actual thing and observe the result. Prior art is also invaluable, use the `web_search` tool, `gh` CLI, the `scout` skill for speciic repos, and the browser-use skill to investigate if a similar problem has already been solved.
 
-Most questions a plan waits on can be answered by running real code, not by asking. **Experiment before you fork:** test the actual thing and observe the result.
-
-- **Worktree, not the main repo.** Unless the user says otherwise, all repo activity for the effort — experiments, prototypes, built variants for side-by-side windows — runs in a git worktree at `worktrees/<adjective_noun_{1-3 word description of the work, e.g. snuggly_snail_scene_edit, bad_badger_nvim_git_worktree}>/`, define this as the <worktree name> henceforth in the project repo (same name as the plan), leaving the main checkout untouched.
+- **Worktree, not the main repo.** Unless the user says otherwise, all repo activity for the effort — experiments, prototypes, built variants for side-by-side windows — runs in a git worktree at `worktrees/<adjective_noun_{1-3 word description of the work, e.g. snuggly_snail_scene_edit, bad_badger_nvim_rust_analyzer}>/`, define this as the <worktree name> henceforth in the project repo (same name as the plan), leaving the main checkout untouched.
 - **Scratch lives in one place: `worktrees/<worktree_name>/.scratch/`** (gitignored). A single-question one-off — a throwaway bash/python/ts script — is deleted once answered; an experiment worth keeping as evidence for the future ("x causes y because z") stays. Write it as if it could theoretically be copied into the repo and committed: the repo's language and patterns. Never anywhere else in the worktree.
 - **Headless first.** CLI runs, script harnesses, headless drivers — the cheapest experiment that answers the question wins. GUIs are the hard case, not the norm.
 - **Web UIs** — drive with the `web-browser-use` skill rather than hand-rolled automation.
-- **Desktop GUIs (agent-facing)** — drive with the `gui-automation` skilll.
+- **Desktop GUIs** — Two types: agent facing, such as to iterate and check whether a GUI is "done". An agent can get 90% of the way there by self-checking the GUI themselves. Secondly, spawning the GUI to handoff to the user to inspect/give feedback. Drive both with the `gui-automation` skill.
 - Phone Apps - ask the user to provide an (Android) phone with USB debugging capabilities ; test in the UI in a loop via installing over ADB -> launching the App -> manually test the feature/functionality/take a screenshot
-- **User-facing windows (handoff)** — spawn the window as usual on the host display; on personal devices the only addition is the pinning env vars above.
-- **Verify what you can't see.** Screenshots — `ga snap` in the VM, or on snuggy the host display too — go to an image subagent for vision tasks: layout, state, differences, "is the VFX effect rendering correctly", and similar. This flow runs regardless of the model's own capabilities; defer to the image subagent whenever the model lacks image comprehension.
-- **The residue is taste.** Micro-interactions, game feel, UX feel — what an agent cannot judge — never gets asked mid-flight. It becomes a fork whose options are **side-by-side user-facing windows** with slightly different interaction semantics, pinned to tag 8 and labelled A, B, C… — arbitrarily many, soft cap around 8; two is just the common case since most choices are roughly binary. The user picks one at handoff and the fork collapses.
+- **The residue is taste.** Micro-interactions, game feel, UX feel; things an agent cannot judge. Don't ask mid-flight. Instead, it becomes a fork whose options are **side-by-side user-facing windows** (see `gui-automation`) with slightly different interaction semantics, labelled A, B, C… — arbitrarily many, soft cap around 8; two is just the common case since most choices are roughly binary. The user picks one at handoff and the fork collapses.
 
 ## The artifact
-
 Generate a name with `qz generate-name`; a human-memorable handle (e.g. *Furious Fennec*) the user can refer to this effort by across sessions and agents. Once coined, retitle this session via the `name_session` tool: `Adjective Noun: <short description>` (the worktree name, e.g. *Furious Fennec: portal renderer*). The description names the **work**, never the planning of it — the same session typically rolls into implementation once the user signs the plan off, and "portal renderer plan" would age out at handoff. The plan lives at `~/.local/state/pi/divergent_plans/<worktree name>/PLAN.md`, updated **continuously as you go** — the document is the durable state, so a fresh session, this one ends, or a context window gets filled, resumes from it alone. Bulky evidence — research findings, prototype notes — goes in sibling files under `~/.local/state/pi/divergent_plans/<adjective_noun>/`; the plan gists and links, never pastes.
 
 ```markdown
-# <Alliterative Name> — <one-line title>
+# <Alliterative Name>: <one-line title>
 
 ## Destination   <!-- what done looks like once implemented; fixes scope -->
 ## Inputs        <!-- what was given/read, linked -->
@@ -94,7 +91,7 @@ Keep expanding until one fires:
 ## Implementation.
 Only proceed once the user has approved the plan. Given the prior plan, implementation should be straightforward.
 
-Small logical commits are imperative for the human to easily review. Keep commits small but numerous, the user can interactively rebase them into a smaller number later. A good rule of thumb is 200-400 LOC and maximum of 2-3 changed files for behavioural changes. Renames/lockfile/refactorings churn etc are exempt from the prior numerical counts. A good sniff test is that you can describe in a single sentence without “and”. Tests with the code they cover, in the same commit.
+Small logical commits are imperative for the human to easily review. Keep commits small but numerous, the user can interactively rebase them into a smaller number later. A good rule of thumb is 200-400 LOC OR 2-3 changed files (whichever comes first) for behavioural changes. Renames/lockfile/refactorings churn etc are exempt from the prior numerical counts. A good sniff test is that you can describe in a single sentence without “and”. Tests with the code they cover, in the same commit. High level integration tests that test across multiple commits worth of work go in a separate commit.
 
 Kernel style commit messages, under ~100 chars, as "<topic>: <short description>", refer to prior commit messages if available for a style guide.
 
