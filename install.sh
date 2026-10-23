@@ -87,8 +87,8 @@ sh helper_scripts/arch_package_install.sh "$tag"
 sh helper_scripts/makesymlinks.sh "$tag"
 sh helper_scripts/custom_bin_scripts.sh
 sh rust/install.sh
-# system configs (units, /etc, wg keys) moved to nix_config: run
-# <dotfiles-env-result>/bin/apply-system-configs <tag> after this script
+# system configs (units, /etc, wg keys) live in nix_config; install_flake.sh
+# applies them (apply-system-configs, tag-aware) as its final step
 bash helper_scripts/download_suckless.sh #provides ssh copying msg, e.g. see script
 flake="${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}/scripts/install_flake.sh"
 if [ -f "$flake" ]; then
