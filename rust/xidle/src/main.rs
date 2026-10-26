@@ -3,12 +3,13 @@
 //! resetting X counters (mpv, firefox, steam via XResetScreenSaver) cannot
 //! write to evdev, so they cannot fake presence. The stateless query keeps
 //! an internal daemon (same binary, `--daemon`) alive that timestamps every
-//! input event to a runtime-dir state file.
+//! input event to a runtime-dir state file. `--no-spawn` fails fast instead.
 
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::io::Read;
 use std::os::fd::AsRawFd;
+use std::os::unix::fs::MetadataExt;
 use std::os::unix::process::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
@@ -18,6 +19,7 @@ const EV_KEY: u16 = 0x01;
 const EV_REL: u16 = 0x07;
 const HEARTBEAT_MS: u64 = 5_000;
 const STALE_MS: u64 = 15_000;
+const DEAD: i16 = (libc::POLLERR | libc::POLLHUP) as i16;
 
 fn now_ms() -> u64 {
     SystemTime::now()
@@ -73,21 +75,23 @@ fn spawn_daemon_and_wait() -> Result<()> {
     bail!("daemon did not come up")
 }
 
-fn query() -> Result<()> {
-    if state_is_fresh().is_none() {
+fn query(allow_spawn: bool) -> Result<()> {
+    if allow_spawn && state_is_fresh().is_none() {
         spawn_daemon_and_wait()?;
     }
     match state_is_fresh() {
         Some((last_input, _)) => println!("{}", now_ms().saturating_sub(last_input)),
-        None => bail!("no fresh state"),
+        None => bail!("daemon not running"),
     }
     Ok(())
 }
 
 /// A watched input device: fd plus a read buffer for partial input_event reads.
+/// rdev identifies the /dev/input node, so rescans can skip already-open ones.
 struct Device {
     file: fs::File,
     buf: Vec<u8>,
+    rdev: u64,
 }
 
 fn daemon() -> Result<()> {
@@ -113,6 +117,14 @@ fn daemon() -> Result<()> {
         if now - last_beat >= HEARTBEAT_MS {
             write_state(last_input);
             last_beat = now;
+            // replugged/suspend-re-enumerated devices reappear as new nodes;
+            // without this rescan the daemon goes permanently deaf after a swap
+            let known: Vec<u64> = devices.iter().map(|d| d.rdev).collect();
+            devices.extend(
+                open_input_devices()
+                    .into_iter()
+                    .filter(|d| !known.contains(&d.rdev)),
+            );
         }
         polls.clear();
         for d in &devices {
@@ -129,7 +141,7 @@ fn daemon() -> Result<()> {
         let mut i = 0;
         while i < devices.len() {
             if polls[i].revents & libc::POLLIN == 0 {
-                if polls[i].revents & libc::POLLERR != 0 {
+                if polls[i].revents & DEAD != 0 {
                     devices.swap_remove(i);
                     continue;
                 }
@@ -201,9 +213,11 @@ fn open_input_devices() -> Vec<Device> {
         let has_key = caps[0] & (1 << EV_KEY) != 0;
         let has_rel = caps[0] & (1 << EV_REL) != 0;
         if has_key || has_rel {
+            let Ok(meta) = file.metadata() else { continue };
             devices.push(Device {
                 file,
                 buf: Vec::new(),
+                rdev: meta.rdev(),
             });
         }
     }
@@ -211,9 +225,9 @@ fn open_input_devices() -> Vec<Device> {
 }
 
 fn main() -> Result<()> {
-    if std::env::args().nth(1).as_deref() == Some("--daemon") {
-        daemon()
-    } else {
-        query()
+    match std::env::args().nth(1).as_deref() {
+        Some("--daemon") => daemon(),
+        Some("--no-spawn") => query(false),
+        _ => query(true),
     }
 }

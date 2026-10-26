@@ -2,11 +2,13 @@
 # when_afk — gate a command on the user going AFK:   when_afk [minutes] && cmd
 #
 # Two parts in one script:
-#   afk_idle()  prints current idle time in ms (xidle — kernel evdev
-#               timestamps; only real input devices reset it, so programs
-#               faking X presence like mpv's screensaver resets don't
-#               count). Sourced and called per-poll by pi/extensions/backlog,
-#               which runs its own loop. Display-server agnostic.
+#   afk_idle()  prints current idle time in ms via `xidle --no-spawn`
+#               (kernel evdev timestamps; only real input devices reset it, so
+#               programs faking X presence like mpv's screensaver resets don't
+#               count). Fails if the xidle daemon isn't running (xidle.service
+#               user unit, or any plain `xidle` call spawns it). Sourced and
+#               called per-poll by pi/extensions/backlog, which runs its own
+#               loop. Display-server agnostic.
 #   main()      the poll loop: poll afk_idle() every POLL_INTERVAL seconds;
 #               once idle exceeds the threshold, notify + re-check after 5s
 #               (came-back guard). Exit 0 = AFK confirmed, 1 = came back or INT.
@@ -14,7 +16,7 @@
 # Executed directly -> run main; sourced -> only define the functions.
 
 afk_idle() {
-	xidle # self-spawns its evdev daemon on first call
+	xidle --no-spawn
 }
 
 main() {
@@ -25,11 +27,12 @@ main() {
 
 	while true; do
 		local idle
-		idle=$(afk_idle)
+		idle=$(afk_idle) || exit 1 # daemon dead: bail, don't run the payload
 		if [ "$idle" -gt "$idle_threshold" ]; then
 			notify-send "AFK detected" "Idle for $(( idle / 1000 ))s"
 			sleep 5
-			[ "$(afk_idle)" -gt "$idle_threshold" ] && exit 0 || exit 1
+			idle=$(afk_idle) || exit 1
+			[ "$idle" -gt "$idle_threshold" ] && exit 0 || exit 1
 		fi
 		sleep "$poll_interval"
 	done

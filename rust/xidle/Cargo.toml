@@ -1,6 +1,6 @@
 [package]
 name = "xidle"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Maxwell Odri <maxwellodri@gmail.com>"]
 description = "Print ms since the last real input (kernel evdev timestamps) — immune to X screensaver resets"
