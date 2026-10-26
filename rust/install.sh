@@ -4,13 +4,13 @@ if [ -z "$bin" ] || [ -z "$dotfiles" ]; then
     exit 1
 fi
 
-# donnie (headless NixOS VPS) builds only the terminal tools — herald is a
-# notification daemon, xidle reads /dev/input which a VPS lacks.
+# donnie (headless NixOS VPS) builds only the terminal tools — herald is
+# a notification daemon.
 tag="${dotfile_tag:-}"
 [ -z "$tag" ] && tag="$(cat "$dotfiles/.dotfile_tag" 2>/dev/null || true)"
 case "$tag" in
     donnie) crates="dirsort qz" ;;
-    *)      crates="dirsort qz herald xidle" ;;
+    *)      crates="dirsort qz herald" ;;
 esac
 
 for crate in $crates; do
