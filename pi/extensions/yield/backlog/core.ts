@@ -22,6 +22,8 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { armAfkGate } from "./gates.ts";
+import type { Board } from "../board.ts";
+import { yieldPrompt } from "../board.ts";
 
 export type Kind = "settled" | "afk";
 
@@ -99,10 +101,10 @@ function preview(prompt: string): string {
 	return p.length > 80 ? `${p.slice(0, 80)}…` : p;
 }
 
-function widgetRow(s: Slot, theme: any): Text {
+function widgetRow(s: Slot, theme: any): string {
 	const label =
 		s.kind === "afk" ? `when_afk ${s.minutes}m` : s.minutes !== undefined ? `backlog ${s.minutes}m` : "backlog";
-	return new Text(`${theme.fg("accent", "⧗")} ${theme.bold(label)} ${theme.fg("muted", preview(s.prompt))}`, 0, 0);
+	return `${theme.fg("accent", "⧗")} ${theme.bold(label)} ${theme.fg("muted", preview(s.prompt))}`;
 }
 
 let qCounter = 0;
@@ -114,9 +116,10 @@ interface Slot {
 	minutes?: number; // afk, or the /backlog N countdown
 	gatePassed?: boolean; // afk/delay: gate confirmed, waiting for agent settle
 	stopGate?: () => void; // afk/delay
+	firing?: boolean; // delivery in flight: fire() re-entry guard
 }
 
-export function createBacklogs(pi: ExtensionAPI) {
+export function createBacklogs(pi: ExtensionAPI, board: Board) {
 	let slot: Slot | undefined;
 
 	const nextQid = (kind: Kind) => `${kind}-${(++qCounter).toString(36)}-${Date.now().toString(36)}`;
@@ -129,7 +132,7 @@ export function createBacklogs(pi: ExtensionAPI) {
 	const syncWidget = (ctx: ExtensionContext) => {
 		if (!ctx.hasUI) return;
 		const s = slot;
-		ctx.ui.setWidget("backlog", s ? (_tui: unknown, theme: any) => widgetRow(s, theme) : undefined);
+		board.setRows("backlog", s ? (theme: any) => [widgetRow(s, theme)] : undefined, ctx);
 	};
 
 	/** Resolve the slot: stop its gate, append the result row. Noop if none / kind mismatch. */
@@ -143,10 +146,26 @@ export function createBacklogs(pi: ExtensionAPI) {
 
 	const fire = (ctx: ExtensionContext) => {
 		const s = slot;
-		if (!s) return;
-		settle(s.kind, "fired", undefined, ctx);
-		if (ctx.isIdle()) pi.sendUserMessage(s.prompt);
-		else pi.sendUserMessage(s.prompt, { deliverAs: "followUp" }); // lost a race with another run
+		if (!s || s.firing) return; // a delivery in flight owns the fire; re-entry would duplicate the send
+		s.firing = true;
+		// Deliver through the shared dispatcher (compaction-gated, echo-checked);
+		// settle only once delivered so a lost send leaves the slot armed for the
+		// next agent_settled. The .catch keeps a stale-ctx throw in settle from
+		// escaping the voided chain into pi's uncaughtException exit.
+		const text = s.prompt;
+		void yieldPrompt(pi, ctx, text)
+			.then((delivered) => {
+				if (slot !== s) return; // replaced/re-queued meanwhile
+				s.firing = false;
+				if (!delivered) return;
+				settle(s.kind, "fired", undefined, ctx);
+				// An append during the delivery wait joined s.prompt after the
+				// snapshot: settle fired only the delivered prefix — re-queue the
+				// remainder (fresh qid, its own gate) instead of losing it.
+				const remainder = s.prompt.slice(text.length).replace(/^\n\n/, "");
+				if (remainder.trim()) queueFresh(s.kind, remainder, s.minutes, ctx);
+			})
+			.catch(() => {});
 	};
 
 	/**
@@ -180,6 +199,14 @@ export function createBacklogs(pi: ExtensionAPI) {
 		if (minutes !== undefined) startGate(s, ctx); // afk or /backlog N: the timer owns dispatch
 		else if (ctx.isIdle()) fire(ctx); // idle agent — nothing to await
 		syncWidget(ctx);
+	};
+
+	/** Fresh queue behind a new qid — the /backlog command and fire()'s
+	 *  append-during-delivery re-queue both land here. */
+	const queueFresh = (kind: Kind, text: string, minutes: number | undefined, ctx: ExtensionContext) => {
+		const qid = nextQid(kind);
+		pi.appendEntry("backlog", { qid, kind, state: "queued", prompt: text, minutes, at: Date.now() } as BacklogData);
+		arm(qid, kind, text, minutes, ctx);
 	};
 
 	/** Cancel the armed queue and hand its text to the editor. */

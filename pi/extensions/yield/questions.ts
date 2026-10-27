@@ -1,17 +1,18 @@
 /**
- * ask-user-questions — ask_user_question tool: typed / checkbox questions.
- * One call batches question + additional_questions sequentially; options are
- * PARTS of an answer, not alternatives — any number checkable plus a Custom
- * editor row, no single-select mode by design. ^C clears the pending answer
- * (checked options + typed text), cancelling only once nothing is pending —
- * main-prompt parity. Esc always cancels: earlier answers survive, and the
- * result carries terminate:true so the user's next message explains why
- * (termination applies only when every result in the tool batch terminates).
- * Esc on a later question keeps partials. RPC mode degrades to
- * line-per-answer editors. Custom/free-form answers expand $snippets and
- * @path refs (snippet_expansion / prompt_expansion). One overlay at a time
- * via a globalThis mutex. Ported from amosblomqvist/pi-config, heavily
- * reworked.
+ * questions.ts — the ask_user_question tool: typed / checkbox questions,
+ * sync (blocking) and async (board-parked). Shared machinery lives here:
+ * the popup (askMultiChoice + height-capped layout), the RPC degrade, and
+ * answer expansion ($snippets / @path). Sync mode is byte-identical to the
+ * former ask-user-questions extension. Async mode (params.async, TUI only)
+ * hands the specs to the askq store (askq.ts): the tool returns "accepted"
+ * immediately, questions park on the yield board, answers are injected via
+ * the dispatcher (board.ts) as user messages. One popup component, two
+ * orchestrations: sync batches (Esc keeps partials, terminate on cancel)
+ * vs async per-question (Esc closes keeping drafts; see askq.ts).
+ * HARD RULE: every ctx.ui.custom()/editor() caller must hold the shared UI
+ * lock (board.ts withUILock) — pi supports one active custom component and
+ * the lock is the only cross-extension serialization (module cache is
+ * disabled per extension).
  */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import {
@@ -24,10 +25,15 @@ import {
 	wrapTextWithAnsi,
 } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
-import { expandSnippets } from "../snippet_expansion";
-import { buildInjections } from "../prompt_expansion";
+import { spawn } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { expandSnippets } from "../snippet_expansion.ts";
+import { buildInjections } from "../prompt_expansion.ts";
+import { withUILock } from "./board.ts";
 
-interface AskOption {
+export interface AskOption {
 	label: string;
 	value: string;
 	description?: string;
@@ -58,8 +64,8 @@ interface CustomAnswer {
 	value: string;
 }
 
-type AskAnswer = TextAnswer | OptionAnswer | CustomAnswer;
-type AskUserQuestionStatus = "answered" | "cancelled" | "unavailable";
+export type AskAnswer = TextAnswer | OptionAnswer | CustomAnswer;
+type AskUserQuestionStatus = "answered" | "cancelled" | "unavailable" | "accepted";
 type AskUserQuestionMode = "text" | "user-select";
 
 interface AskUserQuestionResultDetails {
@@ -71,11 +77,13 @@ interface AskUserQuestionResultDetails {
 	answers?: AskAnswer[];
 	/** Multi-question calls: per-question results in ask order. */
 	questions?: QuestionResult[];
+	/** Async calls: the parked question texts. */
+	pending?: string[];
 	message?: string;
 }
 
 /** One question's spec: the top-level params for the first, additional_questions entries after. */
-interface QuestionSpec {
+export interface QuestionSpec {
 	question: string;
 	context?: string;
 	options: AskOption[];
@@ -111,6 +119,12 @@ const AskUserQuestionParams = Type.Object({
 	details: Type.Optional(
 		Type.String({
 			description: "Optional extra context or instructions shown under the question.",
+		}),
+	),
+	async: Type.Optional(
+		Type.Boolean({
+			description:
+			"Ask without pausing: the questions park on a status board, this tool returns immediately, answers arrive later as user messages. Continue working instead of waiting. Only use async when the workflow explicitly calls for it; omit it when the answer gates the next step.",
 		}),
 	),
 	options: Type.Optional(
@@ -373,11 +387,44 @@ function questionLine(result: QuestionResult): string {
 	return `- ${result.question}: ${parts || "(empty response)"}`;
 }
 
-async function askMultiChoice(
+/** Per-session hooks for the popup: async mode prefills drafts, captures
+ *  them on Esc, and offers C-x e (external editor for the Custom text only —
+ *  checked options are appended at submit time, never merged into the file). */
+export interface AskSessionHooks {
+	/** Prefill the Custom editor (restored draft). */
+	initialText?: string;
+	/** Esc/cancel: hand back the raw Custom text so drafts survive. */
+	onCancel?: (text: string) => void;
+}
+
+/** Edit the Custom answer text in $PI_ASKQ_EDITOR/$VISUAL/$EDITOR/nano. */
+async function editCustomTextInExternalEditor(tui: any, editor: Editor): Promise<void> {
+	const command = process.env.PI_ASKQ_EDITOR ?? process.env.VISUAL ?? process.env.EDITOR ?? "nano";
+	const directory = mkdtempSync(join(tmpdir(), "pi-yield-"));
+	const file = join(directory, "answer.md");
+	writeFileSync(file, editor.getText(), "utf-8");
+	tui.stop?.();
+	try {
+		const [cmd, ...args] = command.split(" ");
+		const code = await new Promise<number | null>((resolve) => {
+			const child = spawn(cmd, [...args, file], { stdio: "inherit" });
+			child.on("error", () => resolve(null));
+			child.on("close", (c) => resolve(c));
+		});
+		if (code === 0) editor.setText(readFileSync(file, "utf-8").replace(/\n$/, ""));
+	} finally {
+		rmSync(directory, { recursive: true, force: true });
+		tui.start?.();
+		tui.requestRender?.(true);
+	}
+}
+
+export async function askMultiChoice(
 	ctx: ExtensionContext,
 	question: string,
 	context: string | undefined,
 	options: AskOption[],
+	session?: AskSessionHooks,
 ): Promise<AskAnswer[] | null> {
 	const customLabel = getCustomLabel(options);
 	const choiceItems: DisplayOption[] = options.map((option, index) => ({
@@ -392,12 +439,14 @@ async function askMultiChoice(
 
 	return ctx.ui.custom<AskAnswer[] | null>((tui: any, theme: any, _kb: any, done: (result: AskAnswer[] | null) => void) => {
 		let rowIndex = 0;
+		let chordArmed = false; // C-x armed: next key 'e' opens the external editor
 		let cachedLines: string[] | undefined;
 		let cachedWidth = -1;
 		let cachedHeight = -1;
 		const selected = new Map<string, AskAnswer>();
 		const editor = new Editor(tui, createEditorTheme(theme));
 		editor.disableSubmit = true; // Enter is handled by the popup, not the editor
+		if (session?.initialText) editor.setText(session.initialText);
 		if (promptAutocompleteProvider) {
 			// @ file / $ snippet completions, same as the main prompt
 			editor.setAutocompleteProvider(promptAutocompleteProvider);
@@ -436,6 +485,24 @@ async function askMultiChoice(
 
 		function handleInput(data: string) {
 			editor.focused = rowIndex === 0;
+
+			// C-x e: edit ONLY the Custom text externally; checked precanned
+			// answers are appended at submit time, never merged into the file.
+			// The .catch keeps fs/spawn failures (tmpfs full, vanished file) from
+			// crashing pi — the edit just doesn't land.
+			if (chordArmed) {
+				chordArmed = false;
+				if (matchesKey(data, "e")) {
+					void editCustomTextInExternalEditor(tui, editor)
+						.then(refresh)
+						.catch(() => {});
+					return;
+				}
+			}
+			if (matchesKey(data, Key.ctrl("x"))) {
+				chordArmed = true;
+				return;
+			}
 
 			// While the editor's completion dropdown (`@`/`$`) is open, Tab and
 			// Esc belong to the editor — accept the completion / close the
@@ -486,6 +553,7 @@ async function askMultiChoice(
 
 			if (rowIndex === 0) {
 				if (matchesKey(data, Key.escape)) {
+					session?.onCancel?.(editor.getText());
 					done(null);
 					return;
 				}
@@ -516,6 +584,7 @@ async function askMultiChoice(
 			}
 
 			if (matchesKey(data, Key.escape)) {
+				session?.onCancel?.(editor.getText());
 				done(null);
 			}
 		}
@@ -638,33 +707,9 @@ async function askMultiChoiceRpc(
 	return answers.length > 0 ? sortAnswers(answers) : null;
 }
 
-// Shared UI mutex. ctx.ui.custom()/editor can only handle one active call at
-// a time, so ALL pop-up-style tools must serialize against each other, not
-// just against themselves. Stashed on globalThis so separate extension files
-// can share it without importing each other (pi loads extensions with the
-// module cache disabled — a shared import would give each extension its own
-// copy of the lock).
-const SHARED_UI_LOCK_KEY = "__piSharedUiLock";
-function getSharedUiLock() {
-	const g = globalThis as any;
-	if (!g[SHARED_UI_LOCK_KEY]) {
-		let chain: Promise<void> = Promise.resolve();
-		g[SHARED_UI_LOCK_KEY] = {
-			withLock<T>(fn: () => T | Promise<T>): Promise<T> {
-				const prev = chain;
-				let release: () => void;
-				chain = new Promise<void>((r) => { release = r; });
-				return prev.then(fn).finally(() => release!());
-			},
-		};
-	}
-	return g[SHARED_UI_LOCK_KEY] as { withLock<T>(fn: () => T | Promise<T>): Promise<T> };
-}
-const sharedUiLock = getSharedUiLock();
-
-function withUILock<T>(fn: () => Promise<T>): Promise<T> {
-	return sharedUiLock.withLock(fn);
-}
+// ─────────────────────── shared UI lock ───────────────────────
+// withUILock lives in board.ts (same globalThis slot as the former
+// ask-user-questions extension: __piSharedUiLock).
 
 /**
  * Run user-authored answer text through the same expansions a regular prompt
@@ -673,7 +718,7 @@ function withUILock<T>(fn: () => Promise<T>): Promise<T> {
  * any `<file>` blocks to append to the model-facing result. Best-effort:
  * failures fall back to the raw text.
  */
-async function expandAnswerText(text: string, ctx: any): Promise<{ text: string; blocks: string[] }> {
+export async function expandAnswerText(text: string, ctx: any): Promise<{ text: string; blocks: string[] }> {
 	let expanded = text;
 	try {
 		expanded = expandSnippets(text);
@@ -708,9 +753,17 @@ function withBlocks(text: string, blocks: string[]): string {
  * each Custom editor so answers get the same `@`/`$` completions as the main
  * prompt.
  */
+/** Async-question store surface askq.ts provides (structural: no runtime import cycle). */
+export interface AskqToolDeps {
+	askAsync: (
+		specs: QuestionSpec[],
+		ctx: ExtensionContext,
+	) => { content: { type: "text"; text: string }[]; details: AskUserQuestionResultDetails };
+}
+
 let promptAutocompleteProvider: any = null;
 
-export default function askUserQuestion(pi: ExtensionAPI) {
+export function registerAskUserQuestionTool(pi: ExtensionAPI, deps: AskqToolDeps) {
 	// Capture the main prompt's autocomplete stack for the Custom editor.
 	// Transparent: adds nothing to the chain, just remembers the composite.
 	pi.on("session_start", (_event, ctx) => {
@@ -739,7 +792,7 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 		name: "ask_user_question",
 		label: "ask_user_question",
 		description:
-			"Ask the user one or more related questions and pause execution until they answer. Use this when requirements are ambiguous, user preferences are needed, a decision would materially affect implementation, or you need confirmation before proceeding. Closely related questions can be batched via additional_questions.",
+			"Ask the user one or more related questions and pause execution until they answer. Use this when requirements are ambiguous, user preferences are needed, a decision would materially affect implementation, or you need confirmation before proceeding. Closely related questions can be batched via additional_questions. Set async:true to ask without pausing: the questions park on a status board, this tool returns immediately, and answers arrive later as user messages while you keep working — use async only when the workflow explicitly calls for it.",
 		promptSnippet:
 			"Use ask_user_question to ask clarifying questions, missing-requirement questions, preference questions, or decision questions before continuing.",
 		promptGuidelines: [
@@ -749,6 +802,7 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 			'Custom editor text behaves like a regular prompt ($snippets and @path includes are expanded).',
 			"Order ask_user_question options with the most likely answer first.",
 			"If the user cancels, your turn ends immediately — do not continue autonomously; the user's next message will explain why.",
+			"async:true asks without pausing: answers arrive later as user messages, possibly mid-turn, possibly never. Continue working instead of waiting, and plan so the work does not depend on the answer. Use async only when the workflow explicitly calls for it — never for decisions that gate the next step.",
 			"Prefer ask_user_question over guessing when requirements, preferences, or implementation choices are unclear.",
 		],
 		parameters: AskUserQuestionParams,
@@ -781,6 +835,12 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 				return multi
 					? { content: [textPart(message)], details: { status: "unavailable", questions: specs.map((s) => toResult(s, "unavailable", [])), message } }
 					: { content: [textPart(message)], details: { status: "unavailable", question: specs[0].question, context: specs[0].context, mode: modeFor(specs[0]), answers: [], message } };
+			}
+
+			// Async: park on the board and return immediately (TUI only; elsewhere
+			// the param is ignored and the blocking path runs).
+			if (params.async && ctx.mode === "tui") {
+				return deps.askAsync(specs, ctx);
 			}
 
 			return withUILock(async () => {
@@ -876,6 +936,15 @@ export default function askUserQuestion(pi: ExtensionAPI) {
 			if (!details) {
 				const first = result.content[0];
 				return new Text(first?.type === "text" ? first.text : "", 0, 0);
+			}
+
+			if (details.status === "accepted") {
+				const n = details.pending?.length ?? 1;
+				return new Text(
+					theme.fg("accent", `? ${n === 1 ? "question" : `${n} questions`} pending`) + theme.fg("dim", " — C-x q or /questions to answer"),
+					0,
+					0,
+				);
 			}
 
 			// Plain answer line(s): parts joined with "; " — custom text truncated to its
