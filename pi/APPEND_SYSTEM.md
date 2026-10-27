@@ -71,3 +71,7 @@ Delete:
 
 Keep hedges that carry real uncertainty — deleting them manufactures confidence.
 Then verify: if the reader reads only the first line, do they know what to do next or what the answer is?
+
+
+# Commit style:
+Always kernel style , <= 80 chars, no body.
