@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crabbed Chameleon — async ask_user_question</title>
+<style>
+:root {
+  --bg0-h: #1d2021; --bg0: #282828; --bg0-s: #32302f; --bg1: #3c3836; --bg2: #504945;
+  --fg0: #fbf1c7; --fg1: #ebdbb2; --fg2: #d5c4a1; --fg3: #bdae93; --fg4: #a89984;
+  --gray: #928374;
+  --red: #fb4934; --green: #b8bb26; --yellow: #fabd2f; --blue: #83a598;
+  --purple: #d3869b; --aqua: #8ec07c; --orange: #fe8019;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg0-h); color: var(--fg1);
+  font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+header {
+  display: flex; align-items: baseline; gap: 1rem;
+  padding: 0.6rem 1.2rem 0.4rem; border-bottom: 1px solid var(--bg1);
+  background: var(--bg0); flex: 0 0 auto;
+}
+header h1 { font-size: 1rem; margin: 0; color: var(--fg0); font-weight: 600; }
+header .sub { color: var(--fg4); font-size: 0.78rem; }
+header .rec {
+  margin-left: auto; color: var(--bg0-h); background: var(--green);
+  border-radius: 3px; padding: 0 0.45rem; font-size: 0.72rem; font-weight: 700;
+}
+main { flex: 1 1 auto; display: flex; min-height: 0; }
+.deck { flex: 1; display: flex; min-width: 0; }
+.slide {
+  display: none; flex: 1 1 auto; padding: 1.2rem 1.6rem; overflow: auto;
+  flex-direction: column; gap: 0.9rem; min-width: 0;
+}
+.slide.active { display: flex; }
+.slide h2 { font-size: 1.05rem; color: var(--fg0); margin: 0 0 0.2rem; }
+.slide h2 .no { color: var(--purple); margin-right: 0.5rem; }
+.slide p, .slide li { font-size: 0.82rem; line-height: 1.5; color: var(--fg2); margin: 0.2rem 0; }
+.slide ul { margin: 0.2rem 0; padding-left: 1.2rem; }
+.slide b { color: var(--fg0); }
+.kbd {
+  background: var(--bg2); color: var(--fg0); border-radius: 3px;
+  padding: 0 0.35rem; font-size: 0.78rem; border: 1px solid var(--bg2);
+}
+.forktag {
+  display: inline-block; background: var(--purple); color: var(--bg0-h);
+  border-radius: 3px; padding: 0 0.4rem; font-size: 0.7rem; font-weight: 700;
+  margin-right: 0.4rem; vertical-align: 1px;
+}
+.verd {
+  border-left: 3px solid var(--green); background: var(--bg0-s);
+  padding: 0.45rem 0.7rem; border-radius: 0 4px 4px 0; font-size: 0.8rem; color: var(--fg2);
+}
+
+/* ── terminal mock ─────────────────────────────────────────────── */
+.term {
+  background: var(--bg0); border: 1px solid var(--bg1); border-radius: 6px;
+  display: flex; flex-direction: column; overflow: hidden;
+  font-size: 0.78rem; line-height: 1.45; min-height: 0;
+}
+.term .chrome {
+  flex: 0 0 auto; display: flex; gap: 0.45rem; align-items: center;
+  background: var(--bg0-s); padding: 0.3rem 0.7rem; border-bottom: 1px solid var(--bg1);
+  color: var(--fg4); font-size: 0.7rem;
+}
+.term .chrome .dot { width: 9px; height: 9px; border-radius: 50%; }
+.term .chrome .dot.r { background: var(--red); } .term .chrome .dot.y { background: var(--yellow); }
+.term .chrome .dot.g { background: var(--green); }
+.term .body {
+  flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  padding: 0.6rem 0.8rem 0.4rem;
+}
+.tscroll { flex: 1 1 auto; overflow: hidden; display: flex; flex-direction: column; }
+.m { white-space: pre-wrap; word-break: break-word; }
+.m.user { color: var(--fg0); }
+.m.user::before { content: "> "; color: var(--purple); }
+.m.asst { color: var(--fg2); }
+.m.toolcall { color: var(--aqua); }
+.m.toolcall::before { content: " "; }
+.m.toolres {
+  color: var(--fg4); border-left: 2px solid var(--green); padding-left: 0.55rem; margin: 0.1rem 0;
+}
+.m.notify { color: var(--yellow); font-style: italic; }
+.m.quote { color: var(--fg3); border-left: 2px solid var(--bg2); padding-left: 0.55rem; margin: 0.15rem 0; }
+.m.followup { color: var(--blue); }
+.m.followup .edit { color: var(--fg4); font-size: 0.72rem; }
+.m.abort { color: var(--red); }
+.spinner { color: var(--purple); }
+.spinner::after {
+  content: "⠋"; animation: spin 0.9s steps(1) infinite;
+}
+@keyframes spin {
+  0% { content: "⠋"; } 12% { content: "⠙"; } 25% { content: "⠹"; } 37% { content: "⠸"; }
+  50% { content: "⠼"; } 62% { content: "⠴"; } 75% { content: "⠦"; } 87% { content: "⠧"; }
+}
+.board { flex: 0 0 auto; margin-top: 0.35rem; }
+.board .row { white-space: pre; }
+.rule { flex: 0 0 auto; border-top: 1px solid var(--bg1); margin-top: 0.4rem; }
+.editor { flex: 0 0 auto; display: flex; align-items: center; min-height: 1.6rem; padding: 0.25rem 0.2rem; color: var(--fg1); }
+.cursor {
+  display: inline-block; width: 0.55em; height: 1.1em; background: var(--fg1);
+  animation: blink 1.1s steps(1) infinite; vertical-align: text-bottom;
+}
+@keyframes blink { 50% { opacity: 0; } }
+.pfoot { flex: 0 0 auto; display: flex; justify-content: space-between; color: var(--fg4); font-size: 0.7rem; padding-top: 0.2rem; }
+
+/* popup card (the "current widget") */
+.popup {
+  border-top: 1px solid var(--purple); margin-top: 0.4rem; padding-top: 0.45rem;
+}
+.popup .q { color: var(--fg0); }
+.popup .d { color: var(--fg4); }
+.popup .cust { color: var(--purple); }
+.popup .opt { color: var(--fg2); }
+.popup .opt.sel { color: var(--green); }
+.popup .opt .box { color: var(--fg4); }
+.popup .hints { color: var(--fg4); font-size: 0.72rem; margin-top: 0.3rem; }
+.popup .edline { color: var(--fg1); }
+
+/* controls */
+.controls { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.controls button {
+  background: var(--bg1); color: var(--fg1); border: 1px solid var(--bg2);
+  border-radius: 4px; padding: 0.25rem 0.7rem; font: inherit; font-size: 0.75rem; cursor: pointer;
+}
+.controls button:hover { background: var(--bg2); }
+.controls button.on { background: var(--purple); color: var(--bg0-h); border-color: var(--purple); font-weight: 700; }
+.controls .lbl { color: var(--fg4); font-size: 0.75rem; }
+
+/* nav */
+nav {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 0.9rem;
+  border-top: 1px solid var(--bg1); background: var(--bg0); padding: 0.45rem 1.2rem;
+}
+nav button {
+  background: var(--bg1); color: var(--fg1); border: 1px solid var(--bg2); border-radius: 4px;
+  padding: 0.2rem 0.8rem; font: inherit; cursor: pointer;
+}
+nav button:hover { background: var(--bg2); }
+nav .dots { display: flex; gap: 0.4rem; }
+nav .dot2 { width: 8px; height: 8px; border-radius: 50%; background: var(--bg2); cursor: pointer; }
+nav .dot2.cur { background: var(--purple); }
+nav .count { color: var(--fg4); font-size: 0.75rem; margin-left: auto; }
+
+.split { display: flex; gap: 0.9rem; min-height: 0; flex: 1; }
+.split > * { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.split .cap { color: var(--fg4); font-size: 0.72rem; margin-bottom: 0.25rem; }
+.recbadge { color: var(--green); font-weight: 700; }
+.dimnote { color: var(--fg4); font-size: 0.72rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Crabbed Chameleon</h1>
+  <span class="sub">async ask_user_question — a slide deck of the verified TUX flow (VM + tmux evidence, Oct 2026)</span>
+  <span class="rec">REC ● verified in VM</span>
+</header>
+<main><div class="deck" id="deck">
+
+<!-- ═══ 1 · title ═══ -->
+<section class="slide">
+  <h2><span class="no">01</span>Async questions: ask, keep going, answer later</h2>
+  <div class="verd">
+    <span class="kbd">ask_user_question</span> gains <span class="kbd">async?: boolean</span>.
+    Async asks <b>do not block the tool</b> — the model keeps working, the question parks on a
+    status board, and your answer is injected into the context whenever you get to it
+    (follow-up mid-run, new turn when idle — even after a resume).
+  </div>
+  <ul>
+    <li><b>Same tool, one param.</b> Description says: sync when unclear; specific skill workflows mandate async.</li>
+    <li><b>Summon:</b> <span class="kbd">C-x q</span> or <span class="kbd">/questions</span> — the question session becomes the current input; the transcript keeps streaming above.</li>
+    <li><b>Persistence:</b> pending questions are event-sourced entries; they re-appear on resume, branch-aware.</li>
+    <li><b>Unified with backlog/when_afk:</b> one merged extension owns the board + the follow-up dispatcher.</li>
+  </ul>
+  <p class="dimnote">Everything shown here was exercised end-to-end in a QEMU VM (tmux + scripted no-network model). Navigate with ← → or the dots. Two slides are interactive — they carry the open taste forks.</p>
+</section>
+
+<!-- ═══ 2 · the ask ═══ -->
+<section class="slide">
+  <h2><span class="no">02</span>The ask: tool returns immediately, agent keeps streaming</h2>
+  <div class="term" style="flex:1">
+    <div class="chrome"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>&nbsp;pi — scripted/actor</div>
+    <div class="body">
+      <div class="tscroll">
+        <div class="m user">go</div>
+        <div class="m asst">I need one input, but I can proceed meanwhile.</div>
+        <div class="m toolcall">ask_user_question_async  deploy now or stage first?</div>
+        <div class="m toolres">Questions delivered. Do not wait: continue the current task; the reply arrives asynchronously as a user message, possibly mid-turn, possibly never.</div>
+        <div class="m notify">question pending: deploy now or stage first?</div>
+        <div class="m asst" id="s2stream">meanwhile: checking lint, tests, and the d</div>
+        <div class="m spinner"> Working</div>
+      </div>
+      <div class="board">
+        <div class="row" style="color:var(--purple)">? <b style="color:var(--fg0)">1 question</b> <span style="color:var(--fg4)">pending — C-x q to answer</span></div>
+      </div>
+      <div class="rule"></div>
+      <div class="editor"><span class="cursor"></span></div>
+      <div class="pfoot"><span>↑1 ↓1 0.1%/64k (auto)</span><span>actor</span></div>
+    </div>
+  </div>
+  <p class="dimnote">Tool result carries the model-side contract inline. The board row appears above the editor; a toast announces arrival. The agent never paused — note the spinner.</p>
+</section>
+
+<!-- ═══ 3 · board styles (INTERACTIVE FORK) ═══ -->
+<section class="slide">
+  <h2><span class="no">03</span><span class="forktag">FORK</span>Board style — pick what glances best</h2>
+  <div class="controls">
+    <span class="lbl">style:</span>
+    <button id="bsA" class="on">A · chip</button>
+    <button id="bsB">B · per-question</button>
+    <button id="bsC">C · badge</button>
+    <span class="lbl" style="margin-left:1rem">pending:</span>
+    <button id="bp1" class="on">1</button>
+    <button id="bp3">3</button>
+    <span class="lbl" style="margin-left:1rem">(keys 1–3 / q)</span>
+  </div>
+  <div class="term" style="flex:1">
+    <div class="chrome"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>&nbsp;pi</div>
+    <div class="body">
+      <div class="tscroll">
+        <div class="m asst">…agent working — transcript scrolls past the board…</div>
+        <div class="m spinner"> Working</div>
+      </div>
+      <div class="board" id="boardDemo"></div>
+      <div class="rule"></div>
+      <div class="editor"><span class="cursor"></span></div>
+      <div class="pfoot"><span>↑1 ↓1 0.1%/64k (auto)</span><span>actor</span></div>
+    </div>
+  </div>
+  <p class="dimnote" id="bsNote"></p>
+</section>
+
+<!-- ═══ 4 · summon mid-stream (animated) ═══ -->
+<section class="slide">
+  <h2><span class="no">04</span>Summon mid-run: C-x q — answer while it streams</h2>
+  <div class="controls">
+    <button id="s4replay">↻ replay streaming</button>
+    <span class="lbl">the transcript above the popup keeps updating — this is the core UX claim</span>
+  </div>
+  <div class="term" style="flex:1">
+    <div class="chrome"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>&nbsp;pi</div>
+    <div class="body">
+      <div class="tscroll">
+        <div class="m toolres">Questions delivered. Do not wait: …</div>
+        <div class="m asst" id="s4stream">meanwhile: checking lint, tests, and the diff summary — all green so far</div>
+        <div class="m spinner"> Working</div>
+      </div>
+      <div class="board">
+        <div class="row" style="color:var(--purple)">? <b style="color:var(--fg0)">1 question</b> <span style="color:var(--fg4)">pending — C-x q to answer</span></div>
+      </div>
+      <div class="popup">
+        <div class="q"> deploy now or stage first?</div>
+        <div class="d"> staging costs 10 min, deploy now risks a broken prod</div>
+        <div class="cust">&gt; Custom</div>
+        <div class="edline">│<span class="cursor"></span></div>
+        <div class="opt"><span class="box">[ ]</span> 1. deploy now</div>
+        <div class="opt sel"><span class="box">[x]</span> 2. stage first</div>
+        <div class="hints"> Tab rows · Ctrl+Space toggle · Enter submit • Esc cancel</div>
+      </div>
+      <div class="pfoot"><span>↑1 ↓1 0.1%/64k (auto)</span><span>actor</span></div>
+    </div>
+  </div>
+  <p class="dimnote">The popup replaces the editor (the "current input widget") — <b>not</b> an overlay over the transcript. pi's differential renderer keeps painting the streaming text above it. Esc leaves; drafts survive.</p>
+</section>
+
+<!-- ═══ 5 · answer flow ═══ -->
+<section class="slide">
+  <h2><span class="no">05</span>The answer: queued as a follow-up, delivered, acted on</h2>
+  <div class="split">
+    <div>
+      <div class="cap">t+0s — answered mid-run</div>
+      <div class="term" style="flex:1">
+        <div class="body">
+          <div class="tscroll">
+            <div class="m asst">meanwhile: checking lint, tests, and the diff summary — all</div>
+            <div class="m followup">Follow-up: &gt; deploy now or stage first?</div>
+            <div class="m followup edit-line" style="color:var(--fg4)"> ↳ Alt+Up to edit all queued messages</div>
+            <div class="m spinner"> Working</div>
+          </div>
+          <div class="rule"></div>
+          <div class="editor"><span class="cursor"></span></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="cap">after the run settles — injected, then acted on</div>
+      <div class="term" style="flex:1">
+        <div class="body">
+          <div class="tscroll">
+            <div class="m asst">done with the independent work.</div>
+            <div class="m quote">│ deploy now or stage first?</div>
+            <div class="m user">deploy now</div>
+            <div class="m asst">acknowledged: acting on the answer now.</div>
+          </div>
+          <div class="rule"></div>
+          <div class="editor"><span class="cursor"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="dimnote">Answering mid-run queues a <b>follow-up</b> (no aborted request — tokens preserved; pi even shows it and lets you edit before delivery <span class="kbd">Alt+Up</span>). Answering while idle triggers the next turn directly.</p>
+</section>
+
+<!-- ═══ 6 · persistence ═══ -->
+<section class="slide">
+  <h2><span class="no">06</span>Persistence: quit, sleep, resume — it's still waiting</h2>
+  <div class="split">
+    <div>
+      <div class="cap">pi exits (Ctrl+D) with the question pending</div>
+      <div class="term" style="flex:1">
+        <div class="body">
+          <div class="tscroll">
+            <div class="m asst">done with the independent work.</div>
+          </div>
+          <div class="board">
+            <div class="row" style="color:var(--purple)">? <b style="color:var(--fg0)">1 question</b> <span style="color:var(--fg4)">pending — C-x q to answer</span></div>
+          </div>
+          <div class="pfoot" style="margin-top:0.6rem"><span>To resume this session: pi --session 01a179ea…</span></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="cap">fresh pi, same session — board re-arms from folded entries</div>
+      <div class="term" style="flex:1">
+        <div class="body">
+          <div class="tscroll">
+            <div class="m dimnote" style="color:var(--fg4)">(session replayed)</div>
+          </div>
+          <div class="board">
+            <div class="row" style="color:var(--purple)">? <b style="color:var(--fg0)">1 question</b> <span style="color:var(--fg4)">pending — C-x q to answer</span></div>
+          </div>
+          <div class="rule"></div>
+          <div class="editor"><span class="cursor"></span></div>
+          <div class="pfoot"><span>↑2 ↓2 0.0%/64k (auto)</span><span>actor</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="dimnote">Pending asks are event-sourced (<span class="kbd">askq</span> entries, the backlog pattern): <b>queued / resolved</b>, folded from the active branch. Undo/tree moves disarm questions that left the branch; drafts are persisted too (half-answer, sleep, resume — the draft is still in the editor).</p>
+</section>
+
+<!-- ═══ 7 · esc semantics (INTERACTIVE FORK) ═══ -->
+<section class="slide">
+  <h2><span class="no">07</span><span class="forktag">FORK</span>Esc on the answer session — what should it mean?</h2>
+  <div class="controls">
+    <button id="escA" class="on">a · close, keep pending + drafts</button>
+    <button id="escB">b · sync-parity abort: resolve rest, yield partials</button>
+  </div>
+  <div class="term" style="flex:1">
+    <div class="chrome"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>&nbsp;pi</div>
+    <div class="body">
+      <div class="tscroll" id="escOut"></div>
+      <div class="board" id="escBoard"></div>
+      <div class="rule"></div>
+      <div class="editor"><span class="cursor"></span></div>
+      <div class="pfoot"><span>↑1 ↓1 0.1%/64k (auto)</span><span>actor</span></div>
+    </div>
+  </div>
+  <p class="dimnote" id="escNote"></p>
+</section>
+
+<!-- ═══ 8 · abort + cohabitation ═══ -->
+<section class="slide">
+  <h2><span class="no">08</span>Run-abort keeps the question; the board cohabits</h2>
+  <div class="term" style="flex:1">
+    <div class="chrome"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>&nbsp;pi</div>
+    <div class="body">
+      <div class="tscroll">
+        <div class="m asst">independent work stream: aaaa…</div>
+        <div class="m abort">Operation aborted</div>
+      </div>
+      <div class="board">
+        <div class="row" style="color:var(--purple)">? <b style="color:var(--fg0)">1 question</b> <span style="color:var(--fg4)">pending — C-x q to answer</span></div>
+        <div class="row" style="color:var(--yellow)">⧗ <b style="color:var(--fg0)">backlog 5m</b> <span style="color:var(--fg4)">check the deploy pipeline</span></div>
+      </div>
+      <div class="rule"></div>
+      <div class="editor"><span class="cursor"></span></div>
+      <div class="pfoot"><span>↑2 ↓2 0.0%/64k (auto)</span><span>actor</span></div>
+    </div>
+  </div>
+  <ul>
+    <li><b>Esc on the run</b> aborts the run, not the question — pending stays valid; a late answer simply starts the next turn. No surprise turn is spawned on abort.</li>
+    <li><b>backlog / when_afk</b> render on the same board (one merged extension). Deliveries share one dispatcher: <span class="kbd">sendUserMessage</span> with <span class="kbd">followUp</span> while a run is active.</li>
+  </ul>
+</section>
+
+<!-- ═══ 9 · forks recap ═══ -->
+<section class="slide">
+  <h2><span class="no">09</span>Open forks — recommendations</h2>
+  <ul>
+    <li><b>decision-board-style</b> — A chip / B per-question / C badge <span style="color:var(--fg4)">(slide 03)</span>. <span class="recbadge">rec: A</span> — compact, scales, codex precedent; B wins at 1–2 questions, watch it at 3+.</li>
+    <li><b>decision-abort-semantics</b> — Esc = close-keep vs abort-yield <span style="color:var(--fg4)">(slide 07)</span>. <span class="recbadge">rec: (a) close-keep</span> — async asks are independent entries; nothing is lost by deferring.</li>
+    <li><b>decision-dirname</b> — <span class="recbadge">rec: new pi/extensions/yield/</span> hosting board + questions + backlog (one module instance; no globalThis registry).</li>
+    <li><b>decision-entrytype</b> — <span class="recbadge">rec: single `askq` type with state field</span> (exactly the backlog fold pattern).</li>
+    <li><b>decision-sync-queue</b> — sync ask while an answer session is open: <span class="recbadge">rec: queue on the shared UI lock</span>, open right after.</li>
+    <li><b>skills → async</b> — which SKILL.mds mandate async asks? (name them at pick time)</li>
+  </ul>
+  <div class="verd">Settled by experiment: current-widget summon (C-x q mid-stream ✓), follow-up injection ✓, idle-answer→new turn ✓, resume re-arm ✓, run-abort retention ✓, board cohabitation ✓. Settled by review: awaited+retried yield delivery (compaction race), event-sourced drafts, expansion parity ($/@ in async answers), herald arrival ping bypassing the silence gate.</div>
+  <p class="dimnote">Plan of record: worktrees/crabbed_chameleon_async_questions/.scratch/PLAN.md · evidence: .scratch/shots/*.png · harness: .scratch/vm-ext/ (scripted provider + askq proto).</p>
+</section>
+
+</div></main>
+<nav>
+  <button id="prev">◀</button>
+  <button id="next">▶</button>
+  <div class="dots" id="dots"></div>
+  <span class="count" id="count"></span>
+</nav>
+<script>
+"use strict";
+// ── deck nav ──────────────────────────────────────────────────────
+const slides = [...document.querySelectorAll(".slide")];
+let cur = 0;
+const dots = document.getElementById("dots");
+slides.forEach((_, i) => {
+  const d = document.createElement("div");
+  d.className = "dot2";
+  d.onclick = () => show(i);
+  dots.appendChild(d);
+});
+function show(i) {
+  cur = Math.max(0, Math.min(slides.length - 1, i));
+  slides.forEach((s, j) => s.classList.toggle("active", j === cur));
+  [...dots.children].forEach((d, j) => d.classList.toggle("cur", j === cur));
+  document.getElementById("count").textContent = (cur + 1) + " / " + slides.length;
+  if (cur === 3) s4play();
+}
+document.getElementById("prev").onclick = () => show(cur - 1);
+document.getElementById("next").onclick = () => show(cur + 1);
+document.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  if (e.key === "ArrowRight" || e.key === "n") show(cur + 1);
+  if (e.key === "ArrowLeft" || e.key === "p") show(cur - 1);
+  if (cur === 2) {
+    if (e.key === "1") setBoardStyle("A");
+    if (e.key === "2") setBoardStyle("B");
+    if (e.key === "3") setBoardStyle("C");
+    if (e.key === "q") setPending(pending3 ? 1 : 3);
+  }
+});
+
+// ── slide 2/4 streaming animation ─────────────────────────────────
+const S2_FULL = "meanwhile: checking lint, tests, and the diff summary — all green so far; still working while your answer is pending …";
+const S4_FULL = "meanwhile: checking lint, tests, and the diff summary — all green so far; still working while your answer is pending … done with the independent work.";
+let s4timer = null;
+function streamInto(el, text, speed, done) {
+  clearInterval(s4timer);
+  let i = 0;
+  el.textContent = "";
+  s4timer = setInterval(() => {
+    i += 2;
+    el.textContent = text.slice(0, i);
+    if (i >= text.length) { clearInterval(s4timer); if (done) done(); }
+  }, speed);
+}
+function s4play() {
+  streamInto(document.getElementById("s4stream"), S4_FULL, 34);
+}
+document.getElementById("s4replay").onclick = s4play;
+(function s2loop() {
+  const el = document.getElementById("s2stream");
+  streamInto(el, S2_FULL, 40, () => setTimeout(s2loop, 1600));
+})();
+
+// ── slide 3: board style fork ─────────────────────────────────────
+let bstyle = "A", pending3 = false;
+const QUESTIONS = [
+  "deploy now or stage first?",
+  "pin the minor version?",
+  "also backport to release/1.4?",
+];
+const boardDemo = document.getElementById("boardDemo");
+const bsNote = document.getElementById("bsNote");
+function renderBoard() {
+  const n = pending3 ? 3 : 1;
+  const qs = QUESTIONS.slice(0, n);
+  const rows = [];
+  if (bstyle === "A") {
+    rows.push(`<span style="color:var(--purple)">? <b style="color:var(--fg0)">${n === 1 ? "1 question" : n + " questions"}</b> <span style="color:var(--fg4)">pending — C-x q to answer</span></span>`);
+  } else if (bstyle === "B") {
+    for (const q of qs) rows.push(`<span style="color:var(--purple)">?</span> <span style="color:var(--fg2)">${q}</span> <span style="color:var(--fg4)">(C-x q)</span>`);
+  } else {
+    rows.push(`<span style="color:var(--purple)">?</span> <b style="color:var(--fg0)">${n} pending</b> <span style="color:var(--fg4)">· /questions</span>`);
+  }
+  boardDemo.innerHTML = rows.map((r) => `<div class="row">${r}</div>`).join("");
+  const notes = {
+    A: "A — one line always. What is being asked needs a summon to see. Matches codex's chip.",
+    B: "B — the questions are readable at a glance; each row is one pending ask. Grows one line per question (toggle to 3 to feel it).",
+    C: "C — most compact, no keybinding advertised (command-only). The original ❓ glyph rendered wrong in a plain xterm — plain ? is the fallback.",
+  };
+  bsNote.textContent = notes[bstyle];
+}
+function setBoardStyle(s) {
+  bstyle = s;
+  for (const [id, k] of [["bsA", "A"], ["bsB", "B"], ["bsC", "C"]])
+    document.getElementById(id).classList.toggle("on", k === s);
+  renderBoard();
+}
+function setPending(n) {
+  pending3 = n === 3;
+  document.getElementById("bp1").classList.toggle("on", !pending3);
+  document.getElementById("bp3").classList.toggle("on", pending3);
+  renderBoard();
+}
+document.getElementById("bsA").onclick = () => setBoardStyle("A");
+document.getElementById("bsB").onclick = () => setBoardStyle("B");
+document.getElementById("bsC").onclick = () => setBoardStyle("C");
+document.getElementById("bp1").onclick = () => setPending(1);
+document.getElementById("bp3").onclick = () => setPending(3);
+renderBoard();
+
+// ── slide 7: esc semantics fork ───────────────────────────────────
+let escMode = "a";
+const escOut = document.getElementById("escOut");
+const escBoard = document.getElementById("escBoard");
+const escNote = document.getElementById("escNote");
+function renderEsc() {
+  if (escMode === "a") {
+    escOut.innerHTML = `
+      <div class="m toolcall">ask_user_question_async  ship friday or monday?</div>
+      <div class="m toolres">Questions delivered. Do not wait: …</div>
+      <div class="m asst">independent work stream: … done.</div>
+      <div class="m notify">(Esc on the popup — session closed, drafts kept)</div>`;
+    escBoard.innerHTML = `<div class="row" style="color:var(--purple)">? <b style="color:var(--fg0)">2 questions</b> <span style="color:var(--fg4)">pending — C-x q to answer</span></div>`;
+    escNote.textContent = "(a) — Esc means “later”. Every question stays answerable, drafts intact, nothing injected. The questions have no batch identity async, so there is nothing to abort.";
+  } else {
+    escOut.innerHTML = `
+      <div class="m toolcall">ask_user_question_async  ship friday or monday?</div>
+      <div class="m toolres">Questions delivered. Do not wait: …</div>
+      <div class="m asst">independent work stream: … done.</div>
+      <div class="m notify">(Esc after answering question 1 of 3)</div>
+      <div class="m quote">│ ship friday or monday?</div>
+      <div class="m user">friday</div>
+      <div class="m user" style="color:var(--fg4)">Questions aborted after 1 of 3 — unanswered: pin the minor version?, also backport to release/1.4?</div>`;
+    escBoard.innerHTML = "";
+    escNote.textContent = "(b) — sync-parity: the remainder resolves as aborted and ONE user message delivers partials + the abort marker. Open sub-question: does the notice also fire while the agent is idle (spawning a turn you didn't ask for)?";
+  }
+}
+document.getElementById("escA").onclick = () => { escMode = "a"; renderEsc(); document.getElementById("escA").classList.add("on"); document.getElementById("escB").classList.remove("on"); };
+document.getElementById("escB").onclick = () => { escMode = "b"; renderEsc(); document.getElementById("escB").classList.add("on"); document.getElementById("escA").classList.remove("on"); };
+renderEsc();
+
+show(0);
+</script>
+</body>
+</html>
