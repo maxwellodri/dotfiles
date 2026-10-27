@@ -1,6 +1,6 @@
 /*
- * deck.css — the demo-deck template stylesheet. INLINE the full contents
- * into each demo's <style> block: demos are one self-contained file.
+ * deck.css — the demo-deck template stylesheet. Copy into each
+ * page's <style> block and tweak. Drop unused classes.
  * Furniture: gruvbox palette vars, deck chrome (header/nav/dots), slide
  * scaffolding (verdict/callout/kbd/forktag/split), terminal-mock window
  * (chrome dots, transcript line classes, board rows, popup card, editor
