@@ -1,6 +1,5 @@
 set <S-CR>=^[[13;2u
 set runtimepath^=~/.vim runtimepath+=~/.vim/after
-runtime! expand('$HOME') + '/.config/nvim/plugin'
 "vim.g.rust_rustfmt_options = ''
 let &packpath=&runtimepath
 " Autoinstall VimPlug
