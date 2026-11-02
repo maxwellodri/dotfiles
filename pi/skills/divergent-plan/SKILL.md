@@ -96,3 +96,7 @@ Kernel style commit messages, under ~100 chars, as "<topic>: <short description>
 ## Post-implementation
 Before handoff back to the user, rerun a review subagent then challenge its findings with `review-reflect`, and for a large block of work repeat until a round produces no surviving findings.
 
+
+## Cleanup
+Once the work has been merged into main, and the user says explicitly to (prompt them by asking them to) delete the worktree and branch. Before merging ensure you've rebased your changes onto any concurrent work done on main before (general rule is rebase >> merge). Additionally, ensure you delete any artifacts you created in /tmp if they exist.
+
