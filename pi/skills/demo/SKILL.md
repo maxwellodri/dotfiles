@@ -23,7 +23,7 @@ Divergent-plan worktree → `.scratch/`. Elsewhere → `/tmp/pi/<name>/`. Screen
 - Combinatorial answers (theme + widget set + …) → no per-answer sublevels: one clickable toggle per element, the user composes.
 
 ## Verify (gui-automation skill — there is no host chromium)
-Boot the VM, open the deck in its browser, screenshot every distinct state, read each via the `image_reader` subagent; fix and re-shoot. `node --check` the script body. Never hand off unverified.
+Boot the VM, open the deck in its browser, screenshot every distinct state, read each via the `image_reader` subagent (give the agent the html fragment and the screenshot); fix and re-shoot. `node --check` the script body. Never hand off to the user unverified.
 
 ## Handoff
 ```sh
