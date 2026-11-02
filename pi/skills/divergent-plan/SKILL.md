@@ -12,7 +12,7 @@ A divergent plan is a **DAG of named nodes** in which every non-obvious decision
 
 ## Plan and resolve forks
 Planning produces deliverables: decisions, prototypes, experiments, not production code. The pull to just start building is usually the signal that the map is done. Some forks in the divergent plan can be answered on your own; see below.
-Unless the user says otherwise, do everything in a git worktree at `worktrees/<adjective_noun_{1-3 word description of the work, e.g. snuggly_snail_scene_edit, bad_badger_nvim_rust_analyzer}>/`, define this as the <worktree name> henceforth in the project repo (same name as the plan), leaving the main checkout untouched.
+Unless the user says otherwise, do everything in a git worktree at `worktrees/<adjective_noun_{1-3 word description of the work, e.g. snuggly_snail_scene_edit, bad_badger_nvim_rust_analyzer}>/` , define this as the <worktree name> henceforth in the project repo (same name as the plan), leaving the main checkout untouched. Branch name is also <worktree name> as well.
 Generate the adjective and noun pair via `qz generate-name`.
 Once coined retitle this session via the `name_session` tool as `Adjective Noun: <short description>`.
 The short description can be longer than the 1-3 word description used in the worktree name; soft cap of ~5-8 words.
@@ -92,11 +92,26 @@ Only proceed once the user has approved the plan. Given the prior plan, implemen
 Small logical commits are imperative for the human to easily review. Keep commits small but numerous, the user can interactively rebase them into a smaller number later. A good rule of thumb is 200-400 LOC OR 2-3 changed files (whichever comes first) for behavioural changes. Renames/lockfile/refactorings churn etc are exempt from the prior numerical counts. A good sniff test is that you can describe in a single sentence without “and”. Tests with the code they cover, in the same commit. High level integration tests that test across multiple commits worth of work go in a separate commit.
 
 Kernel style commit messages, under ~100 chars, as "<topic>: <short description>", refer to prior commit messages if available for a style guide.
+  - In dotfiles repo, topics are specifically per program, e.g. "nvim: X" never smaller scope than that.
+  - In nix_config repo, per system or package in pkgs (or "workspace: X").
+  - In larger workspaces (e.g. rust), per crate, or a general "workspace: X" for general cargo changes or updating dependencies for example
 
 ## Post-implementation
 Before handoff back to the user, rerun a review subagent then challenge its findings with `review-reflect`, and for a large block of work repeat until a round produces no surviving findings.
 
 
-## Cleanup
-Once the work has been merged into main, and the user says explicitly to (prompt them by asking them to) delete the worktree and branch. Before merging ensure you've rebased your changes onto any concurrent work done on main before (general rule is rebase >> merge). Additionally, ensure you delete any artifacts you created in /tmp if they exist.
+## Landing and Cleanup
+Land your changes into main by rebasing onto main. Always rebase over merge.
+```bash
+git switch <branch> && git rebase main    # replay branch onto main's tip
+git switch main && git merge --ff-only <branch>   # advance main's pointer — no merge commit
 
+```
+Once the work has landed, and the user says explicitly to (prompt them by asking them to) delete the worktree (and its directory):
+```bash
+git worktree remove worktrees/<worktree_name> && rmdir worktrees/<worktree_name> 2>/dev/null || true
+git branch -d <worktree_name>                           # works after a rebase+ff landing; refuses if landing didn't happen
+git branch -D <worktree_name>                           # only if the user squash-landed: originals aren't on main, -d refuses
+
+```
+Additionally, ensure you delete any artifacts you created in /tmp if they exist.
