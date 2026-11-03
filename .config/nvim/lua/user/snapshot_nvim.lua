@@ -42,6 +42,8 @@ vim.api.nvim_create_autocmd({
 	"BufAdd",
 	"BufDelete",
 	"BufEnter",
+	"BufWritePost",
+	"FileWritePost",
 	"WinNew",
 	"WinClosed",
 	"TabNew",
