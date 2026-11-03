@@ -76,6 +76,11 @@ burn_ids() {
             }
         }
         END { print m + 0 }' "$work")
+    if case "$maxid" in *[!0-9]*|"") true ;; *) false ;; esac; then maxid=0; fi
+    json_max=$(awk -F'\t' '$1 == "w" && $6 ~ /^\{/ { print $6 }' "$work" |
+        jq -r '[.. | objects | select(.t? == "p") | .I] | .[] | gsub("%"; "")' 2>/dev/null |
+        sort -n | tail -1)
+    [ -n "$json_max" ] && [ "$json_max" -gt "$maxid" ] 2>/dev/null && maxid=$json_max
     alive_max=$("$tbin" list-panes -a -F '#{pane_id}' 2>/dev/null | tr -d '%' | sort -n | tail -1)
     alive_max=${alive_max:-0}
     if [ "$maxid" -ge "$alive_max" ]; then
@@ -103,13 +108,16 @@ $prow
 EOF
     cmd=$(pane_cmd "$curcmd")
     d=$(pane_dir "$ppath")
-    if [ "$layout" != "-" ]; then
+    if [ "$layout" = "-" ]; then
+        wx=120
+        wy=40
+    elif case "$layout" in "{"*) true ;; *) false ;; esac; then
+        wx=$(printf '%s' "$layout" | jq -r '.L.w')
+        wy=$(printf '%s' "$layout" | jq -r '.L.h')
+    else
         base=${layout#*,}
         wx=${base%%x*}
         wy=$(printf '%s' "$base" | sed 's/^[0-9]*x\([0-9]*\),.*/\1/')
-    else
-        wx=120
-        wy=40
     fi
     if [ "$first_done" = "0" ]; then
         first_done=1
@@ -158,14 +166,18 @@ EOF
         "$tbin" list-panes -t "$sess:$wi" -F '#{pane_id}	#{pane_left}	#{pane_top}' > "$tmp.pos"
         awk -F'\t' '{ printf "%d\t%s\t%s\n", substr($1, 2), $2, $3 }' "$tmp.pos" > "$tmp.posn"
         sort -n "$tmp.posn" | cut -f1 > "$tmp.created"
-        # leaf cells in string order: WxH,left,top,id (id always present in saves)
-        awk -v lay="$layout" 'BEGIN {
-            while (match(lay, /[0-9]+x[0-9]+,[0-9]+,[0-9]+,[0-9]+/)) {
-                c = substr(lay, RSTART, RLENGTH); split(c, a, ",")
-                print a[2] "\t" a[3]
-                lay = substr(lay, RSTART + RLENGTH)
-            }
-        }' > "$tmp.cells"
+        # leaf cells in tree order: k-th leaf = k-th saved pane
+        if case "$layout" in "{"*) true ;; *) false ;; esac; then
+            printf '%s' "$layout" | jq -r '[.. | objects | select(.t? == "p")] | .[] | "\(.x)\t\(.y)"' > "$tmp.cells"
+        else
+            awk -v lay="$layout" 'BEGIN {
+                while (match(lay, /[0-9]+x[0-9]+,[0-9]+,[0-9]+,[0-9]+/)) {
+                    c = substr(lay, RSTART, RLENGTH); split(c, a, ",")
+                    print a[2] "\t" a[3]
+                    lay = substr(lay, RSTART + RLENGTH)
+                }
+            }' > "$tmp.cells"
+        fi
         i=0
         while IFS="$(printf '\t')" read -r cl ct; do
             want=$(sed -n "$((i + 1))p" "$tmp.created")
