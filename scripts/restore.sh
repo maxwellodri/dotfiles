@@ -29,7 +29,7 @@ if "$tbin" has-session -t "=$sess" 2>/dev/null; then
 fi
 
 work=$(mktemp)
-trap 'rm -f "$work"; rm -f "$dir/.restoring"' EXIT INT TERM HUP
+trap 'rm -f "$work"; rm -f "$dir/.restoring"; "$tbin" kill-session -t "=blithe-idburn" 2>/dev/null || true' EXIT INT TERM HUP
 cp "$file" "$work"
 : > "$dir/.restoring"
 
@@ -47,12 +47,10 @@ $1
 "*) return 0 ;; *) return 1 ;; esac }
 is_shell() { case "$1" in zsh|bash|sh|dash|fish) return 0 ;; *) return 1 ;; esac }
 
-# pane command for creation: pi:<uuid> -> resume session; allowed -> relaunch
-# (bare pi process shows as "node" from a non-wrapper launch); else none
+# pane command for creation: pi:<uuid> -> resume session; allowed -> relaunch; else none
 pane_cmd() { # $1 curcmd
     case "$1" in
         pi:*) printf 'pi --session %s' "${1#pi:}"; return ;;
-        node) printf 'pi'; return ;;
     esac
     if allowed "$1" && ! is_shell "$1"; then
         printf '%s' "$1"
@@ -72,16 +70,24 @@ burn_ids() {
     [ -n "$json_max" ] && [ "$json_max" -gt "$maxid" ] 2>/dev/null && maxid=$json_max
     alive_max=$("$tbin" list-panes -a -F '#{pane_id}' 2>/dev/null | tr -d '%' | sort -n | tail -1)
     alive_max=${alive_max:-0}
+    "$tbin" kill-session -t "=blithe-idburn" 2>/dev/null || true
     if [ "$maxid" -ge "$alive_max" ]; then
-        "$tbin" kill-session -t "=blithe-idburn" 2>/dev/null || true
-        "$tbin" new-session -d -s blithe-idburn -c /tmp
+        "$tbin" new-session -d -s blithe-idburn -c /tmp 'exec sleep 600'
         i=0
         while [ "$i" -le "$maxid" ]; do
-            "$tbin" new-window -d -t blithe-idburn
+            "$tbin" new-window -d -t blithe-idburn 'exec sleep 600'
             : > "$dir/.restoring"
             i=$((i + 1))
         done
-        "$tbin" kill-session -t blithe-idburn
+        # if idburn was the only session, killing it exits the server and
+        # its async socket unlink can delete a server created in the gap —
+        # wait the socket out before the window pass builds the real one
+        sock=$("$tbin" display-message -p '#{socket_path}' 2>/dev/null || true)
+        "$tbin" kill-session -t blithe-idburn 2>/dev/null || true
+        if [ -z "$("$tbin" list-sessions -F '#{session_name}' 2>/dev/null)" ] && [ -n "$sock" ]; then
+            j=0
+            while [ -e "$sock" ] && [ "$j" -lt 200 ]; do sleep 0.05; j=$((j + 1)); done
+        fi
     fi
 }
 burn_ids
@@ -193,7 +199,11 @@ for wi in $(awk -F'\t' '$1 == "w" { print $2 }' "$work"); do
         cmd=$(pane_cmd "$curcmd")
         if [ -z "$cmd" ] && [ -n "$curcmd" ] && ! is_shell "$curcmd"; then
             tid=$("$tbin" list-panes -t "$sess:$wi" -F '#{pane_index}' | awk -v s="$slot" 'NR - 1 == s { print $1; exit }')
-            [ -n "$tid" ] && "$tbin" send-keys -t "$sess:$wi.$tid" "echo This pane was running $curcmd" Enter
+            if [ -n "$tid" ]; then
+                esc=$(printf '%s' "$curcmd" | sed "s/'/'\\\\''/g")
+                "$tbin" send-keys -l -t "$sess:$wi.$tid" "echo This pane was running '$esc'"
+                "$tbin" send-keys -t "$sess:$wi.$tid" Enter
+            fi
         fi
         slot=$((slot + 1))
     done

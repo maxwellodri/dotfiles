@@ -55,11 +55,16 @@ export default function (pi: ExtensionAPI) {
 
 		const reg = registryPath();
 		try {
-			const keep = readFileSync(reg, "utf8")
-				.split("\n")
-				.filter((l) => l && l !== key && !(l.startsWith(`${ident}\t${pane}\t`)));
-			writeFileSync(`${reg}.tmp-${process.pid}`, [...keep, key].join("\n") + "\n");
-			renameSync(`${reg}.tmp-${process.pid}`, reg);
+			// read-modify-write: a concurrent pane can rename between our read
+			// and rename, silently dropping our row — verify and retry once
+			for (let attempt = 0; attempt < 2; attempt++) {
+				const keep = readFileSync(reg, "utf8")
+					.split("\n")
+					.filter((l) => l && l !== key && !(l.startsWith(`${ident}\t${pane}\t`)));
+				writeFileSync(`${reg}.tmp-${process.pid}`, [...keep, key].join("\n") + "\n");
+				renameSync(`${reg}.tmp-${process.pid}`, reg);
+				if (readFileSync(reg, "utf8").includes(key)) break;
+			}
 		} catch (err) {
 			if ((err as NodeJS.ErrnoException).code === "ENOENT") {
 				try {

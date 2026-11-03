@@ -109,17 +109,44 @@ regf=""
 nvf=$(mktemp)
 tab=$(printf '\t')
 "$tbin" list-panes -a -F "#{pane_id}${tab}#{pane_pid}${tab}#{pane_current_command}" > "$nvf.dump" 2>/dev/null || true
+pidir="${XDG_STATE_HOME:-$HOME/.local/state}/pi/sessions"
+keepf=""
 if [ -f "$dir/pi_registry" ]; then
     regf=$(mktemp)
+    keepf=$(mktemp)
+    # A row joins this snapshot only when its pane still runs pi behind its
+    # wrapper shell ("man pi" / "cat scripts/pi" would otherwise verify via
+    # argv[1] and hijack the pane). Rows survive gc while either verified
+    # live or their session file still exists — the latter also keeps rows
+    # of panes too fresh for the process walk to see yet.
     while IFS="$(printf '\t')" read -r rident rpane ruuid; do
-        [ "$rident" = "$ident" ] || continue
-        pid=$(awk -F'\t' -v k="$rpane" '$1 == k { print $2; exit }' "$nvf.dump")
-        [ -n "$pid" ] || continue
-        tree_has "$pid" pi && printf '%s\t%s\t%s\n' "$rident" "$rpane" "$ruuid" >> "$regf.rows"
+        verified=""
+        if [ "$rident" = "$ident" ]; then
+            rcmd=$(awk -F'\t' -v k="$rpane" '$1 == k { print $3; exit }' "$nvf.dump")
+            case "$rcmd" in
+                sh|bash|zsh|dash|fish) ;;
+                *) rcmd="" ;;
+            esac
+            if [ -n "$rcmd" ]; then
+                pid=$(awk -F'\t' -v k="$rpane" '$1 == k { print $2; exit }' "$nvf.dump")
+                [ -n "$pid" ] && tree_has "$pid" pi && verified=1
+            fi
+        fi
+        if [ -n "$verified" ]; then
+            printf '%s\t%s\t%s\n' "$rident" "$rpane" "$ruuid" >> "$regf.rows"
+        fi
+        if [ -n "$verified" ] || [ -n "$(ls "$pidir"/*_"$ruuid".jsonl 2>/dev/null)" ]; then
+            printf '%s\t%s\t%s\n' "$rident" "$rpane" "$ruuid" >> "$keepf"
+        fi
     done < "$dir/pi_registry"
     [ -f "$regf.rows" ] || : > "$regf.rows"
     mv -f "$regf.rows" "$regf"
+    # unique keep name: concurrent snapshots both rewrite the registry
+    if [ -f "$keepf" ]; then
+        mv -f "$keepf" "$dir/pi_registry" 2>/dev/null || true
+    fi
 fi
+
 while IFS="$(printf '\t')" read -r rpane pid rcmd; do
     case "$rcmd" in
         sh|bash|zsh|dash|fish) ;;
@@ -183,3 +210,5 @@ END { flush(prev) }
 done
 rm -f "$nvf" 2>/dev/null || true
 [ -n "${regf:-}" ] && rm -f "$regf" 2>/dev/null || true
+# gc: per-cwd nvim sessions untouched for a month are dead dirs' state
+find "$dir/nvim" -name '*.vim' -type f -mtime +30 -delete 2>/dev/null || true
