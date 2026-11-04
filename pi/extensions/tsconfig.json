@@ -1,8 +1,11 @@
 {
 	// Type-check only — no runtime role. pi loads these files itself (jiti +
-	// its own alias map); this config exists purely for `tsc`.
-	// The bare imports (@earendil-works/*, typebox) resolve via generated
-	// "paths" pointing at the nix-built pi's d.ts files. Run:
+	// its own alias map, resolved against the binary's embedded modules);
+	// this config exists purely for `tsc`. The bare imports
+	// (@earendil-works/*, typebox) resolve from ./node_modules — a dev-only
+	// npm install of the version-matched published package that
+	// install_flake.sh refreshes on pi bumps (the standalone binary ships
+	// no d.ts). Run:
 	//   nix run "${NIX_CONFIG_DIR:-$SOURCE/nix_config}"#typecheck            (uses $PI_CODING_AGENT_DIR/extensions)
 	//   nix run "${NIX_CONFIG_DIR:-$SOURCE/nix_config}"#typecheck -- <extensions dir>
 	// (nix_config/scripts/install_flake.sh runs it as a post-install check too)
@@ -15,7 +18,12 @@
 		// subagent/index.ts imports "./agents.ts" with the extension
 		"allowImportingTsExtensions": true,
 		"skipLibCheck": true,
-		"lib": ["esnext"]
+		"lib": ["esnext"],
+		// pi's runtime alias map serves pi-ai's compat surface (legacy
+		// api aliases like openAICompletionsApi), not the bare main entry
+		"paths": {
+			"@earendil-works/pi-ai": ["./node_modules/@earendil-works/pi-ai/dist/compat.d.ts"]
+		}
 	},
 	"include": ["**/*.ts"]
 }

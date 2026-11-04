@@ -5,8 +5,7 @@ license: MIT
 compatibility: any
 ---
 # Demo
-
-A slide deck in a browser: an interactive rendering of a decision tree, an ask-user-question batch, or a feature walkthrough — anything the user must *see* to judge. Disposable: one directory, thrown away once decisions land.
+The purpose of the demo is for the user to answer  questions and close forks in a plan. Create a slide deck as a single page html document. The document is an interactive rendering of the decision tree (such as an ask-user-question batch, or a feature walkthrough: generalising to anything the user must *see* to judge. Demos are disposable by design; all files live in one directory, and is thrown away once decisions land.
 
 ## Location
 Divergent-plan worktree → `.scratch/`. Elsewhere → `/tmp/pi/<name>/`. Screenshots and other assets live in the same directory (external images are fine).
@@ -21,12 +20,13 @@ Divergent-plan worktree → `.scratch/`. Elsewhere → `/tmp/pi/<name>/`. Screen
 - A question slide carries a **Question N** badge — bold, on a background colour used nowhere else in the deck.
 - Discrete answers → top-bar **buttons** (not radios/checkboxes) that switch the mock between the precanned answers; the slide argues each trade-off.
 - Combinatorial answers (theme + widget set + …) → no per-answer sublevels: one clickable toggle per element, the user composes.
+- Continuous answers, e.g. consider rendering a water simulation: sliders of parameters, within a single deck slide is more appropriate.
 
 ## Verify (gui-automation skill — there is no host chromium)
 Boot the VM, open the deck in its browser, screenshot every distinct state, read each via the `image_reader` subagent (give the agent the html fragment and the screenshot); fix and re-shoot. `node --check` the script body. Never hand off to the user unverified.
 
 ## Handoff
+Open in Firefox, if applicable you'll want to call the ask_user_question tool right after opening in Firefox.
 ```sh
-pgrep -x firefox >/dev/null && firefox <dir>/demo.html || echo <dir>/demo.html
+DWM_FORCE_TAG=8 DWM_FORCE_MONITOR=0 firefox <dir>/demo.html
 ```
-Only spawn firefox yourself pinned: `DWM_FORCE_TAG=8 DWM_FORCE_MONITOR=0`.

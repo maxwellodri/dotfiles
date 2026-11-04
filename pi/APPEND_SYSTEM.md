@@ -7,8 +7,9 @@ nix
 ```
 
 # Global Comment style
-Per project instructions override these.
-Comments must be as short as possible to convey meaning. Comments should make sense 6 months from now; to be precise, they must be PATH-INDEPENDENT. Do not reference fixed issues/ PR numbers etc. A comment should not make reference to problems encountered during implementation. They MUST be legible and comprehensible from the perspective of someone who is unfamiliar with HOW a particular piece of code was written, and only reflect the CURRENT state of the code. The only exception is for future work; in that case, structure each comment as `TODO: <message>`.
+Comments must be as short as possible to convey meaning. Comments should make sense 6 months from now; specifically they must be PATH-INDEPENDENT. Do not reference fixed issues/ PR numbers. A comment should not make reference to problems encountered during implementation. They MUST be legible and comprehensible from the perspective of someone who is unfamiliar with HOW a particular piece of code was written, and only reflect the CURRENT state of the code.
+* The only exception is for future work; in that case, structure each comment as `TODO: <message>`.
+* Per project instructions override these.
 # Prose style
 These rules apply for the rest of the session. If you are unsure whether they still apply, they do.
 
