@@ -12,7 +12,10 @@
 set -eu
 
 tbin="${TMUX_BIN:-tmux}"
-dir="${XDG_STATE_HOME:-$HOME/.local/state}/tmux"
+# propagated to every relaunch: pane shells (zshrc) re-set XDG_STATE_HOME,
+# which would point pi/nvim at a different state tree than this restore
+export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+dir="$XDG_STATE_HOME/tmux"
 sess="${1:?session name}"
 cfgdir="${XDG_CONFIG_HOME:-$HOME/.config}/tmux"
 
@@ -106,9 +109,12 @@ EOF
     if [ "$layout" = "-" ]; then
         wx=120
         wy=40
-    else
+    elif case "$layout" in "{"*) true ;; *) false ;; esac; then
         wx=$(printf '%s' "$layout" | jq -r '.L.w')
         wy=$(printf '%s' "$layout" | jq -r '.L.h')
+    else
+        echo "snapshot '$sess' predates tmux 3.8 layouts — re-snapshot it" >&2
+        exit 1
     fi
     if [ "$first_done" = "0" ]; then
         first_done=1
