@@ -32,7 +32,7 @@ if "$tbin" has-session -t "=$sess" 2>/dev/null; then
 fi
 
 work=$(mktemp)
-trap 'rm -f "$work"; rm -f "$dir/.restoring"; "$tbin" kill-session -t "=blithe-idburn" 2>/dev/null || true' EXIT INT TERM HUP
+trap 'rm -f "$work"; rm -f "$dir/.restoring"' EXIT INT TERM HUP
 cp "$file" "$work"
 : > "$dir/.restoring"
 
@@ -61,48 +61,6 @@ pane_cmd() { # $1 curcmd
 }
 
 pane_dir() { [ -d "$1" ] && printf '%s' "$1" || printf '%s' "$HOME"; }
-
-# tmux 3.7 recycles pane ids once dead; select-layout's pane-to-cell pairing
-# is inconsistent when the string's ids are alive. Burn ids past the
-# snapshot's max so the string's ids can never match a live pane.
-burn_ids() {
-    maxid=$(awk -F'\t' '$1 == "p" { gsub(/%/, "", $7); if ($7 + 0 > m) m = $7 + 0 } END { print m + 0 }' "$work")
-    json_max=$(awk -F'\t' '$1 == "w" && $6 ~ /^\{/ { print $6 }' "$work" |
-        jq -r '[.. | objects | select(.t? == "p") | .I] | .[] | gsub("%"; "")' 2>/dev/null |
-        sort -n | tail -1)
-    [ -n "$json_max" ] && [ "$json_max" -gt "$maxid" ] 2>/dev/null && maxid=$json_max
-    legacy_max=$(awk -F'\t' '$1 == "w" && $6 !~ /^\{/ && $6 != "-" {
-        s = $6
-        while (match(s, /,[0-9]+[,}\]]/)) {
-            v = substr(s, RSTART + 1, RLENGTH - 2) + 0
-            if (v > m) m = v
-            s = substr(s, RSTART + RLENGTH)
-        }
-    } END { print m + 0 }' "$work")
-    [ "$legacy_max" -gt "$maxid" ] 2>/dev/null && maxid=$legacy_max
-    alive_max=$("$tbin" list-panes -a -F '#{pane_id}' 2>/dev/null | tr -d '%' | sort -n | tail -1)
-    alive_max=${alive_max:-0}
-    "$tbin" kill-session -t "=blithe-idburn" 2>/dev/null || true
-    if [ "$maxid" -ge "$alive_max" ]; then
-        "$tbin" new-session -d -s blithe-idburn -c /tmp 'exec sleep 600'
-        i=0
-        while [ "$i" -le "$maxid" ]; do
-            "$tbin" new-window -d -t blithe-idburn 'exec sleep 600'
-            : > "$dir/.restoring"
-            i=$((i + 1))
-        done
-        # if idburn was the only session, killing it exits the server and
-        # its async socket unlink can delete a server created in the gap —
-        # wait the socket out before the window pass builds the real one
-        sock=$("$tbin" display-message -p '#{socket_path}' 2>/dev/null || true)
-        "$tbin" kill-session -t blithe-idburn 2>/dev/null || true
-        if [ -z "$("$tbin" list-sessions -F '#{session_name}' 2>/dev/null)" ] && [ -n "$sock" ]; then
-            j=0
-            while [ -e "$sock" ] && [ "$j" -lt 200 ]; do sleep 0.05; j=$((j + 1)); done
-        fi
-    fi
-}
-burn_ids
 
 first_done=0
 
