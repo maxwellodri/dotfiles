@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Usage: rsync-fetch maxwell@odri.xyz:mount/file.zip .
+#        rsync-fetch --timeout=60 src dest        # override a default
+
+set -u
+
+io_timeout=30        # rsync aborts after N seconds of no I/O
+keepalive_interval=15 # ssh probes
+keepalive_count=3     # ssh gives up after N failed probes
+retry_delay=10
+
+help() {
+	cat <<EOF
+rsync-fetch — retrying rsync wrapper for unreliable links.
+
+Usage: rsync-fetch [rsync args...]
+
+Baked-in flags: -Pav --timeout=$io_timeout and ssh keepalives
+(-o ServerAliveInterval=$keepalive_interval -o ServerAliveCountMax=$keepalive_count).
+Pass your own rsync flags to override any of them.
+Loops forever until rsync exits 0; partial files resume between attempts.
+EOF
+}
+
+if [ $# -eq 0 ]; then
+	help
+	exit 1
+fi
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+	help
+	exit 0
+fi
+
+attempt=0
+while true; do
+	attempt=$((attempt + 1))
+	rsync -Pav --timeout="$io_timeout" \
+		-e "ssh -o ServerAliveInterval=$keepalive_interval -o ServerAliveCountMax=$keepalive_count" \
+		"$@"
+	rsync_exit=$?
+	if [ "$rsync_exit" -eq 0 ]; then
+		[ "$attempt" -gt 1 ] && echo "rsync-fetch: completed on attempt $attempt" >&2
+		exit 0
+	fi
+	echo "rsync-fetch: attempt $attempt failed (rsync exit $rsync_exit), retrying in ${retry_delay}s" >&2
+	sleep "$retry_delay"
+done
