@@ -12,9 +12,11 @@
 set -eu
 
 tbin="${TMUX_BIN:-tmux}"
-# propagated to every relaunch: pane shells (zshrc) re-set XDG_STATE_HOME,
-# which would point pi/nvim at a different state tree than this restore
-export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+state="${XDG_STATE_HOME:-$HOME/.local/state}"
+dir="$state/tmux"
+# typed into restored shells with every launch: interactive shells re-set
+# XDG_STATE_HOME (zshrc), which would point pi/nvim at the wrong state tree
+X="XDG_STATE_HOME=$state"
 dir="$XDG_STATE_HOME/tmux"
 sess="${1:?session name}"
 cfgdir="${XDG_CONFIG_HOME:-$HOME/.config}/tmux"
@@ -63,6 +65,7 @@ pane_cmd() { # $1 curcmd
 pane_dir() { [ -d "$1" ] && printf '%s' "$1" || printf '%s' "$HOME"; }
 
 first_done=0
+launches=""
 
 # window pass: session + windows with their first pane, sized before splits
 while IFS="$(printf '\t')" read -r tag wi wact zoom name layout; do
@@ -86,19 +89,11 @@ EOF
     fi
     if [ "$first_done" = "0" ]; then
         first_done=1
-        if [ -n "$cmd" ]; then
-            "$tbin" new-session -d -s "$sess" -n "$name" -x "$wx" -y "$wy" -c "$d" "$cmd"
-        else
-            "$tbin" new-session -d -s "$sess" -n "$name" -x "$wx" -y "$wy" -c "$d"
-        fi
+        "$tbin" new-session -d -s "$sess" -n "$name" -x "$wx" -y "$wy" -c "$d"
         # new-session lands at base-index 0; saved index may differ
         [ "$wi" != 0 ] && "$tbin" move-window -s "$sess:0" -t "$sess:$wi"
     else
-        if [ -n "$cmd" ]; then
-            "$tbin" new-window -d -t "$sess:$wi" -n "$name" -c "$d" "$cmd"
-        else
-            "$tbin" new-window -d -t "$sess:$wi" -n "$name" -c "$d"
-        fi
+        "$tbin" new-window -d -t "$sess:$wi" -n "$name" -c "$d"
         "$tbin" resize-window -t "$sess:$wi" -x "$wx" -y "$wy"
     fi
 done < "$work"
@@ -109,15 +104,16 @@ for wi in $(awk -F'\t' '$1 == "w" { print $2 }' "$work"); do
     zoom=$(awk -F'\t' -v w="$wi" '$1 == "w" && $2 == w { print $4; exit }' "$work")
     tmp=$(mktemp)
 
-    # extra panes (first pane came with the window)
+    # extra panes (first pane came with the window); the first pane's own
+    # program is collected from the window pass row below via allrows
     first=1
     while IFS="$(printf '\t')" read -r pidx pact ppath curcmd pane_id pleft ptop; do
-        [ "$first" = "1" ] && { first=0; continue; }
+        [ "$first" = "1" ] || "$tbin" split-window -d -t "$sess:$wi" -c "$(pane_dir "$ppath")"
+        first=0
         cmd=$(pane_cmd "$curcmd")
         if [ -n "$cmd" ]; then
-            "$tbin" split-window -d -t "$sess:$wi" -c "$(pane_dir "$ppath")" "$cmd"
-        else
-            "$tbin" split-window -d -t "$sess:$wi" -c "$(pane_dir "$ppath")"
+            launches="$launches
+$sess:$wi.$pidx|$cmd"
         fi
     done <<EOF
 $(awk -F'\t' -v w="$wi" '$1 == "p" && $2 == w { print $3 "\t" $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 }' "$work")
@@ -174,9 +170,17 @@ done
 wact=$(awk -F'\t' '$1 == "w" && $3 == 1 { print $2; exit }' "$work")
 [ -n "$wact" ] && "$tbin" select-window -t "$sess:$wact"
 
+# programs are typed into the restored interactive shells — same path as a
+# user launching them by hand, so the full user environment applies
+sleep 1
+printf '%s\n' "$launches" | while IFS='|' read -r target cmd; do
+    [ -n "$target" ] || continue
+    "$tbin" send-keys -l -t "$target" "$X $cmd"
+    "$tbin" send-keys -t "$target" Enter
+done
+
 # "was running X" notes: only for panes restored as a plain shell (nothing
 # was relaunched into them); saved pane order == restored position order
-sleep 0.3
 for wi in $(awk -F'\t' '$1 == "w" { print $2 }' "$work"); do
     slot=0
     awk -F'\t' -v w="$wi" '$1 == "p" && $2 == w { print $6 }' "$work" |
