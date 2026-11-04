@@ -1,0 +1,7 @@
+state/
+shim/
+pi_sessions/
+xdgconf/
+e2e-sandbox/
+c1.*
+c2.*

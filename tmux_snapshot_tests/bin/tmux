@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /usr/bin/env -u TMUX_BIN tmux -L blithe_e2e "$@"
