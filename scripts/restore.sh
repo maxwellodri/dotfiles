@@ -67,10 +67,19 @@ pane_dir() { [ -d "$1" ] && printf '%s' "$1" || printf '%s' "$HOME"; }
 # snapshot's max so the string's ids can never match a live pane.
 burn_ids() {
     maxid=$(awk -F'\t' '$1 == "p" { gsub(/%/, "", $7); if ($7 + 0 > m) m = $7 + 0 } END { print m + 0 }' "$work")
-    json_max=$(awk -F'\t' '$1 == "w" { print $6 }' "$work" |
+    json_max=$(awk -F'\t' '$1 == "w" && $6 ~ /^\{/ { print $6 }' "$work" |
         jq -r '[.. | objects | select(.t? == "p") | .I] | .[] | gsub("%"; "")' 2>/dev/null |
         sort -n | tail -1)
     [ -n "$json_max" ] && [ "$json_max" -gt "$maxid" ] 2>/dev/null && maxid=$json_max
+    legacy_max=$(awk -F'\t' '$1 == "w" && $6 !~ /^\{/ && $6 != "-" {
+        s = $6
+        while (match(s, /,[0-9]+[,}\]]/)) {
+            v = substr(s, RSTART + 1, RLENGTH - 2) + 0
+            if (v > m) m = v
+            s = substr(s, RSTART + RLENGTH)
+        }
+    } END { print m + 0 }' "$work")
+    [ "$legacy_max" -gt "$maxid" ] 2>/dev/null && maxid=$legacy_max
     alive_max=$("$tbin" list-panes -a -F '#{pane_id}' 2>/dev/null | tr -d '%' | sort -n | tail -1)
     alive_max=${alive_max:-0}
     "$tbin" kill-session -t "=blithe-idburn" 2>/dev/null || true
@@ -113,8 +122,9 @@ EOF
         wx=$(printf '%s' "$layout" | jq -r '.L.w')
         wy=$(printf '%s' "$layout" | jq -r '.L.h')
     else
-        echo "snapshot '$sess' predates tmux 3.8 layouts — re-snapshot it" >&2
-        exit 1
+        base=${layout#*,}
+        wx=${base%%x*}
+        wy=$(printf '%s' "$base" | sed 's/^[0-9]*x\([0-9]*\),.*/\1/')
     fi
     if [ "$first_done" = "0" ]; then
         first_done=1
@@ -163,8 +173,19 @@ EOF
         "$tbin" list-panes -t "$sess:$wi" -F '#{pane_id}	#{pane_left}	#{pane_top}' > "$tmp.pos"
         awk -F'\t' '{ printf "%d\t%s\t%s\n", substr($1, 2), $2, $3 }' "$tmp.pos" > "$tmp.posn"
         sort -n "$tmp.posn" | cut -f1 > "$tmp.created"
-        # leaf cells in tree order: k-th leaf = k-th saved pane
-        printf '%s' "$layout" | jq -r '[.. | objects | select(.t? == "p")] | .[] | "\(.x)\t\(.y)"' > "$tmp.cells"
+        # leaf cells in tree order: k-th leaf = k-th saved pane; JSON for
+        # 3.8+ servers, legacy string for servers still on the pre-3.8 binary
+        if case "$layout" in "{"*) true ;; *) false ;; esac; then
+            printf '%s' "$layout" | jq -r '[.. | objects | select(.t? == "p")] | .[] | "\(.x)\t\(.y)"' > "$tmp.cells"
+        else
+            awk -v lay="$layout" 'BEGIN {
+                while (match(lay, /[0-9]+x[0-9]+,[0-9]+,[0-9]+,[0-9]+/)) {
+                    c = substr(lay, RSTART, RLENGTH); split(c, a, ",")
+                    print a[2] "\t" a[3]
+                    lay = substr(lay, RSTART + RLENGTH)
+                }
+            }' > "$tmp.cells"
+        fi
         i=0
         while IFS="$(printf '\t')" read -r cl ct; do
             want=$(sed -n "$((i + 1))p" "$tmp.created")

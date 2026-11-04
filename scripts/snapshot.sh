@@ -93,7 +93,7 @@ tree_has() { # $1 = pane pid, $2 = process basename to match (argv0/argv1)
     while [ -n "$frontier" ] && [ "$depth" -lt 12 ]; do
         next=""
         for p in $frontier; do
-            if tr '\0' '\n' < "/proc/$p/cmdline" 2>/dev/null | head -2 | grep -qx "\(.*/\)\?$2"; then
+            if [ -r "/proc/$p/cmdline" ] && tr '\0' '\n' < "/proc/$p/cmdline" 2>/dev/null | head -2 | grep -qx "\(.*/\)\?$2"; then
                 return 0
             fi
             for k in $(pgrep -P "$p" 2>/dev/null); do
