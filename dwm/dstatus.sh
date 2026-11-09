@@ -232,6 +232,7 @@ counter=0
 eval "$(grep 'export dotfiles_tag' "$HOME/.zprofile")"
 [ -z "$dotfiles_tag" ] && echo "dotfiles_tag envar is not set in .zprofile?"
 
+last_reminders=0
 while true; do
     case "$dotfiles_tag" in 
         hackerman)
@@ -284,7 +285,10 @@ while true; do
     fi
 
     get_cpu_usage
-    command -v get_reminders.sh > /dev/null && reminders="🧐: $(get_reminders.sh --count)" || reminders="😠: 0"
+    if (( EPOCHSECONDS - last_reminders >= 60 )); then
+        last_reminders=$EPOCHSECONDS
+        command -v get_reminders.sh > /dev/null && reminders="🧐: $(get_reminders.sh --count)" || reminders="😠: 0"
+    fi
     xsetroot -name "$timedata $reminders 🕒: $(date +%a-%d-%b-%R) 🧠: $(sh memory_checker)% 🤔:$(printf "%2d" "$cpu_usage")% 🌏: $internet 🚚: $packages$(docker_watch)$OPT"
 
 	sleep 0.25s
