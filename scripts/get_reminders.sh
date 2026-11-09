@@ -27,7 +27,7 @@ elif [ "$#" -eq 1 ]; then
 fi
 
 # Get active reminders
-active=$(remind ~/.config/remind/reminders.rem | tail -n +2 | grep -v '^$')
+active=$(remind -q ~/.config/remind/reminders.rem | tail -n +2 | grep -v '^$')
 
 if [ "$action" = "count" ]; then
     printf '%s' "$active" | grep -c '^'
