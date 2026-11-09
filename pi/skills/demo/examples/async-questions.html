@@ -151,6 +151,13 @@ nav .count { color: var(--fg4); font-size: 0.75rem; margin-left: auto; }
 .split .cap { color: var(--fg4); font-size: 0.72rem; margin-bottom: 0.25rem; }
 .recbadge { color: var(--green); font-weight: 700; }
 .dimnote { color: var(--fg4); font-size: 0.72rem; }
+
+/* ── question badge ─────────────────────────────────────── */
+.qbadge {
+  display: inline-block; background: var(--orange); color: var(--bg0-h);
+  border-radius: 3px; padding: 0 0.4rem; font-size: 0.7rem; font-weight: 700;
+  margin-right: 0.4rem; vertical-align: 1px;
+}
 </style>
 </head>
 <body>
@@ -207,7 +214,7 @@ nav .count { color: var(--fg4); font-size: 0.75rem; margin-left: auto; }
 
 <!-- ═══ 3 · board styles (INTERACTIVE FORK) ═══ -->
 <section class="slide">
-  <h2><span class="no">03</span><span class="forktag">FORK</span>Board style — pick what glances best</h2>
+  <h2><span class="no">03</span><span class="qbadge">Question 1</span>Board style — pick what glances best</h2>
   <div class="controls">
     <span class="lbl">style:</span>
     <button id="bsA" class="on">A · chip</button>
@@ -345,7 +352,7 @@ nav .count { color: var(--fg4); font-size: 0.75rem; margin-left: auto; }
 
 <!-- ═══ 7 · esc semantics (INTERACTIVE FORK) ═══ -->
 <section class="slide">
-  <h2><span class="no">07</span><span class="forktag">FORK</span>Esc on the answer session — what should it mean?</h2>
+  <h2><span class="no">07</span><span class="qbadge">Question 2</span>Esc on the answer session — what should it mean?</h2>
   <div class="controls">
     <button id="escA" class="on">a · close, keep pending + drafts</button>
     <button id="escB">b · sync-parity abort: resolve rest, yield partials</button>
