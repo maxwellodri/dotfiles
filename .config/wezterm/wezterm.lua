@@ -2,6 +2,8 @@ local wezterm = require("wezterm")
 
 local config = {}
 
+config.audible_bell = "Disabled"
+
 config.front_end = "OpenGL"
 config.max_fps = 60
 
