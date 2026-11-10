@@ -9,8 +9,8 @@ fi
 tag="${dotfile_tag:-}"
 [ -z "$tag" ] && tag="$(cat "$dotfiles/.dotfile_tag" 2>/dev/null || true)"
 case "$tag" in
-    donnie) crates="dirsort qz" ;;
-    *)      crates="dirsort qz herald" ;;
+    donnie) crates="dirsort qz grock" ;;
+    *)      crates="dirsort qz herald grock" ;;
 esac
 
 for crate in $crates; do
