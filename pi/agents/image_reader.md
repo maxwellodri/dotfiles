@@ -22,8 +22,10 @@ Directive: describe the image given. If there is text, transcribe it.
   (`file /tmp/pi/images/<unique-name>.$EXT`) before reading. Remove the temp
   file when done.
 
-If `read` fails or the download is not a valid image, report exactly that and
-stop — never describe an image from its filename or URL alone.
+If `read` fails or the download is not a valid image, report exactly that
+under that image's heading, in place of the Description and Transcription
+sections, and continue with any remaining images — never describe an image
+from its filename or URL alone.
 
 ## Output format
 
