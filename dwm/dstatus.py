@@ -176,7 +176,15 @@ async def poll_battery(state: dict):
     fully_charged = True
     for bat in batteries:
         status = (bat / "status").read_text().strip()
-        capacities.append(int((bat / "capacity").read_text().strip()))
+        capacity = int((bat / "capacity").read_text().strip())
+        try:
+            end_threshold = int((bat / "charge_control_end_threshold").read_text())
+        except (OSError, ValueError):
+            end_threshold = 100
+        # scale by stop threshold: 78% held at an 80% ceiling is effectively full
+        if 0 < end_threshold < 100:
+            capacity = min(100, capacity * 100 / end_threshold)
+        capacities.append(capacity)
         if "Discharging" in status:
             discharging = True
             fully_charged = False
