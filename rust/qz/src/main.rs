@@ -37,6 +37,8 @@ enum Commands {
     List {
         #[arg(long, help = "Print absolute paths only, no formatting")]
         clean: bool,
+        #[arg(long, help = "alias→path pairs as a JSON object (fleetd consumes this)")]
+        json: bool,
         #[arg(long, help = "Only include tmux projects (requires --clean)")]
         tmux: bool,
         #[arg(long, help = "Exclude tmux projects (requires --clean)")]
@@ -687,7 +689,7 @@ fn cmd_find(gui: bool, path_only: bool) -> Result<()> {
     Ok(())
 }
 
-fn cmd_list(clean: bool, tmux: bool, notmux: bool) -> Result<()> {
+fn cmd_list(clean: bool, json: bool, tmux: bool, notmux: bool) -> Result<()> {
     if tmux && notmux {
         bail!("--tmux and --notmux are mutually exclusive");
     }
@@ -696,6 +698,22 @@ fn cmd_list(clean: bool, tmux: bool, notmux: bool) -> Result<()> {
     }
 
     let config = load_config()?;
+
+    if json {
+        let mut pairs = serde_json::Map::new();
+        for (name, project) in &config.projects {
+            if !project.allows_tag(local_dotfile_tag().as_deref()) {
+                continue;
+            }
+            let path = expand_path(&project.path);
+            if !path.is_dir() {
+                continue;
+            }
+            pairs.insert(name.clone(), serde_json::Value::String(path.display().to_string()));
+        }
+        println!("{}", serde_json::Value::Object(pairs));
+        return Ok(());
+    }
 
     if clean {
         for (_, project) in &config.projects {
@@ -749,9 +767,10 @@ fn main() -> Result<()> {
         Some(Commands::Find { path }) => cmd_find(cli.gui, path)?,
         Some(Commands::List {
             clean,
+            json,
             tmux,
             notmux,
-        }) => cmd_list(clean, tmux, notmux)?,
+        }) => cmd_list(clean, json, tmux, notmux)?,
         Some(Commands::GenerateName) => println!("{}", generate_names::generate_name()),
         None => {
             Cli::parse_from(["qz", "--help"]);

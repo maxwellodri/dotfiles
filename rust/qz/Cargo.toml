@@ -15,6 +15,7 @@ regex = "1"
 dirs = "7"
 indexmap = { version = "2", features = ["serde"] }
 rand = "0.10"
+serde_json = "1.0.154"
 
 [profile.release]
 opt-level = 3
