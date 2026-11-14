@@ -81,6 +81,8 @@ export interface LeaderRegistry {
 	unregister(key: string): void;
 	/** Look up the binding for `key`. Used by the leader editor at dispatch. */
 	resolve(key: string): LeaderBinding | undefined;
+	/** Enumerate registered pairs (for help/legend overlays like /keybinds). */
+	list(): Array<{ key: string; description?: string }>;
 	/** Drop every binding. Used by the host on session_shutdown. */
 	clear(): void;
 	/**
@@ -115,6 +117,7 @@ export function getLeaderRegistry(): LeaderRegistry {
 				map.delete(key);
 			},
 			resolve: (key) => map.get(key),
+		list: () => [...map].map(([key, binding]) => ({ key, ...(binding.description ? { description: binding.description } : {}) })),
 			clear: () => {
 				map.clear();
 			},
