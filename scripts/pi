@@ -27,7 +27,7 @@ if [ -z "${PI_BIN:-}" ]; then
 	PI_BIN="${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}/dotfiles-env-result/bin/pi"
 fi
 if [ ! -x "$PI_BIN" ]; then
-	echo "pi not installed — run ${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}/scripts/install_flake.sh to install" >&2
+	echo "pi not installed — run just install (in ${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config})" >&2
 	exit 1
 fi
 # pi-cli rides beside pi in the env composition
