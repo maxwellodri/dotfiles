@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# pi-nova launcher (the fleet TUI, nix-packaged as bin/pi). Thin: secrets
+# (pass) + login-env niceness; session-dir policy, APPEND_SYSTEM layering
+# and update/typecheck live in fleetd/pi-nova. Oneshot flags (--print,
+# --mode, --session...) are upstream pi's domain — routed to pi-cli.
+set -euo pipefail
+
+: "${dotfiles:?pi wrapper: \$dotfiles is not set (source your shell rc).}"
+export PI_CODING_AGENT_DIR="$dotfiles/pi"
+
+# Agent-spawned curl picks up pi/.curlrc (descriptive UA; crates.io 403s
+# bare curl/VER). CURL_HOME is curl's only env-var hook; inherit-safe.
+: "${CURL_HOME:=$PI_CODING_AGENT_DIR}"
+export CURL_HOME
+
+# Cargo niceness for agent-spawned builds 🥺
+case "${dotfile_tag:-}" in
+  hackerman) CARGO_BUILD_JOBS=2 ;;
+  donnie)    CARGO_BUILD_JOBS=2 ;; #vps vcpus — tune to the plan
+  *)         CARGO_BUILD_JOBS=4 ;;
+esac
+export CARGO_BUILD_JOBS
+NICE=(nice -n 19 ionice -c 3)
+
+if [ -z "${PI_BIN:-}" ]; then
+	PI_BIN="${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}/dotfiles-env-result/bin/pi"
+fi
+if [ ! -x "$PI_BIN" ]; then
+	echo "pi not installed — run just install (in ${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config})" >&2
+	exit 1
+fi
+# pi-cli rides beside pi in the env composition
+PI_CLI_BIN="$(dirname "$PI_BIN")/pi-cli"
+
+# Cached key skips the gpg round-trip for frequent respawns (nvim's pi.lua
+# oneshot children export this after the first pass read).
+if [ -z "${ZAI_API_KEY:-}" ]; then
+	if ! ZAI_API_KEY="$(pass zai_pi_api_key)"; then
+		echo "pi wrapper: failed to read 'zai_pi_api_key' from pass" >&2
+		exit 1
+	fi
+fi
+# OpenRouter/OpenCode serve the nvim oneshot models; soft-fail — zai stays
+# the required key.
+if [ -z "${OPENROUTER_API_KEY:-}" ]; then
+	OPENROUTER_API_KEY="$(pass openrouter_api_key 2>/dev/null || true)"
+	[ -n "$OPENROUTER_API_KEY" ] && export OPENROUTER_API_KEY
+fi
+if [ -z "${OPENCODE_API_KEY:-}" ]; then
+	OPENCODE_API_KEY="$(pass zen_opencode_api_key 2>/dev/null || true)"
+	[ -n "$OPENCODE_API_KEY" ] && export OPENCODE_API_KEY
+fi
+
+# Oneshots (nvim pi.lua, scripts) are upstream pi: route to pi-cli.
+# pi-nova is the interactive fleet TUI.
+for a in "$@"; do
+	case "$a" in
+		--print|-p|--mode|--session|--continue|-c|--resume|-r|--fork)
+			if [ -x "$PI_CLI_BIN" ]; then
+				exec env ZAI_API_KEY="$ZAI_API_KEY" "${NICE[@]}" "$PI_CLI_BIN" "$@"
+			fi ;;
+		--) break ;;
+		-*) ;; # other flags keep scanning
+		*) break ;; # first positional ends the flag window
+	esac
+done
+
+exec env ZAI_API_KEY="$ZAI_API_KEY" "${NICE[@]}" "$PI_BIN" "$@"

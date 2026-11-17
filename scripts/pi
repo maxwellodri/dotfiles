@@ -1,20 +1,26 @@
 #!/usr/bin/env bash
-# pi launcher wrapper (thin — the fleet absorbed the rest):
-#   secrets (pass) + login-env niceness + routing between pi-nova (the
-#   daily driver; nix-packaged as `pi`) and upstream pi (`pi-cli`).
-# Session-dir policy, APPEND_SYSTEM layering, OSC 11 canvas and
-# update/typecheck live in fleetd/pi-nova now.
+# Pi launcher wrapper.
 set -euo pipefail
 
 : "${dotfiles:?pi wrapper: \$dotfiles is not set (source your shell rc).}"
-export PI_CODING_AGENT_DIR="$dotfiles/pi"
 
-# Agent-spawned curl picks up pi/.curlrc (descriptive UA; crates.io 403s
-# bare curl/VER). CURL_HOME is curl's only env-var hook; inherit-safe.
+export PI_CODING_AGENT_DIR="$dotfiles/pi"
+export PI_CODING_AGENT_SESSION_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi/sessions"
+# Where /archive (pi/extensions/archive.ts) retires finished threads
+export PI_CODING_AGENT_ARCHIVED_SESSION_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi/archived_sessions"
+# Agent-spawned curl picks up pi/.curlrc (descriptive UA; crates.io 403s bare
+# curl/VER). CURL_HOME is curl's only env-var hook for config; inherit-safe.
 : "${CURL_HOME:=$PI_CODING_AGENT_DIR}"
 export CURL_HOME
+#Ensure that private repo has symlinked pi sessions (live + archived)
+if [ ! -L "$PI_CODING_AGENT_SESSION_DIR" ] || [ ! -d "$PI_CODING_AGENT_SESSION_DIR" ] \
+	|| [ ! -L "$PI_CODING_AGENT_ARCHIVED_SESSION_DIR" ] || [ ! -d "$PI_CODING_AGENT_ARCHIVED_SESSION_DIR" ]; then
+	echo "pi wrapper: $PI_CODING_AGENT_SESSION_DIR and $PI_CODING_AGENT_ARCHIVED_SESSION_DIR must be symlinks into ~/source/private/runtime/pi/\$dotfile_tag" >&2
+	echo "run ~/source/private/install.sh to set it up (or symlink them manually)" >&2
+	exit 1
+fi
 
-# Cargo niceness for agent-spawned builds 🥺
+#Cargo / niceness limits 🥺
 case "${dotfile_tag:-}" in
   hackerman) CARGO_BUILD_JOBS=2 ;;
   donnie)    CARGO_BUILD_JOBS=2 ;; #vps vcpus — tune to the plan
@@ -23,15 +29,28 @@ esac
 export CARGO_BUILD_JOBS
 NICE=(nice -n 19 ionice -c 3)
 
+# pi = upstream pi (pi-cli); pi-nova (the fleet TUI) rides beside it as
+# the pi-nova script and bin/pi
 if [ -z "${PI_BIN:-}" ]; then
-	PI_BIN="${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}/dotfiles-env-result/bin/pi"
+	PI_BIN="${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}/dotfiles-env-result/bin/pi-cli"
 fi
 if [ ! -x "$PI_BIN" ]; then
 	echo "pi not installed — run just install (in ${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config})" >&2
 	exit 1
 fi
-# pi-cli rides beside pi in the env composition
-PI_CLI_BIN="$(dirname "$PI_BIN")/pi-cli"
+
+case "${1:-}" in
+	update)
+		echo "pi is nix-managed — updating via just update"
+		exec just -f "${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}/justfile" update ;;
+	typecheck)
+		# nix-built tsc vs the nix-built pi's .d.ts (see nix_config pkgs/pi/default.nix)
+		# --no-warn-dirty: the nix_config tree is routinely dirty; the flake
+		# warning is noise here
+		exec nix run --no-warn-dirty "${NIX_CONFIG_DIR:-$SOURCE/nix_config}"#typecheck -- "$PI_CODING_AGENT_DIR/extensions" ;;
+	install|remove|uninstall|list|config|--help|-h|--version|-v)
+		exec "$PI_BIN" "$@" ;;
+esac
 
 # Cached key skips the gpg round-trip for frequent respawns (nvim's pi.lua
 # oneshot children export this after the first pass read).
@@ -41,29 +60,42 @@ if [ -z "${ZAI_API_KEY:-}" ]; then
 		exit 1
 	fi
 fi
-# OpenRouter/OpenCode serve the nvim oneshot models; soft-fail — zai stays
-# the required key.
+
+# OpenRouter serves the nvim oneshot models (gpt-oss via Groq/Cerebras
+# routes); soft-fail — zai stays the required key.
 if [ -z "${OPENROUTER_API_KEY:-}" ]; then
-	OPENROUTER_API_KEY="$(pass openrouter_api_key 2>/dev/null || true)"
-	[ -n "$OPENROUTER_API_KEY" ] && export OPENROUTER_API_KEY
+	if OPENROUTER_API_KEY="$(pass openrouter_api_key 2>/dev/null)"; then
+		export OPENROUTER_API_KEY
+	fi
 fi
+
 if [ -z "${OPENCODE_API_KEY:-}" ]; then
-	OPENCODE_API_KEY="$(pass zen_opencode_api_key 2>/dev/null || true)"
-	[ -n "$OPENCODE_API_KEY" ] && export OPENCODE_API_KEY
+	if OPENCODE_API_KEY="$(pass zen_opencode_api_key 2>/dev/null)"; then
+		export OPENCODE_API_KEY
+	fi
 fi
 
-# Oneshots (nvim pi.lua, scripts) are upstream pi: route to pi-cli.
-# pi-nova is the interactive fleet TUI.
-for a in "$@"; do
-	case "$a" in
-		--print|-p|--mode|--session|--continue|-c|--resume|-r|--fork)
-			if [ -x "$PI_CLI_BIN" ]; then
-				exec env ZAI_API_KEY="$ZAI_API_KEY" "${NICE[@]}" "$PI_CLI_BIN" "$@"
-			fi ;;
-		--) break ;;
-		-*) ;; # other flags keep scanning
-		*) break ;; # first positional ends the flag window
-	esac
-done
+# Gruvbox canvas for to match theme.
+if [ -t 1 ] && [ -z "${PI_NO_CANVAS:-}" ]; then
+	clear
+	# shellcheck disable=SC1003
+	printf '\033]11;#282828\033\\'
+	trap 'clear; printf "\033]111\033\\"' EXIT INT TERM
+fi
 
-exec env ZAI_API_KEY="$ZAI_API_KEY" "${NICE[@]}" "$PI_BIN" "$@"
+# Pi's APPEND_SYSTEM.md discovery is shadowing-only: a project file hides
+# the global one. Flags layer instead, but any explicit flag disables
+# discovery, so always pass the global, plus the project copy when present.
+# Global first, then local. Nonexistent paths would be injected as literal
+# text, hence the -f guards.
+APPEND_FLAGS=()
+if [ -f "$PI_CODING_AGENT_DIR/APPEND_SYSTEM.md" ]; then
+	APPEND_FLAGS+=(--append-system-prompt "$PI_CODING_AGENT_DIR/APPEND_SYSTEM.md")
+fi
+if [ -f "$PWD/.pi/APPEND_SYSTEM.md" ]; then
+	APPEND_FLAGS+=(--append-system-prompt "$PWD/.pi/APPEND_SYSTEM.md")
+fi
+
+# Run pi (child, not exec) so the trap fires on its return. Pass --session-dir
+# explicitly (highest precedence; reliable across pi versions).
+ZAI_API_KEY="$ZAI_API_KEY" "${NICE[@]}" "$PI_BIN" --session-dir "$PI_CODING_AGENT_SESSION_DIR" "${APPEND_FLAGS[@]}" "$@"
