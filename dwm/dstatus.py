@@ -8,6 +8,7 @@ Heavy commands (docker, wg, ping, checkupdates) run minutes apart, not per tick.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import functools
 import math
 import os
@@ -17,6 +18,7 @@ import signal
 import subprocess
 import sys
 import time
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -26,8 +28,8 @@ PACKAGE_FILE = SCRIPT_DIR / "package_file.txt"
 PACKAGE_CACHE_SECONDS = 3600
 
 INTERVALS = {
-    "cpu": 5,
-    "memory": 5,
+    "cpu": 2,
+    "memory": 2,
     "reminders": 60,
     "internet": 30,
     "docker": 60,
@@ -66,13 +68,21 @@ async def run_cmd(args: list[str], timeout: float = 15) -> str | None:
             *args,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
+            start_new_session=True,
         )
     except (FileNotFoundError, PermissionError, OSError):
         return None
     try:
         stdout, _ = await asyncio.wait_for(proc.communicate(), timeout)
     except asyncio.TimeoutError:
-        proc.kill()
+        # kill the whole group: grandchildren (e.g. checkupdates under
+        # `sh -c`) inherit the stdout pipe, and an abandoned communicate()
+        # blocked on that pipe never completes — the task becomes
+        # uncancellable and wedges the shutdown gather forever
+        with contextlib.suppress(OSError):
+            os.killpg(proc.pid, signal.SIGKILL)
+        with contextlib.suppress(Exception):
+            await asyncio.wait_for(proc.wait(), 5)
         return None
     if proc.returncode != 0:
         return None
@@ -93,7 +103,7 @@ def poller(interval: int):
                 except asyncio.CancelledError:
                     raise
                 except Exception:
-                    pass
+                    traceback.print_exc()
                 await asyncio.sleep(interval)
 
         return run
@@ -261,13 +271,18 @@ def tag_tail(state: dict) -> str:
 async def render_loop(state: dict, stdout_mode: bool):
     last_status = None
     while True:
-        status = compose_status(state)
-        if status != last_status:
-            last_status = status
-            if stdout_mode:
-                print(status, flush=True)
-            else:
-                await run_cmd(["xsetroot", "-name", status], timeout=5)
+        try:
+            status = compose_status(state)
+            if status != last_status:
+                last_status = status
+                if stdout_mode:
+                    print(status, flush=True)
+                else:
+                    await run_cmd(["xsetroot", "-name", status], timeout=5)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            traceback.print_exc()
         await asyncio.sleep(INTERVALS["render"])
 
 
@@ -290,20 +305,19 @@ async def main(stdout_mode: bool):
     state: dict = {}
     polls = pollers_for_tag() + [functools.partial(render_loop, stdout_mode=stdout_mode)]
     tasks = [asyncio.create_task(poll(state)) for poll in polls]
+    stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(sig, tasks[0].cancel)
-    try:
-        await tasks[0]
-    except asyncio.CancelledError:
-        pass
-    finally:
-        for task in tasks:
-            task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
-        if not stdout_mode:
-            # visible marker that the bar daemon died (mirrors old dstatus.sh trap)
-            subprocess.run(["xsetroot", "-name", "😠"], check=False)
+        loop.add_signal_handler(sig, stop.set)
+    await stop.wait()
+    for task in tasks:
+        task.cancel()
+    # bounded shutdown: a task stuck in uncancellable cleanup must not leave
+    # a zombie process freezing the bar at its last render
+    await asyncio.wait(tasks, timeout=10)
+    if not stdout_mode:
+        # visible marker that the bar daemon died (mirrors old dstatus.sh trap)
+        subprocess.run(["xsetroot", "-name", "😠"], check=False)
 
 
 if __name__ == "__main__":
