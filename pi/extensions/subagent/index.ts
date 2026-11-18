@@ -507,10 +507,14 @@ const ChainItem = Type.Object({
 	cwd: Type.Optional(Type.String({ description: "Working directory for the agent process" })),
 });
 
-const AgentScopeSchema = StringEnum(["user", "project", "both"] as const, {
-	description: 'Which agent directories to use. Default: "user". Use "both" to include project-local agents.',
-	default: "user",
-});
+// Type.Unsafe: StringEnum's brand is pi-schema's, not TypeBox's — inside a
+// Type.Object the static type collapses to {} without the TypeBox wrapper
+const AgentScopeSchema = Type.Unsafe<AgentScope>(
+	StringEnum(["user", "project", "both"] as const, {
+		description: 'Which agent directories to use. Default: "user". Use "both" to include project-local agents.',
+		default: "user",
+	}),
+);
 
 const SubagentParams = Type.Object({
 	agent: Type.Optional(Type.String({ description: "Name of the agent to invoke (for single mode)" })),
