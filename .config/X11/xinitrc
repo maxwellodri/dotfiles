@@ -48,7 +48,7 @@ if [ "$(basename "$WM")" = "dwm" ]; then
     numlockx on
     xset b off
     #sleep 1
-    [ "$(basename "$WM")" = "dwm" ] && [ -f "$dotfiles/dwm/dstatus.py" ] && "$dotfiles/dwm/dstatus.py" >/dev/null 2>&1 &
+    [ "$(basename "$WM")" = "dwm" ] && [ -f "$dotfiles/dwm/dstatus.py" ] && "$dotfiles/dwm/dstatus.py" >>"${XDG_STATE_HOME:-$HOME/.local/state}/dstatus.log" 2>&1 &
     "$dotfiles/dwm/startup.sh" &
     wait $startdwm_pid
     timeout 5 systemctl --user stop graphical-session-anchor.service || true

@@ -5,7 +5,7 @@ description: Use when presenting a GUI to the user OR when testing GUI code your
 ---
 This skill only applies to non-web UIs. For web UIs, use the `web-browser-use` skill instead.
 Gate all host-display behaviour on `$dotfile_tag`.
-- `hackerman`/`pc` are the user's personal devices: pin every window the agent spawns with `DWM_FORCE_MONITOR=0 DWM_FORCE_TAG=8` (dwm reads these from the client's environment; export on the launcher so whole process trees inherit them), and never screenshot the host display: the user works concurrently, tag 8 isn't focused, and a host screenshot would capture their unrelated work. If you need a screenshot or other interaction to test, see below.
+- `hackerman`/`pc` are the user's personal devices: pin every window the agent spawns with `DWM_FORCE_MONITOR=0 DWM_FORCE_TAG=8` (dwm reads these from the client's environment; export on the launcher so whole process trees inherit them), and never screenshot the host display: the user works concurrently, tag 8 isn't focused, and a host screenshot would capture their unrelated work. **Firefox is the exception**: it X-remotes new URLs to the existing process, so `DWM_FORCE_*` never reaches the new window — pages land on the user's current firefox tag without stealing focus; spawn it plainly (`firefox <url>`) and don't claim a tag. If you need a screenshot or other interaction to test, see below.
 - `snuggy` is a standalone server: nobody is watching, go wild.
 
 # Handoff GUIs to the user

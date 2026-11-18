@@ -53,3 +53,10 @@ Open in Firefox, if applicable you'll want to call the ask_user_question tool ri
 ```sh
 DWM_FORCE_TAG=8 DWM_FORCE_MONITOR=0 firefox <dir>/demo.html
 ```
+Firefox exception: `DWM_FORCE_*` does NOT affect it — a new URL is
+remoted to the EXISTING firefox process, so the env vars never reach a
+new window. The page opens wherever the user keeps firefox (their
+current tag, no focus steal). Just `firefox <url>`; say so in the
+handoff message instead of promising tag 8. (Same applies to any
+X-remoting client: check where the window actually maps before
+claiming a tag.)
