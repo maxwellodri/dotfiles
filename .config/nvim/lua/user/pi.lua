@@ -25,7 +25,7 @@ local M = {}
 local oneshot = {
     model = "openrouter/openai/gpt-oss-120b", -- settings map it to low thinking
     env = "OPENROUTER_API_KEY",
-    pass_entry = "openrouter_api_key",
+    sops_key = "openrouter_api_key",
 }
 
 local ONESHOT_DIRECTIVE = ([[You are making a single inline edit inside the user's editor.
@@ -195,7 +195,17 @@ end
 ---Read the oneshot provider key once per nvim process so children skip the gpg round-trip.
 local function get_api_key()
     if S.api_key == nil then
-        local out = vim.fn.systemlist({ "pass", oneshot.pass_entry })
+        -- a key exported by the launching shell skips the sops/gpg round-trip
+        if vim.env[oneshot.env] and vim.env[oneshot.env] ~= "" then
+            S.api_key = vim.env[oneshot.env]
+            return S.api_key
+        end
+        local nixcfg = vim.env.NIX_CONFIG_DIR
+            or (vim.env.SOURCE or (os.getenv("HOME") .. "/source")) .. "/nix_config"
+        local sops = nixcfg .. "/dotfiles-env-result/bin/sops"
+        if vim.fn.executable(sops) ~= 1 then sops = "sops" end
+        local out = vim.fn.systemlist({ sops, "-d", "--extract",
+            '["' .. oneshot.sops_key .. '"]', nixcfg .. "/secrets/secrets.yaml" })
         if vim.v.shell_error == 0 and out and out[1] and out[1] ~= "" then
             S.api_key = out[1]
         end
@@ -391,7 +401,7 @@ local function submit()
         return
     end
     if not get_api_key() then
-        vim.notify(("π: no %s — check `pass %s`"):format(oneshot.env, oneshot.pass_entry), vim.log.levels.ERROR)
+        vim.notify(("π: no %s — check the '%s' sops key"):format(oneshot.env, oneshot.sops_key), vim.log.levels.ERROR)
         return
     end
     write_buf(ctx.buf) -- the edit tool operates on disk
