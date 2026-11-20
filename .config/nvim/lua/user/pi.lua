@@ -410,7 +410,8 @@ local function submit()
         "--append-system-prompt", ONESHOT_DIRECTIVE,
         "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files",
         "--tools", "edit",
-        "--extension", vim.env.dotfiles .. "/pi/extensions/oneshot-edit.ts",
+        "--extension", (vim.env.NIX_CONFIG_DIR or vim.env.SOURCE .. "/nix_config")
+            .. "/pi/extensions/oneshot-edit.ts",
     })
     if not child then return end
     child.instruction = text

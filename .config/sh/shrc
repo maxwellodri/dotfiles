@@ -31,7 +31,7 @@ export QMK="$SOURCE/qmk_firmware"
 export JUPYTERLAB_DIR="$HOME/.local/share/jupyter/lab"
 # keep in sync: systemd --user service PATH lives in nix_config
 # (systems/dotfiles-env/files/environment.d, deployed to ~/.config/environment.d)
-export PATH="$SOURCE/dotfiles/pi/scripts:$BIN:$BIN/steam_scripts:$HOME/.local/share/cargo/bin:$HOME/.local/bin:$PATH"
+export PATH="$BIN:$BIN/steam_scripts:$HOME/.local/share/cargo/bin:$HOME/.local/bin:$PATH"
 export MANPAGER='nvim +Man!'
 # gpg-agent ssh emulation; socket-activated, exists only where enabled
 if command -v gpgconf >/dev/null 2>&1; then
