@@ -1,9 +1,10 @@
 /**
  * websearch.ts — web_search tool wrapping the Brave Search API (typed
- * params, structured details; key from `pass show brave_search_api_key`,
+ * params, structured details; key decrypted from the nix_config sops vault,
  * never on argv).
  */
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import { promisify } from "node:util";
 import { Type } from "typebox";
 import { Text } from "@earendil-works/pi-tui";
@@ -12,7 +13,7 @@ import type { AgentToolResult, ExtensionAPI } from "@earendil-works/pi-coding-ag
 const pexec = promisify(execFile);
 
 const ENDPOINT = "https://api.search.brave.com/res/v1/web/search";
-const PASS_ENTRY = "brave_search_api_key";
+const SOPS_KEY = "brave_api_key";
 const DEFAULT_COUNT = 10;
 
 // Locale-derived country bias / result language: en_AU.UTF-8 -> au / en.
@@ -29,12 +30,32 @@ interface BraveResult {
 	description?: string;
 }
 
-/** pass lookup is a gpg decrypt — cache for the session. */
+// vault roots mirror scripts/pi's resolution: NIX_CONFIG_DIR, then SOURCE,
+// then the default ~/source layout
+function secretsFile(): string | undefined {
+	const roots = [
+		process.env.NIX_CONFIG_DIR,
+		process.env.SOURCE && `${process.env.SOURCE}/nix_config`,
+		`${process.env.HOME}/source/nix_config`,
+	];
+	for (const root of roots) {
+		if (root && existsSync(`${root}/secrets/secrets.yaml`)) {
+			return `${root}/secrets/secrets.yaml`;
+		}
+	}
+	return undefined;
+}
+
+/** sops decrypt is a gpg/age round-trip — cache for the session. */
 let cachedKey: string | undefined;
 
 async function getApiKey(): Promise<string> {
 	if (cachedKey) return cachedKey;
-	const { stdout } = await pexec("pass", ["show", PASS_ENTRY]);
+	const file = secretsFile();
+	if (!file) {
+		throw new Error("nix_config secrets file not found (set NIX_CONFIG_DIR or clone at ~/source/nix_config)");
+	}
+	const { stdout } = await pexec("sops", ["-d", "--extract", `["${SOPS_KEY}"]`, file]);
 	cachedKey = stdout.trim();
 	return cachedKey;
 }
