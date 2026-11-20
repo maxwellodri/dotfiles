@@ -6,6 +6,9 @@
 # text as its input message. Ideal for yts output:
 #   yts video.mp4 | summarize
 #   summarize "paste of long text..."
+# Extra instructions for a specific run:
+#   summarize -p "focus on costs" "paste of long text..."
+#   yts video.mp4 | summarize -p "focus on costs"
 # Model override: SUMMARIZE_MODEL='google/gemini-2.5-flash' summarize ...
 
 set -euo pipefail
@@ -65,6 +68,31 @@ You take content in and output a Markdown formatted summary using the format bel
 EOF
 )
 
+extra_prompt=""
+positional=()
+while (($#)); do
+    case "$1" in
+        -p)
+            if (($# < 2)); then
+                echo "summarize: -p requires an argument" >&2
+                exit 1
+            fi
+            extra_prompt=$2
+            shift 2
+            ;;
+        --)
+            shift
+            positional+=("$@")
+            break
+            ;;
+        *)
+            positional+=("$1")
+            shift
+            ;;
+    esac
+done
+set -- ${positional+"${positional[@]}"}
+
 if (($#)); then
     text="$*"
 elif [[ ! -t 0 ]]; then
@@ -77,6 +105,10 @@ fi
 if [[ -z "$text" ]]; then
     echo "summarize: empty input" >&2
     exit 1
+fi
+
+if [[ -n "$extra_prompt" ]]; then
+    PROMPT+=$'\n\nAdditional instructions for this specific summary (these override any instructions above):\n'"$extra_prompt"
 fi
 
 pi_args=(
