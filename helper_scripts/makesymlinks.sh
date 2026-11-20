@@ -36,6 +36,7 @@ alacritty=".config/alacritty/"
 wezterm=".config/wezterm/"
 desktop_apps=".local/share/applications/default_handler.desktop .local/share/applications/wine.desktop"
 heraldcfg=.config/herald/config.toml
+transmission=.config/transmission-daemon/settings.json
 gpgagent=.gnupg/gpg-agent.conf
 
 
@@ -47,7 +48,7 @@ zsh=" .zshrc .zshrc_extra .zprofile .config/zsh $sh"
 files=" .config/vim/ .config/nvim/ $ytdl $newsboat $tmux $gitconfig $npm $faucet $systemd"
 
 ###########
-pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $eww $desktop_apps $heraldcfg" #platform specific dotfiles
+pcfiles=" $xfiles $zsh $mpv $mpd $vimpc $nix $dotfiles $qz $eww $desktop_apps $heraldcfg $transmission" #platform specific dotfiles
 hackermanfiles=" $xfiles $zsh $mpv $nix $dotfiles $qz $eww $desktop_apps $heraldcfg $gpgagent"
 donniefiles=" $zsh $nix $dotfiles $qz" #headless NixOS server
 snuggyfiles=" $zsh $nix $dotfiles $qz" #headless NixOS server (devbox replacement)
@@ -145,6 +146,9 @@ for file in $files; do
             ;;
 
         "$gpgagent")            src="$dir/$file.$tag"
+            ;;
+
+        "$transmission")        src="$dir/$file.$tag"
             ;;
 
         "$zathura")             src="$dir/.config/zathura/zathurarc"
