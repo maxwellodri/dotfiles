@@ -2,13 +2,15 @@
 # title reset for st; NixOS has no /usr/bin — fall back to the first real
 # nvim on PATH, skipping this shim's own dir to avoid self-recursion
 run() {
-	"$1" "$@"
+	bin=$1
+	shift
+	"$bin" "$@"
 	rc=$?
 	printf '\033]0;st\007'
 	exit $rc
 }
 if [ -x /usr/bin/nvim ]; then
-	run /usr/bin/nvim
+	run /usr/bin/nvim "$@"
 fi
 self_dir=$(dirname "$0")
 oIFS=$IFS
@@ -16,7 +18,7 @@ IFS=:
 for d in $PATH; do
 	if [ "$d" != "$self_dir" ] && [ -x "$d/nvim" ]; then
 		IFS=$oIFS
-		run "$d/nvim"
+		run "$d/nvim" "$@"
 	fi
 done
 IFS=$oIFS
