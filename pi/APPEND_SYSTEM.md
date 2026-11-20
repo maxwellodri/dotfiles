@@ -75,4 +75,4 @@ Then verify: if the reader reads only the first line, do they know what to do ne
 
 
 # Commit style:
-Always kernel style , <= 80 chars, no body.
+Always kernel style with no body. Try for <= 80 chars, (going a bit over is ok)
