@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# chromium for the agent browser: playwright-config.json pins this path.
+# On headless machines the Xvfb :99 service provides the display — use it
+# only when it exists, so GUI machines keep their real display.
+if [ -S /tmp/.X11-unix/X99 ] && [ -z "${DISPLAY:-}" ]; then
+    export DISPLAY=:99
+fi
+exec chromium "$@"
