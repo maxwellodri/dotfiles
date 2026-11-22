@@ -20,7 +20,7 @@ if [ "/dev/tty$XDG_VTNR" = $(tty) ]; then  #if shell is a login shell/tty
                         ;;
         esac
     fi
-    [ ! "$DISPLAY" ]  && [ "$WM" ] && export WM && export WMNAME="$(basename $WM)" && startx || echo "$WM failed to start"
+    [ -z "$SSH_CONNECTION" ] && [ ! "$DISPLAY" ]  && [ "$WM" ] && export WM && export WMNAME="$(basename $WM)" && startx || echo "$WM failed to start"
 fi
 
 

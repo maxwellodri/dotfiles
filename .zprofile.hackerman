@@ -39,7 +39,7 @@ if [ -z "$WM" ] ; then
 fi
 export WM
 export WMNAME="$(basename "$WM")"
-[ ! "$DISPLAY" ] && [ -n "$WM" ] && startx
+[ -z "$SSH_CONNECTION" ] && [ ! "$DISPLAY" ] && [ -n "$WM" ] && startx
 
 [ -e "$HOME/.zshrc_extra" ] && source "$HOME/.zshrc_extra" #load platform-specific overrides (last, so it wins)
 [ "$IS_USER_LLM_AGENT" != 1 ] && [ ! -s ~/.config/mpd/pid ] && [ -f "$(which mpd)" ] && mpd &
