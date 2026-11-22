@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
+# $1 = invoking pane id (passed by binding): run-shell children can't rely on
+# implicit targets, so every tmux call gets an explicit -t
+p="${1:?usage: _tmux_move_window_selector <pane_id>}"
+sess=$(tmux display-message -p -t "$p" '#{session_id}')
 
 target=$(tmux list-windows -F "#{window_index}: #{window_name}" \
-  | grep -v "^$(tmux display-message -p "#I"):" \
+  | grep -v "^$(tmux display-message -p -t "$p" "#I"):" \
   | fzf-tmux -p 40%,30% --prompt="Move to: " \
   | cut -d: -f1)
 
 if [ -n "$target" ]; then
-  tmux join-pane -t :"$target"
+    tmux join-pane -s "$p" -t "$sess:$target"
 fi
