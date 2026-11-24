@@ -7,7 +7,7 @@
 *.AppImage
 org/*.el$
 dwm/nohup.out
-pi/models-store.json
+.pi/
 !org/$
 !org/*.org$
 !.emacs.d/init.el$
