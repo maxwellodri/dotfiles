@@ -65,7 +65,10 @@ M.settings = {
 }
 
 M.ensure_installed_servers = {"vimls", "pyright", "bashls", "nil_ls" }
-M.automatic_enable_exclude_servers = { "rust_analyzer" }
+M.automatic_enable_exclude_servers = { "rust_analyzer", "bacon_ls" }
+-- mason-lspconfig ensure_installed can't resolve servers without the
+-- nvim-lspconfig plugin, so bacon-ls is ensured directly here
+M.ensure_installed_packages = { "bacon", "bacon-ls" }
 M.get_auto_enable_servers = function ()
     -- Diff  of ensure_installed_servers - automatic_enable_exclude_servers
     local autoenableservers = {}
@@ -104,6 +107,15 @@ M.setup = function()
         ensure_installed =  M.ensure_installed_servers,
         automatic_enable = { exclude =  M.automatic_enable_exclude_servers },
     })
+    local ok, registry = pcall(require, "mason-registry")
+    if ok then
+        for _, name in ipairs(M.ensure_installed_packages) do
+            local pkg = registry.get_package(name)
+            if not pkg:is_installed() then
+                pkg:install()
+            end
+        end
+    end
     M.check_bacon_installed()
 end
 return M
