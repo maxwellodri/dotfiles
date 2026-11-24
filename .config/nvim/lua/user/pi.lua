@@ -231,7 +231,7 @@ local function spawn_child(extra_args)
     }
     -- settings.json still needed (model thinking map); lazy MCP servers never
     -- spawn under the edit-only tool allowlist.
-    local env = vim.tbl_extend("force", vim.fn.environ(), { PI_CODING_AGENT_DIR = vim.env.dotfiles .. "/pi" })
+    local env = vim.tbl_extend("force", vim.fn.environ(), { PI_CODING_AGENT_DIR = nixcfg .. "/pi" })
     env.PI_NVIM_ONESHOT = "1" -- gates oneshot-edit.ts (auto-discovered elsewhere)
     local key = get_api_key()
     if key then env[oneshot.env] = key end
