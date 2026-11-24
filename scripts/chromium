@@ -5,4 +5,13 @@
 if [ -S /tmp/.X11-unix/X99 ] && [ -z "${DISPLAY:-}" ]; then
     export DISPLAY=:99
 fi
-exec chromium "$@"
+self="$(readlink -f "${BASH_SOURCE[0]}")"
+# nix_config's pinned build first: nothing puts it on PATH under this name
+nixcfg="${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}"
+for p in "$nixcfg/dotfiles-env-result/bin/chromium" $(type -ap chromium); do
+    [ -x "$p" ] || continue
+    [ "$(readlink -f "$p")" = "$self" ] && continue
+    exec "$p" "$@"
+done
+echo "chromium: no chromium found (nix_config's dotfiles-env-result, then PATH)" >&2
+exit 1
