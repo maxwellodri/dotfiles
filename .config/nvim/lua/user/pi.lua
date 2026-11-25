@@ -219,8 +219,7 @@ local function spawn_child(extra_args)
     -- oneshots are its domain, the fleet TUI client has no rpc mode
     local bin = (vim.env.PI_HOME or (os.getenv("HOME") .. "/.local/state/pi")) .. "/profile/bin/pi-upstream"
     if vim.fn.executable(bin) ~= 1 then
-        vim.notify("π: " .. bin .. " missing — run `just install <machine>` in ~/source/pi",
-            vim.log.levels.ERROR)
+        vim.notify("π: pi is not installed", vim.log.levels.ERROR)
         return nil
     end
     local args = { bin, "--mode", "rpc" }
