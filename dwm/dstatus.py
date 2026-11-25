@@ -35,6 +35,7 @@ INTERVALS = {
     "docker": 60,
     "wireguard": 5,
     "battery": 30,
+    "bluetooth": 15,
     "packages": 3600,
     "keymap": 300,
     "render": 1,
@@ -218,6 +219,38 @@ async def poll_battery(state: dict):
         emoji = "🔋👎"
     state["battery"] = f"{emoji}: {percentage}%"
 
+
+def parse_battery_level(info: str) -> int | None:
+    for line in info.splitlines():
+        if "Battery Percentage" not in line:
+            continue
+        numbers = re.findall(r"\d+", line)
+        if numbers and int(numbers[-1]) <= 100:
+            return int(numbers[-1])
+    return None
+
+
+@poller(INTERVALS["bluetooth"])
+async def poll_bluetooth(state: dict):
+    if not shutil.which("bluetoothctl"):
+        state["bluetooth"] = ""
+        return 3600
+    connected = await run_cmd(["bluetoothctl", "devices", "Connected"], timeout=10)
+    if connected is None:
+        state["bluetooth"] = ""
+        return
+    levels = []
+    for line in connected.splitlines():
+        parts = line.split(None, 2)
+        if len(parts) < 2 or parts[0] != "Device":
+            continue
+        info = await run_cmd(["bluetoothctl", "info", parts[1]], timeout=10)
+        level = parse_battery_level(info) if info else None
+        level = "--" if level is None else level
+        levels.append(f"🔷: {level:>3}%")
+    state["bluetooth"] = " ".join(levels)
+
+
 async def refresh_packages(state: dict):
     output = await run_cmd(["sh", "-c", "checkupdates | wc -l"], timeout=300)
     if output is None:
@@ -260,7 +293,9 @@ def compose_status(state: dict) -> str:
         f"🌏: {internet} 🚚: {packages}{docker}{tail}"
     )
     # late-arriving pollers leave empty gaps; collapse them
-    return re.sub(r" {2,}", " ", status).strip()
+    status = re.sub(r" {2,}", " ", status).strip()
+    bluetooth = state.get("bluetooth", "")
+    return f"{bluetooth} {status}" if bluetooth else status
 
 
 def tag_tail(state: dict) -> str:
@@ -299,6 +334,7 @@ def pollers_for_tag() -> list:
         poll_internet,
         poll_docker,
         poll_wireguard,
+        poll_bluetooth,
         poll_packages,
     ]
     if TAG == "hackerman":
