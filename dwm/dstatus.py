@@ -89,23 +89,29 @@ async def run_cmd(args: list[str], timeout: float = 15) -> str | None:
     return stdout.decode(errors="replace").strip()
 
 
+async def run_once(poll, state: dict):
+    try:
+        return await poll(state)
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        traceback.print_exc()
+
+
 def poller(interval: int):
     """Decorate an async poller: run once immediately, then every interval.
 
     A failed run keeps the previous state instead of blanking the bar.
+    A poller may return a delay to override the default interval.
     """
 
     def wrap(func):
         async def run(state: dict):
             while True:
-                try:
-                    await func(state)
-                except asyncio.CancelledError:
-                    raise
-                except Exception:
-                    traceback.print_exc()
-                await asyncio.sleep(interval)
+                delay = await run_once(func, state)
+                await asyncio.sleep(delay or interval)
 
+        run.once = func
         return run
 
     return wrap
@@ -143,7 +149,7 @@ async def poll_memory(state: dict):
 async def poll_reminders(state: dict):
     if not shutil.which("get_reminders.sh"):
         state["reminders"] = "😠: 0"
-        return await asyncio.sleep(3600)
+        return 3600
     count = await run_cmd(["get_reminders.sh", "--count"], timeout=30)
     state["reminders"] = f"🧐: {count}" if count is not None else "😠: 0"
 
@@ -158,7 +164,7 @@ async def poll_internet(state: dict):
 async def poll_docker(state: dict):
     if not shutil.which("docker"):
         state["docker"] = ""
-        return await asyncio.sleep(3600)
+        return 3600
     containers = await run_cmd(["docker", "ps"], timeout=10)
     if containers is None:
         state["docker"] = ""
@@ -180,7 +186,7 @@ async def poll_battery(state: dict):
     batteries = sorted(Path("/sys/class/power_supply").glob("BAT*"))
     if not batteries:
         state["battery"] = ""
-        return await asyncio.sleep(3600)
+        return 3600
     capacities = []
     charging = discharging = False
     fully_charged = True
@@ -212,7 +218,6 @@ async def poll_battery(state: dict):
         emoji = "🔋👎"
     state["battery"] = f"{emoji}: {percentage}%"
 
-
 async def refresh_packages(state: dict):
     output = await run_cmd(["sh", "-c", "checkupdates | wc -l"], timeout=300)
     if output is None:
@@ -225,7 +230,7 @@ async def refresh_packages(state: dict):
 async def poll_packages(state: dict):
     if not shutil.which("checkupdates"):
         state["packages"] = "?"
-        return await asyncio.sleep(3600)
+        return 3600
     # reuse a fresh cache so restarts don't re-sync pacman databases
     if PACKAGE_FILE.is_file() and time.time() - PACKAGE_FILE.stat().st_mtime < PACKAGE_CACHE_SECONDS:
         state["packages"] = PACKAGE_FILE.read_text().strip() or "?"
@@ -297,13 +302,24 @@ def pollers_for_tag() -> list:
         poll_packages,
     ]
     if TAG == "hackerman":
-        tasks += [poll_battery, poll_keymap]
+        tasks += [poll_battery]
     return tasks
+
+
+async def snapshot() -> str:
+    state: dict = {}
+    await asyncio.gather(*(run_once(poll.once, state) for poll in pollers_for_tag()))
+    await asyncio.sleep(1)
+    await run_once(poll_cpu.once, state)
+    return compose_status(state)
 
 
 async def main(stdout_mode: bool):
     state: dict = {}
-    polls = pollers_for_tag() + [functools.partial(render_loop, stdout_mode=stdout_mode)]
+    polls = pollers_for_tag()
+    if TAG == "hackerman":
+        polls.append(poll_keymap)
+    polls.append(functools.partial(render_loop, stdout_mode=stdout_mode))
     tasks = [asyncio.create_task(poll(state)) for poll in polls]
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -321,4 +337,7 @@ async def main(stdout_mode: bool):
 
 
 if __name__ == "__main__":
-    asyncio.run(main("--stdout" in sys.argv))
+    if "--test" in sys.argv:
+        print(asyncio.run(snapshot()))
+    else:
+        asyncio.run(main("--stdout" in sys.argv))
