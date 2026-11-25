@@ -111,13 +111,12 @@ if [[ -n "$extra_prompt" ]]; then
     PROMPT+=$'\n\nAdditional instructions for this specific summary (these override any instructions above):\n'"$extra_prompt"
 fi
 
-nova_args=(--ephemeral)
+nova_args=(--ephemeral --system-prompt "$PROMPT")
 if [[ -n "${SUMMARIZE_MODEL:-}" ]]; then
     nova_args+=(--model "$SUMMARIZE_MODEL")
 fi
 
-# The harness replaces pi with pi-nova --ephemeral; instructions lead the
-# message, the summarised text follows (pi got the text as its input message).
-printf '%s' "${PROMPT}
+# PI_NO_CANVAS stops the pi wrapper clearing the terminal / painting gruvbox.
+export PI_NO_CANVAS=1
 
-$text" | pi-nova "${nova_args[@]}"
+printf '%s' "$text" | pi-nova "${nova_args[@]}"
