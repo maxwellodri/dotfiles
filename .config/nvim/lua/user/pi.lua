@@ -214,11 +214,12 @@ local function get_api_key()
 end
 
 local function spawn_child(extra_args)
-    -- nix_config clone hosts the dotfiles-env out-link (set by shell rc / install).
     local nixcfg = vim.env.NIX_CONFIG_DIR or (vim.env.SOURCE or (os.getenv("HOME") .. "/source")) .. "/nix_config"
-    local bin = nixcfg .. "/dotfiles-env-result/bin/pi"
-    if not bin or vim.fn.executable(bin) ~= 1 then
-        vim.notify("π: pi is not installed",
+    -- upstream pi straight from the pi profile (~/source/pi `just install`):
+    -- oneshots are its domain, the fleet TUI client has no rpc mode
+    local bin = (vim.env.PI_HOME or (os.getenv("HOME") .. "/.local/state/pi")) .. "/profile/bin/pi-upstream"
+    if vim.fn.executable(bin) ~= 1 then
+        vim.notify("π: " .. bin .. " missing — run `just install <machine>` in ~/source/pi",
             vim.log.levels.ERROR)
         return nil
     end
