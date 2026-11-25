@@ -51,14 +51,12 @@ Remaining hardcodes are below. Work through this on migration day.
 
 1. `mv ~/source/* ~/Projects/ && rmdir ~/source`
 2. Section 1 + 2 edits; commit
-3. apply system configs: `<nix_config>/scripts/install_flake.sh` then
+3. apply system configs: `just install` in `<nix_config>` — its last step is
    `dotfiles-env-result/bin/apply-system-configs <tag>`
 4. `./install.sh <tag>` — recreates all `$HOME` and `$BIN` symlinks
 5. private repo: `./install.sh` — session-dir symlink, cookies, maFiles,
    notes, reminders, newsboat urls, shrc.private
-6. `./helper_scripts/install_flake.sh` — `PI_BIN` lives at
-   `$dotfiles/flake/result/bin/pi`
-7. Fresh shell; verify: `echo $SOURCE`, `qz`, `pi`, `systemctl --user show-environment | grep SOURCE`
+6. Fresh shell; verify: `echo $SOURCE`, `qz`, `pi`, `systemctl --user show-environment | grep SOURCE`
 
 ## 6. Optional: XDG alignment
 
