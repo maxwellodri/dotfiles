@@ -53,17 +53,17 @@ fi
 
 if [ "$tag" = "donnie" ] || [ "$tag" = "snuggy" ]; then
 	# NixOS server: packages and system config are nix_config's job (deploy-rs),
-	# so no elevation and none of the arch/desktop helpers. pi + tmux come from
-	# the system profile (nix_config's pi + tmux-env packages); dotfiles-env-result
-	# points scripts/pi at it.
+	# so no elevation and none of the arch/desktop helpers. tmux comes from the
+	# system profile (nix_config's tmux-env); dotfiles-env-result points at it.
+	# pi is a user-unit profile (~/source/pi), not part of the system.
 	sh helper_scripts/makesymlinks.sh "$tag"
 	sh helper_scripts/custom_bin_scripts.sh
 	bash rust/install.sh
-	if [ -x /run/current-system/sw/bin/pi ]; then
+	if [ -x /run/current-system/sw/bin/tmux ]; then
 		mkdir -p "${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}"
 		ln -sfn /run/current-system/sw "${NIX_CONFIG_DIR:-${SOURCE:-$HOME/source}/nix_config}/dotfiles-env-result"
 	else
-		echo "WARNING: /run/current-system/sw/bin/pi missing — deploy nix_config (pi + tmux-env) then re-run" >&2
+		echo "WARNING: /run/current-system/sw/bin/tmux missing — deploy nix_config (tmux-env) then re-run" >&2
 	fi
 	exit 0
 fi
