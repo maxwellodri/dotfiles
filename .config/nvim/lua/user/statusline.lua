@@ -8,6 +8,7 @@ local git_diff_cache = {
   result = nil,
   timestamp = 0,
   cache_ttl = 5,
+  state = "idle", -- idle | scheduled | running
 }
 
 vim.api.nvim_create_autocmd({ "BufWritePost", "FileChangedShell", "FocusGained" }, {
@@ -16,32 +17,42 @@ vim.api.nvim_create_autocmd({ "BufWritePost", "FileChangedShell", "FocusGained" 
   end,
 })
 
+-- Git runs in the background: a blocking system call makes Nvim hide the cursor.
+local function git_diff_refresh()
+  if git_diff_cache.state ~= "idle" then
+    return
+  end
+  git_diff_cache.state = "scheduled"
+  vim.schedule(function()
+    git_diff_cache.state = "running"
+    local cmd = { "sh", "-c", "git rev-parse --git-dir >/dev/null 2>&1 && git diff --shortstat" }
+    local opts = { text = true, stderr = true }
+    vim.system(cmd, opts, function(out)
+      vim.schedule(function()
+        local files, lines = 0, 0
+        local result = nil
+        local stat = (out.stdout or ""):gsub("\n", "")
+        if out.code == 0 then
+          local f = stat:match("(%d+) files? changed")
+          if f then files = tonumber(f) end
+          local ins = stat:match("(%d+) insertion")
+          local dels = stat:match("(%d+) deletion")
+          lines = (ins and tonumber(ins) or 0) + (dels and tonumber(dels) or 0)
+          result = { lines = lines, files = files }
+        end
+        git_diff_cache.result = result
+        git_diff_cache.timestamp = os.time()
+        git_diff_cache.state = "idle"
+        vim.cmd.redrawstatus()
+      end)
+    end)
+  end)
+end
+
 local function git_diff_stat()
-  local now = os.time()
-  if git_diff_cache.result and (now - git_diff_cache.timestamp) < git_diff_cache.cache_ttl then
-    return git_diff_cache.result
+  if os.time() - git_diff_cache.timestamp >= git_diff_cache.cache_ttl then
+    git_diff_refresh()
   end
-
-  local git_dir = vim.fn.system("git rev-parse --git-dir 2>/dev/null"):gsub("\n", "")
-  if git_dir == "" then
-    git_diff_cache.result = nil
-    git_diff_cache.timestamp = now
-    return nil
-  end
-
-  local stat = vim.fn.system("git diff --shortstat 2>/dev/null"):gsub("\n", "")
-  local files, lines = 0, 0
-
-  if stat ~= "" then
-    local f = stat:match("(%d+) files? changed")
-    if f then files = tonumber(f) end
-    local ins = stat:match("(%d+) insertion")
-    local dels = stat:match("(%d+) deletion")
-    lines = (ins and tonumber(ins) or 0) + (dels and tonumber(dels) or 0)
-  end
-
-  git_diff_cache.result = { lines = lines, files = files }
-  git_diff_cache.timestamp = now
   return git_diff_cache.result
 end
 
@@ -61,17 +72,32 @@ local function git_diff_color()
 end
 
 local upstream_result = nil
+local upstream_state = "idle"
+
+local function upstream_refresh()
+  if upstream_state ~= "idle" then
+    return
+  end
+  upstream_state = "running"
+  local cmd = { "git", "rev-list", "--count", "--left-right", "@{upstream}...HEAD" }
+  local opts = { text = true, stderr = true }
+  vim.system(cmd, opts, function(out)
+    vim.schedule(function()
+      upstream_state = "idle"
+      local output = (out.stdout or ""):gsub("\n", "")
+      if output == "" or out.code ~= 0 then upstream_result = nil return end
+      local behind_str, ahead_str = output:match("^(%d+)%s+(%d+)$")
+      if not behind_str or not ahead_str then upstream_result = nil return end
+      local behind, ahead = tonumber(behind_str), tonumber(ahead_str)
+      if behind == 0 and ahead == 0 then upstream_result = nil return end
+      upstream_result = { behind = behind, ahead = ahead }
+      vim.cmd.redrawstatus()
+    end)
+  end)
+end
 
 vim.api.nvim_create_autocmd({ "BufWritePost", "BufEnter", "FileChangedShell", "FocusGained" }, {
-  callback = function()
-    local output = vim.fn.system("git rev-list --count --left-right @{upstream}...HEAD 2>/dev/null"):gsub("\n", "")
-    if output == "" or vim.v.shell_error ~= 0 then upstream_result = nil return end
-    local behind_str, ahead_str = output:match("^(%d+)%s+(%d+)$")
-    if not behind_str or not ahead_str then upstream_result = nil return end
-    local behind, ahead = tonumber(behind_str), tonumber(ahead_str)
-    if behind == 0 and ahead == 0 then upstream_result = nil return end
-    upstream_result = { behind = behind, ahead = ahead }
-  end,
+  callback = upstream_refresh,
 })
 
 local function upstream_component()
