@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# summarize — summarise piped text (or args) with a headless pi agent.
+# summarize — summarise piped text (or args) with a headless pi-nova agent.
 # Prompt blends two fabric patterns (danielmiessler/fabric, data/patterns/):
 # youtube_summary for video transcripts, the generic summarize pattern for
-# arbitrary text. Trailing INPUT markers are dropped since pi receives the
-# text as its input message. Ideal for yts output:
+# arbitrary text. Trailing INPUT markers are dropped since the agent receives
+# the text as its input message. Ideal for yts output:
 #   yts video.mp4 | summarize
 #   summarize "paste of long text..."
 # Extra instructions for a specific run:
@@ -111,16 +111,13 @@ if [[ -n "$extra_prompt" ]]; then
     PROMPT+=$'\n\nAdditional instructions for this specific summary (these override any instructions above):\n'"$extra_prompt"
 fi
 
-pi_args=(
-    --print --no-tools --no-extensions --no-skills
-    --no-prompt-templates --no-context-files --no-session
-    --system-prompt "$PROMPT"
-)
+nova_args=(--ephemeral)
 if [[ -n "${SUMMARIZE_MODEL:-}" ]]; then
-    pi_args+=(--model "$SUMMARIZE_MODEL")
+    nova_args+=(--model "$SUMMARIZE_MODEL")
 fi
 
-# PI_NO_CANVAS stops the pi wrapper clearing the terminal / painting gruvbox.
-export PI_NO_CANVAS=1
+# The harness replaces pi with pi-nova --ephemeral; instructions lead the
+# message, the summarised text follows (pi got the text as its input message).
+printf '%s' "${PROMPT}
 
-printf '%s\n' "$text" | pi "${pi_args[@]}"
+$text" | pi-nova "${nova_args[@]}"
