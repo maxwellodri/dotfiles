@@ -113,7 +113,7 @@ guard_break() {
     others=$(tmux list-panes -t "$window" -F '#{pane_id}' |
         grep -v "^${scratch:-none}$" | grep -v "^$p$" | wc -l)
     if [ "$others" -ge 1 ]; then
-        new=$(tmux break-pane -t "$p" -P -F '#{window_id}')
+        new=$(tmux break-pane -s "$p" -t "$session:" -P -F '#{window_id}')
         tmux select-window -t "$new"
     fi
 }
