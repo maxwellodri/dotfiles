@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import enum
 import functools
 import math
 import os
@@ -26,6 +27,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 PACKAGE_FILE = SCRIPT_DIR / "package_file.txt"
 PACKAGE_CACHE_SECONDS = 3600
+BACKOFF_SECONDS = 3600
 
 INTERVALS = {
     "cpu": 2,
@@ -90,27 +92,34 @@ async def run_cmd(args: list[str], timeout: float = 15) -> str | None:
     return stdout.decode(errors="replace").strip()
 
 
-async def run_once(poll, state: dict):
+class PollResult(enum.Enum):
+    OK = enum.auto()
+    MISSING = enum.auto()
+
+
+async def run_once(poll, state: dict) -> PollResult:
     try:
-        return await poll(state)
+        return await poll(state) or PollResult.OK
     except asyncio.CancelledError:
         raise
     except Exception:
         traceback.print_exc()
+        return PollResult.OK
 
 
 def poller(interval: int):
     """Decorate an async poller: run once immediately, then every interval.
 
     A failed run keeps the previous state instead of blanking the bar.
-    A poller may return a delay to override the default interval.
+    A poller whose tool is absent returns PollResult.MISSING to back off.
     """
 
     def wrap(func):
         async def run(state: dict):
             while True:
-                delay = await run_once(func, state)
-                await asyncio.sleep(delay or interval)
+                result = await run_once(func, state)
+                delay = BACKOFF_SECONDS if result is PollResult.MISSING else interval
+                await asyncio.sleep(delay)
 
         run.once = func
         return run
@@ -150,7 +159,7 @@ async def poll_memory(state: dict):
 async def poll_reminders(state: dict):
     if not shutil.which("get_reminders.sh"):
         state["reminders"] = "😠: 0"
-        return 3600
+        return PollResult.MISSING
     count = await run_cmd(["get_reminders.sh", "--count"], timeout=30)
     state["reminders"] = f"🧐: {count}" if count is not None else "😠: 0"
 
@@ -165,7 +174,7 @@ async def poll_internet(state: dict):
 async def poll_docker(state: dict):
     if not shutil.which("docker"):
         state["docker"] = ""
-        return 3600
+        return PollResult.MISSING
     containers = await run_cmd(["docker", "ps"], timeout=10)
     if containers is None:
         state["docker"] = ""
@@ -187,7 +196,7 @@ async def poll_battery(state: dict):
     batteries = sorted(Path("/sys/class/power_supply").glob("BAT*"))
     if not batteries:
         state["battery"] = ""
-        return 3600
+        return PollResult.MISSING
     capacities = []
     charging = discharging = False
     fully_charged = True
@@ -234,7 +243,7 @@ def parse_battery_level(info: str) -> int | None:
 async def poll_bluetooth(state: dict):
     if not shutil.which("bluetoothctl"):
         state["bluetooth"] = ""
-        return 3600
+        return PollResult.MISSING
     connected = await run_cmd(["bluetoothctl", "devices", "Connected"], timeout=10)
     if connected is None:
         state["bluetooth"] = ""
@@ -263,7 +272,7 @@ async def refresh_packages(state: dict):
 async def poll_packages(state: dict):
     if not shutil.which("checkupdates"):
         state["packages"] = "?"
-        return 3600
+        return PollResult.MISSING
     # reuse a fresh cache so restarts don't re-sync pacman databases
     if PACKAGE_FILE.is_file() and time.time() - PACKAGE_FILE.stat().st_mtime < PACKAGE_CACHE_SECONDS:
         state["packages"] = PACKAGE_FILE.read_text().strip() or "?"
