@@ -6,8 +6,8 @@ cd "$SOURCE/private/" || {
     exit 1
 }
 
-# Run autocommit.sh and capture its output and exit status
-output=$(./autocommit.sh 2>&1)
+# Run fast_push.sh and capture its output and exit status
+output=$(./fast_push.sh 2>&1)
 exit_status=$?
 
 # Check if the output contains indicators of nothing to commit
