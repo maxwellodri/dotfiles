@@ -44,6 +44,7 @@ let g:plug_threads = 1
     " Language Support
     " =================
     Plug 'nvim-treesitter/nvim-treesitter', { 'branch': 'main' }
+    Plug 'neovim-treesitter/treesitter-parser-registry'
     Plug 'nvim-treesitter/nvim-treesitter-context'
     Plug 'tikhomirov/vim-glsl'
     Plug 'JuliaEditorSupport/julia-vim'
